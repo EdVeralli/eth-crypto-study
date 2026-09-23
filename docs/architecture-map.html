@@ -1,0 +1,889 @@
+<title>ethereum/cryptography-specs — Architecture Map</title>
+<style>
+  @font-face {
+    font-family: 'Charter';
+    src: local('Charter'), local('Georgia');
+  }
+
+  :root {
+    --ink: #0e1117;
+    --paper: #faf9f6;
+    --paper-warm: #f3f1ec;
+    --forest: #1a5632;
+    --forest-light: #e6f0ea;
+    --forest-faint: #f0f6f2;
+    --amber: #8a6c1e;
+    --amber-light: #fdf6e3;
+    --charcoal: #1c1c1c;
+    --slate: #5c6370;
+    --rule: #d4d0c8;
+    --code-bg: #f5f3ef;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--paper);
+    color: var(--charcoal);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 5rem;
+  }
+
+  /* ── Header ── */
+  header {
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  header .eyebrow {
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--forest);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+
+  h1 {
+    font-family: Charter, Georgia, 'Times New Roman', serif;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+    text-wrap: balance;
+    color: var(--ink);
+    margin-bottom: 0.75rem;
+  }
+
+  header p {
+    font-size: 0.95rem;
+    color: var(--slate);
+    max-width: 58ch;
+  }
+
+  /* ── Sections ── */
+  section {
+    margin-bottom: 2.5rem;
+  }
+
+  h2 {
+    font-family: Charter, Georgia, 'Times New Roman', serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 0.75rem;
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--charcoal);
+    margin-bottom: 0.4rem;
+  }
+
+  p, li {
+    font-size: 0.9rem;
+    line-height: 1.65;
+    color: var(--charcoal);
+  }
+
+  p + p { margin-top: 0.6rem; }
+
+  /* ── Big idea callout ── */
+  .callout {
+    background: var(--forest-faint);
+    border-left: 3px solid var(--forest);
+    padding: 1rem 1.25rem;
+    margin-bottom: 2rem;
+    border-radius: 0 4px 4px 0;
+  }
+
+  .callout p {
+    font-size: 0.88rem;
+    color: var(--charcoal);
+  }
+
+  /* ── Dependency flow ── */
+  .flow {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin: 1.5rem 0;
+    overflow-x: auto;
+  }
+
+  .flow-node {
+    flex: 1;
+    min-width: 140px;
+    padding: 1rem;
+    text-align: center;
+    position: relative;
+  }
+
+  .flow-node .label {
+    font-family: Charter, Georgia, serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .flow-node .sub {
+    font-size: 0.72rem;
+    color: var(--slate);
+    margin-top: 0.2rem;
+  }
+
+  .flow-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--rule);
+    font-size: 1.2rem;
+    padding: 0 0.4rem;
+    flex-shrink: 0;
+  }
+
+  .flow-arrow svg {
+    width: 28px;
+    height: 14px;
+  }
+
+  /* ── Module cards ── */
+  .modules {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .module-card {
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .module-card:hover { border-color: var(--forest); }
+
+  .module-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.9rem 1.1rem;
+    cursor: pointer;
+    user-select: none;
+    background: var(--paper);
+  }
+
+  .module-header:hover { background: var(--paper-warm); }
+
+  .module-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 5px;
+    font-family: Charter, Georgia, serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .badge-bls {
+    background: var(--forest-light);
+    color: var(--forest);
+  }
+
+  .badge-kzg {
+    background: var(--amber-light);
+    color: var(--amber);
+  }
+
+  .badge-xmss {
+    background: #ede8f5;
+    color: #4a3572;
+  }
+
+  .module-title {
+    font-family: Charter, Georgia, serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .module-subtitle {
+    font-size: 0.78rem;
+    color: var(--slate);
+  }
+
+  .module-toggle {
+    margin-left: auto;
+    font-size: 0.8rem;
+    color: var(--slate);
+    transition: transform 0.25s;
+  }
+
+  .module-card.open .module-toggle {
+    transform: rotate(180deg);
+  }
+
+  .module-body {
+    display: none;
+    padding: 0 1.1rem 1.1rem;
+    border-top: 1px solid var(--rule);
+  }
+
+  .module-card.open .module-body {
+    display: block;
+  }
+
+  .module-body p {
+    margin-top: 0.8rem;
+    font-size: 0.85rem;
+  }
+
+  /* ── File tree ── */
+  .file-tree {
+    margin-top: 0.8rem;
+    font-size: 0.8rem;
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    line-height: 1.8;
+    color: var(--charcoal);
+  }
+
+  .file-tree .dir {
+    color: var(--forest);
+    font-weight: 600;
+  }
+
+  .file-tree .anno {
+    color: var(--slate);
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    font-size: 0.75rem;
+    margin-left: 0.6rem;
+  }
+
+  .file-tree .indent { padding-left: 1.2rem; }
+  .file-tree .indent2 { padding-left: 2.4rem; }
+
+  /* ── Specs vs Proofs ── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  @media (max-width: 600px) {
+    .two-col { grid-template-columns: 1fr; }
+  }
+
+  .col-card {
+    padding: 1rem 1.2rem;
+    border-radius: 6px;
+    border: 1px solid var(--rule);
+  }
+
+  .col-card h3 {
+    font-family: Charter, Georgia, serif;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .col-card ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .col-card li {
+    font-size: 0.82rem;
+    padding: 0.2rem 0;
+    padding-left: 1rem;
+    position: relative;
+  }
+
+  .col-card li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.55rem;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--rule);
+  }
+
+  .spec-card { background: var(--forest-faint); }
+  .spec-card h3 { color: var(--forest); }
+  .spec-card li::before { background: var(--forest); }
+
+  .proof-card { background: var(--amber-light); }
+  .proof-card h3 { color: var(--amber); }
+  .proof-card li::before { background: var(--amber); }
+
+  /* ── Code inline ── */
+  code {
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 0.82em;
+    background: var(--code-bg);
+    padding: 0.12em 0.35em;
+    border-radius: 3px;
+    color: var(--charcoal);
+  }
+
+  /* ── Example walkthrough ── */
+  .example-section {
+    margin-bottom: 2.5rem;
+  }
+
+  .example-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  @media (max-width: 650px) {
+    .example-pair { grid-template-columns: 1fr; }
+  }
+
+  .code-panel {
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--rule);
+  }
+
+  .code-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+
+  .code-panel-header .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .panel-spec .code-panel-header {
+    background: var(--forest-light);
+    color: var(--forest);
+  }
+  .panel-spec .dot { background: var(--forest); }
+
+  .panel-proof .code-panel-header {
+    background: var(--amber-light);
+    color: var(--amber);
+  }
+  .panel-proof .dot { background: var(--amber); }
+
+  .code-block {
+    padding: 0.8rem 0.9rem;
+    background: var(--ink);
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 0.75rem;
+    line-height: 1.7;
+    color: #c9d1d9;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  .code-block .kw { color: #ff7b72; }
+  .code-block .fn { color: #d2a8ff; }
+  .code-block .tp { color: #79c0ff; }
+  .code-block .cm { color: #6e7681; font-style: italic; }
+  .code-block .st { color: #a5d6ff; }
+  .code-block .op { color: #c9d1d9; }
+
+  .link-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.8rem 0;
+  }
+
+  .link-line svg {
+    width: 100%;
+    max-width: 600px;
+    height: 48px;
+  }
+
+  .approach-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  @media (max-width: 650px) {
+    .approach-cards { grid-template-columns: 1fr; }
+  }
+
+  .approach-card {
+    padding: 1rem 1.2rem;
+    border-radius: 6px;
+    border: 1px solid var(--rule);
+  }
+
+  .approach-card h3 {
+    font-family: Charter, Georgia, serif;
+    font-size: 0.88rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .approach-card p {
+    font-size: 0.82rem;
+  }
+
+  .approach-used {
+    background: var(--forest-faint);
+    border-color: var(--forest);
+  }
+
+  .approach-used h3 { color: var(--forest); }
+
+  .approach-alt {
+    background: var(--paper-warm);
+  }
+
+  .approach-alt h3 { color: var(--slate); }
+
+  .arrow-flow {
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 0.78rem;
+    color: var(--slate);
+    text-align: center;
+    padding: 0.4rem 0;
+    letter-spacing: 0.02em;
+  }
+
+  .arrow-flow strong { color: var(--charcoal); }
+
+  /* ── Proofs table ── */
+  .proofs-wrap {
+    overflow-x: auto;
+    margin-top: 1rem;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  th {
+    text-align: left;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--slate);
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper-warm);
+  }
+
+  td {
+    padding: 0.55rem 1rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  td code {
+    font-size: 0.78rem;
+  }
+
+  .status {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    border-radius: 10px;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  .status-proved {
+    background: var(--forest-light);
+    color: var(--forest);
+  }
+
+  .status-partial {
+    background: var(--amber-light);
+    color: var(--amber);
+  }
+
+  /* ── Footer ── */
+  footer {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule);
+    font-size: 0.78rem;
+    color: var(--slate);
+  }
+
+  footer code { font-size: 0.75rem; }
+</style>
+
+<div class="page">
+
+  <header>
+    <div class="eyebrow">ethereum / cryptography-specs</div>
+    <h1>Especificaciones Formales de Criptograf&iacute;a para Ethereum</h1>
+    <p>Implementaciones ejecutables de los primitivos criptogr&aacute;ficos de Ethereum, escritas en Lean 4 con pruebas formales verificadas por m&aacute;quina. El c&oacute;digo se compila tambi&eacute;n como extensi&oacute;n Python v&iacute;a bindings C.</p>
+  </header>
+
+  <!-- Big idea -->
+  <div class="callout">
+    <p><strong>La idea central:</strong> cada primitivo criptogr&aacute;fico tiene dos caras en este repo. La <em>spec</em> es c&oacute;digo ejecutable — se compila, corre, y genera Python bindings. Las <em>proofs</em> son teoremas formales que verifican propiedades matem&aacute;ticas de esa spec. Viven en &aacute;rboles paralelos: <code>Bls/G1.lean</code> define la aritm&eacute;tica, <code>Proofs/Bls/G1Group.lean</code> demuestra que forma un grupo.</p>
+  </div>
+
+  <!-- Dependency flow -->
+  <section>
+    <h2>Flujo de dependencias</h2>
+    <p>KZG y XMSS dependen de BLS. Las pruebas observan las specs pero las specs nunca dependen de las pruebas.</p>
+    <div class="flow">
+      <div class="flow-node">
+        <div class="label">BLS12-381</div>
+        <div class="sub">Curva base, campos, pairing</div>
+      </div>
+      <div class="flow-arrow"><svg viewBox="0 0 28 14"><path d="M2 7 L22 7 M18 3 L22 7 L18 11" fill="none" stroke="#b0ada5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="flow-node">
+        <div class="label">KZG</div>
+        <div class="sub">Compromisos polinomiales</div>
+      </div>
+      <div class="flow-arrow" style="visibility:hidden"><svg viewBox="0 0 28 14"></svg></div>
+      <div class="flow-node" style="opacity:0.35;border-left: 1px dashed var(--rule); padding-left: 1.5rem;">
+        <div class="label">XMSS</div>
+        <div class="sub">Post-quantum (en progreso)</div>
+      </div>
+    </div>
+    <div class="flow" style="margin-top:-0.5rem; justify-content: flex-end;">
+      <div style="font-size:0.75rem; color:var(--slate); padding: 0.3rem 0.8rem; border: 1px dashed var(--rule); border-radius: 4px;">
+        <span style="color:var(--amber); font-weight:600;">Proofs/</span> observa ambos &rarr; no genera c&oacute;digo compilado
+      </div>
+    </div>
+  </section>
+
+  <!-- Modules -->
+  <section>
+    <h2>Los tres m&oacute;dulos</h2>
+    <p style="margin-bottom:1rem;">Hac&eacute; click en cada uno para explorar su estructura interna.</p>
+
+    <div class="modules">
+
+      <!-- BLS -->
+      <div class="module-card open" id="card-bls">
+        <div class="module-header" onclick="toggle('card-bls')">
+          <div class="module-badge badge-bls">BLS</div>
+          <div>
+            <div class="module-title">BLS12-381</div>
+            <div class="module-subtitle">Curva el&iacute;ptica, firmas, pairing</div>
+          </div>
+          <div class="module-toggle">&#9662;</div>
+        </div>
+        <div class="module-body">
+          <p>Implementaci&oacute;n completa de la curva BLS12-381: aritm&eacute;tica de campos finitos (Fp, Fr, Fp2, Fp6, Fp12), puntos de curva en coordenadas Jacobianas, compresi&oacute;n/descompresi&oacute;n, hash-to-curve, pairing de Ate, y verificaci&oacute;n de firmas BLS seg&uacute;n el draft IRTF.</p>
+          <div class="file-tree">
+            <div><span class="dir">Bls/</span></div>
+            <div class="indent">Constants.lean <span class="anno">Constantes de la curva</span></div>
+            <div class="indent">Fp.lean <span class="anno">Campo base (381 bits). <code>Fp = Fin p</code></span></div>
+            <div class="indent">Fr.lean <span class="anno">Campo escalar (orden del subgrupo)</span></div>
+            <div class="indent">Fp2.lean, Fp6.lean, Fp12.lean <span class="anno">Torres de extensi&oacute;n para pairing</span></div>
+            <div class="indent">G1.lean <span class="anno">Curva y&sup2; = x&sup3; + 4 sobre Fp, Jacobiana</span></div>
+            <div class="indent">G2.lean <span class="anno">Curva sobre Fp2 (twist sextic)</span></div>
+            <div class="indent">Compress.lean <span class="anno">Serializaci&oacute;n comprimida (48/96 bytes)</span></div>
+            <div class="indent">Sha256.lean <span class="anno">SHA-256 para hash-to-field</span></div>
+            <div class="indent">Pairing.lean <span class="anno">Pairing de Ate &mdash; e(G1, G2) &rarr; Fp12</span></div>
+            <div class="indent">HashToCurve.lean <span class="anno">Map bytes &rarr; G2 (SSWU)</span></div>
+            <div class="indent">Signatures.lean <span class="anno">CoreVerify, FastAggregateVerify</span></div>
+            <div class="indent">Exports.lean <span class="anno">API p&uacute;blica para Python bindings</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KZG -->
+      <div class="module-card" id="card-kzg">
+        <div class="module-header" onclick="toggle('card-kzg')">
+          <div class="module-badge badge-kzg">KZG</div>
+          <div>
+            <div class="module-title">KZG Commitments</div>
+            <div class="module-subtitle">Compromisos polinomiales para blobs</div>
+          </div>
+          <div class="module-toggle">&#9662;</div>
+        </div>
+        <div class="module-body">
+          <p>Compromisos polinomiales Kate-Zaverucha-Goldberg para el EIP-4844 (proto-danksharding). Usa BLS12-381 como curva subyacente. Incluye FFT sobre Fr, bit-reversal, trusted setup, y data availability sampling con celdas y recuperaci&oacute;n.</p>
+          <div class="file-tree">
+            <div><span class="dir">Kzg/</span></div>
+            <div class="indent">Constants.lean <span class="anno">FIELD_ELEMENTS_PER_BLOB = 4096, etc.</span></div>
+            <div class="indent">BitReversal.lean <span class="anno">Permutaci&oacute;n bit-reversal de &iacute;ndices</span></div>
+            <div class="indent">Polynomials.lean <span class="anno">Evaluaci&oacute;n, divisi&oacute;n, baric&eacute;ntrica</span></div>
+            <div class="indent">Fft.lean <span class="anno">Cooley-Tukey radix-2 NTT sobre Fr</span></div>
+            <div class="indent">TrustedSetup.lean <span class="anno">Carga de par&aacute;metros SRS</span></div>
+            <div class="indent">Core.lean <span class="anno">Blob &rarr; commit, prove, verify</span></div>
+            <div class="indent">Cells.lean <span class="anno">Data availability sampling (DAS)</span></div>
+            <div class="indent">Recovery.lean <span class="anno">Recuperaci&oacute;n de celdas faltantes</span></div>
+            <div class="indent">Exports.lean <span class="anno">API p&uacute;blica para Python</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- XMSS -->
+      <div class="module-card" id="card-xmss">
+        <div class="module-header" onclick="toggle('card-xmss')">
+          <div class="module-badge badge-xmss">XMS</div>
+          <div>
+            <div class="module-title">XMSS</div>
+            <div class="module-subtitle">Firmas hash-based post-quantum</div>
+          </div>
+          <div class="module-toggle">&#9662;</div>
+        </div>
+        <div class="module-body">
+          <p>Reemplazo post-quantum de BLS para el consenso de Ethereum. Basado en &aacute;rboles Merkle con firmas one-time (OTS). Usa BLAKE2s-256 como hash. M&oacute;dulo m&aacute;s nuevo, a&uacute;n en desarrollo activo.</p>
+          <div class="file-tree">
+            <div><span class="dir">Xmss/</span></div>
+            <div class="indent">Constants.lean <span class="anno">Par&aacute;metros XMSS (alturas, tama&ntilde;os)</span></div>
+            <div class="indent">Types.lean <span class="anno">Byte types y codificaci&oacute;n de tweaks</span></div>
+            <div class="indent">Errors.lean <span class="anno">Errores tipados</span></div>
+            <div class="indent">TweakHash.lean <span class="anno">Hash con tweak (dominio separado)</span></div>
+            <div class="indent">Blake2s.lean <span class="anno">BLAKE2s-256 seg&uacute;n RFC 7693</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Specs vs Proofs -->
+  <section>
+    <h2>Specs vs. Proofs</h2>
+    <p>El repo separa deliberadamente el c&oacute;digo ejecutable de los teoremas. La library <code>EthCryptographySpecs</code> compila a c&oacute;digo nativo (y se linkea en la extensi&oacute;n Python). La library <code>Proofs</code> solo contiene teoremas &mdash; no genera c&oacute;digo, no se linkea.</p>
+    <div class="two-col">
+      <div class="col-card spec-card">
+        <h3>Spec (ejecutable)</h3>
+        <ul>
+          <li>Definiciones con <code>def</code> y <code>structure</code></li>
+          <li><code>Fp = Fin p</code> &mdash; canonicidad por construcci&oacute;n</li>
+          <li>Se compila a C v&iacute;a Lean compiler</li>
+          <li>Python bindings en <code>bindings/</code></li>
+          <li>Prioriza claridad, no performance</li>
+        </ul>
+      </div>
+      <div class="col-card proof-card">
+        <h3>Proofs (verificaci&oacute;n)</h3>
+        <ul>
+          <li>Teoremas con <code>theorem</code></li>
+          <li><code>uncompress_compress</code> — round-trip</li>
+          <li><code>fft_ifft</code> — inversa de FFT</li>
+          <li>Ceremony pairing checks — soundness</li>
+          <li>MSM correctness, sqrt soundness</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- How spec links to proof -->
+  <section class="example-section">
+    <h2>C&oacute;mo se enlazan: ejemplo con Fp.sqrt</h2>
+    <p>La proof importa la spec y referencia sus funciones por nombre. Si la spec cambia, la proof deja de compilar.</p>
+
+    <div class="example-pair">
+      <div class="code-panel panel-spec">
+        <div class="code-panel-header"><span class="dot"></span> SPEC &mdash; Bls/Fp.lean:79</div>
+        <div class="code-block"><span class="cm">-- Funci&oacute;n que corre. Se compila a C.</span>
+<span class="kw">def</span> <span class="fn">sqrt</span> (a : <span class="tp">Fp</span>) : <span class="tp">Except BlsError Fp</span> :=
+  <span class="kw">let</span> cand := <span class="fn">powNat</span> a ((modulus + 1) / 4)
+  <span class="kw">if</span> (cand * cand).<span class="fn">beq</span> a
+    <span class="kw">then</span> .ok cand
+    <span class="kw">else</span> .error .notASquare</div>
+      </div>
+      <div class="code-panel panel-proof">
+        <div class="code-panel-header"><span class="dot"></span> PROOF &mdash; Proofs/Bls/Compress.lean:32</div>
+        <div class="code-block"><span class="cm">-- Teorema. No genera c&oacute;digo.</span>
+<span class="kw">theorem</span> <span class="fn">sqrt_ok</span>
+    (h : <span class="tp">Fp</span>.<span class="fn">sqrt</span> a = .ok c) :
+    (c : <span class="tp">ZMod Fp.modulus</span>) * c = a := <span class="kw">by</span>
+  rw [<span class="tp">Fp</span>.<span class="fn">sqrt</span>] <span class="kw">at</span> h  <span class="cm">-- despliega la def</span>
+  split <span class="kw">at</span> h
+  · exact beq_iff'.mp hbeq
+  · cases h</div>
+      </div>
+    </div>
+
+    <div class="link-line">
+      <svg viewBox="0 0 600 48">
+        <defs>
+          <marker id="ah" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+            <polygon points="0 0, 7 2.5, 0 5" fill="#8a6c1e"/>
+          </marker>
+        </defs>
+        <line x1="168" y1="6" x2="168" y2="22" stroke="#1a5632" stroke-width="1.2" stroke-dasharray="3,3"/>
+        <line x1="432" y1="6" x2="432" y2="22" stroke="#8a6c1e" stroke-width="1.2" stroke-dasharray="3,3"/>
+        <rect x="100" y="22" width="400" height="22" rx="4" fill="none" stroke="#d4d0c8" stroke-width="1"/>
+        <text x="300" y="37" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="10" fill="#5c6370">
+          import EthCryptographySpecs.Bls.Compress &mdash; la proof ve la spec
+        </text>
+        <text x="168" y="37" text-anchor="middle" font-family="Menlo, monospace" font-size="9" fill="#1a5632" style="display:none">Fp.sqrt</text>
+        <line x1="432" y1="22" x2="168" y2="22" stroke="#8a6c1e" stroke-width="1.2" marker-end="url(#ah)"/>
+      </svg>
+    </div>
+
+    <p>El mecanismo concreto tiene tres partes:</p>
+    <ol style="padding-left:1.3rem; margin-top:0.5rem;">
+      <li style="margin-bottom:0.4rem;"><strong><code>import</code></strong> (l&iacute;nea 1 de la proof) &mdash; trae al scope todas las definiciones de la spec.</li>
+      <li style="margin-bottom:0.4rem;"><strong><code>namespace</code></strong> &mdash; la proof se ubica en <code>EthCryptographySpecs.Bls.Fp</code>, el mismo namespace que la spec.</li>
+      <li style="margin-bottom:0.4rem;"><strong><code>rw [Fp.sqrt]</code></strong> &mdash; Lean despliega la definici&oacute;n de <code>sqrt</code> dentro de la hip&oacute;tesis, reemplazando el nombre por el cuerpo real de la funci&oacute;n (<code>let cand := ...; if ...</code>). A partir de ah&iacute; puede razonar sobre la estructura del <code>if</code>.</li>
+    </ol>
+    <p style="margin-top:0.6rem;">Esto no modifica la spec &mdash; es una operaci&oacute;n dentro de la demostraci&oacute;n. <code>rw</code> le dice a Lean &ldquo;mir&aacute; adentro de esa funci&oacute;n para razonar sobre ella&rdquo;.</p>
+  </section>
+
+  <!-- Why spec-first -->
+  <section>
+    <h2>&iquest;Por qu&eacute; spec-first y no al rev&eacute;s?</h2>
+    <p>Existen dos enfoques para verificaci&oacute;n formal. Este repo usa el primero por una raz&oacute;n pr&aacute;ctica.</p>
+
+    <div class="approach-cards">
+      <div class="approach-card approach-used">
+        <h3>Spec-first (este repo)</h3>
+        <div class="arrow-flow"><strong>Est&aacute;ndar</strong> &rarr; <strong>Spec</strong> (c&oacute;digo) &rarr; <strong>Proof</strong></div>
+        <p>Primero escrib&iacute;s la funci&oacute;n tal cual la define el est&aacute;ndar (RFC, EIP). Despu&eacute;s demostr&aacute;s que es correcta. La spec tiene que coincidir exactamente con otras implementaciones de Ethereum para ser interoperable.</p>
+      </div>
+      <div class="approach-card approach-alt">
+        <h3>Proof-first (Coq extraction)</h3>
+        <div class="arrow-flow"><strong>Teorema</strong> &rarr; extracci&oacute;n &rarr; <strong>C&oacute;digo</strong></div>
+        <p>Primero defin&iacute;s la propiedad matem&aacute;tica, despu&eacute;s extra&eacute;s c&oacute;digo autom&aacute;ticamente. El c&oacute;digo es correcto por construcci&oacute;n, pero puede no coincidir con el est&aacute;ndar externo.</p>
+      </div>
+    </div>
+
+    <p style="margin-top:1rem;">El motivo: las specs criptogr&aacute;ficas de Ethereum ya est&aacute;n publicadas y otras implementaciones las siguen al pie de la letra. Si el c&oacute;digo se derivara de un teorema, podr&iacute;a ser matem&aacute;ticamente correcto pero producir resultados distintos a los de otros clientes &mdash; rompiendo la interoperabilidad de la red. Entonces la direcci&oacute;n es: escribir la spec exacta, y despu&eacute;s demostrar que esa spec exacta es correcta.</p>
+  </section>
+
+  <!-- What's been proved -->
+  <section>
+    <h2>&iquest;Qu&eacute; est&aacute; probado?</h2>
+    <p>Estado actual de las pruebas formales en el repo.</p>
+    <div class="proofs-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Propiedad</th>
+            <th>Archivo</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Compresi&oacute;n G1 round-trip</td>
+            <td><code>Proofs/Bls/Compress</code></td>
+            <td><span class="status status-proved">Probado</span></td>
+          </tr>
+          <tr>
+            <td>Fp.sqrt soundness & completeness</td>
+            <td><code>Proofs/Bls/Compress</code></td>
+            <td><span class="status status-proved">Probado</span></td>
+          </tr>
+          <tr>
+            <td>MSM correctness</td>
+            <td><code>Proofs/Bls/G1Msm</code></td>
+            <td><span class="status status-proved">Probado</span></td>
+          </tr>
+          <tr>
+            <td>G1 orden del subgrupo</td>
+            <td><code>Proofs/Bls/G1Order</code></td>
+            <td><span class="status status-proved">Probado</span></td>
+          </tr>
+          <tr>
+            <td>FFT / iFFT round-trip</td>
+            <td><code>Proofs/Kzg/Fft</code></td>
+            <td><span class="status status-proved">Probado</span></td>
+          </tr>
+          <tr>
+            <td>Ceremony pairing checks (soundness)</td>
+            <td><code>Proofs/Kzg/CeremonyChecks</code></td>
+            <td><span class="status status-partial">Parcial*</span></td>
+          </tr>
+          <tr>
+            <td>Bit-reversal involuci&oacute;n</td>
+            <td><code>Proofs/Kzg/BitReversal</code></td>
+            <td><span class="status status-proved">Probado</span></td>
+          </tr>
+          <tr>
+            <td>BLAKE2s tweak hash</td>
+            <td><code>Proofs/Xmss/TweakHash</code></td>
+            <td><span class="status status-proved">Probado</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:0.78rem; color:var(--slate); margin-top:0.5rem;">* CeremonyChecks asume <code>ConcreteBlsLaws</code> (bilinealidad, no-degeneraci&oacute;n, fidelidad de mul escalar) que a&uacute;n no est&aacute;n probadas para la implementaci&oacute;n ejecutable.</p>
+  </section>
+
+  <!-- How it builds -->
+  <section>
+    <h2>C&oacute;mo se compila</h2>
+    <p>El <code>lakefile.lean</code> define dos targets:</p>
+    <div class="two-col">
+      <div class="col-card spec-card">
+        <h3>EthCryptographySpecs</h3>
+        <ul>
+          <li><code>precompileModules := true</code></li>
+          <li>Genera <code>.c.o.export</code> en <code>.lake/build/ir/</code></li>
+          <li>Se linkea est&aacute;ticamente en la extensi&oacute;n Python</li>
+          <li>Flag <code>-fPIC</code> para shared library</li>
+        </ul>
+      </div>
+      <div class="col-card proof-card">
+        <h3>Proofs</h3>
+        <ul>
+          <li><code>precompileModules := false</code></li>
+          <li>Solo genera <code>.olean</code> (type-checking)</li>
+          <li>No se linkea en Python</li>
+          <li>Depende de Mathlib v4.29.1</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Reading order -->
+  <section>
+    <h2>Orden de lectura sugerido</h2>
+    <p>Para entender el repo de abajo hacia arriba:</p>
+    <ol style="padding-left:1.3rem; margin-top:0.6rem;">
+      <li style="margin-bottom:0.4rem;"><code>Bls/Fp.lean</code> &mdash; c&oacute;mo se modela un campo finito con <code>Fin p</code></li>
+      <li style="margin-bottom:0.4rem;"><code>Bls/G1.lean</code> &mdash; aritm&eacute;tica de curva (add, double, msm) en Jacobiana</li>
+      <li style="margin-bottom:0.4rem;"><code>Bls/Compress.lean</code> &mdash; serializaci&oacute;n y round-trip</li>
+      <li style="margin-bottom:0.4rem;"><code>Kzg/Fft.lean</code> &mdash; Cooley-Tukey sobre Fr</li>
+      <li style="margin-bottom:0.4rem;"><code>Kzg/Core.lean</code> &mdash; la superficie p&uacute;blica: commit, prove, verify</li>
+      <li style="margin-bottom:0.4rem;"><code>Proofs/Bls/Compress.lean</code> &mdash; ejemplo de c&oacute;mo se prueba un round-trip</li>
+      <li style="margin-bottom:0.4rem;"><code>Proofs/Kzg/CeremonyChecks.lean</code> &mdash; el teorema m&aacute;s ambicioso del repo</li>
+    </ol>
+  </section>
+
+  <footer>
+    Generado desde el repo <code>ethereum/cryptography-specs</code> @ commit <code>09deaff</code>. Lean toolchain definido en <code>lean-toolchain</code>, Mathlib v4.29.1.
+  </footer>
+
+</div>
+
+<script>
+function toggle(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+</script>
