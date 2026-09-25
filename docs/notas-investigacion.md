@@ -96,3 +96,41 @@ El codigo es correcto por construccion, pero puede no coincidir con el estandar 
 5. `Kzg/Core.lean` - la superficie publica: commit, prove, verify
 6. `Proofs/Bls/Compress.lean` - ejemplo de como se prueba un round-trip
 7. `Proofs/Kzg/CeremonyChecks.lean` - el teorema mas ambicioso del repo
+
+---
+
+## Estado del build y proximos pasos
+
+### Compilacion (pendiente)
+
+El proyecto necesita compilarse antes de poder usar los Python bindings.
+La compilacion parcial avanzo (34 archivos .c.o.export generados) pero
+no completo. Pasos para retomar despues del reinicio:
+
+```bash
+cd ~/cryptography-specs
+lake exe cache get        # solo si se borro .lake/
+lake build                # continua desde donde quedo
+```
+
+El build puede tardar 10-20 minutos la primera vez (compila ~60 archivos
+Lean contra Mathlib v4.29.1). Una vez completado:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e '.[test]'
+```
+
+Despues se puede llamar BLS desde Python:
+
+```python
+from eth_cryptography_specs import bls
+# Ejemplo: verificar firma, comprimir punto G1, etc.
+```
+
+### Repos
+
+- **Repo original (solo lectura):** `~/cryptography-specs` — clon de `ethereum/cryptography-specs`
+- **Tu repo personal:** `~/eth-crypto-study` — copia independiente en `github.com/EdVeralli/eth-crypto-study`
+- **Docs generados:** `~/eth-crypto-study/docs/` — mapa interactivo + estas notas
