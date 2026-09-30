@@ -191,13 +191,13 @@ flowchart TB
     SO["_native.cpython-311-darwin.so<br/>8,8 MB, un solo archivo"]
     BC["bls.c · kzg.c · module.c<br/>marshalling: bytes ⇄ ByteArray"]
   end
-  subgraph LX["Lean ejecutable · lean_lib EthCryptographySpecs · precompileModules = true"]
+  subgraph LX["Spec: se convierte en programa"]
     EXP["Bls/Exports.lean · Kzg/Exports.lean<br/>@export eth_bls_* (2) · eth_kzg_* (12)"]
     SB["Spec BLS12-381<br/>Fp → Fp2 → Fp6 → Fp12 · G1 · G2<br/>Pairing · HashToCurve · Signatures"]
     SK["Spec KZG<br/>Fft · Polynomials · Core<br/>Cells · Recovery · TrustedSetup"]
     SX["Spec XMSS<br/>Blake2s · TweakHash · Types<br/>sin exports todavía"]
   end
-  subgraph LP["Lean teoremas · lean_lib Proofs · precompileModules = false"]
+  subgraph LP["Teoremas: solo se revisan"]
     PB["Proofs/Bls<br/>75 teoremas"]
     PK["Proofs/Kzg<br/>104 teoremas"]
     PX["Proofs/Xmss<br/>23 teoremas"]
@@ -228,6 +228,7 @@ flowchart TB
   class ML ext
 </pre>
     </div>
+    <p class="note">Las dos cajas de Lean salen de <code>lakefile.lean</code>, el archivo que le dice a Lean qué hacer con cada grupo de archivos. A la spec (librería <code>EthCryptographySpecs</code>) le dice "revisala y convertila en programa" (<code>precompileModules = true</code>), y por eso termina dentro del <code>.so</code> que usa Python. A los teoremas (librería <code>Proofs</code>) les dice "solo revisalos" (<code>precompileModules = false</code>): Lean los chequea, pero no generan programa. Es como un libro de recetas: las recetas se cocinan, y las notas del nutricionista que explican por qué son sanas se leen y se verifican, pero no se cocinan.</p>
     <p class="note">XMSS no tiene exports, así que hoy no se puede llamar desde Python. Es la parte que upstream sigue construyendo.</p>
   </section>
 
