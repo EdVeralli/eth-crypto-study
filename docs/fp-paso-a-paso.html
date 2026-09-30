@@ -227,7 +227,7 @@ flowchart BT
     </figure>
     <div class="box idea">
       <div class="eyebrow">Cómo leer el resto de la guía</div>
-      <p>Los pasos 1 a 8 (verde) son el piso ejecutable: las cuentas que usan todas las cajas de arriba. Los pasos 9 a 11 (violeta) son el piso de los teoremas: lo que permite demostrar todo lo demás. Para ver el repo entero, está el <a href="https://claude.ai/artifact/JcERDK5G5hSzWZHhY5nA2J">mapa completo</a> (en tu Mac: <code>docs/mapa-completo.html</code>).</p>
+      <p>Los pasos 1 a 8 (verde) son el piso ejecutable: las cuentas que usan todas las cajas de arriba. Los pasos 9 a 11 (violeta) son el piso de los teoremas: lo que permite demostrar todo lo demás. Para ver el repo entero, está el <a href="mapa-completo.html">mapa completo</a> (en tu Mac: <code>docs/mapa-completo.html</code>).</p>
     </div>
   </section>
 
@@ -473,7 +473,7 @@ flowchart TB
   class P,A,B,A1,A2,A3,B1,B11,B2,B21,B22,B221 thm
   class S small
 </pre>
-      <figcaption>Cada caja violeta es un teorema privado en el archivo, un certificado de Lucas. Los factores chicos de cada número (como 2, 3, 13 o 941) los verifica <code>norm_num</code> directamente.</figcaption>
+      <figcaption>Cada caja violeta es un certificado de Lucas, escrito como un teorema en el archivo. Los factores chicos de cada número (como 2, 3, 13 o 941) los verifica <code>norm_num</code> directamente.</figcaption>
     </figure>
     <div class="box idea">
       <div class="eyebrow">Sin atajos</div>
@@ -512,7 +512,7 @@ flowchart TB
 
   <!-- 11 -->
   <section class="step" id="s11">
-    <div class="stephead"><span class="stepnum thm">11</span><h2>Las pruebas de sqrt</h2><span class="lines">Proofs/Bls/Compress.lean · 31–41 y 55</span></div>
+    <div class="stephead"><span class="stepnum thm">11</span><h2>Las pruebas de sqrt</h2><span class="lines">Proofs/Bls/Compress.lean · 31–39 y 55</span></div>
     <p>La raíz cuadrada se demuestra en otro archivo, junto a la compresión de puntos, que es donde se usa. Son dos teoremas que juntos dicen "sqrt hace exactamente lo que debe":</p>
     <pre class="code thm"><span class="row"><span class="ln">31</span><span class="cm">/-- Soundness of `Fp.sqrt`: a returned root squares to the input. -/</span></span><span class="row"><span class="ln">32</span><span class="kw">theorem</span> sqrt_ok {a c : Fp} (h : Fp.sqrt a = .ok c) :</span><span class="row"><span class="ln">33</span>    (c : ZMod Fp.modulus) * c = a := <span class="kw">by</span></span><span class="row"><span class="ln">34</span>  rw [Fp.sqrt] at h</span><span class="row"><span class="ln">35</span>  split at h</span><span class="row"><span class="ln">36</span>  · rename_i hbeq</span><span class="row"><span class="ln">37</span>    cases h</span><span class="row"><span class="ln">38</span>    exact beq_iff&#x27;.mp hbeq</span><span class="row"><span class="ln">39</span>  · cases h</span></pre>
     <div class="two">

@@ -14,6 +14,10 @@
     --forest-faint: #f0f6f2;
     --amber: #8a6c1e;
     --amber-light: #fdf6e3;
+    --violet: #6a4fd1;
+    --violet-light: #e8e3fb;
+    --warn: #c2412d;
+    --warn-light: #fde3de;
     --charcoal: #1c1c1c;
     --slate: #5c6370;
     --rule: #d4d0c8;
@@ -198,18 +202,18 @@
   }
 
   .badge-bls {
-    background: var(--forest-light);
-    color: var(--forest);
+    background: #e9ecef;
+    color: #1c1c1c;
   }
 
   .badge-kzg {
-    background: var(--amber-light);
-    color: var(--amber);
+    background: #e9ecef;
+    color: #1c1c1c;
   }
 
   .badge-xmss {
-    background: #ede8f5;
-    color: #4a3572;
+    background: #e9ecef;
+    color: #1c1c1c;
   }
 
   .module-title {
@@ -325,9 +329,9 @@
   .spec-card h3 { color: var(--forest); }
   .spec-card li::before { background: var(--forest); }
 
-  .proof-card { background: var(--amber-light); }
-  .proof-card h3 { color: var(--amber); }
-  .proof-card li::before { background: var(--amber); }
+  .proof-card { background: var(--violet-light); }
+  .proof-card h3 { color: var(--violet); }
+  .proof-card li::before { background: var(--violet); }
 
   /* ── Code inline ── */
   code {
@@ -385,10 +389,10 @@
   .panel-spec .dot { background: var(--forest); }
 
   .panel-proof .code-panel-header {
-    background: var(--amber-light);
-    color: var(--amber);
+    background: var(--violet-light);
+    color: var(--violet);
   }
-  .panel-proof .dot { background: var(--amber); }
+  .panel-proof .dot { background: var(--violet); }
 
   .code-block {
     padding: 0.8rem 0.9rem;
@@ -525,8 +529,8 @@
   }
 
   .status-partial {
-    background: var(--amber-light);
-    color: var(--amber);
+    background: var(--warn-light);
+    color: var(--warn);
   }
 
   /* ── Footer ── */
@@ -557,7 +561,7 @@
   <!-- Dependency flow -->
   <section>
     <h2>Flujo de dependencias</h2>
-    <p>KZG y XMSS dependen de BLS. Las pruebas observan las specs pero las specs nunca dependen de las pruebas.</p>
+    <p>KZG depende de BLS (usa sus puntos de G1 y el pairing). XMSS es independiente: no importa nada de BLS y trae su propio hash, BLAKE2s. Las pruebas observan las specs, pero las specs nunca dependen de las pruebas.</p>
     <div class="flow">
       <div class="flow-node">
         <div class="label">BLS12-381</div>
@@ -576,7 +580,7 @@
     </div>
     <div class="flow" style="margin-top:-0.5rem; justify-content: flex-end;">
       <div style="font-size:0.75rem; color:var(--slate); padding: 0.3rem 0.8rem; border: 1px dashed var(--rule); border-radius: 4px;">
-        <span style="color:var(--amber); font-weight:600;">Proofs/</span> observa ambos &rarr; no genera c&oacute;digo compilado
+        <span style="color:var(--violet); font-weight:600;">Proofs/</span> observa las tres specs &rarr; no genera c&oacute;digo compilado
       </div>
     </div>
   </section>
@@ -691,7 +695,7 @@
         <ul>
           <li>Teoremas con <code>theorem</code></li>
           <li><code>uncompress_compress</code> — round-trip</li>
-          <li><code>fft_ifft</code> — inversa de FFT</li>
+          <li><code>fftField_fftField_inv</code> — la iFFT deshace la FFT</li>
           <li>Ceremony pairing checks — soundness</li>
           <li>MSM correctness, sqrt soundness</li>
         </ul>
@@ -717,12 +721,14 @@
       <div class="code-panel panel-proof">
         <div class="code-panel-header"><span class="dot"></span> PROOF &mdash; Proofs/Bls/Compress.lean:32</div>
         <div class="code-block"><span class="cm">-- Teorema. No genera c&oacute;digo.</span>
-<span class="kw">theorem</span> <span class="fn">sqrt_ok</span>
+<span class="kw">theorem</span> <span class="fn">sqrt_ok</span> {a c : <span class="tp">Fp</span>}
     (h : <span class="tp">Fp</span>.<span class="fn">sqrt</span> a = .ok c) :
     (c : <span class="tp">ZMod Fp.modulus</span>) * c = a := <span class="kw">by</span>
   rw [<span class="tp">Fp</span>.<span class="fn">sqrt</span>] <span class="kw">at</span> h  <span class="cm">-- despliega la def</span>
   split <span class="kw">at</span> h
-  · exact beq_iff'.mp hbeq
+  · rename_i hbeq
+    cases h
+    exact beq_iff'.mp hbeq
   · cases h</div>
       </div>
     </div>
@@ -731,17 +737,17 @@
       <svg viewBox="0 0 600 48">
         <defs>
           <marker id="ah" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
-            <polygon points="0 0, 7 2.5, 0 5" fill="#8a6c1e"/>
+            <polygon points="0 0, 7 2.5, 0 5" fill="#6a4fd1"/>
           </marker>
         </defs>
         <line x1="168" y1="6" x2="168" y2="22" stroke="#1a5632" stroke-width="1.2" stroke-dasharray="3,3"/>
-        <line x1="432" y1="6" x2="432" y2="22" stroke="#8a6c1e" stroke-width="1.2" stroke-dasharray="3,3"/>
+        <line x1="432" y1="6" x2="432" y2="22" stroke="#6a4fd1" stroke-width="1.2" stroke-dasharray="3,3"/>
         <rect x="100" y="22" width="400" height="22" rx="4" fill="none" stroke="#d4d0c8" stroke-width="1"/>
         <text x="300" y="37" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="10" fill="#5c6370">
           import EthCryptographySpecs.Bls.Compress &mdash; la proof ve la spec
         </text>
         <text x="168" y="37" text-anchor="middle" font-family="Menlo, monospace" font-size="9" fill="#1a5632" style="display:none">Fp.sqrt</text>
-        <line x1="432" y1="22" x2="168" y2="22" stroke="#8a6c1e" stroke-width="1.2" marker-end="url(#ah)"/>
+        <line x1="432" y1="22" x2="168" y2="22" stroke="#6a4fd1" stroke-width="1.2" marker-end="url(#ah)"/>
       </svg>
     </div>
 
@@ -777,8 +783,8 @@
 
   <!-- What's been proved -->
   <section>
-    <h2>&iquest;Qu&eacute; est&aacute; probado?</h2>
-    <p>Estado actual de las pruebas formales en el repo.</p>
+    <h2>Algunas propiedades probadas</h2>
+    <p>Una selecci&oacute;n de lo que est&aacute; demostrado. La lista completa, archivo por archivo, est&aacute; en el mapa completo.</p>
     <div class="proofs-wrap">
       <table>
         <thead>
@@ -792,7 +798,7 @@
           <tr>
             <td>Compresi&oacute;n G1 round-trip</td>
             <td><code>Proofs/Bls/Compress</code></td>
-            <td><span class="status status-proved">Probado</span></td>
+            <td><span class="status status-proved">Probado**</span></td>
           </tr>
           <tr>
             <td>Fp.sqrt soundness & completeness</td>
@@ -811,7 +817,7 @@
           </tr>
           <tr>
             <td>FFT / iFFT round-trip</td>
-            <td><code>Proofs/Kzg/Fft</code></td>
+            <td><code>Proofs/Kzg/FftInverse</code></td>
             <td><span class="status status-proved">Probado</span></td>
           </tr>
           <tr>
@@ -827,12 +833,13 @@
           <tr>
             <td>BLAKE2s tweak hash</td>
             <td><code>Proofs/Xmss/TweakHash</code></td>
-            <td><span class="status status-proved">Probado</span></td>
+            <td><span class="status status-proved">Probado**</span></td>
           </tr>
         </tbody>
       </table>
     </div>
     <p style="font-size:0.78rem; color:var(--slate); margin-top:0.5rem;">* CeremonyChecks asume <code>ConcreteBlsLaws</code> (bilinealidad, no-degeneraci&oacute;n, fidelidad de mul escalar) que a&uacute;n no est&aacute;n probadas para la implementaci&oacute;n ejecutable.</p>
+    <p style="font-size:0.78rem; color:var(--slate); margin-top:0.3rem;">** Probado, pero con algunos pasos delegados a <code>native_decide</code>, que conf&iacute;a en el c&oacute;digo compilado en vez del n&uacute;cleo de Lean: uno en <code>Proofs/Bls/Compress.lean:319</code> (el punto al infinito) y siete en <code>Proofs/Xmss/Blake2s.lean</code>, de donde se apoya TweakHash. La lista completa de los 23 archivos de pruebas est&aacute; en el <a href="mapa-completo.html">mapa completo</a>.</p>
   </section>
 
   <!-- How it builds -->
@@ -845,7 +852,7 @@
         <ul>
           <li><code>precompileModules := true</code></li>
           <li>Genera <code>.c.o.export</code> en <code>.lake/build/ir/</code></li>
-          <li>Se linkea est&aacute;ticamente en la extensi&oacute;n Python</li>
+          <li>Se linkea dentro de la extensi&oacute;n Python (el runtime de Lean, <code>libleanshared</code>, se enlaza din&aacute;micamente)</li>
           <li>Flag <code>-fPIC</code> para shared library</li>
         </ul>
       </div>

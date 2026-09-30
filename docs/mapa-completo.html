@@ -164,7 +164,7 @@ dd{margin:2px 0 0;color:var(--muted);font-size:14px}
         <p>Este mapa muestra cómo se conecta todo. Cada guía de estudio toma <b>un archivo de la spec</b> y sus teoremas, y los explica línea por línea. Se estudian de abajo hacia arriba, porque cada piso usa al anterior.</p>
       </div>
       <ol class="floors">
-        <li class="done"><a href="https://claude.ai/artifact/AsSSNhqdiXaoNq3HrwQNtE"><span class="fl">Piso 1</span><b>Fp.lean + FpZMod</b><span>el campo finito: la base de todo</span><em>guía lista →</em></a></li>
+        <li class="done"><a href="fp-paso-a-paso.html"><span class="fl">Piso 1</span><b>Fp.lean + FpZMod</b><span>el campo finito: la base de todo</span><em>guía lista →</em></a></li>
         <li><span class="fl">Piso 2</span><b>G1.lean + G1Group / G1Order / G1Msm</b><span>puntos de la curva con coordenadas en Fp</span><em>próxima</em></li>
         <li><span class="fl">Piso 3</span><b>Compress.lean</b><span>puntos ⇄ bytes; usa Fp.sqrt</span><em>pendiente</em></li>
         <li><span class="fl">Piso 4</span><b>Kzg/Fft.lean · Kzg/Core.lean</b><span>blobs, commitments y pruebas</span><em>pendiente</em></li>
@@ -280,7 +280,7 @@ flowchart LR
         <header><div class="eyebrow">Firmas de validadores</div><h3>BLS12-381</h3><p>Las firmas se pueden sumar: miles de validadores firman un bloque y se verifica una sola firma agregada.</p></header>
         <div class="lane">
           <div class="lane-title exec">Spec · se ejecuta</div>
-          <div class="chip exec" data-id="bls-fp"><span class="f">Fp</span><span class="d">campo base: números mod p (381 bits) <a class="guia" href="https://claude.ai/artifact/AsSSNhqdiXaoNq3HrwQNtE">guía paso a paso →</a></span></div>
+          <div class="chip exec" data-id="bls-fp"><span class="f">Fp</span><span class="d">campo base: números mod p (381 bits) <a class="guia" href="fp-paso-a-paso.html">guía paso a paso →</a></span></div>
           <div class="chip exec" data-id="bls-fr"><span class="f">Fr</span><span class="d">campo escalar: números mod r (orden del grupo)</span></div>
           <div class="chip exec" data-id="bls-ext"><span class="f">Fp2 · Fp6 · Fp12</span><span class="d">extensiones de campo, necesarias para el pairing</span></div>
           <div class="chip exec" data-id="bls-g1"><span class="f">G1</span><span class="d">puntos sobre Fp: claves públicas (48 B). Suma, doble, MSM</span></div>
