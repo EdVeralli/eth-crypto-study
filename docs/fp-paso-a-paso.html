@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fp.lean paso a paso</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: guía de lectura en una columna angosta (~72ch); índice lateral en pantallas anchas; cada paso = explicación + código real + diagrama o ejemplo con p = 7. Colores iguales al mapa: verde = spec ejecutable, violeta = teorema. */
+:root{
+  --bg:#f3f6f7; --panel:#ffffff; --fg:#17212b; --muted:#5a6773; --line:#d5dde2; --code-bg:#f7f9fa;
+  --exec:#1f8a6b; --exec-bg:#dcf2ea; --exec-fg:#0b3b2e;
+  --thm:#6a4fd1;  --thm-bg:#e8e3fb;  --thm-fg:#281a5e;
+  --glue:#b8730f; --glue-bg:#fbead2; --glue-fg:#4a2d00;
+  --ext:#76828d;  --ext-bg:#e7eaed;  --ext-fg:#222b33;
+  --warn:#c2412d; --warn-bg:#fde3de;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f1519; --panel:#172027; --fg:#e4ebef; --muted:#9aa8b3; --line:#2b3841; --code-bg:#121a20;
+  --exec:#4cc9a0; --exec-bg:#12352b; --exec-fg:#c9f3e4;
+  --thm:#a893ff;  --thm-bg:#2a2350;  --thm-fg:#e3dcff;
+  --glue:#f0a94a; --glue-bg:#3d2a0e; --glue-fg:#fde6c4;
+  --ext:#9aa6b0;  --ext-bg:#26313a;  --ext-fg:#dde4e9;
+  --warn:#ff8a73; --warn-bg:#44201a; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0f1519; --panel:#172027; --fg:#e4ebef; --muted:#9aa8b3; --line:#2b3841; --code-bg:#121a20;
+  --exec:#4cc9a0; --exec-bg:#12352b; --exec-fg:#c9f3e4;
+  --thm:#a893ff;  --thm-bg:#2a2350;  --thm-fg:#e3dcff;
+  --glue:#f0a94a; --glue-bg:#3d2a0e; --glue-fg:#fde6c4;
+  --ext:#9aa6b0;  --ext-bg:#26313a;  --ext-fg:#dde4e9;
+  --warn:#ff8a73; --warn-bg:#44201a; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.65 var(--f-body);padding:0 16px}
+.wrap{max-width:1120px;margin:0 auto;padding-block:40px 72px;display:grid;grid-template-columns:200px minmax(0,1fr);gap:48px}
+@media (max-width:900px){.wrap{grid-template-columns:1fr;gap:24px}.toc{position:static!important}}
+.toc{position:sticky;top:calc(env(safe-area-inset-top,0px) + 24px);align-self:start;font-size:13.5px;display:flex;flex-direction:column;gap:2px}
+.toc a{color:var(--muted);text-decoration:none;padding:4px 8px;border-radius:6px;display:grid;grid-template-columns:22px 1fr}
+.toc a:hover,.toc a:focus-visible{background:var(--panel);color:var(--fg);outline:none}
+.toc .n{font-family:var(--f-mono);font-size:12px;opacity:.7}
+.toc .grp{font:600 11px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 8px 6px}
+.toc .grp.exec{color:var(--exec)} .toc .grp.thm{color:var(--thm)}
+main{display:flex;flex-direction:column;gap:56px;min-width:0}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:clamp(30px,5vw,46px);font-weight:800;letter-spacing:-.01em}
+h2{font-size:25px;font-weight:800}
+h3{font-size:17px;font-weight:600}
+p{margin:0;max-width:70ch}
+ul{margin:0;padding-left:20px;max-width:68ch;display:flex;flex-direction:column;gap:4px}
+code{font-family:var(--f-mono);font-size:.85em;background:var(--code-bg);border:1px solid var(--line);padding:0 4px;border-radius:4px}
+.eyebrow{font:600 12px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lede{color:var(--muted);font-size:18px}
+section.step{display:flex;flex-direction:column;gap:16px;scroll-margin-top:24px}
+.stephead{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline}
+.stepnum{font:800 15px/1 var(--f-mono);color:var(--bg);background:var(--fg);border-radius:6px;padding:5px 8px;flex:none}
+.stepnum.exec{background:var(--exec)} .stepnum.thm{background:var(--thm)}
+.lines{font:500 13px/1 var(--f-mono);color:var(--muted);margin-left:auto;white-space:nowrap}
+
+pre.code{margin:0;background:var(--code-bg);border:1px solid var(--line);border-left:4px solid var(--exec);border-radius:8px;padding:14px 0;overflow-x:auto;font:13.5px/1.6 var(--f-mono)}
+pre.code.thm{border-left-color:var(--thm)}
+pre.code .row{display:block;padding:0 16px 0 0;white-space:pre}
+pre.code .ln{display:inline-block;width:44px;text-align:right;padding-right:14px;color:var(--muted);opacity:.6;user-select:none}
+pre.code .cm{color:var(--muted)}
+pre.code .kw{color:var(--thm);font-weight:600}
+pre.code.exec-kw .kw{color:var(--exec)}
+
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.box.idea{border-left:4px solid var(--glue)}
+.box.idea .eyebrow{color:var(--glue)}
+.box.warnb{border-left:4px solid var(--warn)}
+.box.warnb .eyebrow{color:var(--warn)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.fig{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;overflow-x:auto;display:flex;flex-direction:column;gap:8px;align-items:safe center}
+.fig figcaption,.cap{font-size:13.5px;color:var(--muted);text-align:center;max-width:60ch}
+figure{margin:0}
+pre.mermaid{margin:0;background:transparent;min-width:520px;text-align:center}
+
+table{border-collapse:collapse;font-size:14.5px;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-weight:600;font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+td.m{font-family:var(--f-mono);font-size:13.5px}
+.tablewrap{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 10px}
+.ok{color:var(--exec);font-weight:600}
+.bad{color:var(--warn);font-weight:600}
+
+/* SVG tokens */
+svg text{font-family:var(--f-mono);fill:var(--fg)}
+.s-dot{fill:var(--panel);stroke:var(--line);stroke-width:2}
+.s-dot.on{fill:var(--exec-bg);stroke:var(--exec)}
+.s-dot.end{fill:var(--exec);stroke:var(--exec)}
+.s-ring{fill:none;stroke:var(--line);stroke-width:2}
+.s-arc{fill:none;stroke:var(--exec);stroke-width:3}
+.s-head{fill:var(--exec)}
+.s-muted{fill:var(--muted)}
+.s-box{fill:var(--exec-bg);stroke:var(--exec);stroke-width:2}
+.s-out{fill:var(--warn-bg);stroke:var(--warn);stroke-width:2;stroke-dasharray:5 4}
+.s-axis{stroke:var(--muted);stroke-width:1.5}
+.endtxt{fill:var(--bg)!important;font-weight:600}
+
+/* bytes */
+.bytes{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:4px;font:600 12.5px/1 var(--f-mono);width:100%;max-width:620px}
+.bytes span{background:var(--exec-bg);color:var(--exec-fg);border-radius:4px;padding:7px 0;text-align:center}
+.bytes span.first{background:var(--glue-bg);color:var(--glue-fg);outline:2px solid var(--glue)}
+@media (max-width:520px){.bytes{grid-template-columns:repeat(8,minmax(0,1fr))}}
+
+/* calculadora */
+.calc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:16px}
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:end}
+.controls label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:600;color:var(--muted);letter-spacing:.03em}
+.controls input,.controls select{font:600 16px var(--f-mono);width:92px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--code-bg);color:var(--fg)}
+.controls input:focus-visible,.controls select:focus-visible{outline:2px solid var(--exec);outline-offset:1px}
+.results{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.res{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.res .k{font:600 12.5px var(--f-mono);color:var(--muted)}
+.res .v{font:600 20px var(--f-mono);font-variant-numeric:tabular-nums}
+.res .x{font-size:12.5px;color:var(--muted)}
+.res.trap{border-color:var(--warn);background:var(--warn-bg)}
+.res.trap .v{color:var(--warn)}
+
+.sumgrid{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px 12px;align-items:center;font-size:14px}
+.pill{border-radius:8px;padding:8px 12px;font-family:var(--f-mono);font-size:13px;min-width:0}
+.pill.exec{background:var(--exec-bg);color:var(--exec-fg);border:1.5px solid var(--exec)}
+.pill.ext{background:var(--ext-bg);color:var(--ext-fg);border:1.5px dashed var(--ext)}
+.arrow{font-family:var(--f-mono);font-size:12px;color:var(--thm);text-align:center;white-space:nowrap}
+.arrow b{display:block;font-size:11.5px}
+@media (max-width:620px){.sumgrid{grid-template-columns:1fr}.arrow{text-align:left}}
+a{color:var(--exec)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<nav class="toc" aria-label="Pasos">
+  <span class="grp">Antes de empezar</span>
+  <a href="#donde"><span class="n">↑</span>Dónde encaja Fp</a>
+  <a href="#s0"><span class="n">0</span>Qué es un campo finito</a>
+  <span class="grp exec">Spec · Bls/Fp.lean</span>
+  <a href="#s1"><span class="n">1</span>El número p</a>
+  <a href="#s2"><span class="n">2</span>El tipo Fp</a>
+  <a href="#s3"><span class="n">3</span>Sumar, restar, multiplicar</a>
+  <a href="#s4"><span class="n">4</span>Potencias rápidas</a>
+  <a href="#s5"><span class="n">5</span>El inverso</a>
+  <a href="#s6"><span class="n">6</span>La trampa de la división</a>
+  <a href="#s7"><span class="n">7</span>Raíz cuadrada</a>
+  <a href="#s8"><span class="n">8</span>De y hacia bytes</a>
+  <a href="#calc"><span class="n">⌨</span>Probalo vos</a>
+  <span class="grp thm">Proofs · FpZMod.lean</span>
+  <a href="#s9"><span class="n">9</span>p es primo</a>
+  <a href="#s10"><span class="n">10</span>El puente con Mathlib</a>
+  <a href="#s11"><span class="n">11</span>Las pruebas de sqrt</a>
+  <a href="#s12"><span class="n">★</span>Resumen</a>
+</nav>
+
+<main>
+  <header style="display:flex;flex-direction:column;gap:12px">
+    <div class="eyebrow">Guía de estudio 1 · EthCryptographySpecs/Bls/Fp.lean · 105 líneas</div>
+    <h1>Fp.lean paso a paso</h1>
+    <p class="lede">Es el archivo más chico y el más importante: toda la criptografía de BLS y KZG hace cuentas con estos números. Vamos a leerlo de arriba abajo y después ver cómo se demuestra que está bien.</p>
+    <p>Para que los ejemplos entren en la cabeza, en vez del primo real de 115 dígitos usamos <b>p = 7</b>. Todo lo que funciona con 7 funciona igual con el primo real: el código no cambia, solo el tamaño del número.</p>
+  </header>
+
+  <!-- dónde encaja -->
+  <section class="step" id="donde">
+    <div class="stephead"><span class="stepnum">↑</span><h2>Dónde encaja Fp en todo el proceso</h2></div>
+    <p>Antes de entrar al código, conviene ver dónde está parado este archivo. Cuando desde Python verificás una firma, la llamada baja por varias capas de la spec, y todas terminan haciendo cuentas con Fp. <b>Fp es el piso del edificio</b>: si tuviera un error, todo lo de arriba daría mal.</p>
+    <figure class="fig">
+<pre class="mermaid">
+flowchart TB
+  PY["Tu Python<br/>bls.eth_fast_aggregate_verify(pubkeys, msg, sig)"]
+  C["Binding C · bls.c<br/>bytes de Python → ByteArray de Lean"]
+  SIG["Signatures.lean<br/>¿la firma agregada es válida?"]
+  CMP["Compress.lean<br/>bytes → puntos<br/>usa Fp.fromBytesBE, Fp.sqrt"]
+  H2C["HashToCurve.lean<br/>mensaje → punto de G2"]
+  G1["G1.lean<br/>sumar las pubkeys<br/>coordenadas en Fp: +, ×, inverse"]
+  G2["G2.lean<br/>la firma<br/>coordenadas en Fp2"]
+  PAI["Pairing.lean<br/>e(P,Q) · e(R,S) == 1<br/>cuentas en Fp12"]
+  EXT["Fp12 → Fp6 → Fp2<br/>extensiones, hechas de pares de Fp"]
+  FP["Bls/Fp.lean<br/>ESTA GUÍA"]
+
+  PY --> C --> SIG
+  SIG --> CMP
+  SIG --> H2C
+  SIG --> G1
+  SIG --> PAI
+  H2C --> G2
+  CMP --> FP
+  G1 --> FP
+  G2 --> EXT
+  PAI --> EXT
+  EXT --> FP
+
+  classDef glue fill:#fbead2,stroke:#b8730f,stroke-width:2px,color:#4a2d00
+  classDef exec fill:#dcf2ea,stroke:#1f8a6b,stroke-width:2px,color:#0b3b2e
+  classDef here fill:#1f8a6b,stroke:#0b3b2e,stroke-width:3px,color:#ffffff
+  class PY,C glue
+  class SIG,CMP,H2C,G1,G2,PAI,EXT exec
+  class FP here
+</pre>
+      <figcaption>Recorrido de una llamada real, verificado contra los <code>import</code> y las llamadas del código. Naranja: el binding. Verde: la spec ejecutable. Verde lleno: el archivo que estudiamos acá.</figcaption>
+    </figure>
+    <p>KZG usa el mismo piso: sus compromisos son puntos de G1, así que también bajan hasta Fp. Los polinomios de los blobs usan <code>Fr</code>, que es el mismo código con otro primo.</p>
+    <p>Con los teoremas pasa lo mismo, en el sentido contrario: cada prueba de arriba se apoya en la de abajo.</p>
+    <figure class="fig">
+<pre class="mermaid">
+flowchart BT
+  ML["Mathlib<br/>ZMod p, campos, grupos"]
+  FZ["FpZMod.lean<br/>Fp es un campo · ESTA GUÍA"]
+  GG["G1Group.lean<br/>los puntos de G1 forman un grupo"]
+  GO["G1Order.lean<br/>el generador tiene orden r"]
+  GM["G1Msm.lean<br/>el MSM rápido es correcto"]
+  CC["CeremonyChecks.lean<br/>el setup de KZG es consistente"]
+  ML --> FZ --> GG --> GO --> GM
+  GG --> CC
+  classDef thm fill:#e8e3fb,stroke:#6a4fd1,stroke-width:2px,color:#281a5e
+  classDef here fill:#6a4fd1,stroke:#281a5e,stroke-width:3px,color:#ffffff
+  classDef ext fill:#e7eaed,stroke:#76828d,stroke-width:2px,stroke-dasharray:5 4,color:#222b33
+  class GG,GO,GM,CC thm
+  class FZ here
+  class ML ext
+</pre>
+      <figcaption><code>G1Group</code> puede probar que sumar puntos se comporta bien solo porque <code>FpZMod</code> ya demostró que las coordenadas obedecen las leyes de un campo.</figcaption>
+    </figure>
+    <div class="box idea">
+      <div class="eyebrow">Cómo leer el resto de la guía</div>
+      <p>Los pasos 1 a 8 (verde) son el piso ejecutable: las cuentas que usan todas las cajas de arriba. Los pasos 9 a 11 (violeta) son el piso de los teoremas: lo que permite demostrar todo lo demás. Para ver el repo entero, está el <a href="https://claude.ai/artifact/JcERDK5G5hSzWZHhY5nA2J">mapa completo</a> (en tu Mac: <code>docs/mapa-completo.html</code>).</p>
+    </div>
+  </section>
+
+  <!-- 0 -->
+  <section class="step" id="s0">
+    <div class="stephead"><span class="stepnum">0</span><h2>Qué es un campo finito</h2></div>
+    <p>Un <b>campo finito</b> es un conjunto de números enteros donde se puede sumar, restar, multiplicar y dividir sin salirse nunca del conjunto. Con p = 7 el conjunto es <b>{0, 1, 2, 3, 4, 5, 6}</b>, y cada vez que una cuenta se pasa de 6 se toma el resto de dividir por 7. Es como la aritmética de un reloj de 7 horas.</p>
+    <div class="two">
+      <figure class="fig">
+        <svg viewBox="0 0 260 260" width="260" height="260" role="img" aria-label="Reloj de 7 posiciones: 5 más 4 da 2">
+          <defs><marker id="ah" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head"/></marker></defs>
+          <circle cx="130" cy="130" r="92" class="s-ring"/>
+          <path d="M61.8 145.6 A70 70 0 1 1 198.2 145.6" class="s-arc" marker-end="url(#ah)"/>
+          <circle cx="130" cy="38" r="15" class="s-dot on"/><text x="130" y="43" text-anchor="middle" font-size="14">0</text>
+          <circle cx="201.9" cy="72.6" r="15" class="s-dot on"/><text x="201.9" y="77.6" text-anchor="middle" font-size="14">1</text>
+          <circle cx="219.7" cy="150.5" r="15" class="s-dot end"/><text x="219.7" y="155.5" text-anchor="middle" font-size="14" class="endtxt">2</text>
+          <circle cx="169.9" cy="212.9" r="15" class="s-dot"/><text x="169.9" y="217.9" text-anchor="middle" font-size="14">3</text>
+          <circle cx="90.1" cy="212.9" r="15" class="s-dot"/><text x="90.1" y="217.9" text-anchor="middle" font-size="14">4</text>
+          <circle cx="40.3" cy="150.5" r="15" class="s-dot on"/><text x="40.3" y="155.5" text-anchor="middle" font-size="14">5</text>
+          <circle cx="58.1" cy="72.6" r="15" class="s-dot on"/><text x="58.1" y="77.6" text-anchor="middle" font-size="14">6</text>
+          <text x="130" y="118" text-anchor="middle" font-size="15" font-weight="600">5 + 4 = 9</text>
+          <text x="130" y="140" text-anchor="middle" font-size="13" class="s-muted">9 mod 7 = 2</text>
+        </svg>
+        <figcaption>Arrancás en 5, avanzás 4 lugares (6, 0, 1, 2) y caés en 2.</figcaption>
+      </figure>
+      <div class="box">
+        <h3>Las cuatro operaciones con p = 7</h3>
+        <table>
+          <tr><th>Cuenta</th><th>Normal</th><th>En el campo</th></tr>
+          <tr><td class="m">5 + 4</td><td class="m">9</td><td class="m ok">2</td></tr>
+          <tr><td class="m">3 − 5</td><td class="m">−2</td><td class="m ok">5</td></tr>
+          <tr><td class="m">3 × 5</td><td class="m">15</td><td class="m ok">1</td></tr>
+          <tr><td class="m">6 ÷ 4</td><td class="m">1,5</td><td class="m ok">5</td></tr>
+        </table>
+        <p style="font-size:14.5px">La división parece rara: "6 ÷ 4 = 5" porque 5 × 4 = 20 y 20 mod 7 = 6. Lo explicamos en los pasos 5 y 6.</p>
+      </div>
+    </div>
+    <div class="box idea">
+      <div class="eyebrow">Por qué hace falta que p sea primo</div>
+      <p>Solo si p es primo todo número distinto de 0 tiene inverso, o sea, se puede dividir. Con 6 (que no es primo) no hay ningún número que multiplicado por 2 dé 1. Por eso la primera prueba importante del paso 9 es demostrar que p es primo.</p>
+    </div>
+  </section>
+
+  <!-- 1 -->
+  <section class="step" id="s1">
+    <div class="stephead"><span class="stepnum exec">1</span><h2>El número p</h2><span class="lines">líneas 31–39</span></div>
+    <pre class="code exec-kw"><span class="row"><span class="ln">31</span><span class="cm">/-- BLS12-381 base field modulus. -/</span></span><span class="row"><span class="ln">32</span><span class="kw">def</span> Fp.modulus : Nat :=</span><span class="row"><span class="ln">33</span>  0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab</span><span class="row"><span class="ln">34</span></span><span class="row"><span class="ln">35</span><span class="kw">protected</span> <span class="kw">theorem</span> Fp.modulus_pos : 0 &lt; Fp.modulus := <span class="kw">by</span> decide</span><span class="row"><span class="ln">36</span></span><span class="row"><span class="ln">37</span><span class="cm">-- Named explicitly: the anonymous-instance name would collide with</span></span><span class="row"><span class="ln">38</span><span class="cm">-- `Fr`&#x27;s `NeZero` instance (both auto-generate `instNeZeroNatModulus`).</span></span><span class="row"><span class="ln">39</span><span class="kw">instance</span> Fp.instNeZeroModulus : NeZero Fp.modulus := ⟨<span class="kw">by</span> decide⟩</span></pre>
+    <ul>
+      <li><code>def Fp.modulus : Nat</code> define p como un número natural. Está escrito en hexadecimal: tiene 381 bits, o sea 115 dígitos decimales, y ocupa 48 bytes.</li>
+      <li><code>theorem Fp.modulus_pos</code> dice que p &gt; 0. Sí, hay un teorema adentro de la spec: es chiquito y hace falta para poder construir el 0 (paso 3). <code>by decide</code> significa "Lean, calculalo vos".</li>
+      <li><code>instance … NeZero</code> le avisa a Lean que p no es cero. Con esa garantía, Lean activa solo la aritmética modular para este tipo.</li>
+    </ul>
+    <p>El nombre BLS12-381 viene de acá: la curva se llama así por los 381 bits de este primo.</p>
+  </section>
+
+  <!-- 2 -->
+  <section class="step" id="s2">
+    <div class="stephead"><span class="stepnum exec">2</span><h2>El tipo Fp: el truco central</h2><span class="lines">líneas 41–42</span></div>
+    <pre class="code exec-kw"><span class="row"><span class="ln">41</span><span class="cm">/-- An element of the BLS12-381 base field. -/</span></span><span class="row"><span class="ln">42</span><span class="kw">abbrev</span> Fp := Fin Fp.modulus</span></pre>
+    <p>Esta línea define todo el campo. <code>Fin n</code> es un tipo que ya viene con Lean: son los números naturales <b>menores que n</b>. Cada valor de <code>Fin n</code> es un par: el número y una <b>prueba</b> de que es menor que n.</p>
+    <figure class="fig">
+      <svg viewBox="0 0 560 120" width="100%" style="max-width:560px" role="img" aria-label="Recta numérica: Fp cubre de 0 a p menos 1; p y lo que sigue quedan afuera">
+        <line x1="20" y1="70" x2="545" y2="70" class="s-axis"/>
+        <rect x="30" y="40" width="340" height="60" rx="8" class="s-box" fill-opacity=".5"/>
+        <rect x="385" y="40" width="160" height="60" rx="8" class="s-out"/>
+        <text x="200" y="30" text-anchor="middle" font-size="13" font-weight="600">Fp = Fin p</text>
+        <text x="465" y="30" text-anchor="middle" font-size="13" class="s-muted">no existe en Fp</text>
+        <text x="45" y="75" font-size="14">0</text><text x="90" y="75" font-size="14">1</text><text x="135" y="75" font-size="14">2</text><text x="185" y="75" font-size="14">…</text><text x="310" y="75" font-size="14">p−1</text>
+        <text x="400" y="75" font-size="14">p</text><text x="440" y="75" font-size="14">p+1</text><text x="500" y="75" font-size="14">…</text>
+      </svg>
+      <figcaption>Un valor de Fp nunca puede ser p o más grande. No hay que chequearlo en ningún lado: el tipo lo garantiza.</figcaption>
+    </figure>
+    <div class="box idea">
+      <div class="eyebrow">Por qué importa</div>
+      <p>En C o en Python un número de campo es un entero cualquiera, y cada función tiene que acordarse de reducirlo mod p. Si alguien se olvida, aparece un bug. Acá eso no puede pasar: un número ≥ p ni siquiera se puede escribir como <code>Fp</code>. Los criptógrafos a esto le dicen <b>canonicidad</b>, y es lo que dice el comentario del archivo: "canonicity holds by construction".</p>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="step" id="s3">
+    <div class="stephead"><span class="stepnum exec">3</span><h2>Sumar, restar, multiplicar, comparar</h2><span class="lines">líneas 46–57</span></div>
+    <pre class="code exec-kw"><span class="row"><span class="ln">46</span>@[inline] <span class="kw">def</span> ofNat (n : Nat) : Fp := Fin.ofNat modulus n</span><span class="row"><span class="ln">47</span></span><span class="row"><span class="ln">48</span>@[inline] <span class="kw">def</span> zero : Fp := ⟨0, Fp.modulus_pos⟩</span><span class="row"><span class="ln">49</span>@[inline] <span class="kw">def</span> one  : Fp := ⟨1, <span class="kw">by</span> decide⟩</span><span class="row"><span class="ln">50</span></span><span class="row"><span class="ln">51</span>@[inline] <span class="kw">def</span> add (a b : Fp) : Fp := a + b</span><span class="row"><span class="ln">52</span>@[inline] <span class="kw">def</span> sub (a b : Fp) : Fp := a - b</span><span class="row"><span class="ln">53</span>@[inline] <span class="kw">def</span> neg (a : Fp)   : Fp := -a</span><span class="row"><span class="ln">54</span>@[inline] <span class="kw">def</span> mul (a b : Fp) : Fp := a * b</span><span class="row"><span class="ln">55</span></span><span class="row"><span class="ln">56</span>@[inline] <span class="kw">def</span> beq (a b : Fp) : Bool := a.val == b.val</span><span class="row"><span class="ln">57</span>@[inline] <span class="kw">def</span> isZero (a : Fp) : Bool := a.val == 0</span></pre>
+    <p>Son envoltorios de una línea: <code>add a b := a + b</code>. El <code>+</code> ya viene hecho por <code>Fin</code> y hace la suma con el resto mod p. Estas funciones existen solo para que el resto de la spec (G1, Pairing…) tenga nombres claros.</p>
+    <table class="tablewrap" style="display:table">
+      <tr><th>Función</th><th>Qué hace</th><th>Ejemplo con p = 7</th></tr>
+      <tr><td class="m">ofNat n</td><td>convierte cualquier natural en Fp tomando n mod p</td><td class="m">ofNat 10 = 3</td></tr>
+      <tr><td class="m">zero, one</td><td>el 0 y el 1; <code>⟨0, prueba⟩</code> es el par "número + prueba de que es &lt; p"</td><td class="m">0, 1</td></tr>
+      <tr><td class="m">add</td><td>suma mod p</td><td class="m">5 + 4 = 2</td></tr>
+      <tr><td class="m">sub</td><td>resta mod p; nunca da negativo</td><td class="m">3 − 5 = 5</td></tr>
+      <tr><td class="m">neg</td><td>el opuesto: el número que sumado da 0</td><td class="m">−3 = 4</td></tr>
+      <tr><td class="m">mul</td><td>multiplicación mod p</td><td class="m">3 × 5 = 1</td></tr>
+      <tr><td class="m">beq, isZero</td><td>comparan el número de adentro (<code>.val</code>) y devuelven Bool</td><td class="m">isZero 0 = true</td></tr>
+    </table>
+    <p><code>@[inline]</code> es solo una pista para el compilador: "pegá el cuerpo de la función donde se usa". No cambia el resultado.</p>
+  </section>
+
+  <!-- 4 -->
+  <section class="step" id="s4">
+    <div class="stephead"><span class="stepnum exec">4</span><h2>Potencias rápidas: square-and-multiply</h2><span class="lines">líneas 59–66</span></div>
+    <pre class="code exec-kw"><span class="row"><span class="ln">59</span><span class="cm">/-- Square-and-multiply modular exponentiation. -/</span></span><span class="row"><span class="ln">60</span><span class="kw">def</span> powNat (base : Fp) (e : Nat) : Fp :=</span><span class="row"><span class="ln">61</span>  <span class="kw">if</span> e = 0 <span class="kw">then</span> one</span><span class="row"><span class="ln">62</span>  <span class="kw">else</span></span><span class="row"><span class="ln">63</span>    <span class="kw">let</span> half := powNat (base * base) (e / 2)</span><span class="row"><span class="ln">64</span>    <span class="kw">if</span> e % 2 = 1 <span class="kw">then</span> base * half <span class="kw">else</span> half</span><span class="row"><span class="ln">65</span><span class="kw">termination_by</span> e</span><span class="row"><span class="ln">66</span><span class="kw">decreasing_by</span> omega</span></pre>
+    <p>Para el inverso y la raíz hace falta elevar a exponentes enormes, del tamaño de p. Multiplicar p veces es imposible: tardaría más que la edad del universo. El truco usa que <b>a<sup>e</sup> = (a·a)<sup>e/2</sup></b>, y si e es impar sobra un factor a. Cada paso divide el exponente por 2, así que alcanzan unos 381 pasos.</p>
+    <p>Así se desenvuelve <code>powNat 3 13</code> con p = 7. Se lee en dos pasadas: bajando se van armando las llamadas, subiendo se calcula el resultado.</p>
+    <div class="tablewrap">
+    <table>
+      <tr><th>Llamada</th><th>base</th><th>e</th><th>¿e impar?</th><th>Resultado (subiendo)</th></tr>
+      <tr><td class="m">powNat 3 13</td><td class="m">3</td><td class="m">13</td><td>sí</td><td class="m">3 × 1 = <b class="ok">3</b></td></tr>
+      <tr><td class="m">powNat 2 6</td><td class="m">3·3 = 9 → 2</td><td class="m">6</td><td>no</td><td class="m">1</td></tr>
+      <tr><td class="m">powNat 4 3</td><td class="m">2·2 = 4</td><td class="m">3</td><td>sí</td><td class="m">4 × 2 = 8 → 1</td></tr>
+      <tr><td class="m">powNat 2 1</td><td class="m">4·4 = 16 → 2</td><td class="m">1</td><td>sí</td><td class="m">2 × 1 = 2</td></tr>
+      <tr><td class="m">powNat 4 0</td><td class="m">2·2 = 4</td><td class="m">0</td><td>—</td><td class="m">one = 1</td></tr>
+    </table>
+    </div>
+    <p class="cap" style="text-align:left">5 llamadas en vez de 13 multiplicaciones. Con el p real son unas 381 llamadas en vez de 10<sup>114</sup>.</p>
+    <div class="box">
+      <h3>Las dos líneas raras del final</h3>
+      <p><code>termination_by e</code> y <code>decreasing_by omega</code> no existen en Python. Lean exige demostrar que toda función recursiva <b>termina</b>, porque si no, se podría "probar" cualquier cosa con una función que nunca termina. Acá se le dice: "el exponente e baja en cada llamada (e/2 &lt; e)". <code>omega</code> es una táctica que demuestra sola ese tipo de desigualdades entre enteros.</p>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="step" id="s5">
+    <div class="stephead"><span class="stepnum exec">5</span><h2>El inverso, por el pequeño teorema de Fermat</h2><span class="lines">líneas 68–69</span></div>
+    <pre class="code exec-kw"><span class="row"><span class="ln">68</span><span class="cm">/-- Multiplicative inverse via Fermat&#x27;s little theorem. -/</span></span><span class="row"><span class="ln">69</span>@[inline] <span class="kw">def</span> inverse (a : Fp) : Fp := powNat a (modulus - 2)</span></pre>
+    <p>El <b>inverso</b> de a es el número que multiplicado por a da 1. Fermat demostró en 1640 que si p es primo y a ≠ 0, entonces <b>a<sup>p−1</sup> = 1</b>. Separando un factor: a<sup>p−2</sup> · a = 1. O sea, <b>a<sup>p−2</sup> es el inverso de a</b>, y se calcula con la potencia rápida del paso anterior.</p>
+    <div class="box">
+      <h3>Ejemplo con p = 7: el inverso de 3</h3>
+      <p class="m" style="font-family:var(--f-mono)">3<sup>7−2</sup> = 3<sup>5</sup> = 243 → 243 mod 7 = <b class="ok">5</b></p>
+      <p>Comprobación: 3 × 5 = 15 → 15 mod 7 = 1 <span class="ok">✓</span></p>
+      <p style="color:var(--muted);font-size:14.5px">Detalle: el 0 no tiene inverso, pero la fórmula da 0<sup>p−2</sup> = 0. La spec no tira error, devuelve 0. La prueba del paso 10 lo tiene en cuenta: en Mathlib también se define 0⁻¹ = 0.</p>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="step" id="s6">
+    <div class="stephead"><span class="stepnum exec">6</span><h2>La trampa de la división</h2><span class="lines">líneas 71–75</span></div>
+    <pre class="code exec-kw"><span class="row"><span class="ln">71</span><span class="cm">/-- Field division `a * b⁻¹`. Registered with high priority because core</span></span><span class="row"><span class="ln">72</span><span class="cm">already has a `Div (Fin n)` instance that performs *`Nat` division* of</span></span><span class="row"><span class="ln">73</span><span class="cm">the underlying values — silently picking that one up would be wrong for</span></span><span class="row"><span class="ln">74</span><span class="cm">a field element, so this instance must shadow it. -/</span></span><span class="row"><span class="ln">75</span><span class="kw">instance</span> (<span class="kw">priority</span> := high) : Div Fp := ⟨<span class="kw">fun</span> a b =&gt; a * b.inverse⟩</span></pre>
+    <p>Dividir en el campo es multiplicar por el inverso: <b>a / b = a × b⁻¹</b>. Pero hay una trampa: <code>Fin</code> ya trae su propio <code>/</code>, y ese hace <b>división entera</b> de los números de adentro, como el <code>//</code> de Python. Para un campo eso está mal.</p>
+    <div class="two">
+      <div class="box warnb">
+        <div class="eyebrow">El / que trae Fin</div>
+        <p style="font-family:var(--f-mono)">6 / 4 = 6 // 4 = <b class="bad">1</b></p>
+        <p>Comprobación: 1 × 4 = 4 ≠ 6 <span class="bad">✗</span></p>
+      </div>
+      <div class="box" style="border-left:4px solid var(--exec)">
+        <div class="eyebrow" style="color:var(--exec)">El / de la spec</div>
+        <p style="font-family:var(--f-mono)">6 / 4 = 6 × 4⁻¹ = 6 × 2 = 12 → <b class="ok">5</b></p>
+        <p>Comprobación: 5 × 4 = 20 → 6 <span class="ok">✓</span></p>
+      </div>
+    </div>
+    <p><code>instance (priority := high)</code> le dice a Lean: "cuando alguien escriba <code>/</code> entre dos Fp, usá esta versión y no la de Fin". Si esa línea faltara, el código compilaría igual y daría resultados silenciosamente equivocados. Es un buen ejemplo de por qué conviene tener pruebas: en el paso 10 hay un teorema que confirma que este <code>/</code> es la división de verdad.</p>
+  </section>
+
+  <!-- 7 -->
+  <section class="step" id="s7">
+    <div class="stephead"><span class="stepnum exec">7</span><h2>Raíz cuadrada</h2><span class="lines">líneas 77–81</span></div>
+    <pre class="code exec-kw"><span class="row"><span class="ln">77</span><span class="cm">/-- Square root, valid for `p ≡ 3 (mod 4)`. Throws `notASquare` if `a`</span></span><span class="row"><span class="ln">78</span><span class="cm">is not a square. -/</span></span><span class="row"><span class="ln">79</span><span class="kw">def</span> sqrt (a : Fp) : Except BlsError Fp :=</span><span class="row"><span class="ln">80</span>  <span class="kw">let</span> cand := powNat a ((modulus + 1) / 4)</span><span class="row"><span class="ln">81</span>  <span class="kw">if</span> (cand * cand).beq a <span class="kw">then</span> .ok cand <span class="kw">else</span> .error .notASquare</span></pre>
+    <p>Buscamos un c tal que c × c = a. En un campo finito no todos los números tienen raíz: con p = 7 solo la tienen 0, 1, 2 y 4. Cuando p deja resto 3 al dividirlo por 4 (el p de BLS cumple eso), hay una fórmula directa: <b>el candidato es a<sup>(p+1)/4</sup></b>. La función lo calcula y después <b>verifica</b> si al cuadrado da a.</p>
+    <figure class="fig">
+<pre class="mermaid">
+flowchart LR
+  A["a"] --> C["cand = a ^ ((p+1)/4)<br/>con powNat"]
+  C --> Q{"¿cand × cand == a?"}
+  Q -->|sí| OK[".ok cand<br/>la raíz"]
+  Q -->|no| ER[".error .notASquare<br/>a no tiene raíz"]
+  classDef exec fill:#dcf2ea,stroke:#1f8a6b,stroke-width:2px,color:#0b3b2e
+  classDef bad fill:#fde3de,stroke:#c2412d,stroke-width:2px,color:#5a1a10
+  class A,C,Q,OK exec
+  class ER bad
+</pre>
+      <figcaption>Con p = 7 el exponente es (7+1)/4 = 2.</figcaption>
+    </figure>
+    <div class="tablewrap">
+      <table>
+        <tr><th>a</th><th>cand = a²</th><th>cand × cand</th><th>Resultado</th></tr>
+        <tr><td class="m">2</td><td class="m">4</td><td class="m">16 → 2 = a</td><td class="m ok">.ok 4</td></tr>
+        <tr><td class="m">3</td><td class="m">9 → 2</td><td class="m">4 ≠ 3</td><td class="m bad">.error .notASquare</td></tr>
+      </table>
+    </div>
+    <p><code>Except BlsError Fp</code> es el tipo del resultado: o sale bien (<code>.ok</code> con un Fp) o sale un error. Se parece a devolver un valor o levantar una excepción en Python, pero el error queda escrito en el tipo y quien llama está obligado a manejarlo.</p>
+    <p>Esta función se usa para descomprimir claves públicas: de una clave de 48 bytes se guarda solo la coordenada x del punto, y la y se recupera con esta raíz.</p>
+  </section>
+
+  <!-- 8 -->
+  <section class="step" id="s8">
+    <div class="stephead"><span class="stepnum exec">8</span><h2>De y hacia bytes</h2><span class="lines">líneas 83–101</span></div>
+    <pre class="code exec-kw"><span class="row"><span class="ln">83</span><span class="cm">/-- Decode big-endian bytes as a `Nat`. -/</span></span><span class="row"><span class="ln">84</span><span class="kw">def</span> bytesBEToNat (b : ByteArray) : Nat := Id.run <span class="kw">do</span></span><span class="row"><span class="ln">85</span>  <span class="kw">let</span> <span class="kw">mut</span> acc : Nat := 0</span><span class="row"><span class="ln">86</span>  <span class="kw">for</span> i <span class="kw">in</span> [:b.size] <span class="kw">do</span></span><span class="row"><span class="ln">87</span>    acc := (acc &lt;&lt;&lt; 8) ||| b[i]!.toNat</span><span class="row"><span class="ln">88</span>  <span class="kw">return</span> acc</span><span class="row"><span class="ln">89</span></span><span class="row"><span class="ln">90</span><span class="cm">/-- Decode a 48-byte big-endian integer as an `Fp`. Throws if the input</span></span><span class="row"><span class="ln">91</span><span class="cm">has the wrong size or the integer is `≥ p`. -/</span></span><span class="row"><span class="ln">92</span><span class="kw">def</span> fromBytesBE (b : ByteArray) : Except BlsError Fp :=</span><span class="row"><span class="ln">93</span>  <span class="kw">if</span> b.size ≠ 48 <span class="kw">then</span> .error .nonCanonicalFieldElement</span><span class="row"><span class="ln">94</span>  <span class="kw">else</span></span><span class="row"><span class="ln">95</span>    <span class="kw">let</span> n := bytesBEToNat b</span><span class="row"><span class="ln">96</span>    <span class="kw">if</span> h : n &lt; modulus <span class="kw">then</span> .ok ⟨n, h⟩ <span class="kw">else</span> .error .nonCanonicalFieldElement</span><span class="row"><span class="ln">97</span></span><span class="row"><span class="ln">98</span><span class="cm">/-- Encode as 48 big-endian bytes. -/</span></span><span class="row"><span class="ln">99</span><span class="kw">def</span> toBytesBE (a : Fp) : ByteArray :=</span><span class="row"><span class="ln">100</span>  ByteArray.mk &lt;| Array.ofFn (n := 48) <span class="kw">fun</span> i =&gt;</span><span class="row"><span class="ln">101</span>    UInt8.ofNat ((a.val &gt;&gt;&gt; ((47 - i.val) * 8)) &amp;&amp;&amp; 0xff)</span></pre>
+    <p>Por la red viajan bytes, no números de Lean. Estas tres funciones traducen, en <b>big-endian</b>: el byte más significativo va primero, como escribimos los números en papel.</p>
+    <ul>
+      <li><code>bytesBEToNat</code> recorre los bytes y va armando el número: corre lo acumulado 8 bits a la izquierda y pega el byte nuevo. Por ejemplo, <code>[0x01, 0x02]</code> da 1, después 1 × 256 + 2 = 258.</li>
+      <li><code>fromBytesBE</code> es la entrada desde la red y rechaza dos cosas: que no sean <b>exactamente 48 bytes</b>, o que el número sea <b>≥ p</b>. Si pasa, arma el Fp con el número y la prueba <code>h</code> de que es &lt; p. Es el mismo par del paso 2.</li>
+      <li><code>toBytesBE</code> hace el camino inverso y siempre produce 48 bytes, rellenando con ceros a la izquierda.</li>
+    </ul>
+    <figure class="fig">
+      <div class="bytes" aria-label="Los 48 bytes de p"><span class="first">1a</span><span>01</span><span>11</span><span>ea</span><span>39</span><span>7f</span><span>e6</span><span>9a</span><span>4b</span><span>1b</span><span>a7</span><span>b6</span><span>43</span><span>4b</span><span>ac</span><span>d7</span><span>64</span><span>77</span><span>4b</span><span>84</span><span>f3</span><span>85</span><span>12</span><span>bf</span><span>67</span><span>30</span><span>d2</span><span>a0</span><span>f6</span><span>b0</span><span>f6</span><span>24</span><span>1e</span><span>ab</span><span>ff</span><span>fe</span><span>b1</span><span>53</span><span>ff</span><span>ff</span><span>b9</span><span>fe</span><span>ff</span><span>ff</span><span>ff</span><span>ff</span><span>aa</span><span>ab</span></div>
+      <figcaption>Así se ve el propio p en 48 bytes. El primer byte es <b>0x1a</b>. Como todo elemento de Fp es menor que p, su primer byte es a lo sumo 0x1a, que es menor que 0x20: los 3 bits más altos quedan siempre en 0. <code>Compress</code> aprovecha esos 3 bits libres para guardar banderas, y hay un teorema para eso: <code>toBytesBE_head_lt</code>.</figcaption>
+    </figure>
+    <div class="box idea">
+      <div class="eyebrow">Por qué rechazar ≥ p</div>
+      <p>Si se aceptara, el mismo número tendría dos codificaciones distintas en bytes (x y x + p). Dos clientes podrían considerar "iguales" o "distintas" dos claves según cómo las comparen, y eso rompe el consenso. Rechazar es lo que obliga a que haya una sola forma válida de escribir cada número.</p>
+    </div>
+  </section>
+
+  <!-- calculadora -->
+  <section class="step" id="calc">
+    <div class="stephead"><span class="stepnum">⌨</span><h2>Probalo vos</h2></div>
+    <p>Esta calculadora hace exactamente lo que hace <code>Fp.lean</code>, con un primo chico. Todos los primos de la lista dejan resto 3 al dividir por 4, como el p real, así que la raíz funciona igual.</p>
+    <div class="calc">
+      <div class="controls">
+        <label for="cp">p (primo)<select id="cp"><option>7</option><option>11</option><option>19</option><option>23</option><option>43</option></select></label>
+        <label for="ca">a<input id="ca" type="number" min="0" value="3"></label>
+        <label for="cb">b<input id="cb" type="number" min="0" value="5"></label>
+        <label for="ce">exponente e<input id="ce" type="number" min="0" value="13"></label>
+      </div>
+      <div class="results" id="out"></div>
+      <div class="tablewrap"><table id="trace"></table></div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="step" id="s9">
+    <div class="stephead"><span class="stepnum thm">9</span><h2>La prueba: p es primo</h2><span class="lines">FpZMod.lean · 442–450</span></div>
+    <p>Ahora cambiamos de mitad: <code>EthCryptographySpecs/Proofs/Bls/FpZMod.lean</code> no se ejecuta nunca, solo lo chequea Lean. Lo primero que necesita es demostrar que p es primo, porque todo lo que sigue depende de eso: sin primo no hay inversos (paso 0) y no vale Fermat (paso 5).</p>
+    <pre class="code thm"><span class="row"><span class="ln">442</span><span class="cm">/-- The BLS12-381 base field modulus is prime, by a Lucas certificate</span></span><span class="row"><span class="ln">443</span><span class="cm">chain (Pratt tree): every prime factor of `p - 1` beyond `norm_num`</span></span><span class="row"><span class="ln">444</span><span class="cm">range carries its own certificate above. Witness: `2` is a</span></span><span class="row"><span class="ln">445</span><span class="cm">primitive root mod `p`. -/</span></span><span class="row"><span class="ln">446</span><span class="kw">theorem</span> modulus_prime : Nat.Prime modulus :=</span><span class="row"><span class="ln">447</span>  lucas_primality modulus ((2 : Nat) : ZMod modulus)</span><span class="row"><span class="ln">448</span>    pow_card_sub_one_modulus pow_div_prime_ne_one_modulus</span><span class="row"><span class="ln">449</span></span><span class="row"><span class="ln">450</span><span class="kw">instance</span> : Fact (Nat.Prime modulus) := ⟨modulus_prime⟩</span></pre>
+    <p>Probar que un número de 115 dígitos es primo dividiendo es imposible. Se usa un <b>certificado de Lucas</b>: si encontrás un número g tal que g<sup>p−1</sup> = 1 y, para cada primo q que divide a p−1, g<sup>(p−1)/q</sup> ≠ 1, entonces p es primo. Hay un detalle: hace falta saber que esos q también son primos, y algunos son enormes. Entonces cada uno trae <b>su propio certificado</b>, y así se forma un árbol que se llama <b>árbol de Pratt</b>.</p>
+    <figure class="fig">
+<pre class="mermaid">
+flowchart TB
+  P["p (381 bits)<br/>testigo g = 2"]
+  P --> S["2, 3, 11, 23, 47, 10177,<br/>859267, 52437899<br/>chicos: norm_num"]
+  P --> A["2584487767265781317813<br/>(22 dígitos)"]
+  P --> B["15778400…714659<br/>(71 dígitos)"]
+  A --> A1["7259797099061183477"]
+  A1 --> A2["1928745244171409"]
+  A2 --> A3["9272813673901"]
+  B --> B1["92691255082156974996979"]
+  B1 --> B11["64881703735777"]
+  B --> B2["1125266252156850182658904441386709967"]
+  B2 --> B21["43670061551"]
+  B2 --> B22["3819663927398918131021"]
+  B22 --> B221["13090036741"]
+  classDef thm fill:#e8e3fb,stroke:#6a4fd1,stroke-width:2px,color:#281a5e
+  classDef small fill:#e7eaed,stroke:#76828d,stroke-width:2px,stroke-dasharray:5 4,color:#222b33
+  class P,A,B,A1,A2,A3,B1,B11,B2,B21,B22,B221 thm
+  class S small
+</pre>
+      <figcaption>Cada caja violeta es un teorema privado en el archivo, un certificado de Lucas. Los factores chicos de cada número (como 2, 3, 13 o 941) los verifica <code>norm_num</code> directamente.</figcaption>
+    </figure>
+    <div class="box idea">
+      <div class="eyebrow">Sin atajos</div>
+      <p>Todas estas potencias gigantes las calcula el <b>núcleo de Lean</b> (vía <code>PowMod.powModAux</code>), no el código compilado. Por eso esta prueba no usa <code>native_decide</code> y es de la clase más confiable del repo. El comentario del archivo lo dice explícito: "the entire tree is kernel-checked without native_decide".</p>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="step" id="s10">
+    <div class="stephead"><span class="stepnum thm">10</span><h2>El puente con Mathlib</h2><span class="lines">FpZMod.lean · 452–560</span></div>
+    <p><b>Mathlib</b> ya tiene los números módulo n, que se llaman <code>ZMod n</code>, y miles de teoremas sobre ellos. La idea de la prueba es: <b>demostrar que cada operación de la spec coincide con la de Mathlib</b>. A partir de ahí, todos los teoremas de Mathlib valen gratis para la spec.</p>
+    <pre class="code thm"><span class="row"><span class="ln">452</span><span class="cm">/-- `Fp` is (definitionally) Mathlib&#x27;s `ZMod Fp.modulus`, as rings. -/</span></span><span class="row"><span class="ln">453</span><span class="kw">def</span> toZMod : Fp ≃+* ZMod modulus := RingEquiv.refl _</span></pre>
+    <p>El primer paso es casi gratis: <code>Fin p</code> y <code>ZMod p</code> son, por definición, el mismo tipo para Lean. <code>RingEquiv.refl</code> significa "es la identidad": no hay que convertir nada.</p>
+    <p>Lo que no es gratis son las operaciones que la spec escribió a mano: <code>powNat</code>, <code>inverse</code> y <code>/</code>. Para cada una hay un teorema puente.</p>
+    <div class="box">
+      <div class="sumgrid" role="table" aria-label="Puentes entre spec y Mathlib">
+        <div class="pill exec">Fp.ofNat n</div><div class="arrow"><b>ofNat_eq_natCast</b>=</div><div class="pill ext">(n : ZMod p)</div>
+        <div class="pill exec">Fp.powNat a n</div><div class="arrow"><b>powNat_eq_pow</b>=</div><div class="pill ext">a ^ n</div>
+        <div class="pill exec">Fp.inverse a</div><div class="arrow"><b>inverse_eq_inv</b>=</div><div class="pill ext">a⁻¹</div>
+        <div class="pill exec">a / b (la de la spec)</div><div class="arrow"><b>div_eq_mul_inv'</b>=</div><div class="pill ext">a * b⁻¹</div>
+      </div>
+      <p class="cap" style="text-align:left">Verde: la función ejecutable. Gris: el concepto matemático de Mathlib. Violeta: el nombre del teorema que demuestra que son lo mismo.</p>
+    </div>
+    <p>Veamos el más interesante: que la potencia rápida da lo mismo que la potencia de la matemática.</p>
+    <pre class="code thm"><span class="row"><span class="ln">462</span><span class="kw">theorem</span> powNat_eq_zmod_pow (a : ZMod modulus) (n : Nat) :</span><span class="row"><span class="ln">463</span>    Fp.powNat a n = a ^ n := <span class="kw">by</span></span><span class="row"><span class="ln">464</span>  <span class="kw">induction</span> n <span class="kw">using</span> Nat.strongRecOn <span class="kw">generalizing</span> a <span class="kw">with</span></span><span class="row"><span class="ln">465</span>  | _ n ih =&gt;</span><span class="row"><span class="ln">466</span>    rw [Fp.powNat]</span><span class="row"><span class="ln">467</span>    split</span><span class="row"><span class="ln">468</span>    · rename_i h</span><span class="row"><span class="ln">469</span>      subst h</span><span class="row"><span class="ln">470</span>      rw [pow_zero]</span><span class="row"><span class="ln">471</span>      rfl</span><span class="row"><span class="ln">472</span>    · rename_i h</span><span class="row"><span class="ln">473</span>      rw [ih (n / 2) (<span class="kw">by</span> omega)]</span><span class="row"><span class="ln">474</span>      by_cases h2 : n % 2 = 1</span><span class="row"><span class="ln">475</span><span class="cm">      -- `show` re-elaborates the goal with uniform `ZMod` instance</span></span><span class="row"><span class="ln">476</span><span class="cm">      -- paths (the `*` inherited from `powNat`&#x27;s body is the spec&#x27;s</span></span><span class="row"><span class="ln">477</span><span class="cm">      -- `Fin` one), so the `pow` rewrites below can match.</span></span><span class="row"><span class="ln">478</span>      · rw [if_pos h2]</span><span class="row"><span class="ln">479</span>        show a * (a * a) ^ (n / 2) = a ^ n</span><span class="row"><span class="ln">480</span>        rw [← pow_two, ← pow_mul, ← pow_succ&#x27;]</span><span class="row"><span class="ln">481</span>        congr 1</span><span class="row"><span class="ln">482</span>        omega</span><span class="row"><span class="ln">483</span>      · rw [if_neg h2]</span><span class="row"><span class="ln">484</span>        show (a * a) ^ (n / 2) = a ^ n</span><span class="row"><span class="ln">485</span>        rw [← pow_two, ← pow_mul]</span><span class="row"><span class="ln">486</span>        congr 1</span><span class="row"><span class="ln">487</span>        omega</span></pre>
+    <ul>
+      <li><code>induction n using Nat.strongRecOn</code>: se prueba por inducción fuerte. Se asume que vale para todos los exponentes menores que n (en particular n/2) y se demuestra para n.</li>
+      <li><code>rw [Fp.powNat]</code> despliega la definición de la spec, igual que vimos con <code>sqrt</code> en las notas de investigación. Así la prueba queda <b>atada</b> al código: si alguien cambia <code>powNat</code>, esta prueba deja de compilar.</li>
+      <li><code>split</code> abre los dos casos del <code>if</code>: e = 0 y e ≠ 0. Después se separa par de impar.</li>
+      <li>En cada caso se reescribe con reglas de álgebra de Mathlib (<code>pow_two</code>, <code>pow_mul</code>, <code>pow_succ'</code>) hasta que ambos lados coinciden. En palabras: a · (a·a)<sup>n/2</sup> = a<sup>1 + 2·(n/2)</sup> = a<sup>n</sup> cuando n es impar.</li>
+    </ul>
+    <p>Con los puentes listos, el archivo arma <code>instField</code>: le dice a Lean que <b>Fp es un campo</b> en el sentido de Mathlib, usando la división de la spec. El archivo cierra con tres "pruebas de humo" que muestran que ya se pueden usar teoremas generales de campos:</p>
+    <pre class="code thm"><span class="row"><span class="ln">555</span></span><span class="row"><span class="ln">556</span><span class="cm">-- Smoke tests: the scoped field structure interoperates with the</span></span><span class="row"><span class="ln">557</span><span class="cm">-- globally available `Fin` instances the executable spec uses.</span></span><span class="row"><span class="ln">558</span><span class="kw">example</span> (a b : Fp) : a * b = b * a := mul_comm a b</span><span class="row"><span class="ln">559</span><span class="kw">example</span> (a b : Fp) : a - b = a + -b := sub_eq_add_neg a b</span><span class="row"><span class="ln">560</span><span class="kw">example</span> (a : Fp) (h : a ≠ 0) : a * a⁻¹ = 1 := mul_inv_cancel₀ h</span></pre>
+    <p>La última dice: "si a ≠ 0, a por su inverso da 1". Es el teorema de Fermat del paso 5, pero ahora <b>demostrado para el código real</b> y para todo a, no probado con ejemplos.</p>
+  </section>
+
+  <!-- 11 -->
+  <section class="step" id="s11">
+    <div class="stephead"><span class="stepnum thm">11</span><h2>Las pruebas de sqrt</h2><span class="lines">Proofs/Bls/Compress.lean · 31–41 y 55</span></div>
+    <p>La raíz cuadrada se demuestra en otro archivo, junto a la compresión de puntos, que es donde se usa. Son dos teoremas que juntos dicen "sqrt hace exactamente lo que debe":</p>
+    <pre class="code thm"><span class="row"><span class="ln">31</span><span class="cm">/-- Soundness of `Fp.sqrt`: a returned root squares to the input. -/</span></span><span class="row"><span class="ln">32</span><span class="kw">theorem</span> sqrt_ok {a c : Fp} (h : Fp.sqrt a = .ok c) :</span><span class="row"><span class="ln">33</span>    (c : ZMod Fp.modulus) * c = a := <span class="kw">by</span></span><span class="row"><span class="ln">34</span>  rw [Fp.sqrt] at h</span><span class="row"><span class="ln">35</span>  split at h</span><span class="row"><span class="ln">36</span>  · rename_i hbeq</span><span class="row"><span class="ln">37</span>    cases h</span><span class="row"><span class="ln">38</span>    exact beq_iff&#x27;.mp hbeq</span><span class="row"><span class="ln">39</span>  · cases h</span></pre>
+    <div class="two">
+      <div class="box"><div class="eyebrow" style="color:var(--thm)">sqrt_ok · soundness</div><p>Si <code>sqrt</code> devuelve <code>.ok c</code>, entonces c × c = a. Nunca da una raíz falsa. La prueba es corta porque la función ya verifica el resultado antes de devolverlo (el <code>if</code> del paso 7).</p></div>
+      <div class="box"><div class="eyebrow" style="color:var(--thm)">sqrt_complete · completeness</div><p>Si a tiene alguna raíz b, entonces <code>sqrt a</code> no falla: devuelve <code>.ok</code>. Nunca rechaza un número que sí tenía raíz. Esta es la difícil, porque usa Fermat para mostrar que la fórmula a<sup>(p+1)/4</sup> siempre funciona.</p></div>
+    </div>
+  </section>
+
+  <!-- resumen -->
+  <section class="step" id="s12">
+    <div class="stephead"><span class="stepnum">★</span><h2>Resumen: qué aprendiste de este archivo</h2></div>
+    <div class="tablewrap">
+      <table>
+        <tr><th>Spec (se ejecuta)</th><th>Idea</th><th>Teorema que la respalda</th></tr>
+        <tr><td class="m">Fp.modulus</td><td>el primo de 381 bits</td><td class="m">modulus_prime</td></tr>
+        <tr><td class="m">abbrev Fp := Fin p</td><td>el tipo garantiza 0 ≤ x &lt; p</td><td class="m">toZMod (es ZMod p)</td></tr>
+        <tr><td class="m">add · sub · neg · mul</td><td>aritmética de reloj, heredada de Fin</td><td>vienen de Mathlib vía <span class="m" style="font-family:var(--f-mono)">instField</span></td></tr>
+        <tr><td class="m">powNat</td><td>square-and-multiply, ~381 pasos</td><td class="m">powNat_eq_pow</td></tr>
+        <tr><td class="m">inverse</td><td>Fermat: a<sup>p−2</sup></td><td class="m">inverse_eq_inv</td></tr>
+        <tr><td class="m">instance Div</td><td>tapa la división entera de Fin</td><td class="m">div_eq_mul_inv'</td></tr>
+        <tr><td class="m">sqrt</td><td>a<sup>(p+1)/4</sup> y verificar</td><td class="m">sqrt_ok · sqrt_complete</td></tr>
+        <tr><td class="m">fromBytesBE · toBytesBE</td><td>48 bytes big-endian, rechaza ≥ p</td><td class="m">fromBytesBE_toBytesBE</td></tr>
+      </table>
+    </div>
+    <p>El patrón que se repite en todo el repo es el mismo que viste acá: <b>la spec escribe el algoritmo como lo haría un programador</b> (rápido, con bytes, con errores), y <b>la prueba demuestra que coincide con la definición matemática</b> de Mathlib. <code>G1.lean</code>, el siguiente de la lista, usa este Fp para las coordenadas de los puntos de la curva: es la caja que está justo arriba de Fp en el diagrama del principio.</p>
+  </section>
+</main>
+</div>
+
+<script>
+(function(){
+  var P=document.getElementById('cp'),A=document.getElementById('ca'),B=document.getElementById('cb'),E=document.getElementById('ce'),out=document.getElementById('out'),tr=document.getElementById('trace');
+  function md(x,p){return ((x%p)+p)%p}
+  function pow(b,e,p){var r=1;b=md(b,p);while(e>0){if(e&1)r=r*b%p;b=b*b%p;e=Math.floor(e/2)}return r}
+  function card(k,v,x,trap){return '<div class="res'+(trap?' trap':'')+'"><span class="k">'+k+'</span><span class="v">'+v+'</span><span class="x">'+x+'</span></div>'}
+  function render(){
+    var p=+P.value;
+    var a=Math.max(0,Math.floor(+A.value||0)),b=Math.max(0,Math.floor(+B.value||0)),e=Math.max(0,Math.min(100000,Math.floor(+E.value||0)));
+    var ai=md(a,p),bi=md(b,p),note=(a!==ai||b!==bi)?' (ofNat reduce a,b mod p)':'';
+    var inv=pow(bi,p-2,p),inva=pow(ai,p-2,p),div=ai*inv%p,cand=pow(ai,(p+1)/4,p),sq=cand*cand%p===ai;
+    var h='';
+    h+=card('a + b',md(ai+bi,p),ai+' + '+bi+' = '+(ai+bi)+note);
+    h+=card('a − b',md(ai-bi,p),ai+' − '+bi+' = '+(ai-bi)+' → mod '+p);
+    h+=card('−a',md(-ai,p),'porque '+ai+' + '+md(-ai,p)+' = '+(ai+md(-ai,p))+' → 0');
+    h+=card('a × b',ai*bi%p,ai+' × '+bi+' = '+(ai*bi));
+    h+=card('inverse a',inva,ai===0?'0 no tiene inverso: la spec da 0':ai+'^'+(p-2)+' ; comprobación '+ai+' × '+inva+' → '+(ai*inva%p));
+    h+=card('a / b (spec)',bi===0?'0':div,bi===0?'b = 0: inverse 0 = 0':ai+' × '+inv+' ; comprobación '+div+' × '+bi+' → '+(div*bi%p));
+    h+=card('a / b (Fin, mal)',bi===0?'0':Math.floor(ai/bi),bi===0?'división por 0':'división entera '+ai+' // '+bi+(bi===0?'':' ; '+Math.floor(ai/bi)+' × '+bi+' → '+(Math.floor(ai/bi)*bi%p)),true);
+    h+=card('sqrt a',sq?'.ok '+cand:'.error','cand = '+ai+'^'+((p+1)/4)+' = '+cand+' ; '+cand+'×'+cand+' → '+(cand*cand%p)+(sq?' = a ✓':' ≠ a'));
+    out.innerHTML=h;
+    // traza de powNat igual que la spec
+    var calls=[],bb=ai,x=e;while(x>0){calls.push({b:bb,e:x});bb=bb*bb%p;x=Math.floor(x/2)}calls.push({b:bb,e:0});
+    var res=1,rows=[];for(var i=calls.length-1;i>=0;i--){var c=calls[i],txt;if(c.e===0){res=1;txt='one = 1'}else if(c.e%2===1){var pr=c.b*res,nr=pr%p;txt=c.b+' × '+res+' = '+pr+(pr>=p?' → '+nr:'');res=nr}else{txt=String(res)}rows.unshift('<tr><td class="m">powNat '+c.b+' '+c.e+'</td><td class="m">'+c.e+'</td><td>'+(c.e===0?'—':(c.e%2===1?'sí':'no'))+'</td><td class="m">'+txt+'</td></tr>')}
+    tr.innerHTML='<tr><th colspan="4" style="text-transform:none;letter-spacing:0;font-size:13.5px">Traza de powNat '+ai+' '+e+' con p = '+p+' → <span class="ok">'+res+'</span> ('+calls.length+' llamadas)</th></tr><tr><th>Llamada</th><th>e</th><th>¿impar?</th><th>Resultado subiendo</th></tr>'+rows.join('');
+  }
+  [P,A,B,E].forEach(function(el){el.addEventListener('input',render)});
+  render();
+})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "default"});</script>
+</body>
+</html>

@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mapa eth-crypto-study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: una columna de lectura; arriba la leyenda fija el código de colores, luego dos diagramas (capas y build), luego el mapa archivo por archivo en tres columnas BLS/KZG/XMSS. */
+:root{
+  --bg:#f3f6f7; --panel:#ffffff; --fg:#17212b; --muted:#5a6773; --line:#d5dde2;
+  --exec:#1f8a6b; --exec-bg:#dcf2ea; --exec-fg:#0b3b2e;
+  --thm:#6a4fd1;  --thm-bg:#e8e3fb;  --thm-fg:#281a5e;
+  --glue:#b8730f; --glue-bg:#fbead2; --glue-fg:#4a2d00;
+  --ext:#76828d;  --ext-bg:#e7eaed;  --ext-fg:#222b33;
+  --warn:#c2412d; --warn-bg:#fde3de;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f1519; --panel:#172027; --fg:#e4ebef; --muted:#9aa8b3; --line:#2b3841;
+  --exec:#4cc9a0; --exec-bg:#12352b; --exec-fg:#c9f3e4;
+  --thm:#a893ff;  --thm-bg:#2a2350;  --thm-fg:#e3dcff;
+  --glue:#f0a94a; --glue-bg:#3d2a0e; --glue-fg:#fde6c4;
+  --ext:#9aa6b0;  --ext-bg:#26313a;  --ext-fg:#dde4e9;
+  --warn:#ff8a73; --warn-bg:#44201a; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0f1519; --panel:#172027; --fg:#e4ebef; --muted:#9aa8b3; --line:#2b3841;
+  --exec:#4cc9a0; --exec-bg:#12352b; --exec-fg:#c9f3e4;
+  --thm:#a893ff;  --thm-bg:#2a2350;  --thm-fg:#e3dcff;
+  --glue:#f0a94a; --glue-bg:#3d2a0e; --glue-fg:#fde6c4;
+  --ext:#9aa6b0;  --ext-bg:#26313a;  --ext-fg:#dde4e9;
+  --warn:#ff8a73; --warn-bg:#44201a; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.6 var(--f-body);padding:0 16px}
+main{max-width:1180px;margin:0 auto;padding-block:40px 64px;display:flex;flex-direction:column;gap:48px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:clamp(28px,4.5vw,44px);font-weight:800;letter-spacing:-.01em}
+h2{font-size:24px;font-weight:800}
+h3{font-size:17px;font-weight:600}
+p{margin:0;max-width:68ch}
+code,.mono{font-family:var(--f-mono);font-size:.86em}
+.eyebrow{font:600 12px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+section{display:flex;flex-direction:column;gap:16px}
+.lede{color:var(--muted);font-size:17px}
+
+/* Leyenda */
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.key{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start}
+.sw{flex:none;width:18px;height:18px;border-radius:5px;margin-top:3px;border:2px solid}
+.sw.exec{background:var(--exec-bg);border-color:var(--exec)}
+.sw.thm{background:var(--thm-bg);border-color:var(--thm)}
+.sw.glue{background:var(--glue-bg);border-color:var(--glue)}
+.sw.ext{background:var(--ext-bg);border-color:var(--ext);border-style:dashed}
+.sw.okbox{background:var(--exec);border-color:var(--exec)}
+.legend2 .key{padding:10px 14px;background:transparent}
+.legend2 .key b{font-size:14px}
+section[aria-label="Leyenda"]{gap:10px}
+.key b{display:block;font-weight:600}
+.key span{color:var(--muted);font-size:13.5px}
+
+/* Diagramas */
+.diagram{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;overflow-x:auto}
+.diagram pre.mermaid{margin:0;min-width:640px;text-align:center;background:transparent}
+.note{font-size:13.5px;color:var(--muted)}
+
+/* Mapa archivo por archivo */
+.cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media (max-width:900px){.cols{grid-template-columns:1fr}}
+.col{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.col header{display:flex;flex-direction:column;gap:4px}
+.col header p{font-size:13.5px;color:var(--muted)}
+.lane{display:flex;flex-direction:column;gap:6px}
+.lane-title{font:600 11.5px/1 var(--f-body);letter-spacing:.07em;text-transform:uppercase;display:flex;align-items:center;gap:8px;margin-bottom:2px}
+.lane-title.exec{color:var(--exec)} .lane-title.thm{color:var(--thm)}
+.lane-title::after{content:"";flex:1;height:1px;background:currentColor;opacity:.35}
+.chip{display:grid;grid-template-columns:auto 1fr;column-gap:10px;align-items:baseline;padding:7px 10px;border-radius:8px;border:1.5px solid transparent;font-size:13.5px;line-height:1.4;transition:box-shadow .15s, opacity .15s}
+.chip .f{font-family:var(--f-mono);font-size:12.5px;font-weight:600;white-space:nowrap}
+.chip .d{min-width:0}
+.chip.exec{background:var(--exec-bg);color:var(--exec-fg);border-color:color-mix(in srgb,var(--exec) 35%,transparent)}
+.chip.thm{background:var(--thm-bg);color:var(--thm-fg);border-color:color-mix(in srgb,var(--thm) 35%,transparent);cursor:pointer;text-align:left;font:inherit;font-size:13.5px;width:100%}
+.chip.thm:focus-visible{outline:2px solid var(--thm);outline-offset:2px}
+.chip.exec.export{border-style:solid;border-color:var(--glue);border-width:2px}
+.n{font-family:var(--f-mono);font-size:11.5px;font-variant-numeric:tabular-nums;opacity:.8}
+.flag{display:inline-block;font:600 10.5px/1 var(--f-body);letter-spacing:.04em;text-transform:uppercase;padding:3px 6px;border-radius:4px;margin-left:4px;vertical-align:1px;background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn)}
+.flag.x{background:var(--glue-bg);color:var(--glue-fg);border-color:var(--glue)}
+body.picking .chip.exec{opacity:.38}
+body.picking .chip.exec.hl{opacity:1;box-shadow:0 0 0 3px var(--thm)}
+body.picking .chip.thm{opacity:.55}
+body.picking .chip.thm.on{opacity:1;box-shadow:0 0 0 3px var(--thm)}
+.hint{font-size:13.5px;color:var(--muted);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.hint button{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--panel);color:var(--fg);padding:4px 10px;border-radius:6px;cursor:pointer}
+.shared{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;font-size:13.5px}
+.shared .chip{flex:0 1 auto}
+
+/* Huecos y verificación */
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card.warnc{border-left:4px solid var(--warn)}
+.card.okc{border-left:4px solid var(--exec)}
+.card p{font-size:14.5px}
+.checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.check{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.check .big{font:800 26px/1 var(--f-display);color:var(--exec);font-variant-numeric:tabular-nums}
+.check span{font-size:13.5px;color:var(--muted)}
+
+.study{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:12px 28px}
+@media (max-width:820px){.study{grid-template-columns:1fr}}
+.study-txt{display:flex;flex-direction:column;gap:10px}
+.study .note{grid-column:1/-1}
+.floors{list-style:none;margin:0;padding:0;display:flex;flex-direction:column-reverse;gap:6px}
+.floors li{border:1.5px dashed var(--line);border-radius:8px}
+.floors li>a,.floors li{display:grid;grid-template-columns:62px minmax(0,1fr) auto;column-gap:12px;align-items:baseline;padding:9px 12px;color:inherit;text-decoration:none;font-size:14px}
+.floors li.done{display:block;padding:0;border:2px solid var(--exec);background:var(--exec-bg);color:var(--exec-fg)}
+.floors li.done>a:hover b,.floors li.done>a:focus-visible b{text-decoration:underline}
+.floors .fl{font:600 11px/1 var(--f-mono);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);grid-row:span 2}
+.floors li.done .fl{color:var(--exec)}
+.floors b{font-family:var(--f-mono);font-size:13px}
+.floors span:not(.fl){grid-column:2;color:var(--muted);font-size:13px}
+.floors li.done span:not(.fl){color:inherit;opacity:.85}
+.floors em{font-style:normal;font-size:12px;font-weight:600;color:var(--muted);grid-column:3;grid-row:1}
+.floors li.done em{color:var(--exec)}
+a.guia{font-weight:600;color:var(--exec);white-space:nowrap;margin-left:4px}
+/* Glosario */
+dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px 24px;margin:0}
+dl div{padding:10px 0;border-top:1px solid var(--line)}
+dt{font-weight:600}
+dd{margin:2px 0 0;color:var(--muted);font-size:14px}
+@media (prefers-reduced-motion:reduce){.chip{transition:none}}
+</style>
+</head>
+<body>
+
+<main>
+  <header style="display:flex;flex-direction:column;gap:12px">
+    <div class="eyebrow">ethereum/cryptography-specs · copia de estudio en upstream 09deaff</div>
+    <h1>Qué corre y qué se demuestra</h1>
+    <p class="lede">La criptografía de Ethereum escrita una sola vez en Lean 4. Una parte se compila y se ejecuta desde Python. La otra son teoremas sobre esa misma parte, que Lean chequea pero que nunca se ejecutan.</p>
+  </header>
+
+  <section aria-label="Leyenda">
+    <div class="legend">
+      <div class="key"><i class="sw exec"></i><div><b>Lean ejecutable (spec)</b><span>Código <code>def</code>. Se compila a C y termina dentro del módulo de Python.</span></div></div>
+      <div class="key"><i class="sw thm"></i><div><b>Lean teorema (proofs)</b><span>Código <code>theorem</code>. Solo se type-checkea y genera <code>.olean</code>. Nunca se ejecuta.</span></div></div>
+      <div class="key"><i class="sw glue"></i><div><b>Binding Python / C</b><span>Traduce <code>bytes</code> de Python a <code>ByteArray</code> de Lean y de vuelta.</span></div></div>
+      <div class="key"><i class="sw ext"></i><div><b>Externo</b><span>Mathlib, py_ecc, los vectores oficiales. No es código de este repo.</span></div></div>
+    </div>
+    <div class="legend legend2">
+      <div class="key"><i class="sw exec" style="border-color:var(--glue)"></i><div><b>Borde naranja</b><span>Archivo de Exports: la puerta por la que la spec llega a Python.</span></div></div>
+      <div class="key"><i class="sw okbox"></i><div><b>Verde lleno con ✓</b><span>Una verificación que ya corrimos y dio bien.</span></div></div>
+      <div class="key"><span class="flag" style="margin:2px 0 0;flex:none">aviso</span><div><b>Etiqueta roja</b><span>Un matiz en una prueba: usa <code>native_decide</code> o asume algo sin probar.</span></div></div>
+      <div class="key"><svg width="34" height="18" style="flex:none;margin-top:2px" aria-hidden="true"><line x1="1" y1="5" x2="33" y2="5" stroke="currentColor" stroke-width="2"/><line x1="1" y1="14" x2="33" y2="14" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/></svg><div><b>Flecha llena / punteada</b><span>Llena: una llamada al ejecutar. Punteada: un <code>import</code> o una dependencia que no se ejecuta.</span></div></div>
+    </div>
+  </section>
+
+  <section aria-label="Guías de estudio">
+    <div class="study">
+      <div class="study-txt">
+        <div class="eyebrow">Cómo usar este mapa</div>
+        <h2>El mapa es la vista de arriba. Las guías bajan al código.</h2>
+        <p>Este mapa muestra cómo se conecta todo. Cada guía de estudio toma <b>un archivo de la spec</b> y sus teoremas, y los explica línea por línea. Se estudian de abajo hacia arriba, porque cada piso usa al anterior.</p>
+      </div>
+      <ol class="floors">
+        <li class="done"><a href="https://claude.ai/artifact/AsSSNhqdiXaoNq3HrwQNtE"><span class="fl">Piso 1</span><b>Fp.lean + FpZMod</b><span>el campo finito: la base de todo</span><em>guía lista →</em></a></li>
+        <li><span class="fl">Piso 2</span><b>G1.lean + G1Group / G1Order / G1Msm</b><span>puntos de la curva con coordenadas en Fp</span><em>próxima</em></li>
+        <li><span class="fl">Piso 3</span><b>Compress.lean</b><span>puntos ⇄ bytes; usa Fp.sqrt</span><em>pendiente</em></li>
+        <li><span class="fl">Piso 4</span><b>Kzg/Fft.lean · Kzg/Core.lean</b><span>blobs, commitments y pruebas</span><em>pendiente</em></li>
+        <li><span class="fl">Piso 5</span><b>Proofs/Kzg/CeremonyChecks</b><span>el teorema más ambicioso y su supuesto abierto</span><em>pendiente</em></li>
+      </ol>
+      <p class="note">En tu Mac, las guías están en <code>docs/</code> junto a este mapa: <code>docs/fp-paso-a-paso.html</code>.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Diagrama 1</div>
+    <h2>Las capas: de tu línea de Python a la matemática</h2>
+    <p>Leelo de arriba hacia abajo. Las flechas llenas son llamadas en tiempo de ejecución. Las punteadas son <code>import</code> de Lean: la prueba mira la definición de la spec, pero no la llama.</p>
+    <div class="diagram">
+<pre class="mermaid">
+flowchart TB
+  subgraph PY["Python"]
+    U["tu script<br/>bls.eth_fast_aggregate_verify(pks, msg, sig)"]
+    INIT["bls/__init__.py · kzg/__init__.py<br/>solo reexportan desde _native"]
+  end
+  subgraph CC["Binding en C · bindings/python"]
+    SO["_native.cpython-311-darwin.so<br/>8,8 MB, un solo archivo"]
+    BC["bls.c · kzg.c · module.c<br/>marshalling: bytes ⇄ ByteArray"]
+  end
+  subgraph LX["Lean ejecutable · lean_lib EthCryptographySpecs · precompileModules = true"]
+    EXP["Bls/Exports.lean · Kzg/Exports.lean<br/>@export eth_bls_* (2) · eth_kzg_* (12)"]
+    SB["Spec BLS12-381<br/>Fp → Fp2 → Fp6 → Fp12 · G1 · G2<br/>Pairing · HashToCurve · Signatures"]
+    SK["Spec KZG<br/>Fft · Polynomials · Core<br/>Cells · Recovery · TrustedSetup"]
+    SX["Spec XMSS<br/>Blake2s · TweakHash · Types<br/>sin exports todavía"]
+  end
+  subgraph LP["Lean teoremas · lean_lib Proofs · precompileModules = false"]
+    PB["Proofs/Bls<br/>75 teoremas"]
+    PK["Proofs/Kzg<br/>104 teoremas"]
+    PX["Proofs/Xmss<br/>23 teoremas"]
+  end
+  ML["Mathlib v4.29.1<br/>ZMod, grupos, polinomios"]
+
+  U --> INIT --> SO
+  SO --- BC
+  BC -->|"llama el símbolo C"| EXP
+  EXP --> SB
+  EXP --> SK
+  SK -->|"usa curva y pairing"| SB
+  PB -.->|"import + rw"| SB
+  PK -.->|"import + rw"| SK
+  PK -.->|"CeremonyChecks"| SB
+  PX -.->|"import + rw"| SX
+  ML -.-> PB
+  ML -.-> PK
+  ML -.-> PX
+
+  classDef exec fill:#dcf2ea,stroke:#1f8a6b,stroke-width:2px,color:#0b3b2e
+  classDef thm fill:#e8e3fb,stroke:#6a4fd1,stroke-width:2px,color:#281a5e
+  classDef glue fill:#fbead2,stroke:#b8730f,stroke-width:2px,color:#4a2d00
+  classDef ext fill:#e7eaed,stroke:#76828d,stroke-width:2px,stroke-dasharray:5 4,color:#222b33
+  class EXP,SB,SK,SX exec
+  class PB,PK,PX thm
+  class U,INIT,SO,BC glue
+  class ML ext
+</pre>
+    </div>
+    <p class="note">XMSS no tiene exports, así que hoy no se puede llamar desde Python. Es la parte que upstream sigue construyendo.</p>
+  </section>
+
+  <section>
+    <div class="eyebrow">Diagrama 2</div>
+    <h2>Cómo se construye y cómo lo verificamos</h2>
+    <p>Un solo <code>lake build</code> produce dos cosas distintas: código objeto para la spec y solo chequeo de tipos para las pruebas. Las tres verificaciones de abajo son las que corriste vos.</p>
+    <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  SRC["archivos .lean<br/>spec + proofs"] --> LB["lake build<br/>3444 jobs, verde"]
+  ML["Mathlib"] -.-> LB
+  LB -->|"spec"| CO["35 archivos .c.o.export<br/>código máquina"]
+  LB -->|"proofs"| OL["~2900 .olean<br/>solo chequeo, sin código"]
+  OL --> OK1["✓ los 212 teoremas<br/>son correctos"]
+  CO --> SP["setup.py<br/>pip install -e"]
+  BC["bls.c · kzg.c · module.c"] --> SP
+  RT["runtime de Lean<br/>libleanshared, gmp, uv"] -.-> SP
+  SP --> SO["_native .so"]
+  SO --> SM["docs/bls_smoke.py"]
+  PE["py_ecc<br/>implementación independiente"] -.-> SM
+  SM --> OK2["✓ agregación idéntica<br/>byte a byte"]
+  SO --> PT["pytest<br/>genera, no testea"]
+  PT --> YA["364 data.yaml"]
+  GIT["vectores commiteados en git"] -.-> DF
+  YA --> DF["git diff"]
+  DF --> OK3["✓ 0 diferencias<br/>2:57:50"]
+
+  classDef exec fill:#dcf2ea,stroke:#1f8a6b,stroke-width:2px,color:#0b3b2e
+  classDef thm fill:#e8e3fb,stroke:#6a4fd1,stroke-width:2px,color:#281a5e
+  classDef glue fill:#fbead2,stroke:#b8730f,stroke-width:2px,color:#4a2d00
+  classDef ext fill:#e7eaed,stroke:#76828d,stroke-width:2px,stroke-dasharray:5 4,color:#222b33
+  classDef ok fill:#1f8a6b,stroke:#1f8a6b,color:#ffffff
+  class CO exec
+  class OL thm
+  class SP,SO,BC,SM,PT,YA,DF glue
+  class ML,RT,PE,GIT,SRC,LB ext
+  class OK1,OK2,OK3 ok
+</pre>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Mapa archivo por archivo</div>
+    <h2>Cada archivo del repo, clasificado</h2>
+    <p>Arriba de cada columna va la spec ejecutable y abajo los teoremas. <b>Tocá un archivo de teoremas</b> para ver qué parte de la spec demuestra. Los recuadros naranjas son los exports que llegan a Python.</p>
+    <div class="hint" id="hint"><span id="hinttext">Ningún teorema seleccionado.</span><button type="button" id="clear" hidden>Limpiar</button></div>
+
+    <div class="cols">
+      <!-- BLS -->
+      <article class="col">
+        <header><div class="eyebrow">Firmas de validadores</div><h3>BLS12-381</h3><p>Las firmas se pueden sumar: miles de validadores firman un bloque y se verifica una sola firma agregada.</p></header>
+        <div class="lane">
+          <div class="lane-title exec">Spec · se ejecuta</div>
+          <div class="chip exec" data-id="bls-fp"><span class="f">Fp</span><span class="d">campo base: números mod p (381 bits) <a class="guia" href="https://claude.ai/artifact/AsSSNhqdiXaoNq3HrwQNtE">guía paso a paso →</a></span></div>
+          <div class="chip exec" data-id="bls-fr"><span class="f">Fr</span><span class="d">campo escalar: números mod r (orden del grupo)</span></div>
+          <div class="chip exec" data-id="bls-ext"><span class="f">Fp2 · Fp6 · Fp12</span><span class="d">extensiones de campo, necesarias para el pairing</span></div>
+          <div class="chip exec" data-id="bls-g1"><span class="f">G1</span><span class="d">puntos sobre Fp: claves públicas (48 B). Suma, doble, MSM</span></div>
+          <div class="chip exec" data-id="bls-g2"><span class="f">G2</span><span class="d">puntos sobre Fp2: firmas (96 B)</span></div>
+          <div class="chip exec" data-id="bls-compress"><span class="f">Compress</span><span class="d">punto ⇄ bytes; usa Fp.sqrt</span></div>
+          <div class="chip exec" data-id="bls-h2c"><span class="f">Sha256 · HashToCurve</span><span class="d">convierte un mensaje en un punto de G2</span></div>
+          <div class="chip exec" data-id="bls-pairing"><span class="f">Pairing</span><span class="d">e(P, Q): la operación que permite verificar</span></div>
+          <div class="chip exec" data-id="bls-sig"><span class="f">Signatures</span><span class="d">aggregate_pubkeys, fast_aggregate_verify</span></div>
+          <div class="chip exec export" data-id="bls-exp"><span class="f">Exports</span><span class="d">2 funciones → Python</span></div>
+          <div class="chip exec" data-id="bls-misc"><span class="f">Constants · Errors</span><span class="d">tamaños y tipos de error</span></div>
+        </div>
+        <div class="lane">
+          <div class="lane-title thm">Proofs · no se ejecuta · 75</div>
+          <button type="button" class="chip thm" data-t="bls-fp"><span class="f">FpZMod</span><span class="d">Fp se comporta como ZMod p de Mathlib <span class="n">6</span></span></button>
+          <button type="button" class="chip thm" data-t="bls-fr"><span class="f">Fr</span><span class="d">propiedades básicas de Fr <span class="n">12</span></span></button>
+          <button type="button" class="chip thm" data-t="bls-fr"><span class="f">FrZMod</span><span class="d">Fr se comporta como ZMod r <span class="n">13</span></span></button>
+          <button type="button" class="chip thm" data-t="bls-g1 bls-fp"><span class="f">G1Group</span><span class="d">los puntos de G1 forman un grupo <span class="n">20</span></span></button>
+          <button type="button" class="chip thm" data-t="bls-g1 bls-fr"><span class="f">G1Order</span><span class="d">el generador tiene orden r <span class="n">12</span></span></button>
+          <button type="button" class="chip thm" data-t="bls-g1"><span class="f">G1Msm</span><span class="d">el MSM rápido da lo mismo que la suma ingenua <span class="n">2</span></span></button>
+          <button type="button" class="chip thm" data-t="bls-compress bls-fp"><span class="f">Compress</span><span class="d">uncompress(compress p) = p; sqrt correcta <span class="n">10</span><span class="flag">native_decide ×1</span></span></button>
+        </div>
+      </article>
+
+      <!-- KZG -->
+      <article class="col">
+        <header><div class="eyebrow">Blobs · EIP-4844 y PeerDAS</div><h3>KZG</h3><p>Un blob de datos se trata como polinomio. Un commitment de 48 bytes lo resume, y una prueba chica demuestra su valor en un punto.</p></header>
+        <div class="lane">
+          <div class="lane-title exec">Spec · se ejecuta</div>
+          <div class="chip exec" data-id="kzg-br"><span class="f">BitReversal</span><span class="d">reordena índices en orden de bits invertido</span></div>
+          <div class="chip exec" data-id="kzg-fft"><span class="f">Fft</span><span class="d">Cooley-Tukey sobre Fr</span></div>
+          <div class="chip exec" data-id="kzg-poly"><span class="f">Polynomials</span><span class="d">evaluar el polinomio del blob, dominio de raíces</span></div>
+          <div class="chip exec" data-id="kzg-ts"><span class="f">TrustedSetup(+Data)</span><span class="d">puntos de la ceremonia pública (865 KB)</span></div>
+          <div class="chip exec" data-id="kzg-core"><span class="f">Core</span><span class="d">commitment, proof y verify por blob</span></div>
+          <div class="chip exec" data-id="kzg-cells"><span class="f">Cells</span><span class="d">parte el blob extendido en celdas con su prueba</span></div>
+          <div class="chip exec" data-id="kzg-rec"><span class="f">Recovery</span><span class="d">reconstruye todo con la mitad de las celdas</span></div>
+          <div class="chip exec export" data-id="kzg-exp"><span class="f">Exports</span><span class="d">12 funciones → Python</span></div>
+          <div class="chip exec" data-id="kzg-misc"><span class="f">Constants · Errors</span><span class="d">tamaños y tipos de error</span></div>
+        </div>
+        <div class="lane">
+          <div class="lane-title thm">Proofs · no se ejecuta · 104</div>
+          <button type="button" class="chip thm" data-t="kzg-br"><span class="f">BitReversal</span><span class="d">aplicarlo dos veces vuelve al inicio <span class="n">7</span></span></button>
+          <button type="button" class="chip thm" data-t="kzg-fft"><span class="f">Fft</span><span class="d">lemas de la recursión <span class="n">4</span></span></button>
+          <button type="button" class="chip thm" data-t="kzg-fft"><span class="f">FftInverse</span><span class="d">iFFT(FFT(x)) = x y al revés <span class="n">10</span></span></button>
+          <button type="button" class="chip thm" data-t="kzg-poly kzg-br"><span class="f">Polynomials</span><span class="d">tamaños y aritmética de polinomios <span class="n">21</span></span></button>
+          <button type="button" class="chip thm" data-t="kzg-poly"><span class="f">Domain</span><span class="d">el dominio son raíces de la unidad distintas <span class="n">10</span></span></button>
+          <button type="button" class="chip thm" data-t="kzg-poly"><span class="f">Barycentric</span><span class="d">fórmula para evaluar fuera del dominio <span class="n">5</span></span></button>
+          <button type="button" class="chip thm" data-t="kzg-poly"><span class="f">Evaluation</span><span class="d">la evaluación da el valor real del polinomio <span class="n">8</span></span></button>
+          <button type="button" class="chip thm" data-t="kzg-core"><span class="f">Core</span><span class="d">rechaza inputs mal formados, rangos <span class="n">13</span></span></button>
+          <button type="button" class="chip thm" data-t="kzg-cells"><span class="f">Cells</span><span class="d">tamaños y errores de las celdas <span class="n">13</span></span></button>
+          <button type="button" class="chip thm" data-t="kzg-rec kzg-fft"><span class="f">Recovery</span><span class="d">tamaños y errores de la reconstrucción <span class="n">8</span></span></button>
+          <button type="button" class="chip thm" data-t="kzg-ts bls-pairing bls-g1"><span class="f">CeremonyChecks</span><span class="d">el setup es consistente si pasa los chequeos de pairing <span class="n">5</span><span class="flag">supone ConcreteBlsLaws</span></span></button>
+        </div>
+      </article>
+
+      <!-- XMSS -->
+      <article class="col">
+        <header><div class="eyebrow">Post-cuántico · en construcción</div><h3>XMSS</h3><p>Firmas basadas solo en funciones hash, pensadas para reemplazar a BLS cuando existan computadoras cuánticas.</p></header>
+        <div class="lane">
+          <div class="lane-title exec">Spec · se ejecuta</div>
+          <div class="chip exec" data-id="x-blake"><span class="f">Blake2s</span><span class="d">la función hash</span></div>
+          <div class="chip exec" data-id="x-tweak"><span class="f">TweakHash</span><span class="d">hash con "tweak" distinto por posición de la cadena</span></div>
+          <div class="chip exec" data-id="x-types"><span class="f">Types</span><span class="d">tipos de claves y parámetros</span></div>
+          <div class="chip exec" data-id="x-misc"><span class="f">Constants · Errors</span><span class="d">parámetros del esquema</span></div>
+          <div class="chip exec" style="opacity:.75;border-style:dashed"><span class="f">sin Exports</span><span class="d">todavía no se llama desde Python</span></div>
+        </div>
+        <div class="lane">
+          <div class="lane-title thm">Proofs · no se ejecuta · 23</div>
+          <button type="button" class="chip thm" data-t="x-blake"><span class="f">Blake2s</span><span class="d">casos concretos del hash <span class="n">14</span><span class="flag">native_decide ×7</span></span></button>
+          <button type="button" class="chip thm" data-t="x-tweak x-blake"><span class="f">TweakHash</span><span class="d">tweaks distintos nunca chocan <span class="n">8</span></span></button>
+          <button type="button" class="chip thm" data-t="x-types"><span class="f">Types</span><span class="d">propiedad de los tipos <span class="n">1</span></span></button>
+        </div>
+      </article>
+    </div>
+
+    <div class="shared">
+      <span class="eyebrow" style="color:var(--thm)">Teoremas auxiliares · 10</span>
+      <span class="chip thm" style="cursor:default;width:auto"><span class="f">IdLoops</span><span class="d">razonar sobre bucles <span class="n">7</span></span></span>
+      <span class="chip thm" style="cursor:default;width:auto"><span class="f">PowMod</span><span class="d">potencias modulares <span class="n">3</span></span></span>
+      <span style="color:var(--muted)">No apuntan a ninguna spec: son herramientas que usan las otras pruebas.</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">La frontera</div>
+    <h2>Dónde la separación no es perfecta</h2>
+    <div class="grid2">
+      <div class="card warnc">
+        <h3>native_decide: 8 teoremas que sí ejecutan</h3>
+        <p>Una prueba normal la chequea el núcleo lógico de Lean. Estas 8 le piden la respuesta al <b>código compilado</b>. Son teoremas, pero para creerles hay que confiar también en el compilador. Están en <code>Proofs/Bls/Compress.lean:319</code> (descomprimir el punto al infinito) y 7 en <code>Proofs/Xmss/Blake2s.lean</code>. Upstream lo sigue en el issue #28.</p>
+      </div>
+      <div class="card warnc">
+        <h3>CeremonyChecks: un supuesto sin probar</h3>
+        <p>El teorema más ambicioso del repo asume la estructura <code>ConcreteBlsLaws</code>: bilinealidad del pairing, no-degeneración y que el mul escalar ejecutable sea el matemático. Si esas leyes valen, el teorema vale. Pero todavía nadie las probó para el código de <code>Pairing.lean</code>.</p>
+      </div>
+      <div class="card okc">
+        <h3>Sin ningún sorry</h3>
+        <p><code>sorry</code> es la forma de decirle a Lean "creeme". No hay ninguno en <code>Proofs/</code>. Los 212 teoremas están demostrados, salvo los dos matices de arriba.</p>
+      </div>
+      <div class="card okc">
+        <h3>Si la spec cambia, las pruebas se rompen</h3>
+        <p>Cada prueba importa la spec y la despliega con <code>rw</code>. Si alguien toca una función, el <code>lake build</code> de las pruebas falla. Así la spec y los teoremas no pueden desincronizarse.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Lo que ya hicimos</div>
+    <h2>Tres verificaciones, las tres en verde</h2>
+    <div class="checks">
+      <div class="check"><div class="big">3444</div><b>jobs de lake build</b><span>Spec compilada y los 212 teoremas chequeados. Exit 0.</span></div>
+      <div class="check"><div class="big">= py_ecc</div><b>bls_smoke.py</b><span>La agregación de la spec coincide byte a byte con otra implementación independiente.</span></div>
+      <div class="check"><div class="big">364 / 364</div><b>vectores regenerados</b><span>14 handlers de BLS y KZG, 0 diferencias contra git, en 2:57:50.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Glosario</div>
+    <h2>Las palabras del mapa</h2>
+    <dl>
+      <div><dt>Spec</dt><dd>La definición oficial escrita como código que corre. Otros clientes de Ethereum deben dar exactamente los mismos bytes.</dd></div>
+      <div><dt>Teorema / proof</dt><dd>Un enunciado sobre la spec que vale para todos los inputs posibles, no para una muestra como un test.</dd></div>
+      <div><dt>Campo finito (Fp, Fr)</dt><dd>Números enteros módulo un primo. Suman, restan, multiplican y dividen sin salirse del conjunto.</dd></div>
+      <div><dt>G1, G2</dt><dd>Puntos de una curva elíptica que forman un grupo: se pueden sumar. Las claves viven en G1 y las firmas en G2.</dd></div>
+      <div><dt>Pairing</dt><dd>Una función e(P, Q) que "multiplica" un punto de G1 con uno de G2. Es lo que permite verificar firmas y pruebas KZG.</dd></div>
+      <div><dt>Blob / commitment</dt><dd>Un blob son unos 128 KB de datos. El commitment es su huella de 48 bytes, y no se puede falsificar otro blob con la misma huella.</dd></div>
+      <div><dt>Celdas y recovery</dt><dd>El blob se extiende al doble y se parte en celdas. Con la mitad cualquiera se reconstruye el resto, como un RAID.</dd></div>
+      <div><dt>Binding</dt><dd>El adaptador en C que deja llamar a la spec de Lean desde Python, traduciendo los datos de ida y vuelta.</dd></div>
+      <div><dt>@[export nombre]</dt><dd>Atributo de Lean que publica una función como símbolo C con ese nombre. Es el enchufe entre Lean y <code>bls.c</code> / <code>kzg.c</code>.</dd></div>
+      <div><dt>.c.o.export vs .olean</dt><dd>El primero es código máquina y va al <code>.so</code>. El segundo es solo el resultado del chequeo de tipos y nunca se ejecuta.</dd></div>
+      <div><dt>Mathlib</dt><dd>La biblioteca matemática de Lean. Las pruebas dicen "Fp es ZMod p" y a partir de ahí reutilizan miles de teoremas ya hechos.</dd></div>
+      <div><dt>Vector de prueba</dt><dd>Un caso de examen oficial: input más output esperado. Los clientes de Ethereum lo usan para verificarse.</dd></div>
+    </dl>
+  </section>
+</main>
+
+<script>
+(function(){
+  var body=document.body, hint=document.getElementById('hinttext'), clear=document.getElementById('clear');
+  var thms=[].slice.call(document.querySelectorAll('.chip.thm[data-t]'));
+  var specs=[].slice.call(document.querySelectorAll('.chip.exec[data-id]'));
+  function reset(){body.classList.remove('picking');thms.forEach(function(t){t.classList.remove('on');t.setAttribute('aria-pressed','false')});specs.forEach(function(s){s.classList.remove('hl')});hint.textContent='Ningún teorema seleccionado.';clear.hidden=true}
+  thms.forEach(function(t){
+    t.setAttribute('aria-pressed','false');
+    t.addEventListener('click',function(){
+      if(t.classList.contains('on')){reset();return}
+      reset();
+      var ids=t.getAttribute('data-t').split(' ');
+      body.classList.add('picking');t.classList.add('on');t.setAttribute('aria-pressed','true');
+      var names=[];
+      specs.forEach(function(s){if(ids.indexOf(s.getAttribute('data-id'))>-1){s.classList.add('hl');names.push(s.querySelector('.f').textContent)}});
+      hint.textContent=t.querySelector('.f').textContent+' demuestra cosas sobre: '+names.join(', ')+'.';
+      clear.hidden=false;
+    });
+  });
+  clear.addEventListener('click',reset);
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "default"});</script>
+</body>
+</html>
