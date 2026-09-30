@@ -20,8 +20,11 @@ para el desglose por handler y las dos lecciones sobre el costo de correrla.
 
 ## Repos
 
-- **Repo original (solo lectura):** `~/cryptography-specs` — clon de `ethereum/cryptography-specs`
-- **Tu repo personal:** `~/eth-crypto-study` — copia independiente en `github.com/EdVeralli/eth-crypto-study`
+- **Tu repo (todo vive aca):** `~/eth-crypto-study` — `github.com/EdVeralli/eth-crypto-study`.
+  Autocontenido desde el 29 sept 2026: fuentes Lean, `lake build` en verde,
+  `.venv` con los bindings compilados, los 364 vectores y los docs.
+- **Repo original (solo lectura):** `~/cryptography-specs` — clon de
+  `ethereum/cryptography-specs`, solo para traer commits de upstream.
 - **Docs generados:** `~/eth-crypto-study/docs/` — mapa interactivo + notas de investigacion
 
 ## Estado actual
@@ -36,12 +39,12 @@ para el desglose por handler y las dos lecciones sobre el costo de correrla.
 
 ## Como volver a usarlo
 
-El venv ya existe, no hay que recrearlo:
+El venv ya existe en tu propio repo, no hay que recrearlo:
 
 ```bash
-cd ~/cryptography-specs
-.venv/bin/python -c "from eth_cryptography_specs import bls; print(dir(bls))"
-.venv/bin/python ~/eth-crypto-study/docs/bls_smoke.py
+cd ~/eth-crypto-study
+.venv/bin/python -c "from eth_cryptography_specs import bls, kzg; print(dir(kzg))"
+.venv/bin/python docs/bls_smoke.py
 ```
 
 Si se borra `.lake/`, rehacer el build (`lake exe cache get` y `lake build`).
@@ -59,7 +62,7 @@ Dos cosas aprendidas a golpes (detalle en `notas-investigacion.md`):
    primeros casos de cada handler paguen todo y el resto vuele.
 
 ```bash
-cd ~/cryptography-specs
+cd ~/eth-crypto-study
 caffeinate -i -s .venv/bin/python -m pytest -q          # completa, ~3 h de CPU
 caffeinate -i -s .venv/bin/python -m pytest bindings/python/tests/kzg -k verify_kzg_proof   # un handler
 ```

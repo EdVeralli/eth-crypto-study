@@ -4,9 +4,13 @@ Copia de estudio de [`ethereum/cryptography-specs`](https://github.com/ethereum/
 las especificaciones de criptografía de Ethereum escritas en Lean 4.
 
 Este repo es **mío** (`github.com/EdVeralli/eth-crypto-study`) y es el único al
-que se commitea y se pushea. El clon del repo original vive en
-`~/cryptography-specs` y es **solo lectura**: su `origin` apunta a
-`ethereum/cryptography-specs`, así que ahí no se pushea nada.
+que se commitea y se pushea. Es **autocontenido**: tiene las fuentes Lean, el
+build, los bindings de Python y los 364 vectores, así que es la única carpeta de
+trabajo necesaria.
+
+El clon del repo original vive en `~/cryptography-specs` y es **solo lectura**:
+su `origin` apunta a `ethereum/cryptography-specs`, así que ahí no se pushea
+nada. Solo se usa para traer commits nuevos de upstream.
 
 Base: upstream `09deaff` (23 sept 2026). El README original del proyecto quedó
 en [`docs/README-upstream.md`](docs/README-upstream.md).
@@ -58,9 +62,11 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    pruebas delegadas al evaluador compilado, fuera del kernel:
    `Proofs/Bls/Compress.lean:319` (uncompress del punto al infinito) y 7 en
    `Proofs/Xmss/Blake2s.lean`. Upstream lo tiene abierto como issue #28.
-4. **Superficie de KZG desde Python** — ya exploramos BLS (solo expone
-   `eth_aggregate_pubkeys` y `eth_fast_aggregate_verify`, sin firmado); falta
-   hacer lo mismo con `eth_cryptography_specs.kzg` y sus 12 handlers.
+4. **Ejercitar KZG desde Python** — la superficie ya está a la vista: 12
+   funciones (`blob_to_kzg_commitment`, `compute_kzg_proof`,
+   `verify_blob_kzg_proof_batch`, `recover_cells_and_kzg_proofs`, …) y 8
+   constantes. Falta un smoke test propio al estilo de `docs/bls_smoke.py`,
+   idealmente con blob → commitment → proof → verify de punta a punta.
 5. **Seguirle el paso a XMSS upstream** — al 29 sept 2026 upstream ya mergeó el
    encoding target-sum (#33), su prueba (#35) y la firma Winternitz (#37), y
    tiene en review el árbol de Merkle (#38) y la verificación (#40). Pendientes
@@ -72,17 +78,18 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
 
 ## Entorno
 
-El venv y el build ya existen, no hay que recrearlos. Viven en el clon de
-lectura, `~/cryptography-specs`:
+Todo vive en esta carpeta y ya está construido — no hay que recrear nada:
 
 ```bash
-cd ~/cryptography-specs
-.venv/bin/python -c "from eth_cryptography_specs import bls; print(dir(bls))"
-.venv/bin/python ~/eth-crypto-study/docs/bls_smoke.py
+cd ~/eth-crypto-study
+lake build                                          # verde: 3444 jobs
+.venv/bin/python docs/bls_smoke.py                  # ALL CHECKS PASSED
+.venv/bin/python -c "from eth_cryptography_specs import bls, kzg"
 ```
 
 Si se borra `.lake/`: `lake exe cache get && lake build`.
-Si se borra `.venv/`: `pip install -e '.[test]'` (dispara `lake build` vía `setup.py`).
+Si se borra `.venv/`: `python3 -m venv .venv && .venv/bin/pip install -e '.[test]'`
+(dispara `lake build` vía `setup.py`; con el build hecho tarda ~1 min).
 
 Para correr la suite de vectores, dos cosas aprendidas a golpes —enchufada, con
 la tapa abierta y con `caffeinate`, o la Mac duerme y no avanza; y no extrapolar
@@ -90,18 +97,21 @@ el ritmo, porque la `lru_cache` de los fixtures hace que los primeros casos de
 cada handler paguen todo el cómputo:
 
 ```bash
-cd ~/cryptography-specs
-caffeinate -i -s .venv/bin/python -m pytest -q     # completa, ~3 h
-caffeinate -i -s -w <PID>                          # si ya está corriendo
+cd ~/eth-crypto-study
+caffeinate -i -s .venv/bin/python -m pytest -q      # completa, ~3 h
+caffeinate -i -s .venv/bin/python -m pytest bindings/python/tests/kzg -k compute_challenge
+caffeinate -i -s -w <PID>                           # si ya está corriendo
 ```
 
 ## Cómo retomar (incluido desde la app de Claude para Mac)
 
-1. Abrir la carpeta `~/eth-crypto-study`.
+1. Pasarle **`/Users/eduardoveralli/eth-crypto-study`** como carpeta de trabajo.
+   Es la única que hace falta: acá están las fuentes, el build, el venv y los
+   vectores. No hace falta agregar `~/cryptography-specs`.
 2. Leer [`docs/RETOMAR.md`](docs/RETOMAR.md) — el estado detallado y los comandos.
 3. Elegir una de las tareas de **Qué falta** de acá arriba.
-4. Recordar las dos reglas: se commitea y pushea **solo** en este repo, y
-   `~/cryptography-specs` se usa únicamente para leer y compilar.
+4. Recordar la regla: se commitea y pushea **solo** en este repo. Nunca a
+   `ethereum/cryptography-specs`.
 
 ## Documentación generada
 

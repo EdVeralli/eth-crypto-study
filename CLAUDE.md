@@ -14,11 +14,18 @@
 
 | Directorio | Qué es | Qué se puede hacer |
 |---|---|---|
-| `~/eth-crypto-study` | Repo propio: notas, docs, experimentos | Leer, escribir, commitear, pushear |
-| `~/cryptography-specs` | Clon de `ethereum/cryptography-specs` | **Solo lectura** y build (`lake build`, `pytest`, `.venv`) |
+| `~/eth-crypto-study` | Repo propio y **autocontenido**: fuentes, build, venv, vectores, notas | Todo: leer, escribir, compilar, correr, commitear, pushear |
+| `~/cryptography-specs` | Clon de `ethereum/cryptography-specs` | **Solo lectura**; únicamente para traer commits de upstream |
 
-El build de Lean y el venv de Python viven en `~/cryptography-specs` porque son
-del proyecto original; los resultados y las notas se escriben acá.
+Esta carpeta es la única carpeta de trabajo necesaria. Tiene `lake build` en
+verde (3444 jobs), su propio `.venv` con los bindings de Python compilados y los
+364 vectores de prueba. No hace falta agregar el clon de lectura a la sesión.
+
+```bash
+lake build                            # verde
+.venv/bin/python docs/bls_smoke.py    # ALL CHECKS PASSED
+caffeinate -i -s .venv/bin/python -m pytest -q   # suite completa, ~3 h
+```
 
 ## Dónde está el estado
 
