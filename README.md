@@ -1,5 +1,54 @@
 # eth-crypto-study
 
+Estudio de cómo Ethereum especifica su criptografía (BLS12-381, KZG, XMSS)
+en Lean 4: una parte es código que **se ejecuta** y otra son **teoremas** que
+demuestran que ese código es correcto.
+
+## Empezá por acá
+
+Antes de mirar código, abrí estas dos páginas en este orden:
+
+1. **[Mapa completo](docs/mapa-completo.html)**: el big picture. Muestra cómo
+   una llamada desde Python baja por el binding C hasta la spec en Lean, qué
+   partes se ejecutan (verde) y cuáles son teoremas (violeta), archivo por
+   archivo.
+2. **[Fp.lean paso a paso](docs/fp-paso-a-paso.html)**: la primera guía de
+   estudio. Explica el campo finito, que es la base de todo, línea por línea
+   y con sus pruebas.
+
+El mapa es la vista de arriba y cada guía baja a un archivo. Se estudian de
+abajo hacia arriba, porque cada piso usa al anterior:
+
+| Piso | Archivo | Guía |
+|---|---|---|
+| 1 | `Bls/Fp.lean` + `Proofs/Bls/FpZMod.lean` | ✅ [fp-paso-a-paso](docs/fp-paso-a-paso.html) |
+| 2 | `Bls/G1.lean` + `G1Group` / `G1Order` / `G1Msm` | próxima |
+| 3 | `Bls/Compress.lean` | pendiente |
+| 4 | `Kzg/Fft.lean`, `Kzg/Core.lean` | pendiente |
+| 5 | `Proofs/Kzg/CeremonyChecks.lean` | pendiente |
+
+### Cómo ver las páginas
+
+Son archivos HTML. Si los abrís desde la web de GitHub vas a ver el código
+fuente y no la página, así que hay que bajar el repo y abrirlos con un
+navegador:
+
+```bash
+git clone https://github.com/EdVeralli/eth-crypto-study.git
+cd eth-crypto-study
+open docs/mapa-completo.html        # macOS
+# xdg-open docs/mapa-completo.html  # Linux
+# start docs\mapa-completo.html     # Windows
+```
+
+También podés hacer doble clic en el archivo desde el explorador. Hace falta
+conexión a internet: los diagramas se dibujan con Mermaid y las tipografías se
+cargan desde la web.
+
+---
+
+## Sobre este repo
+
 Copia de estudio de [`ethereum/cryptography-specs`](https://github.com/ethereum/cryptography-specs),
 las especificaciones de criptografía de Ethereum escritas en Lean 4.
 
@@ -51,9 +100,9 @@ La etapa de infraestructura está terminada: no queda nada de "hacerlo andar".
 
 Todo lo que sigue es estudio y verificación, en orden sugerido:
 
-1. **Leer los `.lean` en orden** — la secuencia de 7 archivos al final de
-   `docs/notas-investigacion.md` (de `Bls/Fp.lean` hasta
-   `Proofs/Kzg/CeremonyChecks.lean`).
+1. **Estudiar los `.lean` piso por piso**: seguir la tabla de
+   [Empezá por acá](#empezá-por-acá), con una guía HTML por piso. El piso 1
+   (`Bls/Fp.lean`) ya está hecho y el próximo es `Bls/G1.lean`.
 2. **`Proofs/Kzg/CeremonyChecks.lean`** — el teorema más ambicioso del repo y el
    único hueco conocido: asume la estructura `ConcreteBlsLaws` (bilinealidad,
    no-degeneración, fidelidad del mul escalar) que todavía **no** está probada
@@ -115,6 +164,8 @@ caffeinate -i -s -w <PID>                           # si ya está corriendo
 
 ## Documentación generada
 
+- [`docs/mapa-completo.html`](docs/mapa-completo.html): big picture, spec ejecutable vs teoremas, pisos de estudio
+- [`docs/fp-paso-a-paso.html`](docs/fp-paso-a-paso.html): guía del piso 1, `Bls/Fp.lean` y sus pruebas
 - [`docs/RETOMAR.md`](docs/RETOMAR.md) — dónde quedamos y cómo volver a arrancar
 - [`docs/notas-investigacion.md`](docs/notas-investigacion.md) — todo lo aprendido del repo
 - [`docs/architecture-map.html`](docs/architecture-map.html) — mapa interactivo de módulos
