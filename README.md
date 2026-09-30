@@ -6,13 +6,17 @@ demuestran que ese código es correcto.
 
 ## Empezá por acá
 
-Antes de mirar código, abrí estas dos páginas en este orden:
+Antes de mirar código, abrí estas tres páginas en este orden:
 
 1. **[Mapa completo](docs/mapa-completo.html)**: el big picture. Muestra cómo
    una llamada desde Python baja por el binding C hasta la spec en Lean, qué
    partes se ejecutan (verde) y cuáles son teoremas (violeta), archivo por
    archivo.
-2. **[Fp.lean paso a paso](docs/fp-paso-a-paso.html)**: la primera guía de
+2. **[Mapa de arquitectura](docs/architecture-map.html)**: los módulos por
+   dentro. Cubre BLS, KZG y XMSS archivo por archivo (se despliegan con un
+   clic), por qué el repo escribe primero la spec y después la prueba
+   (spec-first) y un ejemplo de cómo una prueba se engancha con el código.
+3. **[Fp.lean paso a paso](docs/fp-paso-a-paso.html)**: la primera guía de
    estudio. Explica el campo finito, que es la base de todo, línea por línea
    y con sus pruebas.
 
@@ -168,6 +172,6 @@ caffeinate -i -s -w <PID>                           # si ya está corriendo
 - [`docs/fp-paso-a-paso.html`](docs/fp-paso-a-paso.html): guía del piso 1, `Bls/Fp.lean` y sus pruebas
 - [`docs/RETOMAR.md`](docs/RETOMAR.md) — dónde quedamos y cómo volver a arrancar
 - [`docs/notas-investigacion.md`](docs/notas-investigacion.md) — todo lo aprendido del repo
-- [`docs/architecture-map.html`](docs/architecture-map.html) — mapa interactivo de módulos
+- [`docs/architecture-map.html`](docs/architecture-map.html) — mapa de arquitectura: módulos por dentro y por qué spec-first
 - [`docs/bls_smoke.py`](docs/bls_smoke.py) — verificación end-to-end de BLS contra `py_ecc`
 - [`docs/README-upstream.md`](docs/README-upstream.md) — README original del proyecto

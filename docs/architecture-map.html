@@ -861,19 +861,15 @@
     </div>
   </section>
 
-  <!-- Reading order -->
+  <!-- Cómo seguir -->
   <section>
-    <h2>Orden de lectura sugerido</h2>
-    <p>Para entender el repo de abajo hacia arriba:</p>
-    <ol style="padding-left:1.3rem; margin-top:0.6rem;">
-      <li style="margin-bottom:0.4rem;"><code>Bls/Fp.lean</code> &mdash; c&oacute;mo se modela un campo finito con <code>Fin p</code></li>
-      <li style="margin-bottom:0.4rem;"><code>Bls/G1.lean</code> &mdash; aritm&eacute;tica de curva (add, double, msm) en Jacobiana</li>
-      <li style="margin-bottom:0.4rem;"><code>Bls/Compress.lean</code> &mdash; serializaci&oacute;n y round-trip</li>
-      <li style="margin-bottom:0.4rem;"><code>Kzg/Fft.lean</code> &mdash; Cooley-Tukey sobre Fr</li>
-      <li style="margin-bottom:0.4rem;"><code>Kzg/Core.lean</code> &mdash; la superficie p&uacute;blica: commit, prove, verify</li>
-      <li style="margin-bottom:0.4rem;"><code>Proofs/Bls/Compress.lean</code> &mdash; ejemplo de c&oacute;mo se prueba un round-trip</li>
-      <li style="margin-bottom:0.4rem;"><code>Proofs/Kzg/CeremonyChecks.lean</code> &mdash; el teorema m&aacute;s ambicioso del repo</li>
-    </ol>
+    <h2>C&oacute;mo seguir</h2>
+    <p>Este mapa describe <strong>los m&oacute;dulos</strong>: qu&eacute; hay en cada archivo y por qu&eacute; el repo separa spec y proofs. Para el resto:</p>
+    <ul style="padding-left:1.3rem; margin-top:0.6rem;">
+      <li style="margin-bottom:0.4rem;"><a href="mapa-completo.html"><strong>Mapa completo</strong></a> &mdash; el big picture: Python &rarr; binding C &rarr; Lean, qu&eacute; se ejecuta y qu&eacute; son teoremas, y los <strong>pisos de estudio</strong> en orden.</li>
+      <li style="margin-bottom:0.4rem;"><a href="fp-paso-a-paso.html"><strong>Fp.lean paso a paso</strong></a> &mdash; la gu&iacute;a del piso 1, l&iacute;nea por l&iacute;nea.</li>
+    </ul>
+    <p style="margin-top:0.6rem;">El orden de estudio vive en el mapa completo y en el README, para que haya uno solo.</p>
   </section>
 
   <footer>
