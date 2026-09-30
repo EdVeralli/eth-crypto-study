@@ -4,6 +4,11 @@ Estudio de cómo Ethereum especifica su criptografía (BLS12-381, KZG, XMSS)
 en Lean 4: una parte es código que **se ejecuta** y otra son **teoremas** que
 demuestran que ese código es correcto.
 
+> **Repo original:** [`ethereum/cryptography-specs`](https://github.com/ethereum/cryptography-specs),
+> las especificaciones oficiales de criptografía de Ethereum escritas en Lean 4.
+> Este repo es una copia de estudio tomada del commit `09deaff` (23 sept 2026),
+> a la que le agregamos mapas, guías y notas de estudio.
+
 ## Empezá por acá
 
 Antes de mirar código, abrí estas tres páginas en este orden:
