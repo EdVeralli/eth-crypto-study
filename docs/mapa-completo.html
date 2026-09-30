@@ -66,6 +66,8 @@ section[aria-label="Leyenda"]{gap:10px}
 .diagram{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;overflow-x:auto}
 .diagram pre.mermaid{margin:0;min-width:640px;text-align:center;background:transparent}
 .note{font-size:13.5px;color:var(--muted)}
+.verif{margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:6px;max-width:80ch;font-size:14.5px}
+.verif li{background:var(--exec-bg);color:var(--exec-fg);border-radius:8px;padding:8px 12px}
 
 /* Mapa archivo por archivo */
 .cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
@@ -151,7 +153,7 @@ dd{margin:2px 0 0;color:var(--muted);font-size:14px}
     <div class="legend legend2">
       <div class="key"><i class="sw exec" style="border-color:var(--glue)"></i><div><b>Borde naranja</b><span>Archivo de Exports: la puerta por la que la spec llega a Python.</span></div></div>
       <div class="key"><i class="sw okbox"></i><div><b>Verde lleno con ✓</b><span>Una verificación que ya corrimos y dio bien.</span></div></div>
-      <div class="key"><span class="flag" style="margin:2px 0 0;flex:none">aviso</span><div><b>Etiqueta roja</b><span>Un matiz en una prueba: usa <code>native_decide</code> o asume algo sin probar.</span></div></div>
+      <div class="key"><span class="flag" style="margin:2px 0 0;flex:none">aviso</span><div><b>Etiqueta roja</b><span>Un matiz en un teorema: usa <code>native_decide</code> o asume algo sin probar.</span></div></div>
       <div class="key"><svg width="34" height="18" style="flex:none;margin-top:2px" aria-hidden="true"><line x1="1" y1="5" x2="33" y2="5" stroke="currentColor" stroke-width="2"/><line x1="1" y1="14" x2="33" y2="14" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/></svg><div><b>Flecha llena / punteada</b><span>Llena: una llamada al ejecutar. Punteada: un <code>import</code> o una dependencia que no se ejecuta.</span></div></div>
     </div>
   </section>
@@ -167,17 +169,17 @@ dd{margin:2px 0 0;color:var(--muted);font-size:14px}
         <li class="done"><a href="fp-paso-a-paso.html"><span class="fl">Piso 1</span><b>Fp.lean + FpZMod</b><span>el campo finito: la base de todo</span><em>guía lista →</em></a></li>
         <li><span class="fl">Piso 2</span><b>G1.lean + G1Group / G1Order / G1Msm</b><span>puntos de la curva con coordenadas en Fp</span><em>próxima</em></li>
         <li><span class="fl">Piso 3</span><b>Compress.lean</b><span>puntos ⇄ bytes; usa Fp.sqrt</span><em>pendiente</em></li>
-        <li><span class="fl">Piso 4</span><b>Kzg/Fft.lean · Kzg/Core.lean</b><span>blobs, commitments y pruebas</span><em>pendiente</em></li>
+        <li><span class="fl">Piso 4</span><b>Kzg/Fft.lean · Kzg/Core.lean</b><span>blobs, commitments y proofs KZG</span><em>pendiente</em></li>
         <li><span class="fl">Piso 5</span><b>Proofs/Kzg/CeremonyChecks</b><span>el teorema más ambicioso y su supuesto abierto</span><em>pendiente</em></li>
       </ol>
-      <p class="note">Para el detalle técnico de cada módulo (la curva, el pairing, hash-to-curve) y por qué el repo escribe primero la spec y después la prueba, está el <a href="architecture-map.html">mapa de arquitectura</a>. En tu Mac todo vive en <code>docs/</code>: <code>mapa-completo.html</code>, <code>architecture-map.html</code> y <code>fp-paso-a-paso.html</code>.</p>
+      <p class="note">Para el detalle técnico de cada módulo (la curva, el pairing, hash-to-curve) y por qué el repo escribe primero la spec y después los teoremas, está el <a href="architecture-map.html">mapa de arquitectura</a>. En tu Mac todo vive en <code>docs/</code>: <code>mapa-completo.html</code>, <code>architecture-map.html</code> y <code>fp-paso-a-paso.html</code>.</p>
     </div>
   </section>
 
   <section>
     <div class="eyebrow">Diagrama 1</div>
     <h2>Las capas: de tu línea de Python a la matemática</h2>
-    <p>Leelo de arriba hacia abajo. Las flechas llenas son llamadas en tiempo de ejecución. Las punteadas son <code>import</code> de Lean: la prueba mira la definición de la spec, pero no la llama.</p>
+    <p>Leelo de arriba hacia abajo. Las flechas llenas son llamadas en tiempo de ejecución. Las punteadas son <code>import</code> de Lean: el teorema mira la definición de la spec, pero no la llama.</p>
     <div class="diagram">
 <pre class="mermaid">
 flowchart TB
@@ -232,27 +234,33 @@ flowchart TB
   <section>
     <div class="eyebrow">Diagrama 2</div>
     <h2>Cómo se construye y cómo lo verificamos</h2>
-    <p>Un solo <code>lake build</code> produce dos cosas distintas: código objeto para la spec y solo chequeo de tipos para las pruebas. Las tres verificaciones de abajo son las que corriste vos.</p>
+    <p>Un solo <code>lake build</code> produce dos cosas distintas. Para la <b>spec</b> genera código máquina, que después termina dentro del módulo de Python. Para los <b>teoremas</b> no genera código: solo los chequea, y si alguno estuviera mal, el build fallaría.</p>
+    <p>Las cajas verdes numeradas son las <b>tres verificaciones que corrimos</b> en tu Mac:</p>
+    <ol class="verif">
+      <li><b>① <code>lake build</code></b>: compila la spec y chequea los 212 teoremas. Dio verde, 3444 jobs sin errores.</li>
+      <li><b>② <code>docs/bls_smoke.py</code></b>: compara la spec contra <code>py_ecc</code>, otra implementación independiente de BLS. La agregación de claves dio idéntica byte a byte.</li>
+      <li><b>③ <code>pytest</code></b>: regenera los 364 vectores oficiales con la spec y <code>git diff</code> los compara con los publicados. Dio 0 diferencias, en 2:57:50.</li>
+    </ol>
     <div class="diagram">
 <pre class="mermaid">
 flowchart LR
-  SRC["archivos .lean<br/>spec + proofs"] --> LB["lake build<br/>3444 jobs, verde"]
+  SRC["archivos .lean<br/>spec + teoremas"] --> LB["① lake build<br/>3444 jobs"]
   ML["Mathlib"] -.-> LB
   LB -->|"spec"| CO["35 archivos .c.o.export<br/>código máquina"]
-  LB -->|"proofs"| OL["~2900 .olean<br/>solo chequeo, sin código"]
-  OL --> OK1["✓ los 212 teoremas<br/>son correctos"]
+  LB -->|"teoremas"| OL["~2900 .olean<br/>solo chequeo, sin código"]
+  OL --> OK1["✓ ① los 212 teoremas<br/>son correctos"]
   CO --> SP["setup.py<br/>pip install -e"]
   BC["bls.c · kzg.c · module.c"] --> SP
   RT["runtime de Lean<br/>libleanshared, gmp, uv"] -.-> SP
   SP --> SO["_native .so"]
-  SO --> SM["docs/bls_smoke.py"]
+  SO --> SM["② docs/bls_smoke.py"]
   PE["py_ecc<br/>implementación independiente"] -.-> SM
-  SM --> OK2["✓ agregación idéntica<br/>byte a byte"]
-  SO --> PT["pytest<br/>genera, no testea"]
+  SM --> OK2["✓ ② agregación idéntica<br/>a py_ecc, byte a byte"]
+  SO --> PT["③ pytest<br/>regenera los vectores"]
   PT --> YA["364 data.yaml"]
   GIT["vectores commiteados en git"] -.-> DF
   YA --> DF["git diff"]
-  DF --> OK3["✓ 0 diferencias<br/>2:57:50"]
+  DF --> OK3["✓ ③ 0 diferencias<br/>contra git"]
 
   classDef exec fill:#dcf2ea,stroke:#1f8a6b,stroke-width:2px,color:#0b3b2e
   classDef thm fill:#e8e3fb,stroke:#6a4fd1,stroke-width:2px,color:#281a5e
@@ -306,7 +314,7 @@ flowchart LR
 
       <!-- KZG -->
       <article class="col">
-        <header><div class="eyebrow">Blobs · EIP-4844 y PeerDAS</div><h3>KZG</h3><p>Un blob de datos se trata como polinomio. Un commitment de 48 bytes lo resume, y una prueba chica demuestra su valor en un punto.</p></header>
+        <header><div class="eyebrow">Blobs · EIP-4844 y PeerDAS</div><h3>KZG</h3><p>Un blob de datos se trata como polinomio. Un commitment de 48 bytes lo resume, y un proof KZG de 48 bytes demuestra su valor en un punto.</p></header>
         <div class="lane">
           <div class="lane-title exec">Spec · se ejecuta</div>
           <div class="chip exec" data-id="kzg-br"><span class="f">BitReversal</span><span class="d">reordena índices en orden de bits invertido</span></div>
@@ -314,7 +322,7 @@ flowchart LR
           <div class="chip exec" data-id="kzg-poly"><span class="f">Polynomials</span><span class="d">evaluar el polinomio del blob, dominio de raíces</span></div>
           <div class="chip exec" data-id="kzg-ts"><span class="f">TrustedSetup(+Data)</span><span class="d">puntos de la ceremonia pública (865 KB)</span></div>
           <div class="chip exec" data-id="kzg-core"><span class="f">Core</span><span class="d">commitment, proof y verify por blob</span></div>
-          <div class="chip exec" data-id="kzg-cells"><span class="f">Cells</span><span class="d">parte el blob extendido en celdas con su prueba</span></div>
+          <div class="chip exec" data-id="kzg-cells"><span class="f">Cells</span><span class="d">parte el blob extendido en celdas con su proof KZG</span></div>
           <div class="chip exec" data-id="kzg-rec"><span class="f">Recovery</span><span class="d">reconstruye todo con la mitad de las celdas</span></div>
           <div class="chip exec export" data-id="kzg-exp"><span class="f">Exports</span><span class="d">12 funciones → Python</span></div>
           <div class="chip exec" data-id="kzg-misc"><span class="f">Constants · Errors</span><span class="d">tamaños y tipos de error</span></div>
@@ -359,7 +367,7 @@ flowchart LR
       <span class="eyebrow" style="color:var(--thm)">Teoremas auxiliares · 10</span>
       <span class="chip thm" style="cursor:default;width:auto"><span class="f">IdLoops</span><span class="d">razonar sobre bucles <span class="n">7</span></span></span>
       <span class="chip thm" style="cursor:default;width:auto"><span class="f">PowMod</span><span class="d">potencias modulares <span class="n">3</span></span></span>
-      <span style="color:var(--muted)">No apuntan a ninguna spec: son herramientas que usan las otras pruebas.</span>
+      <span style="color:var(--muted)">No apuntan a ninguna spec: son herramientas que usan los otros teoremas.</span>
     </div>
   </section>
 
@@ -369,7 +377,7 @@ flowchart LR
     <div class="grid2">
       <div class="card warnc">
         <h3>native_decide: 8 teoremas que sí ejecutan</h3>
-        <p>Una prueba normal la chequea el núcleo lógico de Lean. Estas 8 le piden la respuesta al <b>código compilado</b>. Son teoremas, pero para creerles hay que confiar también en el compilador. Están en <code>Proofs/Bls/Compress.lean:319</code> (descomprimir el punto al infinito) y 7 en <code>Proofs/Xmss/Blake2s.lean</code>. Upstream lo sigue en el issue #28.</p>
+        <p>Normalmente cada teorema lo chequea el núcleo lógico de Lean. Estas 8 le piden la respuesta al <b>código compilado</b>. Son teoremas, pero para creerles hay que confiar también en el compilador. Están en <code>Proofs/Bls/Compress.lean:319</code> (descomprimir el punto al infinito) y 7 en <code>Proofs/Xmss/Blake2s.lean</code>. Upstream lo sigue en el issue #28.</p>
       </div>
       <div class="card warnc">
         <h3>CeremonyChecks: un supuesto sin probar</h3>
@@ -380,8 +388,8 @@ flowchart LR
         <p><code>sorry</code> es la forma de decirle a Lean "creeme". No hay ninguno en <code>Proofs/</code>. Los 212 teoremas están demostrados, salvo los dos matices de arriba.</p>
       </div>
       <div class="card okc">
-        <h3>Si la spec cambia, las pruebas se rompen</h3>
-        <p>Cada prueba importa la spec y la despliega con <code>rw</code>. Si alguien toca una función, el <code>lake build</code> de las pruebas falla. Así la spec y los teoremas no pueden desincronizarse.</p>
+        <h3>Si la spec cambia, los teoremas se rompen</h3>
+        <p>Cada archivo de teoremas importa la spec y la despliega con <code>rw</code>. Si alguien toca una función, el <code>lake build</code> de los teoremas falla. Así la spec y los teoremas no pueden desincronizarse.</p>
       </div>
     </div>
   </section>
@@ -390,9 +398,9 @@ flowchart LR
     <div class="eyebrow">Lo que ya hicimos</div>
     <h2>Tres verificaciones, las tres en verde</h2>
     <div class="checks">
-      <div class="check"><div class="big">3444</div><b>jobs de lake build</b><span>Spec compilada y los 212 teoremas chequeados. Exit 0.</span></div>
-      <div class="check"><div class="big">= py_ecc</div><b>bls_smoke.py</b><span>La agregación de la spec coincide byte a byte con otra implementación independiente.</span></div>
-      <div class="check"><div class="big">364 / 364</div><b>vectores regenerados</b><span>14 handlers de BLS y KZG, 0 diferencias contra git, en 2:57:50.</span></div>
+      <div class="check"><div class="big">① 3444</div><b>jobs de lake build</b><span>Spec compilada y los 212 teoremas chequeados. Exit 0.</span></div>
+      <div class="check"><div class="big">② = py_ecc</div><b>bls_smoke.py</b><span>La agregación de la spec coincide byte a byte con otra implementación independiente.</span></div>
+      <div class="check"><div class="big">③ 364 / 364</div><b>vectores regenerados</b><span>14 handlers de BLS y KZG, 0 diferencias contra git, en 2:57:50.</span></div>
     </div>
   </section>
 
@@ -401,16 +409,16 @@ flowchart LR
     <h2>Las palabras del mapa</h2>
     <dl>
       <div><dt>Spec</dt><dd>La definición oficial escrita como código que corre. Otros clientes de Ethereum deben dar exactamente los mismos bytes.</dd></div>
-      <div><dt>Teorema / proof</dt><dd>Un enunciado sobre la spec que vale para todos los inputs posibles, no para una muestra como un test.</dd></div>
+      <div><dt>Teorema / proof</dt><dd>Un enunciado sobre la spec que vale para todos los inputs posibles, no para una muestra como un test. Ojo: un <b>proof KZG</b> es otra cosa, son 48 bytes que demuestran criptográficamente el valor de un blob en un punto.</dd></div>
       <div><dt>Campo finito (Fp, Fr)</dt><dd>Números enteros módulo un primo. Suman, restan, multiplican y dividen sin salirse del conjunto.</dd></div>
       <div><dt>G1, G2</dt><dd>Puntos de una curva elíptica que forman un grupo: se pueden sumar. Las claves viven en G1 y las firmas en G2.</dd></div>
-      <div><dt>Pairing</dt><dd>Una función e(P, Q) que "multiplica" un punto de G1 con uno de G2. Es lo que permite verificar firmas y pruebas KZG.</dd></div>
+      <div><dt>Pairing</dt><dd>Una función e(P, Q) que "multiplica" un punto de G1 con uno de G2. Es lo que permite verificar firmas y proofs KZG.</dd></div>
       <div><dt>Blob / commitment</dt><dd>Un blob son unos 128 KB de datos. El commitment es su huella de 48 bytes, y no se puede falsificar otro blob con la misma huella.</dd></div>
       <div><dt>Celdas y recovery</dt><dd>El blob se extiende al doble y se parte en celdas. Con la mitad cualquiera se reconstruye el resto, como un RAID.</dd></div>
       <div><dt>Binding</dt><dd>El adaptador en C que deja llamar a la spec de Lean desde Python, traduciendo los datos de ida y vuelta.</dd></div>
       <div><dt>@[export nombre]</dt><dd>Atributo de Lean que publica una función como símbolo C con ese nombre. Es el enchufe entre Lean y <code>bls.c</code> / <code>kzg.c</code>.</dd></div>
       <div><dt>.c.o.export vs .olean</dt><dd>El primero es código máquina y va al <code>.so</code>. El segundo es solo el resultado del chequeo de tipos y nunca se ejecuta.</dd></div>
-      <div><dt>Mathlib</dt><dd>La biblioteca matemática de Lean. Las pruebas dicen "Fp es ZMod p" y a partir de ahí reutilizan miles de teoremas ya hechos.</dd></div>
+      <div><dt>Mathlib</dt><dd>La biblioteca matemática de Lean. Los teoremas dicen "Fp es ZMod p" y a partir de ahí reutilizan miles de teoremas ya hechos.</dd></div>
       <div><dt>Vector de prueba</dt><dd>Un caso de examen oficial: input más output esperado. Los clientes de Ethereum lo usan para verificarse.</dd></div>
     </dl>
   </section>
