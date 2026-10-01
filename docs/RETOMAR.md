@@ -1,8 +1,50 @@
 # Retomar trabajo
 
-_Ultima actualizacion: 2026-09-28_
+_Ultima actualizacion: 2026-10-01_
 
-## Donde quedamos
+## Donde quedamos (1 oct 2026): repaso de los mapas
+
+La infraestructura esta cerrada (ver mas abajo). Desde el 29 sept estamos
+armando y repasando la **documentacion de estudio** en `docs/`, para que
+alguien que llega (Pablo, por ejemplo) entienda el repo sin haber estado en
+las sesiones. Son tres paginas HTML que se abren con el navegador:
+
+1. `docs/mapa-completo.html` — el big picture
+2. `docs/architecture-map.html` — los modulos por dentro y por que spec-first
+3. `docs/fp-paso-a-paso.html` — guia del piso 1 (`Bls/Fp.lean`)
+
+### Estado del repaso de `mapa-completo.html`
+
+| Seccion | Estado |
+|---|---|
+| Encabezado e intro ("Que corre y que se demuestra") | **Pendiente** |
+| Leyenda de colores (las dos filas) | **Pendiente** (solo se cambio "Pegamento" por "Binding") |
+| Bloque de pisos de estudio ("El mapa es la vista de arriba...") | **Pendiente** |
+| Diagrama 1: las capas | Repasado: cada caja dice en que mundo esta (Python, C, Lean); nota del lakefile en criollo |
+| Diagrama 2: build y verificaciones | Repasado: "teoremas" en vez de "pruebas"; verificaciones numeradas 1-2-3 |
+| Que es un vector de prueba | Nueva: dos `data.yaml` reales (valido vs adulterado) y el test invertido |
+| Mapa archivo por archivo | Repasado: explicacion de como leerlo y ejemplo con `G1Group` |
+| Donde la separacion no es perfecta | Repasado: dos parrafos + desplegable con ejemplo real de `native_decide` |
+| Tres verificaciones, las tres en verde | Repasado: se deja como esta |
+| Glosario | Repasado: 6 terminos nuevos (.so, marshalling, simbolo C, lakefile, sorry, native_decide) |
+
+### Pendiente despues del mapa completo
+
+- Repasar `architecture-map.html` con el mismo criterio (frases que no se
+  entienden, ejemplos concretos).
+- Repasar `fp-paso-a-paso.html`.
+- Escribir la guia del piso 2: `Bls/G1.lean` + `G1Group` / `G1Order` / `G1Msm`.
+
+### Criterios que fuimos acordando para los mapas
+
+- Explicar en criollo, con analogias, y con **ejemplos reales del repo**.
+- Cada caja dice en que lenguaje ("mundo") estamos: Python, C o Lean.
+- "Teoremas" para las demostraciones de Lean; "proof KZG" para los 48 bytes
+  criptograficos de KZG. Nunca "pruebas" a secas.
+- Compacto: si algo es largo, va en un desplegable.
+- Las paginas de `docs/` se enlazan entre si con links relativos.
+
+## Estado de la infraestructura (cerrado el 28 sept)
 
 **Todo cerrado.** El build de Lean esta completo, BLS12-381 y KZG corren desde
 Python, y la suite completa de 364 vectores de prueba paso sin una sola
@@ -94,16 +136,15 @@ cliente de consenso.
 
 ## Proximos pasos posibles
 
-Ya no queda nada de infraestructura. Lo que sigue es estudio del codigo:
-
-1. Seguir el orden de lectura de `notas-investigacion.md` sobre los `.lean`
-2. Explorar la superficie de KZG desde Python (`eth_cryptography_specs.kzg`)
-3. Mirar `Proofs/Kzg/CeremonyChecks.lean` — el teorema mas ambicioso, y el que
-   todavia asume `ConcreteBlsLaws` sin probar
-4. Buscar los `sorry` que queden en `Proofs/` y ver que falta demostrar
+Ya no queda nada de infraestructura. El estudio sigue piso por piso (tabla en
+el README, seccion "Empeza por aca"); antes, terminar el repaso de los mapas
+(ver "Donde quedamos" arriba).
 
 ## Documentacion generada
 
+- `docs/mapa-completo.html` — big picture: spec vs teoremas, vectores, pisos de estudio
+- `docs/architecture-map.html` — modulos por dentro y por que spec-first
+- `docs/fp-paso-a-paso.html` — guia del piso 1, `Bls/Fp.lean` y sus teoremas
 - `docs/notas-investigacion.md` — todo lo que aprendimos sobre el repo
-- `docs/architecture-map.html` — mapa interactivo (tambien en https://claude.ai/code/artifact/6ddc7716-0733-4d41-837f-469e76f7f6a1)
 - `docs/bls_smoke.py` — verificacion end-to-end de BLS contra py_ecc
+- `docs/README-upstream.md` — README original del repo de Ethereum
