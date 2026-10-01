@@ -469,6 +469,12 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
       <div><dt>Binding</dt><dd>El adaptador en C que deja llamar a la spec de Lean desde Python, traduciendo los datos de ida y vuelta.</dd></div>
       <div><dt>@[export nombre]</dt><dd>Atributo de Lean que publica una función como símbolo C con ese nombre. Es el enchufe entre Lean y <code>bls.c</code> / <code>kzg.c</code>.</dd></div>
       <div><dt>.c.o.export vs .olean</dt><dd>El primero es código máquina y va al <code>.so</code>. El segundo es solo el resultado del chequeo de tipos y nunca se ejecuta.</dd></div>
+      <div><dt>.so (librería compartida)</dt><dd>Código ya compilado que un programa carga mientras corre, como una <code>.dll</code> en Windows. No arranca solo: <code>python3</code> lo carga con el <code>import</code> y llama a sus funciones.</dd></div>
+      <div><dt>Marshalling</dt><dd>Traducir un dato del formato de un lenguaje al de otro para poder pasarlo. El binding convierte <code>bytes</code> de Python en <code>ByteArray</code> de Lean, y la respuesta de vuelta.</dd></div>
+      <div><dt>Símbolo C</dt><dd>El nombre con el que una función queda en el código compilado. <code>bls.c</code> llama a <code>eth_bls_fast_aggregate_verify</code> por ese nombre, y el linker lo conecta con la función de Lean.</dd></div>
+      <div><dt>lakefile.lean</dt><dd>El archivo que le dice a Lean qué hacer con cada grupo de archivos: a la spec "revisala y convertila en programa", a los teoremas "solo revisalos".</dd></div>
+      <div><dt>sorry</dt><dd>La forma de decirle a Lean "creeme, después lo pruebo". Deja un hueco en una demostración y Lean lo acepta igual. En este repo no hay ninguno.</dd></div>
+      <div><dt>native_decide</dt><dd>Un atajo: en vez de que el revisor central de Lean verifique una cuenta, se la pide al programa compilado y le cree. Hay 8 en el repo.</dd></div>
       <div><dt>Mathlib</dt><dd>La biblioteca matemática de Lean. Los teoremas dicen "Fp es ZMod p" y a partir de ahí reutilizan miles de teoremas ya hechos.</dd></div>
       <div><dt>Vector de prueba</dt><dd>Un caso de examen oficial: input más output esperado. Los clientes de Ethereum lo usan para verificarse. Hay un ejemplo real en <a href="#vectores">Qué es un vector de prueba</a>.</dd></div>
     </dl>
