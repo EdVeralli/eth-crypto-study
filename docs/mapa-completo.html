@@ -441,24 +441,8 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
   <section>
     <div class="eyebrow">La frontera</div>
     <h2>Dónde la separación no es perfecta</h2>
-    <div class="grid2">
-      <div class="card warnc">
-        <h3>native_decide: 8 teoremas que sí ejecutan</h3>
-        <p>Normalmente cada teorema lo chequea el núcleo lógico de Lean. Estas 8 le piden la respuesta al <b>código compilado</b>. Son teoremas, pero para creerles hay que confiar también en el compilador. Están en <code>Proofs/Bls/Compress.lean:319</code> (descomprimir el punto al infinito) y 7 en <code>Proofs/Xmss/Blake2s.lean</code>. Upstream lo sigue en el issue #28.</p>
-      </div>
-      <div class="card warnc">
-        <h3>CeremonyChecks: un supuesto sin probar</h3>
-        <p>El teorema más ambicioso del repo asume la estructura <code>ConcreteBlsLaws</code>: bilinealidad del pairing, no-degeneración y que el mul escalar ejecutable sea el matemático. Si esas leyes valen, el teorema vale. Pero todavía nadie las probó para el código de <code>Pairing.lean</code>.</p>
-      </div>
-      <div class="card okc">
-        <h3>Sin ningún sorry</h3>
-        <p><code>sorry</code> es la forma de decirle a Lean "creeme". No hay ninguno en <code>Proofs/</code>. Los 212 teoremas están demostrados, salvo los dos matices de arriba.</p>
-      </div>
-      <div class="card okc">
-        <h3>Si la spec cambia, los teoremas se rompen</h3>
-        <p>Cada archivo de teoremas importa la spec y la despliega con <code>rw</code>. Si alguien toca una función, el <code>lake build</code> de los teoremas falla. Así la spec y los teoremas no pueden desincronizarse.</p>
-      </div>
-    </div>
+    <p>Casi todo está demostrado sin atajos: no hay ningún <code>sorry</code>, que es el "creeme, después lo pruebo" de Lean. Además, si alguien cambia una función de la spec, sus teoremas dejan de compilar, así que código y demostraciones no pueden desincronizarse.</p>
+    <p>Hay dos matices, marcados con <span class="flag" style="margin:0">rojo</span> en el mapa de arriba. <b>8 teoremas usan <code>native_decide</code></b>: en vez de que el revisor central de Lean verifique la cuenta, se la piden al programa compilado y le creen, como corregir con calculadora (1 en <code>Proofs/Bls/Compress.lean</code>, 7 en <code>Proofs/Xmss/Blake2s.lean</code>). Y <b><code>CeremonyChecks</code></b>, el teorema más ambicioso, <b>supone sin demostrarlo</b> que el pairing cumple ciertas leyes matemáticas (<code>ConcreteBlsLaws</code>): la conclusión vale si esas leyes valen, pero todavía nadie lo probó para el código.</p>
   </section>
 
   <section>
