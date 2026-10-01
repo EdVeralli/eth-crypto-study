@@ -139,6 +139,15 @@ a.guia{font-weight:600;color:var(--exec);white-space:nowrap;margin-left:4px}
 .vec mark.g{background:var(--exec-bg);color:var(--exec-fg)} .vec mark.r{background:var(--warn-bg);color:var(--warn)}
 .steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:3px;font-size:14.5px}
 .howto{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:3px;max-width:75ch}
+.deep{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:10px;max-width:80ch}
+.deep summary{cursor:pointer;padding:12px 16px;font-weight:600;font-size:14.5px}
+.deep summary:focus-visible{outline:2px solid var(--warn);outline-offset:2px}
+.deep-body{padding:0 16px 16px;display:flex;flex-direction:column;gap:10px;font-size:14.5px}
+.deep-body ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.snip{margin:0;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;font:13px/1.5 var(--f-mono);overflow-x:auto}
+table.mini{border-collapse:collapse;font-size:13.5px;width:100%}
+table.mini th,table.mini td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.mini th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
 /* Glosario */
 dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px 24px;margin:0}
 dl div{padding:10px 0;border-top:1px solid var(--line)}
@@ -438,11 +447,31 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
     </div>
   </section>
 
-  <section>
+  <section id="frontera">
     <div class="eyebrow">La frontera</div>
     <h2>Dónde la separación no es perfecta</h2>
     <p>Casi todo está demostrado sin atajos: no hay ningún <code>sorry</code>, que es el "creeme, después lo pruebo" de Lean. Además, si alguien cambia una función de la spec, sus teoremas dejan de compilar, así que código y demostraciones no pueden desincronizarse.</p>
     <p>Hay dos matices, marcados con <span class="flag" style="margin:0">rojo</span> en el mapa de arriba. <b>8 teoremas usan <code>native_decide</code></b>: en vez de que el revisor central de Lean verifique la cuenta, se la piden al programa compilado y le creen, como corregir con calculadora (1 en <code>Proofs/Bls/Compress.lean</code>, 7 en <code>Proofs/Xmss/Blake2s.lean</code>). Y <b><code>CeremonyChecks</code></b>, el teorema más ambicioso, <b>supone sin demostrarlo</b> que el pairing cumple ciertas leyes matemáticas (<code>ConcreteBlsLaws</code>): la conclusión vale si esas leyes valen, pero todavía nadie lo probó para el código.</p>
+    <details class="deep">
+      <summary>Ver un ejemplo real de <code>native_decide</code></summary>
+      <div class="deep-body">
+        <p>En <code>Proofs/Bls/Compress.lean</code>, línea 319, hay este teorema:</p>
+<pre class="snip">theorem … : uncompress infinityBytes = .ok zero := by native_decide</pre>
+        <p>Afirma: "si descomprimo los bytes del punto al infinito, me da el punto cero". Hay dos caminos para probarlo:</p>
+        <ol>
+          <li><b>El camino normal:</b> el revisor central de Lean (el <i>kernel</i>) hace la cuenta <code>uncompress infinityBytes</code> paso a paso, con su propia lógica, y comprueba que da <code>zero</code>. Es el más confiable, pero acá es demasiado lento.</li>
+          <li><b>El atajo <code>native_decide</code>:</b> Lean compila <code>uncompress</code> (la función de la spec, en <code>Bls/Compress.lean</code>), la <b>ejecuta</b> como un programa normal, ve que da <code>zero</code> y acepta el teorema.</li>
+        </ol>
+        <table class="mini">
+          <tr><th>Pieza</th><th>De dónde viene</th></tr>
+          <tr><td>El teorema que usa el atajo</td><td><code>Proofs/</code> de este repo, escrito por los autores del repo original</td></tr>
+          <tr><td>La función que se ejecuta</td><td>La spec de este repo: <code>uncompress</code>, y en los otros 7 casos funciones de <code>Blake2s</code></td></tr>
+          <tr><td><code>native_decide</code></td><td>Una herramienta que viene con Lean, disponible para cualquiera</td></tr>
+          <tr><td>Mathlib</td><td>No participa</td></tr>
+        </table>
+        <p><b>Por qué importa:</b> con el camino normal solo hay que confiar en el kernel, que es chico y está muy revisado. Con el atajo hay que confiar además en que el compilador de Lean tradujo <code>uncompress</code> a código máquina sin errores. Probablemente sea así, pero es más superficie de confianza. Upstream lo tiene como tarea abierta (issue #28): reemplazar estos 8 atajos por pruebas que revise el kernel.</p>
+      </div>
+    </details>
   </section>
 
   <section>
@@ -474,7 +503,7 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
       <div><dt>Símbolo C</dt><dd>El nombre con el que una función queda en el código compilado. <code>bls.c</code> llama a <code>eth_bls_fast_aggregate_verify</code> por ese nombre, y el linker lo conecta con la función de Lean.</dd></div>
       <div><dt>lakefile.lean</dt><dd>El archivo que le dice a Lean qué hacer con cada grupo de archivos: a la spec "revisala y convertila en programa", a los teoremas "solo revisalos".</dd></div>
       <div><dt>sorry</dt><dd>La forma de decirle a Lean "creeme, después lo pruebo". Deja un hueco en una demostración y Lean lo acepta igual. En este repo no hay ninguno.</dd></div>
-      <div><dt>native_decide</dt><dd>Un atajo: en vez de que el revisor central de Lean verifique una cuenta, se la pide al programa compilado y le cree. Hay 8 en el repo.</dd></div>
+      <div><dt>native_decide</dt><dd>Un atajo: en vez de que el revisor central de Lean verifique una cuenta, se la pide al programa compilado y le cree. Hay 8 en el repo. Hay un ejemplo real en <a href="#frontera">Dónde la separación no es perfecta</a>.</dd></div>
       <div><dt>Mathlib</dt><dd>La biblioteca matemática de Lean. Los teoremas dicen "Fp es ZMod p" y a partir de ahí reutilizan miles de teoremas ya hechos.</dd></div>
       <div><dt>Vector de prueba</dt><dd>Un caso de examen oficial: input más output esperado. Los clientes de Ethereum lo usan para verificarse. Hay un ejemplo real en <a href="#vectores">Qué es un vector de prueba</a>.</dd></div>
     </dl>
