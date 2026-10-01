@@ -138,6 +138,7 @@ a.guia{font-weight:600;color:var(--exec);white-space:nowrap;margin-left:4px}
 .vec mark{border-radius:3px;padding:0 2px;font-weight:600}
 .vec mark.g{background:var(--exec-bg);color:var(--exec-fg)} .vec mark.r{background:var(--warn-bg);color:var(--warn)}
 .steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:3px;font-size:14.5px}
+.howto{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:3px;max-width:75ch}
 /* Glosario */
 dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px 24px;margin:0}
 dl div{padding:10px 0;border-top:1px solid var(--line)}
@@ -339,7 +340,13 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
   <section>
     <div class="eyebrow">Mapa archivo por archivo</div>
     <h2>Cada archivo del repo, clasificado</h2>
-    <p>Arriba de cada columna va la spec ejecutable y abajo los teoremas. <b>Tocá un archivo de teoremas</b> para ver qué parte de la spec demuestra. Los recuadros naranjas son los exports que llegan a Python.</p>
+    <p>Acá están todos los archivos Lean del repo, en tres columnas: una por tema (BLS, KZG y XMSS). En cada columna:</p>
+    <ul class="howto">
+      <li><b>Arriba, en verde:</b> los archivos de la <b>spec</b>, el código que se ejecuta.</li>
+      <li><b>Abajo, en violeta:</b> los archivos de <b>teoremas</b>, las demostraciones de que ese código está bien.</li>
+      <li><b>Con borde naranja:</b> los <code>Exports</code>, la puerta por donde la spec sale hacia Python.</li>
+    </ul>
+    <p><b>Probalo:</b> hacé clic en cualquier archivo violeta y se iluminan los archivos verdes sobre los que demuestra algo. Por ejemplo, <code>G1Group</code> ilumina <code>G1</code> y <code>Fp</code>: demuestra que los puntos de la curva forman un grupo, usando las cuentas de Fp. Otro clic lo apaga.</p>
     <div class="hint" id="hint"><span id="hinttext">Ningún teorema seleccionado.</span><button type="button" id="clear" hidden>Limpiar</button></div>
 
     <div class="cols">
