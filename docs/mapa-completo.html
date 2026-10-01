@@ -126,6 +126,18 @@ body.picking .chip.thm.on{opacity:1;box-shadow:0 0 0 3px var(--thm)}
 .floors em{font-style:normal;font-size:12px;font-weight:600;color:var(--muted);grid-column:3;grid-row:1}
 .floors li.done em{color:var(--exec)}
 a.guia{font-weight:600;color:var(--exec);white-space:nowrap;margin-left:4px}
+.vecs{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
+.vec{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;min-width:0}
+.vec.ok{border-top:4px solid var(--exec)} .vec.bad{border-top:4px solid var(--warn)}
+.vec figcaption{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+.vec figcaption code{font-size:12px;overflow-wrap:anywhere}
+.vtag{font:600 12px/1 var(--f-mono);padding:4px 7px;border-radius:5px}
+.vec.ok .vtag{background:var(--exec-bg);color:var(--exec-fg)} .vec.bad .vtag{background:var(--warn-bg);color:var(--warn)}
+.vec pre{margin:0;padding:12px 14px;font:12.5px/1.6 var(--f-mono);overflow-x:auto;color:var(--fg)}
+.vec pre .c{color:var(--muted)}
+.vec mark{border-radius:3px;padding:0 2px;font-weight:600}
+.vec mark.g{background:var(--exec-bg);color:var(--exec-fg)} .vec mark.r{background:var(--warn-bg);color:var(--warn)}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:3px;font-size:14.5px}
 /* Glosario */
 dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px 24px;margin:0}
 dl div{padding:10px 0;border-top:1px solid var(--line)}
@@ -179,30 +191,30 @@ dd{margin:2px 0 0;color:var(--muted);font-size:14px}
   <section>
     <div class="eyebrow">Diagrama 1</div>
     <h2>Las capas: de tu línea de Python a la matemática</h2>
-    <p>Leelo de arriba hacia abajo. Las flechas llenas son llamadas en tiempo de ejecución. Las punteadas son <code>import</code> de Lean: el teorema mira la definición de la spec, pero no la llama.</p>
+    <p>Leelo de arriba hacia abajo. Cada caja grande dice en qué <b>mundo</b> (lenguaje) estás: Python, C o Lean. Las flechas llenas son llamadas en tiempo de ejecución. Las punteadas son <code>import</code> de Lean: el teorema mira la definición de la spec, pero no la llama.</p>
     <div class="diagram">
 <pre class="mermaid">
 flowchart TB
-  subgraph PY["Python"]
+  subgraph PY["Mundo Python"]
     U["tu script<br/>bls.eth_fast_aggregate_verify(pks, msg, sig)"]
     INIT["bls/__init__.py · kzg/__init__.py<br/>solo reexportan desde _native"]
   end
-  subgraph CC["Binding en C · bindings/python"]
-    SO["_native.cpython-311-darwin.so<br/>8,8 MB, un solo archivo"]
+  subgraph CC["Mundo C · binding escrito a mano"]
+    SO["_native.cpython-311-darwin.so · 8,8 MB<br/>código máquina: binding C + spec Lean"]
     BC["bls.c · kzg.c · module.c<br/>marshalling: bytes ⇄ ByteArray"]
   end
-  subgraph LX["Spec: se convierte en programa"]
+  subgraph LX["Mundo Lean · spec: se convierte en programa"]
     EXP["Bls/Exports.lean · Kzg/Exports.lean<br/>@export eth_bls_* (2) · eth_kzg_* (12)"]
     SB["Spec BLS12-381<br/>Fp → Fp2 → Fp6 → Fp12 · G1 · G2<br/>Pairing · HashToCurve · Signatures"]
     SK["Spec KZG<br/>Fft · Polynomials · Core<br/>Cells · Recovery · TrustedSetup"]
     SX["Spec XMSS<br/>Blake2s · TweakHash · Types<br/>sin exports todavía"]
   end
-  subgraph LP["Teoremas: solo se revisan"]
+  subgraph LP["Mundo Lean · teoremas: solo se revisan"]
     PB["Proofs/Bls<br/>75 teoremas"]
     PK["Proofs/Kzg<br/>104 teoremas"]
     PX["Proofs/Xmss<br/>23 teoremas"]
   end
-  ML["Mathlib v4.29.1<br/>ZMod, grupos, polinomios"]
+  ML["Mathlib v4.29.1 · Lean<br/>ZMod, grupos, polinomios"]
 
   U --> INIT --> SO
   SO --- BC
@@ -240,26 +252,26 @@ flowchart TB
     <ol class="verif">
       <li><b>① <code>lake build</code></b>: compila la spec y chequea los 212 teoremas. Dio verde, 3444 jobs sin errores.</li>
       <li><b>② <code>docs/bls_smoke.py</code></b>: compara la spec contra <code>py_ecc</code>, otra implementación independiente de BLS. La agregación de claves dio idéntica byte a byte.</li>
-      <li><b>③ <code>pytest</code></b>: regenera los 364 vectores oficiales con la spec y <code>git diff</code> los compara con los publicados. Dio 0 diferencias, en 2:57:50.</li>
+      <li><b>③ <code>pytest</code></b>: regenera los 364 vectores oficiales con la spec y <code>git diff</code> los compara con los publicados. Dio 0 diferencias, en 2:57:50. <a href="#vectores">Qué es un vector →</a></li>
     </ol>
     <div class="diagram">
 <pre class="mermaid">
 flowchart LR
-  SRC["archivos .lean<br/>spec + teoremas"] --> LB["① lake build<br/>3444 jobs"]
-  ML["Mathlib"] -.-> LB
-  LB -->|"spec"| CO["35 archivos .c.o.export<br/>código máquina"]
-  LB -->|"teoremas"| OL["~2900 .olean<br/>solo chequeo, sin código"]
+  SRC["Lean<br/>archivos .lean: spec + teoremas"] --> LB["① lake build<br/>herramienta de Lean · 3444 jobs"]
+  ML["Mathlib<br/>Lean"] -.-> LB
+  LB -->|"spec"| CO["35 archivos .c.o.export<br/>código máquina: Lean → C → máquina"]
+  LB -->|"teoremas"| OL["~2900 .olean<br/>Lean chequeado, sin código"]
   OL --> OK1["✓ ① los 212 teoremas<br/>son correctos"]
-  CO --> SP["setup.py<br/>pip install -e"]
-  BC["bls.c · kzg.c · module.c"] --> SP
-  RT["runtime de Lean<br/>libleanshared, gmp, uv"] -.-> SP
-  SP --> SO["_native .so"]
-  SO --> SM["② docs/bls_smoke.py"]
-  PE["py_ecc<br/>implementación independiente"] -.-> SM
+  CO --> SP["setup.py · Python<br/>pip install -e"]
+  BC["bls.c · kzg.c · module.c<br/>C escrito a mano"] --> SP
+  RT["runtime de Lean · C/C++<br/>libleanshared, gmp, uv"] -.-> SP
+  SP --> SO["_native .so<br/>código máquina"]
+  SO --> SM["② docs/bls_smoke.py<br/>Python"]
+  PE["py_ecc · Python<br/>implementación independiente"] -.-> SM
   SM --> OK2["✓ ② agregación idéntica<br/>a py_ecc, byte a byte"]
-  SO --> PT["③ pytest<br/>regenera los vectores"]
-  PT --> YA["364 data.yaml"]
-  GIT["vectores commiteados en git"] -.-> DF
+  SO --> PT["③ pytest · Python<br/>regenera los vectores"]
+  PT --> YA["364 data.yaml<br/>datos"]
+  GIT["vectores commiteados en git<br/>datos"] -.-> DF
   YA --> DF["git diff"]
   DF --> OK3["✓ ③ 0 diferencias<br/>contra git"]
 
@@ -274,6 +286,53 @@ flowchart LR
   class ML,RT,PE,GIT,SRC,LB ext
   class OK1,OK2,OK3 ok
 </pre>
+    </div>
+  </section>
+
+  <section id="vectores">
+    <div class="eyebrow">La verificación ③ de cerca</div>
+    <h2>Qué es un vector de prueba</h2>
+    <p>Un vector de prueba es un <b>valor testigo</b>: un caso con un input fijo y el output que tiene que salir. Ethereum los publica para que cualquier implementación (los clientes en Go, Rust o Java, y esta spec en Lean) pueda comprobar que da exactamente lo mismo, byte a byte. Si dos clientes dieran distinto, la red se partiría.</p>
+    <p>Estos son dos vectores reales del repo, de <code>tests/bls/eth_fast_aggregate_verify/</code>. Cada uno es un archivo <code>data.yaml</code>:</p>
+    <div class="vecs">
+      <figure class="vec ok">
+        <figcaption><span class="vtag">output: true</span><code>…/eth_fast_aggregate_verify_valid_0/data.yaml</code></figcaption>
+<pre>input:
+  pubkeys:
+  - '0xa491d1b0…e5a7f79a'    <span class="c"># una clave pública (48 bytes)</span>
+  message: '0x0000…0000'     <span class="c"># el mensaje firmado (32 bytes)</span>
+  signature: '0xb6ed9367…0b<mark class="g">55285a55</mark>'
+                             <span class="c"># la firma (96 bytes)</span>
+output: true                 <span class="c"># tiene que dar VÁLIDA</span></pre>
+      </figure>
+      <figure class="vec bad">
+        <figcaption><span class="vtag">output: false</span><code>…/eth_fast_aggregate_verify_tampered_signature_0/data.yaml</code></figcaption>
+<pre>input:
+  pubkeys:
+  - '0xa491d1b0…e5a7f79a'    <span class="c"># la misma clave</span>
+  message: '0x0000…0000'     <span class="c"># el mismo mensaje</span>
+  signature: '0xb6ed9367…0b<mark class="r">ffffffff</mark>'
+                             <span class="c"># misma firma, 4 bytes cambiados</span>
+output: false                <span class="c"># tiene que dar INVÁLIDA</span></pre>
+      </figure>
+    </div>
+    <p class="note">Cambiar 4 bytes de 96 alcanza para que la firma no valga. El vector comprueba que la spec lo detecte.</p>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Cómo están organizados</h3>
+        <p>Hay <b>364 casos</b> repartidos en <b>14 funciones</b> (los "handlers": 2 de BLS y 12 de KZG). Cada handler es una carpeta dentro de <code>tests/</code>, cada caso es una subcarpeta con su <code>data.yaml</code>, y un <code>format.md</code> explica los campos. Además de los casos válidos y adulterados hay casos borde: una clave de más, una clave en el punto al infinito, una lista de claves vacía.</p>
+      </div>
+      <div class="card">
+        <h3>La vuelta de este repo: el test invertido</h3>
+        <p>Un test normal lee el <code>data.yaml</code> y compara. Acá <code>pytest</code> hace al revés:</p>
+        <ol class="steps">
+          <li>Corre la spec de Lean con cada input.</li>
+          <li><b>Reescribe</b> el <code>data.yaml</code> con lo que calculó.</li>
+          <li><code>git diff</code> compara esos archivos con los que estaban guardados en git.</li>
+        </ol>
+        <p>Si la spec da lo mismo de siempre, los archivos quedan idénticos y <code>git diff</code> no muestra nada. Eso dio: <b>364 casos, 0 diferencias</b>.</p>
+      </div>
     </div>
   </section>
 
@@ -420,7 +479,7 @@ flowchart LR
       <div><dt>@[export nombre]</dt><dd>Atributo de Lean que publica una función como símbolo C con ese nombre. Es el enchufe entre Lean y <code>bls.c</code> / <code>kzg.c</code>.</dd></div>
       <div><dt>.c.o.export vs .olean</dt><dd>El primero es código máquina y va al <code>.so</code>. El segundo es solo el resultado del chequeo de tipos y nunca se ejecuta.</dd></div>
       <div><dt>Mathlib</dt><dd>La biblioteca matemática de Lean. Los teoremas dicen "Fp es ZMod p" y a partir de ahí reutilizan miles de teoremas ya hechos.</dd></div>
-      <div><dt>Vector de prueba</dt><dd>Un caso de examen oficial: input más output esperado. Los clientes de Ethereum lo usan para verificarse.</dd></div>
+      <div><dt>Vector de prueba</dt><dd>Un caso de examen oficial: input más output esperado. Los clientes de Ethereum lo usan para verificarse. Hay un ejemplo real en <a href="#vectores">Qué es un vector de prueba</a>.</dd></div>
     </dl>
   </section>
 </main>
