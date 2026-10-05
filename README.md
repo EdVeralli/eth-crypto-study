@@ -11,8 +11,12 @@ demuestran que ese código es correcto.
 
 ## Empezá por acá
 
-Antes de mirar código, abrí estas tres páginas en este orden:
+Antes de mirar código, abrí estas páginas en este orden:
 
+0. **[La propuesta y su FODA](docs/propuesta-foda.html)**: qué proponen los
+   autores del repo original, por qué, cómo lo implementan y cómo esperan que
+   se use, con un análisis de fortalezas, oportunidades, debilidades y
+   amenazas. Cada afirmación dice de dónde sale.
 1. **[Mapa completo](docs/mapa-completo.html)**: el big picture. Muestra cómo
    una llamada desde Python baja por el binding C hasta la spec en Lean, qué
    partes se ejecutan (verde) y cuáles son teoremas (violeta), archivo por
@@ -181,6 +185,7 @@ caffeinate -i -s -w <PID>                           # si ya está corriendo
 
 ## Documentación generada
 
+- [`docs/propuesta-foda.html`](docs/propuesta-foda.html): la propuesta, cómo se implementa y FODA
 - [`docs/mapa-completo.html`](docs/mapa-completo.html): big picture, spec ejecutable vs teoremas, pisos de estudio
 - [`docs/fp-paso-a-paso.html`](docs/fp-paso-a-paso.html): guía del piso 1, `Bls/Fp.lean` y sus teoremas
 - [`docs/RETOMAR.md`](docs/RETOMAR.md) — dónde quedamos y cómo volver a arrancar

@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La propuesta y su FODA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: documento de lectura en una columna; el FODA es una grilla 2x2 con los cuatro cuadrantes; cada afirmación dice de dónde sale (repo propio, repo original o fuente externa). Mismos colores que los mapas. */
+:root{
+  --bg:#f3f6f7; --panel:#ffffff; --fg:#17212b; --muted:#5a6773; --line:#d5dde2; --code-bg:#f7f9fa;
+  --exec:#1f8a6b; --exec-bg:#dcf2ea; --exec-fg:#0b3b2e;
+  --thm:#6a4fd1;  --thm-bg:#e8e3fb;  --thm-fg:#281a5e;
+  --glue:#b8730f; --glue-bg:#fbead2; --glue-fg:#4a2d00;
+  --warn:#c2412d; --warn-bg:#fde3de;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f1519; --panel:#172027; --fg:#e4ebef; --muted:#9aa8b3; --line:#2b3841; --code-bg:#121a20;
+  --exec:#4cc9a0; --exec-bg:#12352b; --exec-fg:#c9f3e4;
+  --thm:#a893ff;  --thm-bg:#2a2350;  --thm-fg:#e3dcff;
+  --glue:#f0a94a; --glue-bg:#3d2a0e; --glue-fg:#fde6c4;
+  --warn:#ff8a73; --warn-bg:#44201a; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0f1519; --panel:#172027; --fg:#e4ebef; --muted:#9aa8b3; --line:#2b3841; --code-bg:#121a20;
+  --exec:#4cc9a0; --exec-bg:#12352b; --exec-fg:#c9f3e4;
+  --thm:#a893ff;  --thm-bg:#2a2350;  --thm-fg:#e3dcff;
+  --glue:#f0a94a; --glue-bg:#3d2a0e; --glue-fg:#fde6c4;
+  --warn:#ff8a73; --warn-bg:#44201a; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.65 var(--f-body);padding:0 16px}
+main{max-width:900px;margin:0 auto;padding-block:40px 72px;display:flex;flex-direction:column;gap:44px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:clamp(30px,5vw,46px);font-weight:800;letter-spacing:-.01em}
+h2{font-size:25px;font-weight:800}
+h3{font-size:17px;font-weight:600}
+p{margin:0;max-width:72ch}
+ul,ol{margin:0;padding-left:20px;max-width:72ch;display:flex;flex-direction:column;gap:5px}
+code{font-family:var(--f-mono);font-size:.85em;background:var(--code-bg);border:1px solid var(--line);padding:0 4px;border-radius:4px}
+a{color:var(--exec)}
+.eyebrow{font:600 12px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lede{color:var(--muted);font-size:18px}
+section{display:flex;flex-direction:column;gap:14px}
+.src{font-size:12.5px;color:var(--muted);font-family:var(--f-mono)}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.box.key{border-left:4px solid var(--glue)} .box.key .eyebrow{color:var(--glue)}
+.box.ok{border-left:4px solid var(--exec)} .box.ok .eyebrow{color:var(--exec)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.fact{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.fact b{font:800 22px/1.1 var(--f-display)} .fact span{font-size:13px;color:var(--muted)}
+.pipe{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px;font:13.5px/1.7 var(--f-mono);overflow-x:auto;white-space:pre}
+.foda{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:720px){.foda{grid-template-columns:1fr}}
+.q{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;min-width:0;border-top:5px solid var(--line)}
+.q.f{border-top-color:var(--exec)} .q.o{border-top-color:var(--thm)} .q.d{border-top-color:var(--glue)} .q.a{border-top-color:var(--warn)}
+.q .eyebrow{display:flex;gap:8px;align-items:center}
+.q.f .eyebrow{color:var(--exec)} .q.o .eyebrow{color:var(--thm)} .q.d .eyebrow{color:var(--glue)} .q.a .eyebrow{color:var(--warn)}
+.q h3{font-size:19px}
+.q ul{font-size:14.5px;gap:7px}
+.q li b{font-weight:600}
+.tag{font:600 10.5px/1 var(--f-mono);letter-spacing:.03em;padding:2px 5px;border-radius:4px;background:var(--code-bg);border:1px solid var(--line);color:var(--muted);white-space:nowrap;vertical-align:1px}
+.tag.m{background:var(--exec-bg);color:var(--exec-fg);border-color:var(--exec)}
+table{border-collapse:collapse;font-size:14px;width:100%}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.tw{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 10px}
+</style>
+</head>
+<body>
+
+<main>
+  <header style="display:flex;flex-direction:column;gap:12px">
+    <div class="eyebrow">ethereum/cryptography-specs · leído al 5 oct 2026</div>
+    <h1>La propuesta y su FODA</h1>
+    <p class="lede">Qué proponen los autores del repo, cómo lo implementan, cómo esperan que se use, y un análisis de fortalezas, oportunidades, debilidades y amenazas con la evidencia que juntamos.</p>
+    <p>Cada afirmación lleva una etiqueta con su origen: <span class="tag m">verificado acá</span> es algo que comprobamos en nuestra copia; <span class="tag">repo original</span> sale de GitHub; <span class="tag">fuente</span> remite a la lista del final.</p>
+  </header>
+
+  <section>
+    <div class="eyebrow">1</div>
+    <h2>Qué proponen y por qué</h2>
+    <div class="box key">
+      <div class="eyebrow">El problema</div>
+      <p>Ethereum no es un programa: son varios clientes independientes, escritos en Go, Rust, Java, Nim y otros, que tienen que dar <b>exactamente los mismos bytes</b> en cada firma y cada compromiso. Si uno acepta lo que otro rechaza, la red se parte. Hasta ahora las reglas se describen con especificaciones en Python y prosa, más implementaciones de referencia en C, y se chequea que todos coincidan con vectores de prueba. Ese esquema deja lugar a ambigüedades, y nada demuestra que la referencia misma sea correcta.</p>
+    </div>
+    <div class="box key">
+      <div class="eyebrow">La respuesta</div>
+      <p>Escribir la criptografía <b>una sola vez, en Lean 4</b>, de modo que la misma fuente sirva para dos cosas: <b>ejecutarse</b> (se compila, se llama desde Python y genera los vectores oficiales) y <b>demostrarse</b> (teoremas sobre ese mismo código, revisados por el kernel de Lean). El enfoque es <i>spec-first</i>: primero se escribe el código tal como lo define el estándar (el borrador IRTF para BLS, el EIP-4844 para KZG) y después se prueba; no al revés, porque el código tiene que coincidir con lo que ya corre en la red. <span class="tag">repo original</span></p>
+    </div>
+    <div class="box">
+      <div class="eyebrow">Quién y en qué contexto</div>
+      <ul>
+        <li>Es un repo de la organización <code>ethereum</code> en GitHub, con licencia CC0 (dominio público). Descripción oficial: "Specifications for cryptography in Ethereum, written in Lean". <span class="tag">repo original</span></li>
+        <li>Es <b>incipiente</b>: unos 39 commits, 13 estrellas, 2 forks, 12 issues y 3 PRs abiertos, y la actividad visible es de pocas personas (<code>tcoratger</code>, <code>b-wagn</code>, <code>kevaundray</code>). <span class="tag">repo original</span></li>
+        <li>Encaja en <b>"lean Ethereum"</b>, la visión a diez años que Justin Drake publicó en el blog de la Ethereum Foundation (jul 2025): criptografía hash-based, resistencia post-cuántica, y "Formal verification. Provable security. Provable optimality." <span class="tag">fuente 2</span></li>
+        <li>El motor inmediato es la <b>migración post-cuántica</b>: reemplazar las firmas BLS (rompibles con una computadora cuántica) por firmas hash-based como XMSS / leanSig, agregadas con pruebas SNARK en una máquina virtual mínima que también se quiere verificar en Lean. Los issues #29 (XMSS) y #41 (SPHINCS, abierto el 1 oct 2026) marcan esa dirección. <span class="tag">fuente 3</span> <span class="tag">repo original</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">2</div>
+    <h2>Cómo se implementa y cómo se usaría</h2>
+    <p>El pipeline completo está dibujado en el <a href="mapa-completo.html">mapa completo</a>. En cinco líneas:</p>
+    <div class="pipe">archivos .lean  ──lake build──▶  spec compilada (código máquina)   +   teoremas revisados por el kernel
+                                        │
+                              setup.py + binding en C
+                                        │
+                                   _native.so  ◀── import desde Python (bls, kzg)
+                                        │
+                     pytest regenera 364 vectores  ──▶  git diff = 0  ✓</div>
+    <div class="tw"><table>
+      <tr><th>Quién lo usaría</th><th>Cómo</th><th>Estado</th></tr>
+      <tr><td>Proyectos en Python (por ejemplo las specs de consenso, que están en Python)</td><td><code>pip install eth-cryptography-specs</code>: el repo está empaquetado como paquete 0.1.0, con un workflow que arma <i>wheels</i> para macOS y Linux al etiquetar una versión. Lo que corre es la spec Lean compilada, no una reimplementación.</td><td>Preparado; no verificamos si ya está publicado en PyPI. <span class="tag">repo original</span></td></tr>
+      <tr><td>Clientes en Go, Rust, Java, Nim…</td><td>No corren Lean. Consumen los <b>vectores</b> de <code>tests/</code>, que el README original describe como "intended for use across implementations and may be pinned by downstream consumers", y usan la spec como referencia legible.</td><td>Vectores disponibles. <span class="tag">repo original</span></td></tr>
+      <tr><td>Auditores y quienes escriben specs nuevas</td><td>Leen los teoremas como lista de garantías, y <code>#print axioms</code> como lista de supuestos.</td><td>Posible hoy. <span class="tag m">verificado acá</span></td></tr>
+    </table></div>
+    <div class="box ok">
+      <div class="eyebrow">Lo que comprobamos de primera mano</div>
+      <div class="facts">
+        <div class="fact"><b>3444</b><span>jobs de <code>lake build</code> en verde: spec compilada y 357 teoremas revisados</span></div>
+        <div class="fact"><b>= py_ecc</b><span>la agregación BLS coincide byte a byte con una implementación independiente</span></div>
+        <div class="fact"><b>364 / 364</b><span>vectores regenerados idénticos a los publicados, en 2:57:50</span></div>
+        <div class="fact"><b>482 / 492</b><span>teoremas que dependen solo del kernel y los axiomas estándar</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">3</div>
+    <h2>FODA</h2>
+    <div class="foda">
+      <div class="q f">
+        <div class="eyebrow">Interno · a favor</div>
+        <h3>Fortalezas</h3>
+        <ul>
+          <li><b>Una sola fuente.</b> La misma definición se ejecuta y se demuestra; no puede haber desfase entre "la spec" y "la referencia".</li>
+          <li><b>Garantías generales, no muestras.</b> 357 teoremas escritos a mano, y 482 de los 492 que cuenta Lean dependen solo del kernel. "Comprimir y descomprimir devuelve el mismo punto" vale para todo punto, no para 100 casos. <span class="tag m">verificado acá</span></li>
+          <li><b>Reproduce la realidad byte a byte.</b> Los 364 vectores oficiales salen idénticos, y BLS coincide con <code>py_ecc</code>. <span class="tag m">verificado acá</span></li>
+          <li><b>Spec-first garantiza interoperabilidad.</b> El código sigue al estándar; el teorema se adapta al código, no al revés.</li>
+          <li><b>Código legible.</b> Sin optimizaciones (lo dice el propio <code>Fp.lean</code>: "the goal is clarity, not speed"); una persona puede leerlo entero.</li>
+          <li><b>Se apoya en Mathlib</b>, la biblioteca matemática de Lean: miles de teoremas ya hechos, por ejemplo para demostrar que p es primo.</li>
+          <li><b>Abierto de verdad.</b> Licencia CC0, y todo lo que afirma se puede reproducir: nosotros lo hicimos en una Mac.</li>
+        </ul>
+      </div>
+      <div class="q o">
+        <div class="eyebrow">Externo · a favor</div>
+        <h3>Oportunidades</h3>
+        <ul>
+          <li><b>La migración post-cuántica necesita specs nuevas.</b> XMSS, leanSig y SPHINCS todavía no tienen una referencia consolidada: es la chance de que nazcan ya verificadas, en lugar de verificarse después. <span class="tag">fuente 3</span></li>
+          <li><b>Ser la fábrica oficial de vectores</b> para todos los clientes, con la garantía de que el generador está demostrado.</li>
+          <li><b>Referencia para auditorías.</b> Un auditor puede leer los teoremas como lista de garantías y <code>#print axioms</code> como lista de supuestos, en vez de reconstruirlos.</li>
+          <li><b>Cerrar los huecos conocidos</b> (<code>ConcreteBlsLaws</code>, los native axioms) es trabajo acotado y ya está identificado en issues.</li>
+          <li><b>El respaldo institucional existe:</b> "lean Ethereum" pone la verificación formal entre sus pilares. <span class="tag">fuente 2</span></li>
+          <li><b>Extenderlo</b> a la VM de agregación (leanVM) y a otras primitivas, que es lo que los autores anuncian querer verificar en Lean. <span class="tag">fuente 3</span></li>
+        </ul>
+      </div>
+      <div class="q d">
+        <div class="eyebrow">Interno · en contra</div>
+        <h3>Debilidades</h3>
+        <ul>
+          <li><b>Proyecto chico y temprano.</b> Pocas personas, 13 estrellas, y todavía sin CI que compile y pruebe cada cambio (issue #11, PR #30 abierto). Solo existe un workflow para publicar a PyPI. <span class="tag">repo original</span></li>
+          <li><b>El hueco de <code>CeremonyChecks</code>.</b> El teorema más ambicioso supone leyes del pairing (<code>ConcreteBlsLaws</code>) que nadie demostró para el código. <span class="tag m">verificado acá</span></li>
+          <li><b>10 teoremas con native axioms</b>, tres de ellos reglas generales, uno central (<code>uncompress_compress</code>). Están por debajo del estándar de Mathlib, que no los acepta. <span class="tag m">verificado acá</span></li>
+          <li><b>Es lento por diseño.</b> La suite de vectores tarda casi 3 horas; KZG corre sin ninguna optimización. Sirve como referencia y generador de vectores, no para producción. <span class="tag m">verificado acá</span></li>
+          <li><b>Build pesado.</b> Depende de Mathlib (fijado en v4.29.1): miles de archivos, varios GB, y un toolchain de Lean instalado. La barrera de entrada es alta.</li>
+          <li><b>El binding en C queda fuera de lo demostrado.</b> Los teoremas cubren el Lean; el traductor Python↔Lean (marshalling) es código C a mano sin pruebas. <span class="tag m">verificado acá</span></li>
+          <li><b>XMSS está incompleto</b> en esta copia (solo el hash y los tipos), y la documentación de las demostraciones es un issue abierto (#6).</li>
+        </ul>
+      </div>
+      <div class="q a">
+        <div class="eyebrow">Externo · en contra</div>
+        <h3>Amenazas</h3>
+        <ul>
+          <li><b>Que no lo adopten.</b> Las specs de consenso en Python son el estándar de hecho y los clientes ya tienen sus propias implementaciones y vectores. Si nadie "pinnea" estos vectores ni instala el paquete, queda como ejercicio académico.</li>
+          <li><b>Divergencia.</b> Si las specs en Python o las implementaciones reales cambian y esta spec no las sigue (o al revés), vuelve el problema que quería resolver.</li>
+          <li><b>Spec correcta ≠ cliente correcto.</b> Demostrar la referencia no demuestra el código Go o Rust que corre en producción; la brecha se cubre solo con vectores.</li>
+          <li><b>Fragilidad del toolchain.</b> Lean 4 y Mathlib cambian rápido; cada actualización puede romper demostraciones y obliga a mantenimiento continuo.</li>
+          <li><b>Pocos mantenedores.</b> Con dos o tres personas, una baja frena el proyecto.</li>
+          <li><b>Obsolescencia parcial.</b> La migración post-cuántica reemplaza BLS; el trabajo sobre BLS vale como puente y como método, pero el valor a largo plazo está en lo que todavía no está escrito.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">4</div>
+    <h2>Preguntas abiertas</h2>
+    <ul>
+      <li>¿Las specs de consenso en Python van a depender de este paquete, o seguirán con sus propias implementaciones de referencia?</li>
+      <li>¿Quién decide que los vectores de este repo sean "los oficiales"? Hoy los clientes consumen vectores de otros repos.</li>
+      <li>¿Hay un plan y una fecha para demostrar <code>ConcreteBlsLaws</code>, el hueco principal?</li>
+      <li>¿Cómo se va a mantener la paridad con los estándares cuando cambien (nuevas versiones del borrador IRTF, cambios en EIP-4844 / PeerDAS)?</li>
+      <li>¿Se va a verificar también el binding en C, o se acepta como zona de confianza?</li>
+      <li>¿XMSS en Lean (issue #29) va a nacer con teoremas desde el primer commit, o primero spec y después pruebas, como con BLS?</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="eyebrow">Fuentes</div>
+    <h2>De dónde sale cada cosa</h2>
+    <ol>
+      <li><a href="https://github.com/ethereum/cryptography-specs">ethereum/cryptography-specs</a>: README, issues, PRs, <code>pyproject.toml</code>, <code>.github/workflows/publish.yml</code> (leídos el 5 oct 2026).</li>
+      <li><a href="https://blog.ethereum.org/2025/07/31/lean-ethereum">lean Ethereum</a>, Justin Drake, blog de la Ethereum Foundation, 31 jul 2025.</li>
+      <li><a href="https://hashcloak.com/blog/how-ethereum-plans-to-replace-bls-with-post-quantum-signatures">How Ethereum plans to replace BLS with post-quantum signatures</a>, HashCloak.</li>
+      <li><a href="https://ethereum.org/roadmap/security/quantum-resistance/">Post-quantum cryptography on Ethereum</a>, ethereum.org.</li>
+      <li>Nuestra copia: <a href="mapa-completo.html">mapa completo</a>, <a href="architecture-map.html">mapa de arquitectura</a>, <code>docs/native_axioms.lean</code>, <code>docs/bls_smoke.py</code>.</li>
+    </ol>
+  </section>
+</main>
+</body>
+</html>

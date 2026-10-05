@@ -9,6 +9,7 @@ armando y repasando la **documentacion de estudio** en `docs/`, para que
 alguien que llega (Pablo, por ejemplo) entienda el repo sin haber estado en
 las sesiones. Son tres paginas HTML que se abren con el navegador:
 
+0. `docs/propuesta-foda.html` — la propuesta, como se implementa y FODA (5 oct)
 1. `docs/mapa-completo.html` — el big picture
 2. `docs/architecture-map.html` — los modulos por dentro y por que spec-first
 3. `docs/fp-paso-a-paso.html` — guia del piso 1 (`Bls/Fp.lean`)
@@ -44,6 +45,9 @@ MSM, trusted setup.
   la jerga de los modulos y archivos (Jacobianas, optimal Ate, twist, SSWU,
   NTT, DAS, OTS...), cada una verificada contra el archivo .lean; terminologia
   "teoremas"; encabezado igual al del mapa completo.
+- Las guias por piso (Fp, G1, ...) quedan para mas adelante. Por ahora el foco
+  es entender la propuesta en si: ver `docs/propuesta-foda.html` y sus
+  "preguntas abiertas"; lo que sigue es investigar esas preguntas.
 - Repasar `fp-paso-a-paso.html`.
 - Escribir la guia del piso 2: `Bls/G1.lean` + `G1Group` / `G1Order` / `G1Msm`.
 
