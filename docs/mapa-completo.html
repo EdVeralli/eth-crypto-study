@@ -254,7 +254,7 @@ flowchart TB
 </pre>
     </div>
     <p class="note">Las dos cajas de Lean salen de <code>lakefile.lean</code>, el archivo que le dice a Lean qué hacer con cada grupo de archivos. A la spec (librería <code>EthCryptographySpecs</code>) le dice "revisala y convertila en programa" (<code>precompileModules = true</code>), y por eso termina dentro del <code>.so</code> que usa Python. A los teoremas (librería <code>Proofs</code>) les dice "solo revisalos" (<code>precompileModules = false</code>): Lean los chequea, pero no generan programa. Es como un libro de recetas: las recetas se cocinan, y las notas del nutricionista que explican por qué son sanas se leen y se verifican, pero no se cocinan.</p>
-    <p class="note">XMSS no exporta funciones (solo 9 constantes de tamaño), así que hoy no se puede llamar desde Python. Es la parte que upstream sigue construyendo.</p>
+    <p class="note">XMSS no exporta funciones (solo 9 constantes de tamaño), así que hoy no se puede llamar desde Python. En esta copia (<code>09deaff</code>) XMSS es solo el hash y los tipos; upstream lo completó entre el 28 sep y el 5 oct de 2026 (6 archivos de spec y 7 de teoremas más, con el teorema de corrección <code>verify_keyGen_sign</code>), pero sigue sin exports: tampoco allá se puede llamar desde Python.</p>
   </section>
 
   <section>
@@ -424,7 +424,7 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
 
       <!-- XMSS -->
       <article class="col">
-        <header><div class="eyebrow">Post-cuántico · en construcción</div><h3>XMSS</h3><p>Firmas basadas solo en funciones hash, pensadas para reemplazar a BLS cuando existan computadoras cuánticas.</p></header>
+        <header><div class="eyebrow">Post-cuántico · en construcción en esta copia</div><h3>XMSS</h3><p>Firmas basadas solo en funciones hash, pensadas para reemplazar a BLS cuando existan computadoras cuánticas. Lo que sigue es lo que hay en <code>09deaff</code>; upstream ya sumó Encoding, Ots, Merkle, KeyGen, Sign y Verify con sus teoremas (Xmss pasa de 26 a 73).</p></header>
         <div class="lane">
           <div class="lane-title exec">Spec · se ejecuta</div>
           <div class="chip exec" data-id="x-blake"><span class="f">Blake2s</span><span class="d">la función hash</span></div>

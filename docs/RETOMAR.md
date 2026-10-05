@@ -4,6 +4,15 @@ _Ultima actualizacion: 2026-10-05_
 
 ## Donde quedamos (5 oct 2026): repaso de los mapas
 
+Chequeo de upstream (5 oct 2026, `ethereum/cryptography-specs` master en
+`8f811fc`): 6 commits despues de nuestro `09deaff`, todos de XMSS (#33, #35,
+#37, #38, #40, #42). XMSS quedo completo alla con el teorema
+`verify_keyGen_sign`; sumo 4 `native_decide` y sigue sin `@[export]`. BLS, KZG,
+binding, build y workflows: sin cambios. Decision: NO re-sincronizar por ahora,
+solo se ajustaron los textos (README punto 5 y 6, propuesta-foda, mapa-completo
+columna XMSS, architecture-map modulo XMSS). Los conteos de la documentacion
+siguen siendo los de `09deaff`.
+
 La infraestructura esta cerrada (ver mas abajo). Desde el 29 sept estamos
 armando y repasando la **documentacion de estudio** en `docs/`, para que
 alguien que llega (Pablo, por ejemplo) entienda el repo sin haber estado en

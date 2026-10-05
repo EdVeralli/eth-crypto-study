@@ -84,7 +84,7 @@ esa spec realmente corre y reproduce los vectores oficiales— en tres frentes:
 
 - **BLS12-381** (`EthCryptographySpecs/Bls/`) — campos, curva, pairing, firmas
 - **KZG** (`EthCryptographySpecs/Kzg/`) — compromisos polinomiales para blobs (EIP-4844)
-- **XMSS** (`EthCryptographySpecs/Xmss/`) — firmas hash-based post-cuánticas, en desarrollo upstream
+- **XMSS** (`EthCryptographySpecs/Xmss/`) — firmas hash-based post-cuánticas; en esta copia solo el hash y los tipos, upstream ya lo completó (ver [Qué falta](#qué-falta), punto 5)
 
 El repo separa a propósito la **spec** ejecutable (se compila a C y se linkea en
 una extensión de Python) de los **teoremas** (demostraciones que Lean solo
@@ -134,14 +134,23 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    `verify_blob_kzg_proof_batch`, `recover_cells_and_kzg_proofs`, …) y 8
    constantes. Falta un smoke test propio al estilo de `docs/bls_smoke.py`,
    idealmente con blob → commitment → proof → verify de punta a punta.
-5. **Seguirle el paso a XMSS upstream** — al 29 sept 2026 upstream ya mergeó el
-   encoding target-sum (#33), su prueba (#35) y la firma Winternitz (#37), y
-   tiene en review el árbol de Merkle (#38) y la verificación (#40). Pendientes
-   allá: keygen + firma (#20), sign-then-verify (#21), SSZ (#22/#23), vectores
-   (#25), exports C/Python (#24) y CI (#11/#30).
+5. **Seguirle el paso a XMSS upstream** — al 5 oct 2026 upstream (`8f811fc`)
+   ya tiene XMSS de punta a punta: encoding target-sum (#33, #35), firma
+   Winternitz WOTS+C (#37), árbol de Merkle (#38), verificación (#40) y keygen +
+   firma (#42), con el teorema de corrección `verify_keyGen_sign`
+   (`Proofs/Xmss/Correctness.lean`). Cada PR trajo la spec y sus teoremas
+   juntos. Ojo: sumó 4 `native_decide` nuevos (en `Proofs/Xmss/KeyGen.lean`,
+   `Sign.lean` y `Verify.lean`) y sigue sin `@[export]` para XMSS, así que desde
+   Python todavía no se puede llamar. Pendientes allá: SSZ (#22/#23), vectores
+   (#25), exports C/Python (#24) y CI (#11/#30). Nada de BLS, KZG, el binding
+   ni el build cambió.
 6. **Re-sincronizar esta copia** si queremos estudiar XMSS completo: esta copia
-   está en `09deaff` y upstream ya va por `02e5e78`. Traer los commits nuevos
-   acá (merge desde el clon de lectura), nunca al revés.
+   está en `09deaff` y upstream ya va por `8f811fc` (6 commits, todos de XMSS:
+   +6 archivos de spec, +7 de teoremas, 404 teoremas escritos a mano en vez de
+   357). Traer los commits nuevos acá (merge desde el clon de lectura), nunca
+   al revés. Al hacerlo hay que recompilar y volver a correr
+   `docs/native_axioms.lean`, porque los conteos de esta documentación son de
+   `09deaff`.
 
 ## Entorno
 

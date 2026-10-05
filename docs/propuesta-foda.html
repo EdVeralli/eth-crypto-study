@@ -168,7 +168,7 @@ th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute
           <li><b>Es lento por diseño.</b> La suite de vectores tarda casi 3 horas; KZG corre sin ninguna optimización. Sirve como referencia y generador de vectores, no para producción. <span class="tag m">verificado acá</span></li>
           <li><b>Build pesado.</b> Depende de Mathlib (fijado en v4.29.1): miles de archivos, varios GB, y un toolchain de Lean instalado. La barrera de entrada es alta.</li>
           <li><b>El binding en C queda fuera de lo demostrado.</b> Los teoremas cubren el Lean; el traductor Python↔Lean (marshalling) es código C a mano sin pruebas. <span class="tag m">verificado acá</span></li>
-          <li><b>XMSS está incompleto</b> en esta copia (solo el hash y los tipos), y la documentación de las demostraciones es un issue abierto (#6).</li>
+          <li><b>XMSS está incompleto</b> en esta copia (solo el hash y los tipos). Upstream lo completó entre el 28 sep y el 5 oct (encoding, firma Winternitz, Merkle, keygen, firma y verificación, con el teorema <code>verify_keyGen_sign</code>), pero lo hizo con 4 <code>native_decide</code> más y todavía sin exports a Python. La documentación de las demostraciones sigue siendo un issue abierto (#6). <span class="tag">repo original · 8f811fc</span></li>
         </ul>
       </div>
       <div class="q a">
@@ -195,7 +195,7 @@ th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute
       <li>¿Hay un plan y una fecha para demostrar <code>ConcreteBlsLaws</code>, el hueco principal?</li>
       <li>¿Cómo se va a mantener la paridad con los estándares cuando cambien (nuevas versiones del borrador IRTF, cambios en EIP-4844 / PeerDAS)?</li>
       <li>¿Se va a verificar también el binding en C, o se acepta como zona de confianza?</li>
-      <li>¿XMSS en Lean (issue #29) va a nacer con teoremas desde el primer commit, o primero spec y después pruebas, como con BLS?</li>
+      <li>¿XMSS en Lean (issue #29) va a nacer con teoremas desde el primer commit, o primero spec y después teoremas, como con BLS? <b>Respondida</b>: en upstream (28 sep – 5 oct 2026) cada PR de XMSS trajo la spec y sus teoremas juntos (#33, #37, #38, #40, #42), y el teorema de corrección de punta a punta llegó en el mismo commit que keygen y firma.</li>
     </ul>
   </section>
 
