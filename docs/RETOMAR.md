@@ -40,9 +40,10 @@ MSM, trusted setup.
 
 ### Pendiente
 
-- Repasar `architecture-map.html` con el mismo criterio (frases que no se
-  entienden, ejemplos concretos). La revision cruzada marco que es la pagina
-  con mas jerga sin explicar (Jacobianas, pairing de Ate, twist, SSWU, NTT, DAS).
+- ~~Repasar `architecture-map.html`~~ Hecho el 5 oct: glosas en linea para toda
+  la jerga de los modulos y archivos (Jacobianas, optimal Ate, twist, SSWU,
+  NTT, DAS, OTS...), cada una verificada contra el archivo .lean; terminologia
+  "teoremas"; encabezado igual al del mapa completo.
 - Repasar `fp-paso-a-paso.html`.
 - Escribir la guia del piso 2: `Bls/G1.lean` + `G1Group` / `G1Order` / `G1Msm`.
 

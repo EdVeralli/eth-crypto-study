@@ -548,20 +548,20 @@
 <div class="page">
 
   <header>
-    <div class="eyebrow">ethereum / cryptography-specs</div>
+    <div class="eyebrow">Copia de estudio de ethereum/cryptography-specs &middot; commit 09deaff</div>
     <h1>Especificaciones Formales de Criptograf&iacute;a para Ethereum</h1>
-    <p>Implementaciones ejecutables de los primitivos criptogr&aacute;ficos de Ethereum, escritas en Lean 4 con teoremas formales verificadas por m&aacute;quina. El c&oacute;digo se compila tambi&eacute;n como extensi&oacute;n Python v&iacute;a bindings C.</p>
+    <p>Implementaciones ejecutables de los primitivos criptogr&aacute;ficos de Ethereum, escritas en Lean 4 con teoremas formales verificados por m&aacute;quina. El c&oacute;digo se compila tambi&eacute;n como extensi&oacute;n Python v&iacute;a bindings C.</p>
   </header>
 
   <!-- Big idea -->
   <div class="callout">
-    <p><strong>La idea central:</strong> cada primitivo criptogr&aacute;fico tiene dos caras en este repo. La <em>spec</em> es c&oacute;digo ejecutable — se compila, corre, y genera Python bindings. Las <em>proofs</em> son teoremas formales que verifican propiedades matem&aacute;ticas de esa spec. Viven en &aacute;rboles paralelos: <code>Bls/G1.lean</code> define la aritm&eacute;tica, <code>Proofs/Bls/G1Group.lean</code> demuestra que forma un grupo.</p>
+    <p><strong>La idea central:</strong> cada primitivo criptogr&aacute;fico tiene dos caras en este repo. La <em>spec</em> es c&oacute;digo ejecutable — se compila, corre, y genera Python bindings. Los <em>teoremas</em> (carpeta <code>Proofs/</code>) verifican propiedades matem&aacute;ticas de esa spec. Viven en &aacute;rboles paralelos: <code>Bls/G1.lean</code> define la aritm&eacute;tica, <code>Proofs/Bls/G1Group.lean</code> demuestra que forma un grupo.</p>
   </div>
 
   <!-- Dependency flow -->
   <section>
     <h2>Flujo de dependencias</h2>
-    <p>KZG depende de BLS (usa sus puntos de G1 y el pairing). XMSS es independiente: no importa nada de BLS y trae su propio hash, BLAKE2s. Los teoremas observan las specs, pero las specs nunca dependen de las pruebas.</p>
+    <p>KZG depende de BLS (usa sus puntos de G1 y el pairing). XMSS es independiente: no importa nada de BLS y trae su propio hash, BLAKE2s. Los teoremas observan las specs, pero las specs nunca dependen de los teoremas.</p>
     <div class="flow">
       <div class="flow-node">
         <div class="label">BLS12-381</div>
@@ -603,20 +603,20 @@
           <div class="module-toggle">&#9662;</div>
         </div>
         <div class="module-body">
-          <p>Implementaci&oacute;n completa de la curva BLS12-381: aritm&eacute;tica de campos finitos (Fp, Fr, Fp2, Fp6, Fp12), puntos de curva en coordenadas Jacobianas, compresi&oacute;n/descompresi&oacute;n, hash-to-curve, pairing de Ate, y verificaci&oacute;n de firmas BLS seg&uacute;n el draft IRTF.</p>
+          <p>Implementaci&oacute;n completa de la curva BLS12-381: aritm&eacute;tica de campos finitos (Fp, Fr, Fp2, Fp6, Fp12), puntos de curva en coordenadas Jacobianas (una forma de guardar los puntos que evita divisiones, que son caras), compresi&oacute;n/descompresi&oacute;n (punto &harr; bytes), hash-to-curve (convertir un mensaje en un punto de la curva), pairing (la operaci&oacute;n e(P, Q) que permite verificar; la variante usada se llama <i>optimal Ate</i>), y verificaci&oacute;n de firmas BLS seg&uacute;n el borrador de est&aacute;ndar del IRTF (draft-irtf-cfrg-bls-signature).</p>
           <div class="file-tree">
             <div><span class="dir">Bls/</span></div>
             <div class="indent">Constants.lean <span class="anno">Constantes de la curva</span></div>
             <div class="indent">Fp.lean <span class="anno">Campo base (381 bits). <code>Fp = Fin p</code></span></div>
             <div class="indent">Fr.lean <span class="anno">Campo escalar (orden del subgrupo)</span></div>
-            <div class="indent">Fp2.lean, Fp6.lean, Fp12.lean <span class="anno">Torres de extensi&oacute;n para pairing</span></div>
+            <div class="indent">Fp2.lean, Fp6.lean, Fp12.lean <span class="anno">Campos m&aacute;s grandes construidos sobre Fp (Fp2 es un par de Fp, Fp6 un tr&iacute;o de Fp2, Fp12 un par de Fp6), necesarios para el pairing</span></div>
             <div class="indent">G1.lean <span class="anno">Curva y&sup2; = x&sup3; + 4 sobre Fp, Jacobiana</span></div>
-            <div class="indent">G2.lean <span class="anno">Curva sobre Fp2 (twist sextic)</span></div>
+            <div class="indent">G2.lean <span class="anno">Curva &ldquo;gemela&rdquo; (twist) sobre Fp2: permite escribir los puntos de G2 con n&uacute;meros de Fp2 en vez de Fp12</span></div>
             <div class="indent">Compress.lean <span class="anno">Serializaci&oacute;n comprimida (48/96 bytes)</span></div>
-            <div class="indent">Sha256.lean <span class="anno">SHA-256 para hash-to-field</span></div>
-            <div class="indent">Pairing.lean <span class="anno">Pairing de Ate &mdash; e(G1, G2) &rarr; Fp12</span></div>
-            <div class="indent">HashToCurve.lean <span class="anno">Map bytes &rarr; G2 (SSWU)</span></div>
-            <div class="indent">Signatures.lean <span class="anno">CoreVerify, FastAggregateVerify</span></div>
+            <div class="indent">Sha256.lean <span class="anno">SHA-256, usado para convertir un mensaje en n&uacute;meros del campo (hash-to-field)</span></div>
+            <div class="indent">Pairing.lean <span class="anno">Pairing optimal Ate &mdash; e(G1, G2) &rarr; Fp12, la operaci&oacute;n que permite verificar</span></div>
+            <div class="indent">HashToCurve.lean <span class="anno">Mensaje (bytes) &rarr; punto de G2, con el m&eacute;todo SSWU del RFC 9380</span></div>
+            <div class="indent">Signatures.lean <span class="anno">Verificar una firma y una firma agregada (CoreVerify, FastAggregateVerify)</span></div>
             <div class="indent">Exports.lean <span class="anno">API p&uacute;blica para Python bindings</span></div>
           </div>
         </div>
@@ -633,17 +633,17 @@
           <div class="module-toggle">&#9662;</div>
         </div>
         <div class="module-body">
-          <p>Compromisos polinomiales Kate-Zaverucha-Goldberg para el EIP-4844 (proto-danksharding). Usa BLS12-381 como curva subyacente. Incluye FFT sobre Fr, bit-reversal, trusted setup, y data availability sampling con celdas y recuperaci&oacute;n.</p>
+          <p>Compromisos polinomiales KZG (por sus autores: Kate, Zaverucha y Goldberg) para los blobs del EIP-4844 (proto-danksharding). Usa BLS12-381 como curva subyacente. Incluye FFT sobre Fr, bit-reversal, el trusted setup, y el muestreo de disponibilidad de datos (DAS): celdas con prueba propia y recuperaci&oacute;n de las que falten.</p>
           <div class="file-tree">
             <div><span class="dir">Kzg/</span></div>
             <div class="indent">Constants.lean <span class="anno">FIELD_ELEMENTS_PER_BLOB = 4096, etc.</span></div>
-            <div class="indent">BitReversal.lean <span class="anno">Permutaci&oacute;n bit-reversal de &iacute;ndices</span></div>
-            <div class="indent">Polynomials.lean <span class="anno">Evaluaci&oacute;n, divisi&oacute;n, baric&eacute;ntrica</span></div>
-            <div class="indent">Fft.lean <span class="anno">Cooley-Tukey radix-2 NTT sobre Fr</span></div>
-            <div class="indent">TrustedSetup.lean <span class="anno">Carga de par&aacute;metros SRS</span></div>
-            <div class="indent">Core.lean <span class="anno">Blob &rarr; commit, prove, verify</span></div>
-            <div class="indent">Cells.lean <span class="anno">Data availability sampling (DAS)</span></div>
-            <div class="indent">Recovery.lean <span class="anno">Recuperaci&oacute;n de celdas faltantes</span></div>
+            <div class="indent">BitReversal.lean <span class="anno">Reordenar &iacute;ndices invirtiendo sus bits (lo necesita la FFT)</span></div>
+            <div class="indent">Polynomials.lean <span class="anno">Evaluar y dividir polinomios; f&oacute;rmula baric&eacute;ntrica para evaluar fuera del dominio</span></div>
+            <div class="indent">Fft.lean <span class="anno">FFT (transformada r&aacute;pida, algoritmo Cooley-Tukey) sobre Fr; en un campo finito se la llama NTT</span></div>
+            <div class="indent">TrustedSetup.lean <span class="anno">Carga los puntos de la ceremonia (el trusted setup) al arrancar</span></div>
+            <div class="indent">Core.lean <span class="anno">Blob &rarr; commitment, proof y verify: la superficie p&uacute;blica</span></div>
+            <div class="indent">Cells.lean <span class="anno">Celdas para el muestreo de disponibilidad (DAS): comprobar que un blob est&aacute; publicado mirando solo algunas celdas</span></div>
+            <div class="indent">Recovery.lean <span class="anno">Recuperaci&oacute;n de celdas faltantes (c&oacute;digo Reed-Solomon, como un RAID)</span></div>
             <div class="indent">Exports.lean <span class="anno">API p&uacute;blica para Python</span></div>
           </div>
         </div>
@@ -660,13 +660,13 @@
           <div class="module-toggle">&#9662;</div>
         </div>
         <div class="module-body">
-          <p>Reemplazo post-quantum de BLS para el consenso de Ethereum. Basado en &aacute;rboles Merkle con firmas one-time (OTS). Usa BLAKE2s-256 como hash. M&oacute;dulo m&aacute;s nuevo, a&uacute;n en desarrollo activo.</p>
+          <p>Reemplazo post-quantum de BLS para el consenso de Ethereum. Basado en &aacute;rboles de Merkle (un &aacute;rbol de hashes) con firmas de un solo uso (OTS, Winternitz). Usa BLAKE2s-256 como hash. M&oacute;dulo m&aacute;s nuevo, a&uacute;n en desarrollo activo.</p>
           <div class="file-tree">
             <div><span class="dir">Xmss/</span></div>
             <div class="indent">Constants.lean <span class="anno">Par&aacute;metros XMSS (alturas, tama&ntilde;os)</span></div>
-            <div class="indent">Types.lean <span class="anno">Byte types y codificaci&oacute;n de tweaks</span></div>
+            <div class="indent">Types.lean <span class="anno">Objetos de bytes con tama&ntilde;o fijo en el tipo (claves, tweaks, nodos)</span></div>
             <div class="indent">Errors.lean <span class="anno">Errores tipados</span></div>
-            <div class="indent">TweakHash.lean <span class="anno">Hash con tweak (dominio separado)</span></div>
+            <div class="indent">TweakHash.lean <span class="anno">Hash con tweak: cada uso lleva una etiqueta distinta, as&iacute; dos usos nunca chocan</span></div>
             <div class="indent">Blake2s.lean <span class="anno">BLAKE2s-256 seg&uacute;n RFC 7693</span></div>
           </div>
         </div>
@@ -684,7 +684,7 @@
         <h3>Spec (ejecutable)</h3>
         <ul>
           <li>Definiciones con <code>def</code> y <code>structure</code></li>
-          <li><code>Fp = Fin p</code> &mdash; canonicidad por construcci&oacute;n</li>
+          <li><code>Fp = Fin p</code> &mdash; canonicidad por construcci&oacute;n: un Fp nunca puede ser &ge; p</li>
           <li>Se compila a C v&iacute;a Lean compiler</li>
           <li>Python bindings en <code>bindings/</code></li>
           <li>Prioriza claridad, no performance</li>
@@ -694,10 +694,10 @@
         <h3>Teoremas (la librer&iacute;a Proofs)</h3>
         <ul>
           <li>Teoremas con <code>theorem</code></li>
-          <li><code>uncompress_compress</code> — round-trip</li>
+          <li><code>uncompress_compress</code> — round-trip (ida y vuelta devuelve el mismo punto)</li>
           <li><code>fftField_fftField_inv</code> — la iFFT deshace la FFT</li>
-          <li>Ceremony pairing checks — soundness</li>
-          <li>MSM correctness, sqrt soundness</li>
+          <li>Ceremony pairing checks — soundness (nunca acepta un setup inv&aacute;lido)</li>
+          <li>MSM correctness, sqrt soundness (la ra&iacute;z devuelta es una ra&iacute;z de verdad)</li>
         </ul>
       </div>
     </div>
@@ -851,16 +851,16 @@
           <li><code>precompileModules := true</code></li>
           <li>Genera <code>.c.o.export</code> en <code>.lake/build/ir/</code></li>
           <li>Se linkea dentro de la extensi&oacute;n Python (el runtime de Lean, <code>libleanshared</code>, se enlaza din&aacute;micamente)</li>
-          <li>Flag <code>-fPIC</code> para shared library</li>
+          <li>Compilado con <code>-fPIC</code>, lo que hace falta para meterlo en una librer&iacute;a compartida (<code>.so</code>)</li>
         </ul>
       </div>
       <div class="col-card proof-card">
         <h3>Proofs</h3>
         <ul>
           <li><code>precompileModules := false</code></li>
-          <li>Solo genera <code>.olean</code> (type-checking)</li>
+          <li>Solo genera <code>.olean</code>: el resultado de revisar los teoremas, no es c&oacute;digo</li>
           <li>No se linkea en Python</li>
-          <li>Depende de Mathlib v4.29.1</li>
+          <li>Usa Mathlib v4.29.1, la biblioteca matem&aacute;tica de Lean</li>
         </ul>
       </div>
     </div>
@@ -869,7 +869,7 @@
   <!-- Cómo seguir -->
   <section>
     <h2>C&oacute;mo seguir</h2>
-    <p>Este mapa describe <strong>los m&oacute;dulos</strong>: qu&eacute; hay en cada archivo y por qu&eacute; el repo separa spec y proofs. Para el resto:</p>
+    <p>Este mapa describe <strong>los m&oacute;dulos</strong>: qu&eacute; hay en cada archivo y por qu&eacute; el repo separa spec y teoremas. Para el resto:</p>
     <ul style="padding-left:1.3rem; margin-top:0.6rem;">
       <li style="margin-bottom:0.4rem;"><a href="mapa-completo.html"><strong>Mapa completo</strong></a> &mdash; el big picture: Python &rarr; binding C &rarr; Lean, qu&eacute; se ejecuta y qu&eacute; son teoremas, y los <strong>pisos de estudio</strong> en orden.</li>
       <li style="margin-bottom:0.4rem;"><a href="fp-paso-a-paso.html"><strong>Fp.lean paso a paso</strong></a> &mdash; la gu&iacute;a del piso 1, l&iacute;nea por l&iacute;nea.</li>
