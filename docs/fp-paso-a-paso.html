@@ -476,8 +476,8 @@ flowchart TB
       <figcaption>Cada caja violeta es un certificado de Lucas, escrito como un teorema en el archivo. Los factores chicos de cada número (como 2, 3, 13 o 941) los verifica <code>norm_num</code> directamente.</figcaption>
     </figure>
     <div class="box idea">
-      <div class="eyebrow">Sin atajos</div>
-      <p>Todas estas potencias gigantes las calcula el <b>núcleo de Lean</b> (vía <code>PowMod.powModAux</code>), no el código compilado. Por eso esta prueba no usa <code>native_decide</code> y es de la clase más confiable del repo. El comentario del archivo lo dice explícito: "the entire tree is kernel-checked without native_decide".</p>
+      <div class="eyebrow">Sin native axioms</div>
+      <p>Todas estas potencias gigantes las calcula el <b>núcleo de Lean</b> (vía <code>PowMod.powModAux</code>), no el código compilado. Por eso esta prueba no depende de ningún <i>native axiom</i> (<code>#print axioms</code> muestra solo los tres axiomas estándar) y es de la clase más confiable del repo. El comentario del archivo lo dice explícito: "the entire tree is kernel-checked without native_decide".</p>
     </div>
   </section>
 

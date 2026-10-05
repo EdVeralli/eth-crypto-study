@@ -116,10 +116,14 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    único hueco conocido: asume la estructura `ConcreteBlsLaws` (bilinealidad,
    no-degeneración, fidelidad del mul escalar) que todavía **no** está probada
    para la implementación ejecutable. Entender qué haría falta para cerrarla.
-3. **Los `native_decide` que quedan** — no hay ningún `sorry` en el repo, pero sí
-   pruebas delegadas al evaluador compilado, fuera del kernel:
-   `Proofs/Bls/Compress.lean:319` (uncompress del punto al infinito) y 7 en
-   `Proofs/Xmss/Blake2s.lean`. Upstream lo tiene abierto como issue #28.
+3. **Los *native axioms* que quedan** — no hay ningún `sorry` en el repo, pero
+   10 de los 492 teoremas (todos en `Proofs/Bls/Compress.lean` y
+   `Proofs/Xmss/Blake2s.lean`) dependen de pasos verificados por código
+   compilado en vez del kernel (`native_decide` y `bv_decide`). Uno es
+   central: `uncompress_compress`. Mathlib no acepta teoremas así; upstream
+   tiene abierto el issue #28 para sacar los dos `bv_decide` de Blake2s.
+   Lista completa: `lake env lean docs/native_axioms.lean` (ver el mapa
+   completo, "Dónde la separación no es perfecta").
 4. **Ejercitar KZG desde Python** — la superficie ya está a la vista: 12
    funciones (`blob_to_kzg_commitment`, `compute_kzg_proof`,
    `verify_blob_kzg_proof_batch`, `recover_cells_and_kzg_proofs`, …) y 8
@@ -143,6 +147,7 @@ cd ~/eth-crypto-study
 lake build                                          # verde: 3444 jobs
 .venv/bin/python docs/bls_smoke.py                  # ALL CHECKS PASSED
 .venv/bin/python -c "from eth_cryptography_specs import bls, kzg"
+lake env lean docs/native_axioms.lean               # qué teoremas dependen de native axioms (~3 min)
 ```
 
 Si se borra `.lake/`: `lake exe cache get && lake build`.
@@ -179,4 +184,5 @@ caffeinate -i -s -w <PID>                           # si ya está corriendo
 - [`docs/notas-investigacion.md`](docs/notas-investigacion.md) — todo lo aprendido del repo
 - [`docs/architecture-map.html`](docs/architecture-map.html) — mapa de arquitectura: módulos por dentro y por qué spec-first
 - [`docs/bls_smoke.py`](docs/bls_smoke.py) — verificación end-to-end de BLS contra `py_ecc`
+- [`docs/native_axioms.lean`](docs/native_axioms.lean) — lista los teoremas que dependen de native axioms
 - [`docs/README-upstream.md`](docs/README-upstream.md) — README original del proyecto

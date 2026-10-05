@@ -1,8 +1,8 @@
 # Retomar trabajo
 
-_Ultima actualizacion: 2026-10-01_
+_Ultima actualizacion: 2026-10-05_
 
-## Donde quedamos (1 oct 2026): repaso de los mapas
+## Donde quedamos (5 oct 2026): repaso de los mapas
 
 La infraestructura esta cerrada (ver mas abajo). Desde el 29 sept estamos
 armando y repasando la **documentacion de estudio** en `docs/`, para que
@@ -17,18 +17,20 @@ las sesiones. Son tres paginas HTML que se abren con el navegador:
 
 | Seccion | Estado |
 |---|---|
-| Encabezado e intro ("Que corre y que se demuestra") | **Pendiente** |
-| Leyenda de colores (las dos filas) | **Pendiente** (solo se cambio "Pegamento" por "Binding") |
-| Bloque de pisos de estudio ("El mapa es la vista de arriba...") | **Pendiente** |
+| Encabezado e intro ("Que corre y que se demuestra") | Repasado: sin "upstream"; la bajada explica spec vs teoremas |
+| Leyenda de colores (las dos filas) | Repasado: mismos nombres que el diagrama 1 (spec / teoremas / binding, con su mundo) |
+| Bloque de pisos de estudio ("El mapa es la vista de arriba...") | Repasado: explica que es un piso; "en el repo" en vez de "en tu Mac" |
 | Diagrama 1: las capas | Repasado: cada caja dice en que mundo esta (Python, C, Lean); nota del lakefile en criollo |
 | Diagrama 2: build y verificaciones | Repasado: "teoremas" en vez de "pruebas"; verificaciones numeradas 1-2-3 |
 | Que es un vector de prueba | Nueva: dos `data.yaml` reales (valido vs adulterado) y el test invertido |
 | Mapa archivo por archivo | Repasado: explicacion de como leerlo y ejemplo con `G1Group` |
-| Donde la separacion no es perfecta | Repasado: dos parrafos + desplegable con ejemplo real de `native_decide` |
+| Donde la separacion no es perfecta | Repasado (5 oct): datos verificados con `#print axioms`: 10 de 492 teoremas dependen de *native axioms* (`native_decide` + `bv_decide`), 3 son reglas generales (`uncompress_compress` entre ellas). Desplegable con la tabla y como comprobarlo. Se agrego `docs/native_axioms.lean` |
 | Tres verificaciones, las tres en verde | Repasado: se deja como esta |
-| Glosario | Repasado: 6 terminos nuevos (.so, marshalling, simbolo C, lakefile, sorry, native_decide) |
+| Glosario | Repasado: 6 terminos nuevos (.so, marshalling, simbolo C, lakefile, sorry, native axioms) |
 
-### Pendiente despues del mapa completo
+**El repaso de `mapa-completo.html` esta terminado.**
+
+### Pendiente
 
 - Repasar `architecture-map.html` con el mismo criterio (frases que no se
   entienden, ejemplos concretos).
@@ -42,6 +44,10 @@ las sesiones. Son tres paginas HTML que se abren con el navegador:
 - "Teoremas" para las demostraciones de Lean; "proof KZG" para los 48 bytes
   criptograficos de KZG. Nunca "pruebas" a secas.
 - Compacto: si algo es largo, va en un desplegable.
+- Decir **native axioms** (no "atajos") para `native_decide` / `bv_decide`.
+- Antes de afirmar algo sobre los teoremas, verificarlo con Lean (`#print axioms`,
+  `docs/native_axioms.lean`), no suponerlo. El 1 oct el mapa decia "8
+  native_decide en ejemplos concretos" y era incompleto.
 - Las paginas de `docs/` se enlazan entre si con links relativos.
 
 ## Estado de la infraestructura (cerrado el 28 sept)

@@ -146,6 +146,8 @@ a.guia{font-weight:600;color:var(--exec);white-space:nowrap;margin-left:4px}
 .deep-body ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
 .snip{margin:0;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;font:13px/1.5 var(--f-mono);overflow-x:auto}
 table.mini{border-collapse:collapse;font-size:13.5px;width:100%}
+.tscroll{overflow-x:auto;max-width:100%}
+table.mini code{overflow-wrap:anywhere}
 table.mini th,table.mini td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 table.mini th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
 /* Glosario */
@@ -160,22 +162,22 @@ dd{margin:2px 0 0;color:var(--muted);font-size:14px}
 
 <main>
   <header style="display:flex;flex-direction:column;gap:12px">
-    <div class="eyebrow">ethereum/cryptography-specs · copia de estudio en upstream 09deaff</div>
+    <div class="eyebrow">Copia de estudio de ethereum/cryptography-specs · commit 09deaff (23 sept 2026)</div>
     <h1>Qué corre y qué se demuestra</h1>
-    <p class="lede">La criptografía de Ethereum escrita una sola vez en Lean 4. Una parte se compila y se ejecuta desde Python. La otra son teoremas sobre esa misma parte, que Lean chequea pero que nunca se ejecutan.</p>
+    <p class="lede">Las reglas de criptografía que todos los clientes de Ethereum tienen que cumplir byte a byte, escritas una sola vez en Lean 4. Una parte (la <b>spec</b>) se convierte en programa y se usa desde Python. La otra son <b>teoremas</b> que demuestran que esa parte está bien: Lean los revisa, pero nunca se ejecutan.</p>
   </header>
 
   <section aria-label="Leyenda">
     <div class="legend">
-      <div class="key"><i class="sw exec"></i><div><b>Lean ejecutable (spec)</b><span>Código <code>def</code>. Se compila a C y termina dentro del módulo de Python.</span></div></div>
-      <div class="key"><i class="sw thm"></i><div><b>Lean teorema (proofs)</b><span>Código <code>theorem</code>. Solo se type-checkea y genera <code>.olean</code>. Nunca se ejecuta.</span></div></div>
-      <div class="key"><i class="sw glue"></i><div><b>Binding Python / C</b><span>Traduce <code>bytes</code> de Python a <code>ByteArray</code> de Lean y de vuelta.</span></div></div>
+      <div class="key"><i class="sw exec"></i><div><b>Spec · Lean · se convierte en programa</b><span>Las funciones. Lean las compila y terminan dentro del <code>.so</code> que usa Python.</span></div></div>
+      <div class="key"><i class="sw thm"></i><div><b>Teoremas · Lean · solo se revisan</b><span>Las demostraciones. Lean las revisa una por una, pero no generan programa.</span></div></div>
+      <div class="key"><i class="sw glue"></i><div><b>Binding · C</b><span>Traduce <code>bytes</code> de Python a <code>ByteArray</code> de Lean y de vuelta.</span></div></div>
       <div class="key"><i class="sw ext"></i><div><b>Externo</b><span>Mathlib, py_ecc, los vectores oficiales. No es código de este repo.</span></div></div>
     </div>
     <div class="legend legend2">
       <div class="key"><i class="sw exec" style="border-color:var(--glue)"></i><div><b>Borde naranja</b><span>Archivo de Exports: la puerta por la que la spec llega a Python.</span></div></div>
       <div class="key"><i class="sw okbox"></i><div><b>Verde lleno con ✓</b><span>Una verificación que ya corrimos y dio bien.</span></div></div>
-      <div class="key"><span class="flag" style="margin:2px 0 0;flex:none">aviso</span><div><b>Etiqueta roja</b><span>Un matiz en un teorema: usa <code>native_decide</code> o asume algo sin probar.</span></div></div>
+      <div class="key" style="flex-direction:column;gap:8px"><span class="flag" style="margin:0;flex:none;align-self:flex-start">native axioms</span><div><b>Etiqueta roja</b><span>Un matiz en un teorema: depende de <i>native axioms</i> (<code>native_decide</code>, <code>bv_decide</code>) o asume algo sin probar.</span></div></div>
       <div class="key"><svg width="34" height="18" style="flex:none;margin-top:2px" aria-hidden="true"><line x1="1" y1="5" x2="33" y2="5" stroke="currentColor" stroke-width="2"/><line x1="1" y1="14" x2="33" y2="14" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/></svg><div><b>Flecha llena / punteada</b><span>Llena: una llamada al ejecutar. Punteada: un <code>import</code> o una dependencia que no se ejecuta.</span></div></div>
     </div>
   </section>
@@ -186,6 +188,7 @@ dd{margin:2px 0 0;color:var(--muted);font-size:14px}
         <div class="eyebrow">Cómo usar este mapa</div>
         <h2>El mapa es la vista de arriba. Las guías bajan al código.</h2>
         <p>Este mapa muestra cómo se conecta todo. Cada guía de estudio toma <b>un archivo de la spec</b> y sus teoremas, y los explica línea por línea. Se estudian de abajo hacia arriba, porque cada piso usa al anterior.</p>
+        <p>Un <b>piso</b> es un archivo de la spec junto con sus teoremas. Por ahora está lista la guía del piso 1.</p>
       </div>
       <ol class="floors">
         <li class="done"><a href="fp-paso-a-paso.html"><span class="fl">Piso 1</span><b>Fp.lean + FpZMod</b><span>el campo finito: la base de todo</span><em>guía lista →</em></a></li>
@@ -194,7 +197,7 @@ dd{margin:2px 0 0;color:var(--muted);font-size:14px}
         <li><span class="fl">Piso 4</span><b>Kzg/Fft.lean · Kzg/Core.lean</b><span>blobs, commitments y proofs KZG</span><em>pendiente</em></li>
         <li><span class="fl">Piso 5</span><b>Proofs/Kzg/CeremonyChecks</b><span>el teorema más ambicioso y su supuesto abierto</span><em>pendiente</em></li>
       </ol>
-      <p class="note">Para el detalle técnico de cada módulo (la curva, el pairing, hash-to-curve) y por qué el repo escribe primero la spec y después los teoremas, está el <a href="architecture-map.html">mapa de arquitectura</a>. En tu Mac todo vive en <code>docs/</code>: <code>mapa-completo.html</code>, <code>architecture-map.html</code> y <code>fp-paso-a-paso.html</code>.</p>
+      <p class="note">Para el detalle técnico de cada módulo (la curva, el pairing, hash-to-curve) y por qué el repo escribe primero la spec y después los teoremas, está el <a href="architecture-map.html">mapa de arquitectura</a>. En el repo, todo vive en <code>docs/</code>: <code>mapa-completo.html</code>, <code>architecture-map.html</code> y <code>fp-paso-a-paso.html</code>.</p>
     </div>
   </section>
 
@@ -384,7 +387,7 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
           <button type="button" class="chip thm" data-t="bls-g1 bls-fp"><span class="f">G1Group</span><span class="d">los puntos de G1 forman un grupo <span class="n">20</span></span></button>
           <button type="button" class="chip thm" data-t="bls-g1 bls-fr"><span class="f">G1Order</span><span class="d">el generador tiene orden r <span class="n">12</span></span></button>
           <button type="button" class="chip thm" data-t="bls-g1"><span class="f">G1Msm</span><span class="d">el MSM rápido da lo mismo que la suma ingenua <span class="n">2</span></span></button>
-          <button type="button" class="chip thm" data-t="bls-compress bls-fp"><span class="f">Compress</span><span class="d">uncompress(compress p) = p; sqrt correcta <span class="n">10</span><span class="flag">native_decide ×1</span></span></button>
+          <button type="button" class="chip thm" data-t="bls-compress bls-fp"><span class="f">Compress</span><span class="d">uncompress(compress p) = p; sqrt correcta <span class="n">10</span><span class="flag">native axioms · 1 teorema</span></span></button>
         </div>
       </article>
 
@@ -432,7 +435,7 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
         </div>
         <div class="lane">
           <div class="lane-title thm">Proofs · no se ejecuta · 23</div>
-          <button type="button" class="chip thm" data-t="x-blake"><span class="f">Blake2s</span><span class="d">casos concretos del hash <span class="n">14</span><span class="flag">native_decide ×7</span></span></button>
+          <button type="button" class="chip thm" data-t="x-blake"><span class="f">Blake2s</span><span class="d">casos concretos del hash <span class="n">14</span><span class="flag">native axioms · 9 teoremas</span></span></button>
           <button type="button" class="chip thm" data-t="x-tweak x-blake"><span class="f">TweakHash</span><span class="d">tweaks distintos nunca chocan <span class="n">8</span></span></button>
           <button type="button" class="chip thm" data-t="x-types"><span class="f">Types</span><span class="d">propiedad de los tipos <span class="n">1</span></span></button>
         </div>
@@ -450,26 +453,39 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
   <section id="frontera">
     <div class="eyebrow">La frontera</div>
     <h2>Dónde la separación no es perfecta</h2>
-    <p>Casi todo está demostrado sin atajos: no hay ningún <code>sorry</code>, que es el "creeme, después lo pruebo" de Lean. Además, si alguien cambia una función de la spec, sus teoremas dejan de compilar, así que código y demostraciones no pueden desincronizarse.</p>
-    <p>Hay dos matices, marcados con <span class="flag" style="margin:0">rojo</span> en el mapa de arriba. <b>8 teoremas usan <code>native_decide</code></b>: en vez de que el revisor central de Lean verifique la cuenta, se la piden al programa compilado y le creen, como corregir con calculadora (1 en <code>Proofs/Bls/Compress.lean</code>, 7 en <code>Proofs/Xmss/Blake2s.lean</code>). Y <b><code>CeremonyChecks</code></b>, el teorema más ambicioso, <b>supone sin demostrarlo</b> que el pairing cumple ciertas leyes matemáticas (<code>ConcreteBlsLaws</code>): la conclusión vale si esas leyes valen, pero todavía nadie lo probó para el código.</p>
+    <p>Casi todo está demostrado por el kernel de Lean, sin ayuda externa: no hay ningún <code>sorry</code>, que es el "creeme, después lo pruebo" de Lean. Además, si alguien cambia una función de la spec, sus teoremas dejan de compilar, así que código y demostraciones no pueden desincronizarse.</p>
+    <p>Hay dos matices, marcados con <span class="flag" style="margin:0">rojo</span> en el mapa de arriba. <b>10 teoremas dependen de <i>native axioms</i></b>: en algún paso de su demostración, en vez de que el revisor central de Lean (el <i>kernel</i>) verifique la cuenta, se la piden a código compilado y le creen, como corregir con calculadora. Son 10 de 492 y están aislados: los otros 482, incluido todo KZG, se apoyan solo en el kernel. Pero tres de los diez son reglas generales, y una es central: <code>uncompress_compress</code>, "comprimir y descomprimir devuelve el mismo punto". Mathlib no acepta teoremas con native axioms, y upstream tiene abierto el issue #28 para sacar dos de ellos. Y <b><code>CeremonyChecks</code></b>, el teorema más ambicioso, <b>supone sin demostrarlo</b> que el pairing cumple ciertas leyes matemáticas (<code>ConcreteBlsLaws</code>): la conclusión vale si esas leyes valen, pero todavía nadie lo probó para el código. Este hueco no aparece en <code>#print axioms</code>, porque el supuesto está escrito como hipótesis del enunciado.</p>
     <details class="deep">
-      <summary>Ver un ejemplo real de <code>native_decide</code></summary>
+      <summary>Ver qué son los native axioms, los 10 teoremas y cómo comprobarlo</summary>
       <div class="deep-body">
-        <p>En <code>Proofs/Bls/Compress.lean</code>, línea 319, hay este teorema:</p>
+        <p><b>Qué son.</b> Lean tiene un revisor central chico y muy auditado, el kernel. Lo ideal es que toda demostración pase por él. Hay dos tácticas que, en cambio, confían en código compilado, y Lean marca cada uso con un axioma que lleva <code>_native</code> en el nombre:</p>
+        <div class="tscroll"><table class="mini">
+          <tr><th>Táctica</th><th>Qué hace</th><th>Para qué sirve</th></tr>
+          <tr><td><code>native_decide</code></td><td>Compila la cuenta, la ejecuta y acepta el resultado</td><td>Solo casos concretos: "el hash de abc da estos 32 bytes"</td></tr>
+          <tr><td><code>bv_decide</code></td><td>Le pasa el problema a un programa externo (un SAT solver), que devuelve un certificado; un verificador compilado lo revisa y Lean le cree</td><td>Reglas generales sobre números de tamaño fijo (32 o 64 bits)</td></tr>
+        </table></div>
+        <p><b>Ejemplo real.</b> En <code>Proofs/Bls/Compress.lean</code>, línea 319:</p>
 <pre class="snip">theorem … : uncompress infinityBytes = .ok zero := by native_decide</pre>
-        <p>Afirma: "si descomprimo los bytes del punto al infinito, me da el punto cero". Hay dos caminos para probarlo:</p>
-        <ol>
-          <li><b>El camino normal:</b> el revisor central de Lean (el <i>kernel</i>) hace la cuenta <code>uncompress infinityBytes</code> paso a paso, con su propia lógica, y comprueba que da <code>zero</code>. Es el más confiable, pero acá es demasiado lento.</li>
-          <li><b>El atajo <code>native_decide</code>:</b> Lean compila <code>uncompress</code> (la función de la spec, en <code>Bls/Compress.lean</code>), la <b>ejecuta</b> como un programa normal, ve que da <code>zero</code> y acepta el teorema.</li>
-        </ol>
-        <table class="mini">
-          <tr><th>Pieza</th><th>De dónde viene</th></tr>
-          <tr><td>El teorema que usa el atajo</td><td><code>Proofs/</code> de este repo, escrito por los autores del repo original</td></tr>
-          <tr><td>La función que se ejecuta</td><td>La spec de este repo: <code>uncompress</code>, y en los otros 7 casos funciones de <code>Blake2s</code></td></tr>
-          <tr><td><code>native_decide</code></td><td>Una herramienta que viene con Lean, disponible para cualquiera</td></tr>
-          <tr><td>Mathlib</td><td>No participa</td></tr>
-        </table>
-        <p><b>Por qué importa:</b> con el camino normal solo hay que confiar en el kernel, que es chico y está muy revisado. Con el atajo hay que confiar además en que el compilador de Lean tradujo <code>uncompress</code> a código máquina sin errores. Probablemente sea así, pero es más superficie de confianza. Upstream lo tiene como tarea abierta (issue #28): reemplazar estos 8 atajos por pruebas que revise el kernel.</p>
+        <p>Afirma: "descomprimir los bytes del punto al infinito da el punto cero". El kernel no puede hacer esa cuenta por cómo está escrito el código (un bucle sobre 48 bytes), así que Lean compila <code>uncompress</code>, la ejecuta, ve que da <code>zero</code> y acepta. El teorema queda probado, pero ahora hay que confiar también en que el compilador de Lean tradujo bien la función.</p>
+        <p><b>Los 10 teoremas</b> (salida de <code>docs/native_axioms.lean</code> sobre los 492 teoremas del repo, auxiliares incluidos):</p>
+        <div class="tscroll"><table class="mini">
+          <tr><th>Teorema</th><th>Tipo</th><th>Native axioms</th></tr>
+          <tr><td><code>Bls/G1.uncompress_compress</code></td><td><b>Regla general</b>: comprimir y descomprimir devuelve el mismo punto</td><td>9 (8 <code>bv_decide</code> + el <code>native_decide</code> del infinito)</td></tr>
+          <tr><td><code>Xmss/Blake2s.counter_words_recombine</code></td><td><b>Regla general</b> sobre números de 64 bits</td><td>1 <code>bv_decide</code></td></tr>
+          <tr><td><code>Xmss/Blake2s.little32_wordBytes</code></td><td><b>Regla general</b> sobre números de 32 bits</td><td>1 <code>bv_decide</code></td></tr>
+          <tr><td><code>Xmss/Blake2s.sigma_row_permutation</code></td><td>Ejemplo: 10 filas fijas de una tabla</td><td>10 <code>native_decide</code></td></tr>
+          <tr><td><code>Xmss/Blake2s.hash_empty</code>, <code>hash_abc</code>, <code>hash_one_full_block</code>, <code>hash_block_and_tail</code>, <code>hash_selfTest_255</code>, <code>hash_selfTest_1024</code></td><td>Ejemplos: el hash de un mensaje fijo da estos 32 bytes (valores del estándar RFC 7693)</td><td>1 <code>native_decide</code> cada uno</td></tr>
+        </table></div>
+        <p>Nada de KZG, Fp, Fr, G1Group, G1Order, G1Msm, FFT ni CeremonyChecks depende de ninguno. Seis de los diez son valores testigo escritos como teoremas, como los vectores de prueba pero chequeados en cada <code>lake build</code>.</p>
+        <p><b>Cómo comprobarlo uno mismo.</b> Lean dice de qué axiomas depende cada teorema con <code>#print axioms</code>. Un teorema limpio muestra solo los tres axiomas estándar de la matemática en Lean, los que usa todo Mathlib:</p>
+<pre class="snip">'…Fp.modulus_prime' depends on axioms: [propext, Classical.choice, Quot.sound]</pre>
+        <p>Uno con native axioms suma entradas con <code>_native</code>:</p>
+<pre class="snip">'…Blake2s.hash_abc' depends on axioms: [propext, Quot.sound,
+  EthCryptographySpecs.Xmss.Blake2s.hash_abc._native.native_decide.ax_1_1]</pre>
+        <p>El script <code>docs/native_axioms.lean</code> recorre los 492 teoremas y lista los que tienen alguno. Tarda unos minutos porque carga Mathlib entero:</p>
+<pre class="snip">cd ~/eth-crypto-study
+lake env lean docs/native_axioms.lean</pre>
+        <p><b>Por qué importa.</b> Con el kernel solo, la confianza se apoya en un programa chico y revisado. Con native axioms se apoya además en el compilador de Lean, que es grande. Por eso Mathlib no acepta código con <code>native_decide</code> (lo dice la guía <a href="https://github.com/nielsvoss/lean-pitfalls">lean-pitfalls</a>), y por eso upstream tiene abierto el <a href="https://github.com/ethereum/cryptography-specs/issues/28">issue #28</a>: sacar los dos <code>bv_decide</code> de Blake2s probando esas identidades a mano. Sacar los demás, en especial los 9 de <code>uncompress_compress</code>, sigue pendiente.</p>
       </div>
     </details>
   </section>
@@ -503,7 +519,7 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
       <div><dt>Símbolo C</dt><dd>El nombre con el que una función queda en el código compilado. <code>bls.c</code> llama a <code>eth_bls_fast_aggregate_verify</code> por ese nombre, y el linker lo conecta con la función de Lean.</dd></div>
       <div><dt>lakefile.lean</dt><dd>El archivo que le dice a Lean qué hacer con cada grupo de archivos: a la spec "revisala y convertila en programa", a los teoremas "solo revisalos".</dd></div>
       <div><dt>sorry</dt><dd>La forma de decirle a Lean "creeme, después lo pruebo". Deja un hueco en una demostración y Lean lo acepta igual. En este repo no hay ninguno.</dd></div>
-      <div><dt>native_decide</dt><dd>Un atajo: en vez de que el revisor central de Lean verifique una cuenta, se la pide al programa compilado y le cree. Hay 8 en el repo. Hay un ejemplo real en <a href="#frontera">Dónde la separación no es perfecta</a>.</dd></div>
+      <div><dt>Native axioms (native_decide, bv_decide)</dt><dd>Pasos de una demostración en los que Lean, en vez de verificar con su kernel, ejecuta código compilado y le cree el resultado. Lean los marca con un axioma con <code>_native</code> en el nombre, y <code>#print axioms</code> los muestra. 10 teoremas del repo dependen de ellos; la lista está en <a href="#frontera">Dónde la separación no es perfecta</a>.</dd></div>
       <div><dt>Mathlib</dt><dd>La biblioteca matemática de Lean. Los teoremas dicen "Fp es ZMod p" y a partir de ahí reutilizan miles de teoremas ya hechos.</dd></div>
       <div><dt>Vector de prueba</dt><dd>Un caso de examen oficial: input más output esperado. Los clientes de Ethereum lo usan para verificarse. Hay un ejemplo real en <a href="#vectores">Qué es un vector de prueba</a>.</dd></div>
     </dl>

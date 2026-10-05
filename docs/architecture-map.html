@@ -833,13 +833,13 @@
           <tr>
             <td>BLAKE2s tweak hash</td>
             <td><code>Proofs/Xmss/TweakHash</code></td>
-            <td><span class="status status-proved">Probado**</span></td>
+            <td><span class="status status-proved">Probado</span></td>
           </tr>
         </tbody>
       </table>
     </div>
     <p style="font-size:0.78rem; color:var(--slate); margin-top:0.5rem;">* CeremonyChecks asume <code>ConcreteBlsLaws</code> (bilinealidad, no-degeneraci&oacute;n, fidelidad de mul escalar) que a&uacute;n no est&aacute;n probadas para la implementaci&oacute;n ejecutable.</p>
-    <p style="font-size:0.78rem; color:var(--slate); margin-top:0.3rem;">** Probado, pero con algunos pasos delegados a <code>native_decide</code>, que conf&iacute;a en el c&oacute;digo compilado en vez del n&uacute;cleo de Lean: uno en <code>Proofs/Bls/Compress.lean:319</code> (el punto al infinito) y siete en <code>Proofs/Xmss/Blake2s.lean</code>, de donde se apoya TweakHash. La lista completa de los 23 archivos de pruebas est&aacute; en el <a href="mapa-completo.html">mapa completo</a>.</p>
+    <p style="font-size:0.78rem; color:var(--slate); margin-top:0.3rem;">** Probado, pero depende de <i>native axioms</i>: pasos en los que Lean conf&iacute;a en c&oacute;digo compilado (<code>bv_decide</code>, <code>native_decide</code>) en vez de verificar con su kernel. 10 de los 492 teoremas del repo los tienen, todos en <code>Proofs/Bls/Compress.lean</code> y <code>Proofs/Xmss/Blake2s.lean</code>; el detalle y c&oacute;mo comprobarlo con <code>#print axioms</code> est&aacute;n en el <a href="mapa-completo.html">mapa completo</a>.</p>
   </section>
 
   <!-- How it builds -->
