@@ -193,7 +193,7 @@ dd{margin:2px 0 0;color:var(--muted);font-size:14px}
       <ol class="floors">
         <li class="done"><a href="fp-paso-a-paso.html"><span class="fl">Piso 1</span><b>Fp.lean + FpZMod</b><span>el campo finito: la base de todo</span><em>guía lista →</em></a></li>
         <li><span class="fl">Piso 2</span><b>G1.lean + G1Group / G1Order / G1Msm</b><span>puntos de la curva con coordenadas en Fp</span><em>próxima</em></li>
-        <li><span class="fl">Piso 3</span><b>Compress.lean</b><span>puntos ⇄ bytes; usa Fp.sqrt</span><em>pendiente</em></li>
+        <li><span class="fl">Piso 3</span><b>Compress.lean + Proofs/Bls/Compress</b><span>puntos ⇄ bytes; usa Fp.sqrt</span><em>pendiente</em></li>
         <li><span class="fl">Piso 4</span><b>Kzg/Fft.lean · Kzg/Core.lean</b><span>blobs, commitments y proofs KZG</span><em>pendiente</em></li>
         <li><span class="fl">Piso 5</span><b>Proofs/Kzg/CeremonyChecks</b><span>el teorema más ambicioso y su supuesto abierto</span><em>pendiente</em></li>
       </ol>
@@ -217,15 +217,15 @@ flowchart TB
     BC["bls.c · kzg.c · module.c<br/>marshalling: bytes ⇄ ByteArray"]
   end
   subgraph LX["Mundo Lean · spec: se convierte en programa"]
-    EXP["Bls/Exports.lean · Kzg/Exports.lean<br/>@export eth_bls_* (2) · eth_kzg_* (12)"]
+    EXP["Bls/Exports.lean · Kzg/Exports.lean<br/>@export: 14 funciones (2 BLS + 12 KZG)"]
     SB["Spec BLS12-381<br/>Fp → Fp2 → Fp6 → Fp12 · G1 · G2<br/>Pairing · HashToCurve · Signatures"]
     SK["Spec KZG<br/>Fft · Polynomials · Core<br/>Cells · Recovery · TrustedSetup"]
-    SX["Spec XMSS<br/>Blake2s · TweakHash · Types<br/>sin exports todavía"]
+    SX["Spec XMSS<br/>Blake2s · TweakHash · Types<br/>sin funciones exportadas"]
   end
   subgraph LP["Mundo Lean · teoremas: solo se revisan"]
-    PB["Proofs/Bls<br/>75 teoremas"]
-    PK["Proofs/Kzg<br/>104 teoremas"]
-    PX["Proofs/Xmss<br/>23 teoremas"]
+    PB["Proofs/Bls<br/>185 teoremas"]
+    PK["Proofs/Kzg<br/>136 teoremas"]
+    PX["Proofs/Xmss<br/>26 teoremas"]
   end
   ML["Mathlib v4.29.1 · Lean<br/>ZMod, grupos, polinomios"]
 
@@ -254,16 +254,16 @@ flowchart TB
 </pre>
     </div>
     <p class="note">Las dos cajas de Lean salen de <code>lakefile.lean</code>, el archivo que le dice a Lean qué hacer con cada grupo de archivos. A la spec (librería <code>EthCryptographySpecs</code>) le dice "revisala y convertila en programa" (<code>precompileModules = true</code>), y por eso termina dentro del <code>.so</code> que usa Python. A los teoremas (librería <code>Proofs</code>) les dice "solo revisalos" (<code>precompileModules = false</code>): Lean los chequea, pero no generan programa. Es como un libro de recetas: las recetas se cocinan, y las notas del nutricionista que explican por qué son sanas se leen y se verifican, pero no se cocinan.</p>
-    <p class="note">XMSS no tiene exports, así que hoy no se puede llamar desde Python. Es la parte que upstream sigue construyendo.</p>
+    <p class="note">XMSS no exporta funciones (solo 9 constantes de tamaño), así que hoy no se puede llamar desde Python. Es la parte que upstream sigue construyendo.</p>
   </section>
 
   <section>
     <div class="eyebrow">Diagrama 2</div>
     <h2>Cómo se construye y cómo lo verificamos</h2>
     <p>Un solo <code>lake build</code> produce dos cosas distintas. Para la <b>spec</b> genera código máquina, que después termina dentro del módulo de Python. Para los <b>teoremas</b> no genera código: solo los chequea, y si alguno estuviera mal, el build fallaría.</p>
-    <p>Las cajas verdes numeradas son las <b>tres verificaciones que corrimos</b> en tu Mac:</p>
+    <p>Las cajas verdes numeradas son las <b>tres verificaciones que corrimos</b>:</p>
     <ol class="verif">
-      <li><b>① <code>lake build</code></b>: compila la spec y chequea los 212 teoremas. Dio verde, 3444 jobs sin errores.</li>
+      <li><b>① <code>lake build</code></b>: compila la spec y chequea los 357 teoremas. Dio verde, 3444 jobs sin errores.</li>
       <li><b>② <code>docs/bls_smoke.py</code></b>: compara la spec contra <code>py_ecc</code>, otra implementación independiente de BLS. La agregación de claves dio idéntica byte a byte.</li>
       <li><b>③ <code>pytest</code></b>: regenera los 364 vectores oficiales con la spec y <code>git diff</code> los compara con los publicados. Dio 0 diferencias, en 2:57:50. <a href="#vectores">Qué es un vector →</a></li>
     </ol>
@@ -274,7 +274,7 @@ flowchart LR
   ML["Mathlib<br/>Lean"] -.-> LB
   LB -->|"spec"| CO["35 archivos .c.o.export<br/>código máquina: Lean → C → máquina"]
   LB -->|"teoremas"| OL["~2900 .olean<br/>Lean chequeado, sin código"]
-  OL --> OK1["✓ ① los 212 teoremas<br/>son correctos"]
+  OL --> OK1["✓ ① los 357 teoremas<br/>son correctos"]
   CO --> SP["setup.py · Python<br/>pip install -e"]
   BC["bls.c · kzg.c · module.c<br/>C escrito a mano"] --> SP
   RT["runtime de Lean · C/C++<br/>libleanshared, gmp, uv"] -.-> SP
@@ -352,7 +352,7 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
   <section>
     <div class="eyebrow">Mapa archivo por archivo</div>
     <h2>Cada archivo del repo, clasificado</h2>
-    <p>Acá están todos los archivos Lean del repo, en tres columnas: una por tema (BLS, KZG y XMSS). En cada columna:</p>
+    <p>Acá están todos los archivos Lean del repo, en tres columnas: una por tema (BLS, KZG y XMSS). El número al lado de cada archivo de teoremas es cuántos tiene escritos a mano: 357 en total. Cuando Lean cuenta, dice 492, porque suma los que genera solo (por ejemplo, las ecuaciones de cada función). En cada columna:</p>
     <ul class="howto">
       <li><b>Arriba, en verde:</b> los archivos de la <b>spec</b>, el código que se ejecuta.</li>
       <li><b>Abajo, en violeta:</b> los archivos de <b>teoremas</b>, las demostraciones de que ese código está bien.</li>
@@ -380,14 +380,14 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
           <div class="chip exec" data-id="bls-misc"><span class="f">Constants · Errors</span><span class="d">tamaños y tipos de error</span></div>
         </div>
         <div class="lane">
-          <div class="lane-title thm">Proofs · no se ejecuta · 75</div>
-          <button type="button" class="chip thm" data-t="bls-fp"><span class="f">FpZMod</span><span class="d">Fp se comporta como ZMod p de Mathlib <span class="n">6</span></span></button>
-          <button type="button" class="chip thm" data-t="bls-fr"><span class="f">Fr</span><span class="d">propiedades básicas de Fr <span class="n">12</span></span></button>
-          <button type="button" class="chip thm" data-t="bls-fr"><span class="f">FrZMod</span><span class="d">Fr se comporta como ZMod r <span class="n">13</span></span></button>
-          <button type="button" class="chip thm" data-t="bls-g1 bls-fp"><span class="f">G1Group</span><span class="d">los puntos de G1 forman un grupo <span class="n">20</span></span></button>
-          <button type="button" class="chip thm" data-t="bls-g1 bls-fr"><span class="f">G1Order</span><span class="d">el generador tiene orden r <span class="n">12</span></span></button>
-          <button type="button" class="chip thm" data-t="bls-g1"><span class="f">G1Msm</span><span class="d">el MSM rápido da lo mismo que la suma ingenua <span class="n">2</span></span></button>
-          <button type="button" class="chip thm" data-t="bls-compress bls-fp"><span class="f">Compress</span><span class="d">uncompress(compress p) = p; sqrt correcta <span class="n">10</span><span class="flag">native axioms · 1 teorema</span></span></button>
+          <div class="lane-title thm">Proofs · no se ejecuta · 185</div>
+          <button type="button" class="chip thm" data-t="bls-fp"><span class="f">FpZMod</span><span class="d">Fp se comporta como ZMod p de Mathlib <span class="n">44</span></span></button>
+          <button type="button" class="chip thm" data-t="bls-fr"><span class="f">Fr</span><span class="d">propiedades básicas de Fr <span class="n">20</span></span></button>
+          <button type="button" class="chip thm" data-t="bls-fr"><span class="f">FrZMod</span><span class="d">Fr se comporta como ZMod r <span class="n">20</span></span></button>
+          <button type="button" class="chip thm" data-t="bls-g1 bls-fp"><span class="f">G1Group</span><span class="d">los puntos de G1 forman un grupo <span class="n">38</span></span></button>
+          <button type="button" class="chip thm" data-t="bls-g1 bls-fr"><span class="f">G1Order</span><span class="d">el generador tiene orden r <span class="n">13</span></span></button>
+          <button type="button" class="chip thm" data-t="bls-g1"><span class="f">G1Msm</span><span class="d">el MSM rápido da lo mismo que la suma ingenua <span class="n">17</span></span></button>
+          <button type="button" class="chip thm" data-t="bls-compress bls-fp"><span class="f">Compress</span><span class="d">uncompress(compress p) = p; sqrt correcta <span class="n">33</span><span class="flag">native axioms · 1 teorema</span></span></button>
         </div>
       </article>
 
@@ -407,18 +407,18 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
           <div class="chip exec" data-id="kzg-misc"><span class="f">Constants · Errors</span><span class="d">tamaños y tipos de error</span></div>
         </div>
         <div class="lane">
-          <div class="lane-title thm">Proofs · no se ejecuta · 104</div>
+          <div class="lane-title thm">Proofs · no se ejecuta · 136</div>
           <button type="button" class="chip thm" data-t="kzg-br"><span class="f">BitReversal</span><span class="d">aplicarlo dos veces vuelve al inicio <span class="n">7</span></span></button>
-          <button type="button" class="chip thm" data-t="kzg-fft"><span class="f">Fft</span><span class="d">lemas de la recursión <span class="n">4</span></span></button>
-          <button type="button" class="chip thm" data-t="kzg-fft"><span class="f">FftInverse</span><span class="d">iFFT(FFT(x)) = x y al revés <span class="n">10</span></span></button>
-          <button type="button" class="chip thm" data-t="kzg-poly kzg-br"><span class="f">Polynomials</span><span class="d">tamaños y aritmética de polinomios <span class="n">21</span></span></button>
+          <button type="button" class="chip thm" data-t="kzg-fft"><span class="f">Fft</span><span class="d">lemas de la recursión <span class="n">10</span></span></button>
+          <button type="button" class="chip thm" data-t="kzg-fft"><span class="f">FftInverse</span><span class="d">iFFT(FFT(x)) = x y al revés <span class="n">21</span></span></button>
+          <button type="button" class="chip thm" data-t="kzg-poly kzg-br"><span class="f">Polynomials</span><span class="d">tamaños y aritmética de polinomios <span class="n">30</span></span></button>
           <button type="button" class="chip thm" data-t="kzg-poly"><span class="f">Domain</span><span class="d">el dominio son raíces de la unidad distintas <span class="n">10</span></span></button>
           <button type="button" class="chip thm" data-t="kzg-poly"><span class="f">Barycentric</span><span class="d">fórmula para evaluar fuera del dominio <span class="n">5</span></span></button>
-          <button type="button" class="chip thm" data-t="kzg-poly"><span class="f">Evaluation</span><span class="d">la evaluación da el valor real del polinomio <span class="n">8</span></span></button>
+          <button type="button" class="chip thm" data-t="kzg-poly"><span class="f">Evaluation</span><span class="d">la evaluación da el valor real del polinomio <span class="n">9</span></span></button>
           <button type="button" class="chip thm" data-t="kzg-core"><span class="f">Core</span><span class="d">rechaza inputs mal formados, rangos <span class="n">13</span></span></button>
           <button type="button" class="chip thm" data-t="kzg-cells"><span class="f">Cells</span><span class="d">tamaños y errores de las celdas <span class="n">13</span></span></button>
-          <button type="button" class="chip thm" data-t="kzg-rec kzg-fft"><span class="f">Recovery</span><span class="d">tamaños y errores de la reconstrucción <span class="n">8</span></span></button>
-          <button type="button" class="chip thm" data-t="kzg-ts bls-pairing bls-g1"><span class="f">CeremonyChecks</span><span class="d">el setup es consistente si pasa los chequeos de pairing <span class="n">5</span><span class="flag">supone ConcreteBlsLaws</span></span></button>
+          <button type="button" class="chip thm" data-t="kzg-rec kzg-fft"><span class="f">Recovery</span><span class="d">tamaños y errores de la reconstrucción <span class="n">10</span></span></button>
+          <button type="button" class="chip thm" data-t="bls-pairing bls-g1"><span class="f">CeremonyChecks</span><span class="d">el setup es consistente si pasa los chequeos de pairing <span class="n">8</span><span class="flag">supone ConcreteBlsLaws</span></span></button>
         </div>
       </article>
 
@@ -431,13 +431,13 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
           <div class="chip exec" data-id="x-tweak"><span class="f">TweakHash</span><span class="d">hash con "tweak" distinto por posición de la cadena</span></div>
           <div class="chip exec" data-id="x-types"><span class="f">Types</span><span class="d">tipos de claves y parámetros</span></div>
           <div class="chip exec" data-id="x-misc"><span class="f">Constants · Errors</span><span class="d">parámetros del esquema</span></div>
-          <div class="chip exec" style="opacity:.75;border-style:dashed"><span class="f">sin Exports</span><span class="d">todavía no se llama desde Python</span></div>
+          <div class="chip exec" style="opacity:.75;border-style:dashed"><span class="f">sin Exports.lean</span><span class="d">todavía no se llama desde Python</span></div>
         </div>
         <div class="lane">
-          <div class="lane-title thm">Proofs · no se ejecuta · 23</div>
+          <div class="lane-title thm">Proofs · no se ejecuta · 26</div>
           <button type="button" class="chip thm" data-t="x-blake"><span class="f">Blake2s</span><span class="d">casos concretos del hash <span class="n">14</span><span class="flag">native axioms · 9 teoremas</span></span></button>
           <button type="button" class="chip thm" data-t="x-tweak x-blake"><span class="f">TweakHash</span><span class="d">tweaks distintos nunca chocan <span class="n">8</span></span></button>
-          <button type="button" class="chip thm" data-t="x-types"><span class="f">Types</span><span class="d">propiedad de los tipos <span class="n">1</span></span></button>
+          <button type="button" class="chip thm" data-t="x-types"><span class="f">Types</span><span class="d">propiedad de los tipos <span class="n">4</span></span></button>
         </div>
       </article>
     </div>
@@ -469,7 +469,7 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
         <p><b>Ejemplo real.</b> En <code>Proofs/Bls/Compress.lean</code>, línea 319:</p>
 <pre class="snip">theorem … : uncompress infinityBytes = .ok zero := by native_decide</pre>
         <p>Afirma: "descomprimir los bytes del punto al infinito da el punto cero". El kernel no puede hacer esa cuenta por cómo está escrito el código (un bucle sobre 48 bytes), así que Lean compila <code>uncompress</code>, la ejecuta, ve que da <code>zero</code> y acepta. El teorema queda probado, pero ahora hay que confiar también en que el compilador de Lean tradujo bien la función.</p>
-        <p><b>Los 10 teoremas</b> (salida de <code>docs/native_axioms.lean</code> sobre los 492 teoremas del repo, auxiliares incluidos):</p>
+        <p><b>Los 10 teoremas</b> (salida de <code>docs/native_axioms.lean</code> sobre 492 teoremas: los 357 escritos a mano más los que Lean genera solo, como las ecuaciones de cada función):</p>
         <div class="tscroll"><table class="mini">
           <tr><th>Teorema</th><th>Tipo</th><th>Native axioms</th></tr>
           <tr><td><code>Bls/G1.uncompress_compress</code></td><td><b>Regla general</b>: comprimir y descomprimir devuelve el mismo punto</td><td>9 (8 <code>bv_decide</code> + el <code>native_decide</code> del infinito)</td></tr>
@@ -478,7 +478,7 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
           <tr><td><code>Xmss/Blake2s.sigma_row_permutation</code></td><td>Ejemplo: 10 filas fijas de una tabla</td><td>10 <code>native_decide</code></td></tr>
           <tr><td><code>Xmss/Blake2s.hash_empty</code>, <code>hash_abc</code>, <code>hash_one_full_block</code>, <code>hash_block_and_tail</code>, <code>hash_selfTest_255</code>, <code>hash_selfTest_1024</code></td><td>Ejemplos: el hash de un mensaje fijo da estos 32 bytes (valores del estándar RFC 7693)</td><td>1 <code>native_decide</code> cada uno</td></tr>
         </table></div>
-        <p>Nada de KZG, Fp, Fr, G1Group, G1Order, G1Msm, FFT ni CeremonyChecks depende de ninguno. Seis de los diez son valores testigo escritos como teoremas, como los vectores de prueba pero chequeados en cada <code>lake build</code>.</p>
+        <p>Nada de KZG, Fp, Fr, G1Group, G1Order, G1Msm, FFT ni CeremonyChecks depende de ninguno. Siete de los diez son casos concretos escritos como teoremas (seis hashes con valor testigo y una tabla fija), como los vectores de prueba pero chequeados en cada <code>lake build</code>.</p>
         <p><b>Cómo comprobarlo uno mismo.</b> Lean dice de qué axiomas depende cada teorema con <code>#print axioms</code>. Un teorema limpio muestra solo los tres axiomas estándar de la matemática en Lean, los que usa todo Mathlib:</p>
 <pre class="snip">'…Fp.modulus_prime' depends on axioms: [propext, Classical.choice, Quot.sound]</pre>
         <p>Uno con native axioms suma entradas con <code>_native</code>:</p>
@@ -496,7 +496,7 @@ lake env lean docs/native_axioms.lean</pre>
     <div class="eyebrow">Lo que ya hicimos</div>
     <h2>Tres verificaciones, las tres en verde</h2>
     <div class="checks">
-      <div class="check"><div class="big">① 3444</div><b>jobs de lake build</b><span>Spec compilada y los 212 teoremas chequeados. Exit 0.</span></div>
+      <div class="check"><div class="big">① 3444</div><b>jobs de lake build</b><span>Spec compilada y los 357 teoremas chequeados. Exit 0.</span></div>
       <div class="check"><div class="big">② = py_ecc</div><b>bls_smoke.py</b><span>La agregación de la spec coincide byte a byte con otra implementación independiente.</span></div>
       <div class="check"><div class="big">③ 364 / 364</div><b>vectores regenerados</b><span>14 handlers de BLS y KZG, 0 diferencias contra git, en 2:57:50.</span></div>
     </div>
@@ -514,7 +514,7 @@ lake env lean docs/native_axioms.lean</pre>
       <div><dt>Blob / commitment</dt><dd>Un blob son unos 128 KB de datos. El commitment es su huella de 48 bytes, y no se puede falsificar otro blob con la misma huella.</dd></div>
       <div><dt>Celdas y recovery</dt><dd>El blob se extiende al doble y se parte en celdas. Con la mitad cualquiera se reconstruye el resto, como un RAID.</dd></div>
       <div><dt>Binding</dt><dd>El adaptador en C que deja llamar a la spec de Lean desde Python, traduciendo los datos de ida y vuelta.</dd></div>
-      <div><dt>@[export nombre]</dt><dd>Atributo de Lean que publica una función como símbolo C con ese nombre. Es el enchufe entre Lean y <code>bls.c</code> / <code>kzg.c</code>.</dd></div>
+      <div><dt>@[export nombre]</dt><dd>Atributo de Lean que publica una función como símbolo C con ese nombre. Es el enchufe entre Lean y <code>bls.c</code> / <code>kzg.c</code>. Hay 14 funciones exportadas (en los <code>Exports.lean</code>) y además 19 constantes de tamaño (en los <code>Constants.lean</code>), que el binding lee al arrancar.</dd></div>
       <div><dt>.c.o.export vs .olean</dt><dd>El primero es código máquina y va al <code>.so</code>. El segundo es solo el resultado del chequeo de tipos y nunca se ejecuta.</dd></div>
       <div><dt>.so (librería compartida)</dt><dd>Código ya compilado que un programa carga mientras corre, como una <code>.dll</code> en Windows. No arranca solo: <code>python3</code> lo carga con el <code>import</code> y llama a sus funciones.</dd></div>
       <div><dt>Marshalling</dt><dd>Traducir un dato del formato de un lenguaje al de otro para poder pasarlo. El binding convierte <code>bytes</code> de Python en <code>ByteArray</code> de Lean, y la respuesta de vuelta.</dd></div>
@@ -522,6 +522,12 @@ lake env lean docs/native_axioms.lean</pre>
       <div><dt>lakefile.lean</dt><dd>El archivo que le dice a Lean qué hacer con cada grupo de archivos: a la spec "revisala y convertila en programa", a los teoremas "solo revisalos".</dd></div>
       <div><dt>sorry</dt><dd>La forma de decirle a Lean "creeme, después lo pruebo". Deja un hueco en una demostración y Lean lo acepta igual. En este repo no hay ninguno.</dd></div>
       <div><dt>Native axioms (native_decide, bv_decide)</dt><dd>Pasos de una demostración en los que Lean, en vez de verificar con su kernel, ejecuta código compilado y le cree el resultado. Lean los marca con un axioma con <code>_native</code> en el nombre, y <code>#print axioms</code> los muestra. 10 teoremas del repo dependen de ellos; la lista está en <a href="#frontera">Dónde la separación no es perfecta</a>.</dd></div>
+      <div><dt>Kernel</dt><dd>El revisor central de Lean: un programa chico y muy auditado que verifica cada paso de cada demostración. Toda la confianza se apoya en él. Si un teorema pasa por el kernel sin native axioms, es lo más seguro que Lean puede ofrecer.</dd></div>
+      <div><dt>rw (rewrite)</dt><dd>Un paso de demostración que reemplaza una expresión por otra igual. <code>rw [Fp.sqrt]</code> despliega la definición de <code>sqrt</code> adentro del teorema: así el teorema queda atado al código real.</dd></div>
+      <div><dt>SAT solver y certificado</dt><dd>Un programa externo que decide si una fórmula lógica puede ser verdadera y devuelve un certificado, una traza que otro programa puede revisar rápido. Es lo que usa <code>bv_decide</code>.</dd></div>
+      <div><dt>Generador y orden</dt><dd>El generador es un punto fijo de la curva a partir del cual, sumándolo consigo mismo, se obtienen todos los demás. El orden (r) es cuántas veces hay que sumarlo para volver al inicio: es el primo del campo Fr.</dd></div>
+      <div><dt>MSM</dt><dd><i>Multi-scalar multiplication</i>: calcular a·P + b·Q + … para muchos puntos y números a la vez. Es la cuenta más pesada de BLS y KZG; <code>G1Msm</code> demuestra que la versión rápida da lo mismo que la suma ingenua.</dd></div>
+      <div><dt>Trusted setup / ceremonia</dt><dd>Los puntos secretos que KZG necesita se generaron en una ceremonia pública con miles de participantes, para que nadie conozca el secreto completo. <code>TrustedSetupData</code> guarda esos puntos; <code>CeremonyChecks</code> es el teorema sobre su consistencia.</dd></div>
       <div><dt>Mathlib</dt><dd>La biblioteca matemática de Lean. Los teoremas dicen "Fp es ZMod p" y a partir de ahí reutilizan miles de teoremas ya hechos.</dd></div>
       <div><dt>Vector de prueba</dt><dd>Un caso de examen oficial: input más output esperado. Los clientes de Ethereum lo usan para verificarse. Hay un ejemplo real en <a href="#vectores">Qué es un vector de prueba</a>.</dd></div>
     </dl>

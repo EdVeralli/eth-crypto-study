@@ -28,12 +28,21 @@ las sesiones. Son tres paginas HTML que se abren con el navegador:
 | Tres verificaciones, las tres en verde | Repasado: se deja como esta |
 | Glosario | Repasado: 6 terminos nuevos (.so, marshalling, simbolo C, lakefile, sorry, native axioms) |
 
-**El repaso de `mapa-completo.html` esta terminado.**
+**El repaso de `mapa-completo.html` esta terminado.** El 5 oct se hizo ademas una
+revision cruzada de todos los docs contra el codigo (agente con ojos frescos).
+Correcciones aplicadas: los teoremas escritos a mano son **357**, no 212 (el
+conteo viejo ignoraba `private`/`protected`/`@[simp]`); Lean cuenta 492 con
+los autogenerados. XMSS exporta 9 constantes (no funciones). Hay 33 `@[export]`
+en total: 14 funciones + 19 constantes. `notas-investigacion.md` actualizado
+(rutas, orden, tabla). Terminologia "teoremas" unificada en README, mapa de
+arquitectura y guia Fp. Glosario: + kernel, rw, SAT solver, generador/orden,
+MSM, trusted setup.
 
 ### Pendiente
 
 - Repasar `architecture-map.html` con el mismo criterio (frases que no se
-  entienden, ejemplos concretos).
+  entienden, ejemplos concretos). La revision cruzada marco que es la pagina
+  con mas jerga sin explicar (Jacobianas, pairing de Ate, twist, SSWU, NTT, DAS).
 - Repasar `fp-paso-a-paso.html`.
 - Escribir la guia del piso 2: `Bls/G1.lean` + `G1Group` / `G1Order` / `G1Msm`.
 

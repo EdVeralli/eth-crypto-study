@@ -19,11 +19,11 @@ Antes de mirar código, abrí estas tres páginas en este orden:
    archivo.
 2. **[Mapa de arquitectura](docs/architecture-map.html)**: los módulos por
    dentro. Cubre BLS, KZG y XMSS archivo por archivo (se despliegan con un
-   clic), por qué el repo escribe primero la spec y después la prueba
-   (spec-first) y un ejemplo de cómo una prueba se engancha con el código.
+   clic), por qué el repo escribe primero la spec y después los teoremas
+   (spec-first) y un ejemplo de cómo un teorema se engancha con el código.
 3. **[Fp.lean paso a paso](docs/fp-paso-a-paso.html)**: la primera guía de
    estudio. Explica el campo finito, que es la base de todo, línea por línea
-   y con sus pruebas.
+   y con sus teoremas.
 
 El mapa es la vista de arriba y cada guía baja a un archivo. Se estudian de
 abajo hacia arriba, porque cada piso usa al anterior:
@@ -32,7 +32,7 @@ abajo hacia arriba, porque cada piso usa al anterior:
 |---|---|---|
 | 1 | `Bls/Fp.lean` + `Proofs/Bls/FpZMod.lean` | ✅ [fp-paso-a-paso](docs/fp-paso-a-paso.html) |
 | 2 | `Bls/G1.lean` + `G1Group` / `G1Order` / `G1Msm` | próxima |
-| 3 | `Bls/Compress.lean` | pendiente |
+| 3 | `Bls/Compress.lean` + `Proofs/Bls/Compress` | pendiente |
 | 4 | `Kzg/Fft.lean`, `Kzg/Core.lean` | pendiente |
 | 5 | `Proofs/Kzg/CeremonyChecks.lean` | pendiente |
 
@@ -83,8 +83,8 @@ esa spec realmente corre y reproduce los vectores oficiales— en tres frentes:
 - **XMSS** (`EthCryptographySpecs/Xmss/`) — firmas hash-based post-cuánticas, en desarrollo upstream
 
 El repo separa a propósito la **spec** ejecutable (se compila a C y se linkea en
-una extensión de Python) de las **proofs** (teoremas sobre Mathlib que solo se
-type-checkean). El detalle de cómo se enlazan está en
+una extensión de Python) de los **teoremas** (demostraciones que Lean solo
+revisa, nunca ejecuta; se apoyan en Mathlib, la biblioteca matemática de Lean). El detalle de cómo se enlazan está en
 [`docs/notas-investigacion.md`](docs/notas-investigacion.md).
 
 ## Estado: lo que ya está cerrado
@@ -113,13 +113,14 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    [Empezá por acá](#empezá-por-acá), con una guía HTML por piso. El piso 1
    (`Bls/Fp.lean`) ya está hecho y el próximo es `Bls/G1.lean`.
 2. **`Proofs/Kzg/CeremonyChecks.lean`** — el teorema más ambicioso del repo y el
-   único hueco conocido: asume la estructura `ConcreteBlsLaws` (bilinealidad,
+   único hueco conocido: asume la estructura `ConcreteBlsLaws` (leyes del pairing: bilinealidad,
    no-degeneración, fidelidad del mul escalar) que todavía **no** está probada
    para la implementación ejecutable. Entender qué haría falta para cerrarla.
 3. **Los *native axioms* que quedan** — no hay ningún `sorry` en el repo, pero
    10 de los 492 teoremas (todos en `Proofs/Bls/Compress.lean` y
    `Proofs/Xmss/Blake2s.lean`) dependen de pasos verificados por código
-   compilado en vez del kernel (`native_decide` y `bv_decide`). Uno es
+   compilado en vez del kernel, el revisor central de Lean (`native_decide` y
+   `bv_decide`). Uno es
    central: `uncompress_compress`. Mathlib no acepta teoremas así; upstream
    tiene abierto el issue #28 para sacar los dos `bv_decide` de Blake2s.
    Lista completa: `lake env lean docs/native_axioms.lean` (ver el mapa
@@ -150,13 +151,15 @@ lake build                                          # verde: 3444 jobs
 lake env lean docs/native_axioms.lean               # qué teoremas dependen de native axioms (~3 min)
 ```
 
-Si se borra `.lake/`: `lake exe cache get && lake build`.
+Si se borra `.lake/`: `lake exe cache get && lake build` (lo primero baja
+Mathlib ya compilado; sin eso, compilarlo lleva horas).
 Si se borra `.venv/`: `python3 -m venv .venv && .venv/bin/pip install -e '.[test]'`
 (dispara `lake build` vía `setup.py`; con el build hecho tarda ~1 min).
 
 Para correr la suite de vectores, dos cosas aprendidas a golpes —enchufada, con
 la tapa abierta y con `caffeinate`, o la Mac duerme y no avanza; y no extrapolar
-el ritmo, porque la `lru_cache` de los fixtures hace que los primeros casos de
+el ritmo, porque los datos de prueba se comparten en una caché (`lru_cache`) y
+los primeros casos de
 cada handler paguen todo el cómputo:
 
 ```bash
@@ -179,7 +182,7 @@ caffeinate -i -s -w <PID>                           # si ya está corriendo
 ## Documentación generada
 
 - [`docs/mapa-completo.html`](docs/mapa-completo.html): big picture, spec ejecutable vs teoremas, pisos de estudio
-- [`docs/fp-paso-a-paso.html`](docs/fp-paso-a-paso.html): guía del piso 1, `Bls/Fp.lean` y sus pruebas
+- [`docs/fp-paso-a-paso.html`](docs/fp-paso-a-paso.html): guía del piso 1, `Bls/Fp.lean` y sus teoremas
 - [`docs/RETOMAR.md`](docs/RETOMAR.md) — dónde quedamos y cómo volver a arrancar
 - [`docs/notas-investigacion.md`](docs/notas-investigacion.md) — todo lo aprendido del repo
 - [`docs/architecture-map.html`](docs/architecture-map.html) — mapa de arquitectura: módulos por dentro y por qué spec-first

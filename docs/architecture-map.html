@@ -550,7 +550,7 @@
   <header>
     <div class="eyebrow">ethereum / cryptography-specs</div>
     <h1>Especificaciones Formales de Criptograf&iacute;a para Ethereum</h1>
-    <p>Implementaciones ejecutables de los primitivos criptogr&aacute;ficos de Ethereum, escritas en Lean 4 con pruebas formales verificadas por m&aacute;quina. El c&oacute;digo se compila tambi&eacute;n como extensi&oacute;n Python v&iacute;a bindings C.</p>
+    <p>Implementaciones ejecutables de los primitivos criptogr&aacute;ficos de Ethereum, escritas en Lean 4 con teoremas formales verificadas por m&aacute;quina. El c&oacute;digo se compila tambi&eacute;n como extensi&oacute;n Python v&iacute;a bindings C.</p>
   </header>
 
   <!-- Big idea -->
@@ -561,7 +561,7 @@
   <!-- Dependency flow -->
   <section>
     <h2>Flujo de dependencias</h2>
-    <p>KZG depende de BLS (usa sus puntos de G1 y el pairing). XMSS es independiente: no importa nada de BLS y trae su propio hash, BLAKE2s. Las pruebas observan las specs, pero las specs nunca dependen de las pruebas.</p>
+    <p>KZG depende de BLS (usa sus puntos de G1 y el pairing). XMSS es independiente: no importa nada de BLS y trae su propio hash, BLAKE2s. Los teoremas observan las specs, pero las specs nunca dependen de las pruebas.</p>
     <div class="flow">
       <div class="flow-node">
         <div class="label">BLS12-381</div>
@@ -691,7 +691,7 @@
         </ul>
       </div>
       <div class="col-card proof-card">
-        <h3>Proofs (verificaci&oacute;n)</h3>
+        <h3>Teoremas (la librer&iacute;a Proofs)</h3>
         <ul>
           <li>Teoremas con <code>theorem</code></li>
           <li><code>uncompress_compress</code> — round-trip</li>
@@ -706,7 +706,7 @@
   <!-- How spec links to proof -->
   <section class="example-section">
     <h2>C&oacute;mo se enlazan: ejemplo con Fp.sqrt</h2>
-    <p>La proof importa la spec y referencia sus funciones por nombre. Si la spec cambia, la proof deja de compilar.</p>
+    <p>El teorema importa la spec y referencia sus funciones por nombre. Si la spec cambia, el teorema deja de compilar.</p>
 
     <div class="example-pair">
       <div class="code-panel panel-spec">
@@ -714,9 +714,7 @@
         <div class="code-block"><span class="cm">-- Funci&oacute;n que corre. Se compila a C.</span>
 <span class="kw">def</span> <span class="fn">sqrt</span> (a : <span class="tp">Fp</span>) : <span class="tp">Except BlsError Fp</span> :=
   <span class="kw">let</span> cand := <span class="fn">powNat</span> a ((modulus + 1) / 4)
-  <span class="kw">if</span> (cand * cand).<span class="fn">beq</span> a
-    <span class="kw">then</span> .ok cand
-    <span class="kw">else</span> .error .notASquare</div>
+  <span class="kw">if</span> (cand * cand).<span class="fn">beq</span> a <span class="kw">then</span> .ok cand <span class="kw">else</span> .error .notASquare</div>
       </div>
       <div class="code-panel panel-proof">
         <div class="code-panel-header"><span class="dot"></span> PROOF &mdash; Proofs/Bls/Compress.lean:32</div>
@@ -744,7 +742,7 @@
         <line x1="432" y1="6" x2="432" y2="22" stroke="#6a4fd1" stroke-width="1.2" stroke-dasharray="3,3"/>
         <rect x="100" y="22" width="400" height="22" rx="4" fill="none" stroke="#d4d0c8" stroke-width="1"/>
         <text x="300" y="37" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="10" fill="#5c6370">
-          import EthCryptographySpecs.Bls.Compress &mdash; la proof ve la spec
+          import EthCryptographySpecs.Bls.Compress &mdash; el teorema ve la spec
         </text>
         <text x="168" y="37" text-anchor="middle" font-family="Menlo, monospace" font-size="9" fill="#1a5632" style="display:none">Fp.sqrt</text>
         <line x1="432" y1="22" x2="168" y2="22" stroke="#6a4fd1" stroke-width="1.2" marker-end="url(#ah)"/>
@@ -753,8 +751,8 @@
 
     <p>El mecanismo concreto tiene tres partes:</p>
     <ol style="padding-left:1.3rem; margin-top:0.5rem;">
-      <li style="margin-bottom:0.4rem;"><strong><code>import</code></strong> (l&iacute;nea 1 de la proof) &mdash; trae al scope todas las definiciones de la spec.</li>
-      <li style="margin-bottom:0.4rem;"><strong><code>namespace</code></strong> &mdash; la proof se ubica en <code>EthCryptographySpecs.Bls.Fp</code>, el mismo namespace que la spec.</li>
+      <li style="margin-bottom:0.4rem;"><strong><code>import</code></strong> (l&iacute;nea 1 del archivo de teoremas) &mdash; trae al scope todas las definiciones de la spec.</li>
+      <li style="margin-bottom:0.4rem;"><strong><code>namespace</code></strong> &mdash; el teorema se ubica en <code>EthCryptographySpecs.Bls.Fp</code>, el mismo namespace que la spec.</li>
       <li style="margin-bottom:0.4rem;"><strong><code>rw [Fp.sqrt]</code></strong> &mdash; Lean despliega la definici&oacute;n de <code>sqrt</code> dentro de la hip&oacute;tesis, reemplazando el nombre por el cuerpo real de la funci&oacute;n (<code>let cand := ...; if ...</code>). A partir de ah&iacute; puede razonar sobre la estructura del <code>if</code>.</li>
     </ol>
     <p style="margin-top:0.6rem;">Esto no modifica la spec &mdash; es una operaci&oacute;n dentro de la demostraci&oacute;n. <code>rw</code> le dice a Lean &ldquo;mir&aacute; adentro de esa funci&oacute;n para razonar sobre ella&rdquo;.</p>

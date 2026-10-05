@@ -1,5 +1,7 @@
 # Notas de investigacion - ethereum/cryptography-specs
 
+_Revisado 2026-10-05: rutas, orden de estudio y tabla de propiedades alineados con el README y el mapa completo._
+
 ## Estructura general
 
 El repo tiene tres modulos criptograficos escritos en Lean 4:
@@ -30,7 +32,7 @@ El repo separa deliberadamente el codigo ejecutable de los teoremas:
 
 ## Como se enlazan spec y proof
 
-La proof importa la spec y referencia sus funciones por nombre. Si la spec cambia, la proof deja de compilar.
+El teorema importa la spec y referencia sus funciones por nombre. Si la spec cambia, el teorema deja de compilar.
 
 ### Ejemplo concreto: Fp.sqrt
 
@@ -47,12 +49,14 @@ theorem sqrt_ok {a c : Fp} (h : Fp.sqrt a = .ok c) :
     (c : ZMod Fp.modulus) * c = a := by
   rw [Fp.sqrt] at h    -- despliega la definicion de sqrt
   split at h
-  · exact beq_iff'.mp hbeq
+  · rename_i hbeq
+    cases h
+    exact beq_iff'.mp hbeq
   · cases h
 ```
 
 El mecanismo de enlace:
-1. **`import`** - la proof importa `EthCryptographySpecs.Bls.Compress`
+1. **`import`** - el archivo de teoremas importa `EthCryptographySpecs.Bls.Compress`
 2. **`namespace`** - se ubica en el mismo namespace que la spec
 3. **`rw [Fp.sqrt]`** - Lean despliega la definicion de sqrt dentro de la hipotesis para razonar sobre su estructura
 
@@ -76,26 +80,24 @@ El codigo es correcto por construccion, pero puede no coincidir con el estandar 
 
 | Propiedad | Archivo | Estado |
 |---|---|---|
-| Compresion G1 round-trip | Proofs/Bls/Compress | Probado |
+| Compresion G1 round-trip | Proofs/Bls/Compress | Probado** |
 | Fp.sqrt soundness & completeness | Proofs/Bls/Compress | Probado |
 | MSM correctness | Proofs/Bls/G1Msm | Probado |
 | G1 orden del subgrupo | Proofs/Bls/G1Order | Probado |
-| FFT / iFFT round-trip | Proofs/Kzg/Fft | Probado |
+| FFT / iFFT round-trip | Proofs/Kzg/FftInverse | Probado |
 | Ceremony pairing checks (soundness) | Proofs/Kzg/CeremonyChecks | Parcial* |
 | Bit-reversal involucion | Proofs/Kzg/BitReversal | Probado |
 | BLAKE2s tweak hash | Proofs/Xmss/TweakHash | Probado |
 
-*CeremonyChecks asume `ConcreteBlsLaws` (bilinealidad, no-degeneracion, fidelidad de mul escalar) que aun no estan probadas para la implementacion ejecutable.
+*CeremonyChecks asume `ConcreteBlsLaws` (bilinealidad, no-degeneracion, fidelidad de mul escalar) que aun no estan probadas para la implementacion ejecutable. Es el hueco mas importante del repo.
 
-## Orden de lectura sugerido
+**Probado, pero depende de *native axioms*: pasos verificados por codigo compilado (`bv_decide`, `native_decide`) en vez del kernel. 10 de los 492 teoremas los tienen, todos en `Proofs/Bls/Compress.lean` y `Proofs/Xmss/Blake2s.lean`; ninguno en KZG. Lista y explicacion: `docs/native_axioms.lean` y el mapa completo, "Donde la separacion no es perfecta". No hay ningun `sorry` en el repo.
 
-1. `Bls/Fp.lean` - como se modela un campo finito con `Fin p`
-2. `Bls/G1.lean` - aritmetica de curva (add, double, msm) en Jacobiana
-3. `Bls/Compress.lean` - serializacion y round-trip
-4. `Kzg/Fft.lean` - Cooley-Tukey sobre Fr
-5. `Kzg/Core.lean` - la superficie publica: commit, prove, verify
-6. `Proofs/Bls/Compress.lean` - ejemplo de como se prueba un round-trip
-7. `Proofs/Kzg/CeremonyChecks.lean` - el teorema mas ambicioso del repo
+## Orden de estudio
+
+El orden vive en un solo lugar: la tabla de pisos del README ("Empeza por
+aca") y el mapa completo. Resumen: Fp -> G1 -> Compress -> Kzg/Fft y Core ->
+Proofs/Kzg/CeremonyChecks, cada piso con su archivo de spec y sus teoremas.
 
 ---
 
@@ -120,7 +122,7 @@ de `Proofs/` solo existen para el type-checking y no se linkean.
 ### Bindings de Python (instalados)
 
 ```bash
-cd ~/cryptography-specs
+cd ~/eth-crypto-study
 python3 -m venv .venv                 # Python 3.11.7
 .venv/bin/pip install -e '.[test]'
 ```
@@ -261,7 +263,7 @@ prioriza claridad sobre performance.
 Regenerar un handler suelto, sin las 3 horas completas:
 
 ```bash
-cd ~/cryptography-specs
+cd ~/eth-crypto-study
 caffeinate -i -s .venv/bin/python -m pytest bindings/python/tests/kzg -k verify_kzg_proof
 ```
 
