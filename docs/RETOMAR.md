@@ -1,8 +1,15 @@
 # Retomar trabajo
 
-_Ultima actualizacion: 2026-10-05_
+_Ultima actualizacion: 2026-10-06_
 
-## Donde quedamos (5 oct 2026): repaso de los mapas
+## Donde quedamos (6 oct 2026): FODA investigado, mapas repasados
+
+Cortamos el 6 oct con todo commiteado y pusheado (`2ad46ec`). Hecho hoy:
+investigadas y respondidas (hasta donde hay informacion publica) las 5 preguntas
+abiertas del FODA; ver detalle mas abajo. **Lo que sigue**: repasar
+`fp-paso-a-paso.html` o arrancar la guia del piso 2 (`Bls/G1.lean`), a eleccion.
+Para seguirle el paso a upstream: `git -C ~/cryptography-specs fetch` y comparar
+contra `8f811fc` (ultimo chequeo, 5 oct).
 
 Chequeo de upstream (5 oct 2026, `ethereum/cryptography-specs` master en
 `8f811fc`): 6 commits despues de nuestro `09deaff`, todos de XMSS (#33, #35,
@@ -61,9 +68,10 @@ MSM, trusted setup.
   la jerga de los modulos y archivos (Jacobianas, optimal Ate, twist, SSWU,
   NTT, DAS, OTS...), cada una verificada contra el archivo .lean; terminologia
   "teoremas"; encabezado igual al del mapa completo.
-- Las guias por piso (Fp, G1, ...) quedan para mas adelante. Por ahora el foco
-  es entender la propuesta en si: ver `docs/propuesta-foda.html` y sus
-  "preguntas abiertas"; lo que sigue es investigar esas preguntas.
+- ~~Investigar las preguntas abiertas del FODA~~ Hecho el 6 oct: las 5 tienen
+  su renglon "Lo que encontramos" en `propuesta-foda.html`; la de XMSS quedo
+  respondida a favor el 5 oct. Las guias por piso quedaron postergadas mientras
+  entendiamos la propuesta; ya se puede volver a ellas.
 - Repasar `fp-paso-a-paso.html`.
 - Escribir la guia del piso 2: `Bls/G1.lean` + `G1Group` / `G1Order` / `G1Msm`.
 
@@ -172,12 +180,13 @@ cliente de consenso.
 
 ## Proximos pasos posibles
 
-Ya no queda nada de infraestructura. El estudio sigue piso por piso (tabla en
-el README, seccion "Empeza por aca"); antes, terminar el repaso de los mapas
-(ver "Donde quedamos" arriba).
+Ya no queda nada de infraestructura ni de repaso de mapas (salvo
+`fp-paso-a-paso.html`). El estudio sigue piso por piso (tabla en el README,
+seccion "Empeza por aca"): el proximo es el piso 2, `Bls/G1.lean`.
 
 ## Documentacion generada
 
+- `docs/propuesta-foda.html` — la propuesta, como se implementa, FODA y preguntas abiertas investigadas
 - `docs/mapa-completo.html` — big picture: spec vs teoremas, vectores, pisos de estudio
 - `docs/architecture-map.html` — modulos por dentro y por que spec-first
 - `docs/fp-paso-a-paso.html` — guia del piso 1, `Bls/Fp.lean` y sus teoremas
