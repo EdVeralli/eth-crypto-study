@@ -13,6 +13,13 @@ solo se ajustaron los textos (README punto 5 y 6, propuesta-foda, mapa-completo
 columna XMSS, architecture-map modulo XMSS). Los conteos de la documentacion
 siguen siendo los de `09deaff`.
 
+6 oct 2026: investigadas las 5 preguntas abiertas del FODA (seccion 4 de
+`propuesta-foda.html`); cada una tiene su renglon "Lo que encontramos". Todas
+siguen abiertas y sin plan publico: consensus-specs no depende del paquete
+(usa `py_arkworks_bls12381` + `ckzg`), nadie pinea los vectores, no hay issue
+para `ConcreteBlsLaws`, no hay mecanismo de paridad con estandares, el binding
+C sigue sin verificar. Fuente nueva (6): metadatos de PyPI via `pip download`.
+
 La infraestructura esta cerrada (ver mas abajo). Desde el 29 sept estamos
 armando y repasando la **documentacion de estudio** en `docs/`, para que
 alguien que llega (Pablo, por ejemplo) entienda el repo sin haber estado en

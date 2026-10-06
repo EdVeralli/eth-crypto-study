@@ -62,6 +62,7 @@ section{display:flex;flex-direction:column;gap:14px}
 .q ul{font-size:14.5px;gap:7px}
 .q li b{font-weight:600}
 .tag{font:600 10.5px/1 var(--f-mono);letter-spacing:.03em;padding:2px 5px;border-radius:4px;background:var(--code-bg);border:1px solid var(--line);color:var(--muted);white-space:nowrap;vertical-align:1px}
+.found{display:block;margin-top:4px;color:var(--muted);font-size:13.5px}
 .tag.m{background:var(--exec-bg);color:var(--exec-fg);border-color:var(--exec)}
 table{border-collapse:collapse;font-size:14px;width:100%}
 th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
@@ -190,11 +191,11 @@ th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute
     <div class="eyebrow">4</div>
     <h2>Preguntas abiertas</h2>
     <ul>
-      <li>¿Las specs de consenso en Python van a depender de este paquete, o seguirán con sus propias implementaciones de referencia?</li>
-      <li>¿Quién decide que los vectores de este repo sean "los oficiales"? Hoy los clientes consumen vectores de otros repos.</li>
-      <li>¿Hay un plan y una fecha para demostrar <code>ConcreteBlsLaws</code>, el hueco principal?</li>
-      <li>¿Cómo se va a mantener la paridad con los estándares cuando cambien (nuevas versiones del borrador IRTF, cambios en EIP-4844 / PeerDAS)?</li>
-      <li>¿Se va a verificar también el binding en C, o se acepta como zona de confianza?</li>
+      <li>¿Las specs de consenso en Python van a depender de este paquete, o seguirán con sus propias implementaciones de referencia?<br><span class="found"><b>Lo que encontramos (6 oct 2026):</b> hoy no. <code>eth-consensus-specs 1.7.0b3</code> (5 oct 2026) depende de <code>py_arkworks_bls12381</code> y <code>ckzg</code>, no de <code>eth-cryptography-specs</code>; su README solo lo lista como "external specification". El canal existe (SSZ hizo el mismo camino y sí es dependencia: <code>eth-ssz-specs</code>), y el paquete está en PyPI desde may 2026, pero nadie lo consume todavía. <span class="tag">fuente 6</span></span></li>
+      <li>¿Quién decide que los vectores de este repo sean "los oficiales"? Hoy los clientes consumen vectores de otros repos.<br><span class="found"><b>Lo que encontramos (6 oct 2026):</b> nadie, por ahora. El README de upstream dice que los tests "may be pinned by downstream consumers": es una invitación. consensus-specs genera sus propios vectores BLS y los de KZG salen de <code>ckzg</code>; no encontramos ningún consumidor que pinee estos 364. <span class="tag">repo original</span> <span class="tag">fuente 6</span></span></li>
+      <li>¿Hay un plan y una fecha para demostrar <code>ConcreteBlsLaws</code>, el hueco principal?<br><span class="found"><b>Lo que encontramos (6 oct 2026):</b> no hay issue ni fecha. Lo único escrito está en <code>CeremonyChecks.lean</code>: "the remaining cryptographic verification obligation". Todo el esfuerzo de sep–oct 2026 fue XMSS. <span class="tag m">verificado acá</span></span></li>
+      <li>¿Cómo se va a mantener la paridad con los estándares cuando cambien (nuevas versiones del borrador IRTF, cambios en EIP-4844 / PeerDAS)?<br><span class="found"><b>Lo que encontramos (6 oct 2026):</b> sin mecanismo. Hash-to-curve cita RFC 9380 (ya es RFC final), firmas BLS citan el borrador IRTF, KZG no cita versión alguna de consensus-specs. No hay pin, CI ni comparación contra vectores externos: los tests comparan contra <code>py_ecc</code> y contra sí mismos. <span class="tag m">verificado acá</span></span></li>
+      <li>¿Se va a verificar también el binding en C, o se acepta como zona de confianza?<br><span class="found"><b>Lo que encontramos (6 oct 2026):</b> nada indica que sí: 928 líneas de C (<code>bls.c</code> 87, <code>kzg.c</code> 533, <code>module.c</code> 308), sin tests propios, sin issue, sin cambios en upstream. <span class="tag m">verificado acá</span></span></li>
       <li>¿XMSS en Lean (issue #29) va a nacer con teoremas desde el primer commit, o primero spec y después teoremas, como con BLS? <b>Respondida</b>: en upstream (28 sep – 5 oct 2026) cada PR de XMSS trajo la spec y sus teoremas juntos (#33, #37, #38, #40, #42), y el teorema de corrección de punta a punta llegó en el mismo commit que keygen y firma.</li>
     </ul>
   </section>
@@ -208,6 +209,7 @@ th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute
       <li><a href="https://hashcloak.com/blog/how-ethereum-plans-to-replace-bls-with-post-quantum-signatures">How Ethereum plans to replace BLS with post-quantum signatures</a>, HashCloak.</li>
       <li><a href="https://ethereum.org/roadmap/security/quantum-resistance/">Post-quantum cryptography on Ethereum</a>, ethereum.org.</li>
       <li>Nuestra copia: <a href="mapa-completo.html">mapa completo</a>, <a href="architecture-map.html">mapa de arquitectura</a>, <code>docs/native_axioms.lean</code>, <code>docs/bls_smoke.py</code>.</li>
+      <li>Metadatos de PyPI (<code>pip download</code>, 6 oct 2026): <code>eth-consensus-specs 1.7.0b3</code>, <code>eth-cryptography-specs 0.1.0</code>, <code>eth-ssz-specs 0.1.0</code>; y el README de <a href="https://github.com/ethereum/consensus-specs">ethereum/consensus-specs</a>.</li>
     </ol>
   </section>
 </main>
