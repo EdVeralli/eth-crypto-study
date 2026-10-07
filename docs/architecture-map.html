@@ -633,11 +633,11 @@
           <div class="module-toggle">&#9662;</div>
         </div>
         <div class="module-body">
-          <p>Compromisos polinomiales KZG (por sus autores: Kate, Zaverucha y Goldberg) para los blobs del EIP-4844 (proto-danksharding). Usa BLS12-381 como curva subyacente. Incluye FFT sobre Fr, bit-reversal, el trusted setup, y el muestreo de disponibilidad de datos (DAS): celdas con prueba propia y recuperaci&oacute;n de las que falten.</p>
+          <p>Compromisos polinomiales KZG (por sus autores: Kate, Zaverucha y Goldberg) para los blobs del EIP-4844 (proto-danksharding). Usa BLS12-381 como curva subyacente. Incluye FFT sobre Fr, bit-reversal, el trusted setup, y el muestreo de disponibilidad de datos (DAS): celdas con su proof KZG y recuperaci&oacute;n de las que falten.</p>
           <div class="file-tree">
             <div><span class="dir">Kzg/</span></div>
             <div class="indent">Constants.lean <span class="anno">FIELD_ELEMENTS_PER_BLOB = 4096, etc.</span></div>
-            <div class="indent">BitReversal.lean <span class="anno">Reordenar &iacute;ndices invirtiendo sus bits (lo necesita la FFT)</span></div>
+            <div class="indent">BitReversal.lean <span class="anno">Reordenar &iacute;ndices invirtiendo sus bits (lo usan Polynomials, Core, Cells y Recovery para ordenar ra&iacute;ces y setup)</span></div>
             <div class="indent">Polynomials.lean <span class="anno">Evaluar y dividir polinomios; f&oacute;rmula baric&eacute;ntrica para evaluar fuera del dominio</span></div>
             <div class="indent">Fft.lean <span class="anno">FFT (transformada r&aacute;pida, algoritmo Cooley-Tukey) sobre Fr; en un campo finito se la llama NTT</span></div>
             <div class="indent">TrustedSetup.lean <span class="anno">Carga los puntos de la ceremonia (el trusted setup) al arrancar</span></div>

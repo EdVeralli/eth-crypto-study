@@ -204,7 +204,7 @@ flowchart TB
       <figcaption>Recorrido de una llamada real, verificado contra los <code>import</code> y las llamadas del código. Naranja: el binding. Verde: la spec ejecutable. Verde lleno: el archivo que estudiamos acá.</figcaption>
     </figure>
     <p>KZG usa el mismo piso: sus compromisos son puntos de G1, así que también bajan hasta Fp. Los polinomios de los blobs usan <code>Fr</code>, que es el mismo código con otro primo.</p>
-    <p>Con los teoremas pasa lo mismo, en el sentido contrario: cada prueba de arriba se apoya en la de abajo.</p>
+    <p>Con los teoremas pasa lo mismo, en el sentido contrario: cada teorema de arriba se apoya en el de abajo.</p>
     <figure class="fig">
 <pre class="mermaid">
 flowchart BT
@@ -267,7 +267,7 @@ flowchart BT
     </div>
     <div class="box idea">
       <div class="eyebrow">Por qué hace falta que p sea primo</div>
-      <p>Solo si p es primo todo número distinto de 0 tiene inverso, o sea, se puede dividir. Con 6 (que no es primo) no hay ningún número que multiplicado por 2 dé 1. Por eso la primera prueba importante del paso 9 es demostrar que p es primo.</p>
+      <p>Solo si p es primo todo número distinto de 0 tiene inverso, o sea, se puede dividir. Con 6 (que no es primo) no hay ningún número que multiplicado por 2 dé 1. Por eso el primer teorema importante del paso 9 es demostrar que p es primo.</p>
     </div>
   </section>
 
@@ -287,7 +287,7 @@ flowchart BT
   <section class="step" id="s2">
     <div class="stephead"><span class="stepnum exec">2</span><h2>El tipo Fp: el truco central</h2><span class="lines">líneas 41–42</span></div>
     <pre class="code exec-kw"><span class="row"><span class="ln">41</span><span class="cm">/-- An element of the BLS12-381 base field. -/</span></span><span class="row"><span class="ln">42</span><span class="kw">abbrev</span> Fp := Fin Fp.modulus</span></pre>
-    <p>Esta línea define todo el campo. <code>Fin n</code> es un tipo que ya viene con Lean: son los números naturales <b>menores que n</b>. Cada valor de <code>Fin n</code> es un par: el número y una <b>prueba</b> de que es menor que n.</p>
+    <p>Esta línea define todo el campo. <code>Fin n</code> es un tipo que ya viene con Lean: son los números naturales <b>menores que n</b>. Cada valor de <code>Fin n</code> es un par: el número y una <b>demostración</b> de que es menor que n.</p>
     <figure class="fig">
       <svg viewBox="0 0 560 120" width="100%" style="max-width:560px" role="img" aria-label="Recta numérica: Fp cubre de 0 a p menos 1; p y lo que sigue quedan afuera">
         <line x1="20" y1="70" x2="545" y2="70" class="s-axis"/>
@@ -314,7 +314,7 @@ flowchart BT
     <table class="tablewrap" style="display:table">
       <tr><th>Función</th><th>Qué hace</th><th>Ejemplo con p = 7</th></tr>
       <tr><td class="m">ofNat n</td><td>convierte cualquier natural en Fp tomando n mod p</td><td class="m">ofNat 10 = 3</td></tr>
-      <tr><td class="m">zero, one</td><td>el 0 y el 1; <code>⟨0, prueba⟩</code> es el par "número + prueba de que es &lt; p"</td><td class="m">0, 1</td></tr>
+      <tr><td class="m">zero, one</td><td>el 0 y el 1; <code>⟨0, demostración⟩</code> es el par "número + demostración de que es &lt; p"</td><td class="m">0, 1</td></tr>
       <tr><td class="m">add</td><td>suma mod p</td><td class="m">5 + 4 = 2</td></tr>
       <tr><td class="m">sub</td><td>resta mod p; nunca da negativo</td><td class="m">3 − 5 = 5</td></tr>
       <tr><td class="m">neg</td><td>el opuesto: el número que sumado da 0</td><td class="m">−3 = 4</td></tr>
@@ -351,12 +351,12 @@ flowchart BT
   <section class="step" id="s5">
     <div class="stephead"><span class="stepnum exec">5</span><h2>El inverso, por el pequeño teorema de Fermat</h2><span class="lines">líneas 68–69</span></div>
     <pre class="code exec-kw"><span class="row"><span class="ln">68</span><span class="cm">/-- Multiplicative inverse via Fermat&#x27;s little theorem. -/</span></span><span class="row"><span class="ln">69</span>@[inline] <span class="kw">def</span> inverse (a : Fp) : Fp := powNat a (modulus - 2)</span></pre>
-    <p>El <b>inverso</b> de a es el número que multiplicado por a da 1. Fermat demostró en 1640 que si p es primo y a ≠ 0, entonces <b>a<sup>p−1</sup> = 1</b>. Separando un factor: a<sup>p−2</sup> · a = 1. O sea, <b>a<sup>p−2</sup> es el inverso de a</b>, y se calcula con la potencia rápida del paso anterior.</p>
+    <p>El <b>inverso</b> de a es el número que multiplicado por a da 1. Fermat enunció en 1640 (la demostración la publicó Euler un siglo después) que si p es primo y a ≠ 0, entonces <b>a<sup>p−1</sup> = 1</b>. Separando un factor: a<sup>p−2</sup> · a = 1. O sea, <b>a<sup>p−2</sup> es el inverso de a</b>, y se calcula con la potencia rápida del paso anterior.</p>
     <div class="box">
       <h3>Ejemplo con p = 7: el inverso de 3</h3>
       <p class="m" style="font-family:var(--f-mono)">3<sup>7−2</sup> = 3<sup>5</sup> = 243 → 243 mod 7 = <b class="ok">5</b></p>
       <p>Comprobación: 3 × 5 = 15 → 15 mod 7 = 1 <span class="ok">✓</span></p>
-      <p style="color:var(--muted);font-size:14.5px">Detalle: el 0 no tiene inverso, pero la fórmula da 0<sup>p−2</sup> = 0. La spec no tira error, devuelve 0. La prueba del paso 10 lo tiene en cuenta: en Mathlib también se define 0⁻¹ = 0.</p>
+      <p style="color:var(--muted);font-size:14.5px">Detalle: el 0 no tiene inverso, pero la fórmula da 0<sup>p−2</sup> = 0. La spec no tira error, devuelve 0. El teorema del paso 10 lo tiene en cuenta: en Mathlib también se define 0⁻¹ = 0.</p>
     </div>
   </section>
 
@@ -417,7 +417,7 @@ flowchart LR
     <p>Por la red viajan bytes, no números de Lean. Estas tres funciones traducen, en <b>big-endian</b>: el byte más significativo va primero, como escribimos los números en papel.</p>
     <ul>
       <li><code>bytesBEToNat</code> recorre los bytes y va armando el número: corre lo acumulado 8 bits a la izquierda y pega el byte nuevo. Por ejemplo, <code>[0x01, 0x02]</code> da 1, después 1 × 256 + 2 = 258.</li>
-      <li><code>fromBytesBE</code> es la entrada desde la red y rechaza dos cosas: que no sean <b>exactamente 48 bytes</b>, o que el número sea <b>≥ p</b>. Si pasa, arma el Fp con el número y la prueba <code>h</code> de que es &lt; p. Es el mismo par del paso 2.</li>
+      <li><code>fromBytesBE</code> es la entrada desde la red y rechaza dos cosas: que no sean <b>exactamente 48 bytes</b>, o que el número sea <b>≥ p</b>. Si pasa, arma el Fp con el número y la demostración <code>h</code> de que es &lt; p. Es el mismo par del paso 2.</li>
       <li><code>toBytesBE</code> hace el camino inverso y siempre produce 48 bytes, rellenando con ceros a la izquierda.</li>
     </ul>
     <figure class="fig">
@@ -448,7 +448,7 @@ flowchart LR
 
   <!-- 9 -->
   <section class="step" id="s9">
-    <div class="stephead"><span class="stepnum thm">9</span><h2>La prueba: p es primo</h2><span class="lines">FpZMod.lean · 442–450</span></div>
+    <div class="stephead"><span class="stepnum thm">9</span><h2>El teorema: p es primo</h2><span class="lines">FpZMod.lean · 442–450</span></div>
     <p>Ahora cambiamos de mitad: <code>EthCryptographySpecs/Proofs/Bls/FpZMod.lean</code> no se ejecuta nunca, solo lo chequea Lean. Lo primero que necesita es demostrar que p es primo, porque todo lo que sigue depende de eso: sin primo no hay inversos (paso 0) y no vale Fermat (paso 5).</p>
     <pre class="code thm"><span class="row"><span class="ln">442</span><span class="cm">/-- The BLS12-381 base field modulus is prime, by a Lucas certificate</span></span><span class="row"><span class="ln">443</span><span class="cm">chain (Pratt tree): every prime factor of `p - 1` beyond `norm_num`</span></span><span class="row"><span class="ln">444</span><span class="cm">range carries its own certificate above. Witness: `2` is a</span></span><span class="row"><span class="ln">445</span><span class="cm">primitive root mod `p`. -/</span></span><span class="row"><span class="ln">446</span><span class="kw">theorem</span> modulus_prime : Nat.Prime modulus :=</span><span class="row"><span class="ln">447</span>  lucas_primality modulus ((2 : Nat) : ZMod modulus)</span><span class="row"><span class="ln">448</span>    pow_card_sub_one_modulus pow_div_prime_ne_one_modulus</span><span class="row"><span class="ln">449</span></span><span class="row"><span class="ln">450</span><span class="kw">instance</span> : Fact (Nat.Prime modulus) := ⟨modulus_prime⟩</span></pre>
     <p>Probar que un número de 115 dígitos es primo dividiendo es imposible. Se usa un <b>certificado de Lucas</b>: si encontrás un número g tal que g<sup>p−1</sup> = 1 y, para cada primo q que divide a p−1, g<sup>(p−1)/q</sup> ≠ 1, entonces p es primo. Hay un detalle: hace falta saber que esos q también son primos, y algunos son enormes. Entonces cada uno trae <b>su propio certificado</b>, y así se forma un árbol que se llama <b>árbol de Pratt</b>.</p>
@@ -477,14 +477,14 @@ flowchart TB
     </figure>
     <div class="box idea">
       <div class="eyebrow">Sin native axioms</div>
-      <p>Todas estas potencias gigantes las calcula el <b>núcleo de Lean</b> (vía <code>PowMod.powModAux</code>), no el código compilado. Por eso esta prueba no depende de ningún <i>native axiom</i> (<code>#print axioms</code> muestra solo los tres axiomas estándar) y es de la clase más confiable del repo. El comentario del archivo lo dice explícito: "the entire tree is kernel-checked without native_decide".</p>
+      <p>Todas estas potencias gigantes las calcula el <b>núcleo de Lean</b> (vía <code>PowMod.powModAux</code>), no el código compilado. Por eso este teorema no depende de ningún <i>native axiom</i> (<code>#print axioms</code> muestra solo los tres axiomas estándar) y es de la clase más confiable del repo. El comentario del archivo lo dice explícito: "the entire tree is kernel-checked without native_decide".</p>
     </div>
   </section>
 
   <!-- 10 -->
   <section class="step" id="s10">
     <div class="stephead"><span class="stepnum thm">10</span><h2>El puente con Mathlib</h2><span class="lines">FpZMod.lean · 452–560</span></div>
-    <p><b>Mathlib</b> ya tiene los números módulo n, que se llaman <code>ZMod n</code>, y miles de teoremas sobre ellos. La idea de la prueba es: <b>demostrar que cada operación de la spec coincide con la de Mathlib</b>. A partir de ahí, todos los teoremas de Mathlib valen gratis para la spec.</p>
+    <p><b>Mathlib</b> ya tiene los números módulo n, que se llaman <code>ZMod n</code>, y miles de teoremas sobre ellos. La idea de la demostración es: <b>demostrar que cada operación de la spec coincide con la de Mathlib</b>. A partir de ahí, todos los teoremas de Mathlib valen gratis para la spec.</p>
     <pre class="code thm"><span class="row"><span class="ln">452</span><span class="cm">/-- `Fp` is (definitionally) Mathlib&#x27;s `ZMod Fp.modulus`, as rings. -/</span></span><span class="row"><span class="ln">453</span><span class="kw">def</span> toZMod : Fp ≃+* ZMod modulus := RingEquiv.refl _</span></pre>
     <p>El primer paso es casi gratis: <code>Fin p</code> y <code>ZMod p</code> son, por definición, el mismo tipo para Lean. <code>RingEquiv.refl</code> significa "es la identidad": no hay que convertir nada.</p>
     <p>Lo que no es gratis son las operaciones que la spec escribió a mano: <code>powNat</code>, <code>inverse</code> y <code>/</code>. Para cada una hay un teorema puente.</p>
@@ -501,8 +501,8 @@ flowchart TB
     <pre class="code thm"><span class="row"><span class="ln">462</span><span class="kw">theorem</span> powNat_eq_zmod_pow (a : ZMod modulus) (n : Nat) :</span><span class="row"><span class="ln">463</span>    Fp.powNat a n = a ^ n := <span class="kw">by</span></span><span class="row"><span class="ln">464</span>  <span class="kw">induction</span> n <span class="kw">using</span> Nat.strongRecOn <span class="kw">generalizing</span> a <span class="kw">with</span></span><span class="row"><span class="ln">465</span>  | _ n ih =&gt;</span><span class="row"><span class="ln">466</span>    rw [Fp.powNat]</span><span class="row"><span class="ln">467</span>    split</span><span class="row"><span class="ln">468</span>    · rename_i h</span><span class="row"><span class="ln">469</span>      subst h</span><span class="row"><span class="ln">470</span>      rw [pow_zero]</span><span class="row"><span class="ln">471</span>      rfl</span><span class="row"><span class="ln">472</span>    · rename_i h</span><span class="row"><span class="ln">473</span>      rw [ih (n / 2) (<span class="kw">by</span> omega)]</span><span class="row"><span class="ln">474</span>      by_cases h2 : n % 2 = 1</span><span class="row"><span class="ln">475</span><span class="cm">      -- `show` re-elaborates the goal with uniform `ZMod` instance</span></span><span class="row"><span class="ln">476</span><span class="cm">      -- paths (the `*` inherited from `powNat`&#x27;s body is the spec&#x27;s</span></span><span class="row"><span class="ln">477</span><span class="cm">      -- `Fin` one), so the `pow` rewrites below can match.</span></span><span class="row"><span class="ln">478</span>      · rw [if_pos h2]</span><span class="row"><span class="ln">479</span>        show a * (a * a) ^ (n / 2) = a ^ n</span><span class="row"><span class="ln">480</span>        rw [← pow_two, ← pow_mul, ← pow_succ&#x27;]</span><span class="row"><span class="ln">481</span>        congr 1</span><span class="row"><span class="ln">482</span>        omega</span><span class="row"><span class="ln">483</span>      · rw [if_neg h2]</span><span class="row"><span class="ln">484</span>        show (a * a) ^ (n / 2) = a ^ n</span><span class="row"><span class="ln">485</span>        rw [← pow_two, ← pow_mul]</span><span class="row"><span class="ln">486</span>        congr 1</span><span class="row"><span class="ln">487</span>        omega</span></pre>
     <p>Este es <code>powNat_eq_zmod_pow</code>, la versión dicha sobre <code>ZMod p</code>. <code>powNat_eq_pow</code> (línea 542) es la misma afirmación dicha sobre <code>Fp</code>, y se demuestra en una línea llamando a esta. Por eso en las tablas aparece el segundo nombre.</p>
     <ul>
-      <li><code>induction n using Nat.strongRecOn</code>: se prueba por inducción fuerte. Se asume que vale para todos los exponentes menores que n (en particular n/2) y se demuestra para n.</li>
-      <li><code>rw [Fp.powNat]</code> despliega la definición de la spec, igual que vimos con <code>sqrt</code> en las notas de investigación. Así la prueba queda <b>atada</b> al código: si alguien cambia <code>powNat</code>, esta prueba deja de compilar.</li>
+      <li><code>induction n using Nat.strongRecOn</code>: se demuestra por inducción fuerte. Se asume que vale para todos los exponentes menores que n (en particular n/2) y se demuestra para n.</li>
+      <li><code>rw [Fp.powNat]</code> despliega la definición de la spec, igual que vimos con <code>sqrt</code> en las notas de investigación. Así la demostración queda <b>atada</b> al código: si alguien cambia <code>powNat</code>, esta prueba deja de compilar.</li>
       <li><code>split</code> abre los dos casos del <code>if</code>: e = 0 y e ≠ 0. Después se separa par de impar.</li>
       <li>En cada caso se reescribe con reglas de álgebra de Mathlib (<code>pow_two</code>, <code>pow_mul</code>, <code>pow_succ'</code>) hasta que ambos lados coinciden. En palabras: a · (a·a)<sup>n/2</sup> = a<sup>1 + 2·(n/2)</sup> = a<sup>n</sup> cuando n es impar.</li>
     </ul>
@@ -517,7 +517,7 @@ flowchart TB
     <p>La raíz cuadrada se demuestra en otro archivo, junto a la compresión de puntos, que es donde se usa. Son dos teoremas que juntos dicen "sqrt hace exactamente lo que debe":</p>
     <pre class="code thm"><span class="row"><span class="ln">31</span><span class="cm">/-- Soundness of `Fp.sqrt`: a returned root squares to the input. -/</span></span><span class="row"><span class="ln">32</span><span class="kw">theorem</span> sqrt_ok {a c : Fp} (h : Fp.sqrt a = .ok c) :</span><span class="row"><span class="ln">33</span>    (c : ZMod Fp.modulus) * c = a := <span class="kw">by</span></span><span class="row"><span class="ln">34</span>  rw [Fp.sqrt] at h</span><span class="row"><span class="ln">35</span>  split at h</span><span class="row"><span class="ln">36</span>  · rename_i hbeq</span><span class="row"><span class="ln">37</span>    cases h</span><span class="row"><span class="ln">38</span>    exact beq_iff&#x27;.mp hbeq</span><span class="row"><span class="ln">39</span>  · cases h</span></pre>
     <div class="two">
-      <div class="box"><div class="eyebrow" style="color:var(--thm)">sqrt_ok · soundness</div><p>Si <code>sqrt</code> devuelve <code>.ok c</code>, entonces c × c = a. Nunca da una raíz falsa. La prueba es corta porque la función ya verifica el resultado antes de devolverlo (el <code>if</code> del paso 7).</p></div>
+      <div class="box"><div class="eyebrow" style="color:var(--thm)">sqrt_ok · soundness</div><p>Si <code>sqrt</code> devuelve <code>.ok c</code>, entonces c × c = a. Nunca da una raíz falsa. La demostración es corta porque la función ya verifica el resultado antes de devolverlo (el <code>if</code> del paso 7).</p></div>
       <div class="box"><div class="eyebrow" style="color:var(--thm)">sqrt_complete · completeness</div><p>Si a tiene alguna raíz b, entonces <code>sqrt a</code> no falla: devuelve <code>.ok</code>. Nunca rechaza un número que sí tenía raíz. Esta es la difícil, porque usa Fermat para mostrar que la fórmula a<sup>(p+1)/4</sup> siempre funciona.</p></div>
     </div>
   </section>
@@ -538,7 +538,7 @@ flowchart TB
         <tr><td class="m">fromBytesBE · toBytesBE</td><td>48 bytes big-endian, rechaza ≥ p</td><td class="m">fromBytesBE_toBytesBE</td></tr>
       </table>
     </div>
-    <p>El patrón que se repite en todo el repo es el mismo que viste acá: <b>la spec escribe el algoritmo como lo haría un programador</b> (rápido, con bytes, con errores), y <b>la prueba demuestra que coincide con la definición matemática</b> de Mathlib. <code>G1.lean</code>, el siguiente de la lista, usa este Fp para las coordenadas de los puntos de la curva: es la caja que está justo arriba de Fp en el diagrama del principio.</p>
+    <p>El patrón que se repite en todo el repo es el mismo que viste acá: <b>la spec escribe el algoritmo como lo haría un programador</b> (rápido, con bytes, con errores), y <b>el teorema demuestra que coincide con la definición matemática</b> de Mathlib. <code>G1.lean</code>, el siguiente de la lista, usa este Fp para las coordenadas de los puntos de la curva: es la caja que está justo arriba de Fp en el diagrama del principio.</p>
   </section>
 </main>
 </div>

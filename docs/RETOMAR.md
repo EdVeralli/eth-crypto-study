@@ -1,6 +1,6 @@
 # Retomar trabajo
 
-_Ultima actualizacion: 2026-10-06_
+_Ultima actualizacion: 2026-10-07_
 
 ## Donde quedamos (6 oct 2026): FODA investigado, mapas repasados
 
@@ -22,7 +22,7 @@ siguen siendo los de `09deaff`.
 
 Chequeo del 7 oct: upstream en `d1331f0` (6 oct), +2 commits, los dos teoremas
 de XMSS: #43 tweak encoding inyectivo (`tweakInput_injective`) y #44 tamano del
-codigo target-sum (`Proofs/Xmss/CodeSize.lean`, cierra #27). El numero grande
+codigo target-sum (`Proofs/Xmss/CodeSize.lean`, mismo titulo que el issue #27). El numero grande
 de #44 se verifica con `decide +kernel` (lo calcula el kernel, no codigo
 compilado): contraste util con los native axioms. `native_decide` y `bv_decide`
 sin cambios, sigue sin `@[export]` XMSS. Solo se actualizaron hash y fecha en
@@ -38,7 +38,7 @@ C sigue sin verificar. Fuente nueva (6): metadatos de PyPI via `pip download`.
 La infraestructura esta cerrada (ver mas abajo). Desde el 29 sept estamos
 armando y repasando la **documentacion de estudio** en `docs/`, para que
 alguien que llega (Pablo, por ejemplo) entienda el repo sin haber estado en
-las sesiones. Son tres paginas HTML que se abren con el navegador:
+las sesiones. Son cuatro paginas HTML que se abren con el navegador:
 
 0. `docs/propuesta-foda.html` — la propuesta, como se implementa y FODA (5 oct)
 1. `docs/mapa-completo.html` — el big picture
@@ -153,7 +153,7 @@ Dos cosas aprendidas a golpes (detalle en `notas-investigacion.md`):
    avanza: medimos 2 vectores en dos dias y medio. Con `caffeinate` salio en
    97 minutos.
 2. **No extrapoles el ritmo.** La `lru_cache` de los fixtures hace que los
-   primeros casos de cada handler paguen todo y el resto vuele.
+   primeros casos de cada handler pagan todo y el resto vuele.
 
 ```bash
 cd ~/eth-crypto-study

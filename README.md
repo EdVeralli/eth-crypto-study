@@ -118,7 +118,7 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    [Empezá por acá](#empezá-por-acá), con una guía HTML por piso. El piso 1
    (`Bls/Fp.lean`) ya está hecho y el próximo es `Bls/G1.lean`.
 2. **`Proofs/Kzg/CeremonyChecks.lean`** — el teorema más ambicioso del repo y el
-   único hueco conocido: asume la estructura `ConcreteBlsLaws` (leyes del pairing: bilinealidad,
+   hueco más importante: asume la estructura `ConcreteBlsLaws` (leyes del pairing: bilinealidad,
    no-degeneración, fidelidad del mul escalar) que todavía **no** está probada
    para la implementación ejecutable. Entender qué haría falta para cerrarla.
 3. **Los *native axioms* que quedan** — no hay ningún `sorry` en el repo, pero
@@ -135,7 +135,7 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    `verify_blob_kzg_proof_batch`, `recover_cells_and_kzg_proofs`, …) y 8
    constantes. Falta un smoke test propio al estilo de `docs/bls_smoke.py`,
    idealmente con blob → commitment → proof → verify de punta a punta.
-5. **Seguirle el paso a XMSS upstream** — al 6 oct 2026 upstream (`d1331f0`)
+5. **Seguirle el paso a XMSS upstream** — al 7 oct 2026 upstream (`d1331f0`, del 6 oct)
    ya tiene XMSS de punta a punta: encoding target-sum (#33, #35), firma
    Winternitz WOTS+C (#37), árbol de Merkle (#38), verificación (#40) y keygen +
    firma (#42), con el teorema de corrección `verify_keyGen_sign`
@@ -177,7 +177,7 @@ Para correr la suite de vectores, dos cosas aprendidas a golpes —enchufada, co
 la tapa abierta y con `caffeinate`, o la Mac duerme y no avanza; y no extrapolar
 el ritmo, porque los datos de prueba se comparten en una caché (`lru_cache`) y
 los primeros casos de
-cada handler paguen todo el cómputo:
+cada handler pagan todo el cómputo:
 
 ```bash
 cd ~/eth-crypto-study

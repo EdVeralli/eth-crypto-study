@@ -254,7 +254,7 @@ flowchart TB
 </pre>
     </div>
     <p class="note">Las dos cajas de Lean salen de <code>lakefile.lean</code>, el archivo que le dice a Lean qué hacer con cada grupo de archivos. A la spec (librería <code>EthCryptographySpecs</code>) le dice "revisala y convertila en programa" (<code>precompileModules = true</code>), y por eso termina dentro del <code>.so</code> que usa Python. A los teoremas (librería <code>Proofs</code>) les dice "solo revisalos" (<code>precompileModules = false</code>): Lean los chequea, pero no generan programa. Es como un libro de recetas: las recetas se cocinan, y las notas del nutricionista que explican por qué son sanas se leen y se verifican, pero no se cocinan.</p>
-    <p class="note">XMSS no exporta funciones (solo 9 constantes de tamaño), así que hoy no se puede llamar desde Python. En esta copia (<code>09deaff</code>) XMSS es solo el hash y los tipos; upstream lo completó entre el 28 sep y el 5 oct de 2026 (6 archivos de spec y 7 de teoremas más, con el teorema de corrección <code>verify_keyGen_sign</code>), pero sigue sin exports: tampoco allá se puede llamar desde Python.</p>
+    <p class="note">XMSS no exporta funciones (solo 9 constantes de tamaño), así que hoy no se puede llamar desde Python. En esta copia (<code>09deaff</code>) XMSS es solo el hash y los tipos; upstream lo completó entre el 28 sep y el 6 oct de 2026 (<code>d1331f0</code>: 6 archivos de spec y 8 de teoremas más, con el teorema de corrección <code>verify_keyGen_sign</code>), pero sigue sin exports: tampoco allá se puede llamar desde Python.</p>
   </section>
 
   <section>
@@ -352,7 +352,7 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
   <section>
     <div class="eyebrow">Mapa archivo por archivo</div>
     <h2>Cada archivo del repo, clasificado</h2>
-    <p>Acá están todos los archivos Lean del repo, en tres columnas: una por tema (BLS, KZG y XMSS). El número al lado de cada archivo de teoremas es cuántos tiene escritos a mano: 357 en total. Cuando Lean cuenta, dice 492, porque suma los que genera solo (por ejemplo, las ecuaciones de cada función). En cada columna:</p>
+    <p>Acá están todos los archivos Lean del repo, en tres columnas: una por tema (BLS, KZG y XMSS). El número al lado de cada archivo de teoremas es cuántos tiene escritos a mano: 357 en total (más 9 chicos que viven dentro de la spec: 1 en Fp, 1 en Fr, 7 en Xmss/Constants). Cuando Lean cuenta, dice 492, porque suma los que genera solo (por ejemplo, las ecuaciones de cada función). En cada columna:</p>
     <ul class="howto">
       <li><b>Arriba, en verde:</b> los archivos de la <b>spec</b>, el código que se ejecuta.</li>
       <li><b>Abajo, en violeta:</b> los archivos de <b>teoremas</b>, las demostraciones de que ese código está bien.</li>
@@ -424,7 +424,7 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
 
       <!-- XMSS -->
       <article class="col">
-        <header><div class="eyebrow">Post-cuántico · en construcción en esta copia</div><h3>XMSS</h3><p>Firmas basadas solo en funciones hash, pensadas para reemplazar a BLS cuando existan computadoras cuánticas. Lo que sigue es lo que hay en <code>09deaff</code>; upstream ya sumó Encoding, Ots, Merkle, KeyGen, Sign y Verify con sus teoremas (Xmss pasa de 26 a 73).</p></header>
+        <header><div class="eyebrow">Post-cuántico · en construcción en esta copia</div><h3>XMSS</h3><p>Firmas basadas solo en funciones hash, pensadas para reemplazar a BLS cuando existan computadoras cuánticas. Lo que sigue es lo que hay en <code>09deaff</code>; upstream ya sumó Encoding, Ots, Merkle, KeyGen, Sign y Verify con sus teoremas (Xmss pasa de 26 a 94 en <code>d1331f0</code>).</p></header>
         <div class="lane">
           <div class="lane-title exec">Spec · se ejecuta</div>
           <div class="chip exec" data-id="x-blake"><span class="f">Blake2s</span><span class="d">la función hash</span></div>
@@ -472,7 +472,7 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
         <p><b>Los 10 teoremas</b> (salida de <code>docs/native_axioms.lean</code> sobre 492 teoremas: los 357 escritos a mano más los que Lean genera solo, como las ecuaciones de cada función):</p>
         <div class="tscroll"><table class="mini">
           <tr><th>Teorema</th><th>Tipo</th><th>Native axioms</th></tr>
-          <tr><td><code>Bls/G1.uncompress_compress</code></td><td><b>Regla general</b>: comprimir y descomprimir devuelve el mismo punto</td><td>9 (8 <code>bv_decide</code> + el <code>native_decide</code> del infinito)</td></tr>
+          <tr><td><code>G1.uncompress_compress</code> (en <code>Proofs/Bls/Compress.lean</code>)</td><td><b>Regla general</b>: comprimir y descomprimir devuelve el mismo punto</td><td>9 (8 <code>bv_decide</code> + el <code>native_decide</code> del infinito)</td></tr>
           <tr><td><code>Xmss/Blake2s.counter_words_recombine</code></td><td><b>Regla general</b> sobre números de 64 bits</td><td>1 <code>bv_decide</code></td></tr>
           <tr><td><code>Xmss/Blake2s.little32_wordBytes</code></td><td><b>Regla general</b> sobre números de 32 bits</td><td>1 <code>bv_decide</code></td></tr>
           <tr><td><code>Xmss/Blake2s.sigma_row_permutation</code></td><td>Ejemplo: 10 filas fijas de una tabla</td><td>10 <code>native_decide</code></td></tr>

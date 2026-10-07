@@ -74,7 +74,7 @@ th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute
 
 <main>
   <header style="display:flex;flex-direction:column;gap:12px">
-    <div class="eyebrow">ethereum/cryptography-specs · leído al 5 oct 2026</div>
+    <div class="eyebrow">ethereum/cryptography-specs · leído al 5 oct 2026 · preguntas abiertas investigadas el 6 oct</div>
     <h1>La propuesta y su FODA</h1>
     <p class="lede">Qué proponen los autores del repo, cómo lo implementan, cómo esperan que se use, y un análisis de fortalezas, oportunidades, debilidades y amenazas con la evidencia que juntamos.</p>
     <p>Cada afirmación lleva una etiqueta con su origen: <span class="tag m">verificado acá</span> es algo que comprobamos en nuestra copia; <span class="tag">repo original</span> sale de GitHub; <span class="tag">fuente</span> remite a la lista del final.</p>
@@ -89,13 +89,13 @@ th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute
     </div>
     <div class="box key">
       <div class="eyebrow">La respuesta</div>
-      <p>Escribir la criptografía <b>una sola vez, en Lean 4</b>, de modo que la misma fuente sirva para dos cosas: <b>ejecutarse</b> (se compila, se llama desde Python y genera los vectores oficiales) y <b>demostrarse</b> (teoremas sobre ese mismo código, revisados por el kernel de Lean). El enfoque es <i>spec-first</i>: primero se escribe el código tal como lo define el estándar (el borrador IRTF para BLS, el EIP-4844 para KZG) y después se prueba; no al revés, porque el código tiene que coincidir con lo que ya corre en la red. <span class="tag">repo original</span></p>
+      <p>Escribir la criptografía <b>una sola vez, en Lean 4</b>, de modo que la misma fuente sirva para dos cosas: <b>ejecutarse</b> (se compila, se llama desde Python y genera los vectores oficiales) y <b>demostrarse</b> (teoremas sobre ese mismo código, revisados por el kernel de Lean). El enfoque es <i>spec-first</i>: primero se escribe el código tal como lo define el estándar (el borrador IRTF para BLS; KZG sigue de hecho a consensus-specs / EIP-4844, aunque el código no lo cita) y después se demuestra; no al revés, porque el código tiene que coincidir con lo que ya corre en la red. <span class="tag">repo original</span></p>
     </div>
     <div class="box">
       <div class="eyebrow">Quién y en qué contexto</div>
       <ul>
         <li>Es un repo de la organización <code>ethereum</code> en GitHub, con licencia CC0 (dominio público). Descripción oficial: "Specifications for cryptography in Ethereum, written in Lean". <span class="tag">repo original</span></li>
-        <li>Es <b>incipiente</b>: unos 39 commits, 13 estrellas, 2 forks, 12 issues y 3 PRs abiertos, y la actividad visible es de pocas personas (<code>tcoratger</code>, <code>b-wagn</code>, <code>kevaundray</code>). <span class="tag">repo original</span></li>
+        <li>Es <b>incipiente</b>: unos 50 commits (al 6 oct 2026), 13 estrellas, 2 forks, y la actividad visible es de pocas personas: por commits, <code>jtraglia</code> (24), <code>b-wagn</code> (14) y <code>tcoratger</code> (11); <code>kevaundray</code> aparece en issues y reviews. <span class="tag">repo original</span></li>
         <li>Encaja en <b>"lean Ethereum"</b>, la visión a diez años que Justin Drake publicó en el blog de la Ethereum Foundation (jul 2025): criptografía hash-based, resistencia post-cuántica, y "Formal verification. Provable security. Provable optimality." <span class="tag">fuente 2</span></li>
         <li>El motor inmediato es la <b>migración post-cuántica</b>: reemplazar las firmas BLS (rompibles con una computadora cuántica) por firmas hash-based como XMSS / leanSig, agregadas con pruebas SNARK en una máquina virtual mínima que también se quiere verificar en Lean. Los issues #29 (XMSS) y #41 (SPHINCS, abierto el 1 oct 2026) marcan esa dirección. <span class="tag">fuente 3</span> <span class="tag">repo original</span></li>
       </ul>
@@ -115,7 +115,7 @@ th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute
                      pytest regenera 364 vectores  ──▶  git diff = 0  ✓</div>
     <div class="tw"><table>
       <tr><th>Quién lo usaría</th><th>Cómo</th><th>Estado</th></tr>
-      <tr><td>Proyectos en Python (por ejemplo las specs de consenso, que están en Python)</td><td><code>pip install eth-cryptography-specs</code>: el repo está empaquetado como paquete 0.1.0, con un workflow que arma <i>wheels</i> para macOS y Linux al etiquetar una versión. Lo que corre es la spec Lean compilada, no una reimplementación.</td><td>Preparado; no verificamos si ya está publicado en PyPI. <span class="tag">repo original</span></td></tr>
+      <tr><td>Proyectos en Python (por ejemplo las specs de consenso, que están en Python)</td><td><code>pip install eth-cryptography-specs</code>: el repo está empaquetado como paquete 0.1.0, con un workflow que arma <i>wheels</i> para macOS y Linux al etiquetar una versión. Lo que corre es la spec Lean compilada, no una reimplementación.</td><td>Publicado en PyPI: <code>eth-cryptography-specs 0.1.0</code> desde may 2026, con wheels para Linux (x86_64, aarch64) y macOS (arm64). Nadie lo consume todavía (ver preguntas abiertas). <span class="tag">fuente 6</span></td></tr>
       <tr><td>Clientes en Go, Rust, Java, Nim…</td><td>No corren Lean. Consumen los <b>vectores</b> de <code>tests/</code>, que el README original describe como "intended for use across implementations and may be pinned by downstream consumers", y usan la spec como referencia legible.</td><td>Vectores disponibles. <span class="tag">repo original</span></td></tr>
       <tr><td>Auditores y quienes escriben specs nuevas</td><td>Leen los teoremas como lista de garantías, y <code>#print axioms</code> como lista de supuestos.</td><td>Posible hoy. <span class="tag m">verificado acá</span></td></tr>
     </table></div>
@@ -139,7 +139,7 @@ th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute
         <h3>Fortalezas</h3>
         <ul>
           <li><b>Una sola fuente.</b> La misma definición se ejecuta y se demuestra; no puede haber desfase entre "la spec" y "la referencia".</li>
-          <li><b>Garantías generales, no muestras.</b> 357 teoremas escritos a mano, y 482 de los 492 que cuenta Lean dependen solo del kernel. "Comprimir y descomprimir devuelve el mismo punto" vale para todo punto, no para 100 casos. <span class="tag m">verificado acá</span></li>
+          <li><b>Garantías generales, no muestras.</b> 357 teoremas escritos a mano (más 9 chicos dentro de la spec), y 482 de los 492 que cuenta Lean dependen solo del kernel. "Comprimir y descomprimir devuelve el mismo punto" vale para todo punto, no para 100 casos. <span class="tag m">verificado acá</span></li>
           <li><b>Reproduce la realidad byte a byte.</b> Los 364 vectores oficiales salen idénticos, y BLS coincide con <code>py_ecc</code>. <span class="tag m">verificado acá</span></li>
           <li><b>Spec-first garantiza interoperabilidad.</b> El código sigue al estándar; el teorema se adapta al código, no al revés.</li>
           <li><b>Código legible.</b> Sin optimizaciones (lo dice el propio <code>Fp.lean</code>: "the goal is clarity, not speed"); una persona puede leerlo entero.</li>
@@ -168,7 +168,7 @@ th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute
           <li><b>10 teoremas con native axioms</b>, tres de ellos reglas generales, uno central (<code>uncompress_compress</code>). Están por debajo del estándar de Mathlib, que no los acepta. <span class="tag m">verificado acá</span></li>
           <li><b>Es lento por diseño.</b> La suite de vectores tarda casi 3 horas; KZG corre sin ninguna optimización. Sirve como referencia y generador de vectores, no para producción. <span class="tag m">verificado acá</span></li>
           <li><b>Build pesado.</b> Depende de Mathlib (fijado en v4.29.1): miles de archivos, varios GB, y un toolchain de Lean instalado. La barrera de entrada es alta.</li>
-          <li><b>El binding en C queda fuera de lo demostrado.</b> Los teoremas cubren el Lean; el traductor Python↔Lean (marshalling) es código C a mano sin pruebas. <span class="tag m">verificado acá</span></li>
+          <li><b>El binding en C queda fuera de lo demostrado.</b> Los teoremas cubren el Lean; el traductor Python↔Lean (marshalling) es código C a mano, sin tests propios ni teoremas. <span class="tag m">verificado acá</span></li>
           <li><b>XMSS está incompleto</b> en esta copia (solo el hash y los tipos). Upstream lo completó entre el 28 sep y el 5 oct (encoding, firma Winternitz, Merkle, keygen, firma y verificación, con el teorema <code>verify_keyGen_sign</code>), pero lo hizo con 4 <code>native_decide</code> más y todavía sin exports a Python. La documentación de las demostraciones sigue siendo un issue abierto (#6). <span class="tag">repo original · 8f811fc</span></li>
         </ul>
       </div>
