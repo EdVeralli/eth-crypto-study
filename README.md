@@ -135,20 +135,23 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    `verify_blob_kzg_proof_batch`, `recover_cells_and_kzg_proofs`, …) y 8
    constantes. Falta un smoke test propio al estilo de `docs/bls_smoke.py`,
    idealmente con blob → commitment → proof → verify de punta a punta.
-5. **Seguirle el paso a XMSS upstream** — al 5 oct 2026 upstream (`8f811fc`)
+5. **Seguirle el paso a XMSS upstream** — al 6 oct 2026 upstream (`d1331f0`)
    ya tiene XMSS de punta a punta: encoding target-sum (#33, #35), firma
    Winternitz WOTS+C (#37), árbol de Merkle (#38), verificación (#40) y keygen +
    firma (#42), con el teorema de corrección `verify_keyGen_sign`
    (`Proofs/Xmss/Correctness.lean`). Cada PR trajo la spec y sus teoremas
    juntos. Ojo: sumó 4 `native_decide` nuevos (en `Proofs/Xmss/KeyGen.lean`,
    `Sign.lean` y `Verify.lean`) y sigue sin `@[export]` para XMSS, así que desde
-   Python todavía no se puede llamar. Pendientes allá: SSZ (#22/#23), vectores
-   (#25), exports C/Python (#24) y CI (#11/#30). Nada de BLS, KZG, el binding
-   ni el build cambió.
+   Python todavía no se puede llamar. El 6 oct sumó dos teoremas más: el tweak
+   encoding es inyectivo (#43) y el tamaño del código target-sum (#44,
+   `Proofs/Xmss/CodeSize.lean`); el número grande de ese último lo verifica el
+   kernel con `decide +kernel`, no con `native_decide`. Pendientes allá: SSZ
+   (#22/#23), vectores (#25), exports C/Python (#24) y CI (#11/#30). Nada de
+   BLS, KZG, el binding ni el build cambió.
 6. **Re-sincronizar esta copia** si queremos estudiar XMSS completo: esta copia
-   está en `09deaff` y upstream ya va por `8f811fc` (6 commits, todos de XMSS:
-   +6 archivos de spec, +7 de teoremas, 404 teoremas escritos a mano en vez de
-   357). Traer los commits nuevos acá (merge desde el clon de lectura), nunca
+   está en `09deaff` y upstream ya va por `d1331f0` (8 commits, todos de XMSS:
+   +6 archivos de spec, +8 de teoremas, unos 425 teoremas escritos a mano en
+   vez de 357). Traer los commits nuevos acá (merge desde el clon de lectura), nunca
    al revés. Al hacerlo hay que recompilar y volver a correr
    `docs/native_axioms.lean`, porque los conteos de esta documentación son de
    `09deaff`.

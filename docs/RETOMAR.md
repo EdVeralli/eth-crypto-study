@@ -9,7 +9,7 @@ investigadas y respondidas (hasta donde hay informacion publica) las 5 preguntas
 abiertas del FODA; ver detalle mas abajo. **Lo que sigue**: repasar
 `fp-paso-a-paso.html` o arrancar la guia del piso 2 (`Bls/G1.lean`), a eleccion.
 Para seguirle el paso a upstream: `git -C ~/cryptography-specs fetch` y comparar
-contra `8f811fc` (ultimo chequeo, 5 oct).
+contra `d1331f0` (ultimo chequeo, 7 oct).
 
 Chequeo de upstream (5 oct 2026, `ethereum/cryptography-specs` master en
 `8f811fc`): 6 commits despues de nuestro `09deaff`, todos de XMSS (#33, #35,
@@ -19,6 +19,14 @@ binding, build y workflows: sin cambios. Decision: NO re-sincronizar por ahora,
 solo se ajustaron los textos (README punto 5 y 6, propuesta-foda, mapa-completo
 columna XMSS, architecture-map modulo XMSS). Los conteos de la documentacion
 siguen siendo los de `09deaff`.
+
+Chequeo del 7 oct: upstream en `d1331f0` (6 oct), +2 commits, los dos teoremas
+de XMSS: #43 tweak encoding inyectivo (`tweakInput_injective`) y #44 tamano del
+codigo target-sum (`Proofs/Xmss/CodeSize.lean`, cierra #27). El numero grande
+de #44 se verifica con `decide +kernel` (lo calcula el kernel, no codigo
+compilado): contraste util con los native axioms. `native_decide` y `bv_decide`
+sin cambios, sigue sin `@[export]` XMSS. Solo se actualizaron hash y fecha en
+README y aca.
 
 6 oct 2026: investigadas las 5 preguntas abiertas del FODA (seccion 4 de
 `propuesta-foda.html`); cada una tiene su renglon "Lo que encontramos". Todas
