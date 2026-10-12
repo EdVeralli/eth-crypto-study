@@ -41,8 +41,10 @@ p{margin:0;max-width:72ch}
 ul,ol{margin:0;padding-left:20px;max-width:72ch;display:flex;flex-direction:column;gap:5px}
 code{font-family:var(--f-mono);font-size:.85em;background:var(--code-bg);border:1px solid var(--line);padding:0 4px;border-radius:4px}
 a{color:var(--exec)}
-.eyebrow{font:600 12px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.eyebrow{font:600 12px/1.45 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .lede{color:var(--muted);font-size:18px}
+.note{color:var(--muted);font-size:13.5px;line-height:1.7}
+.note .tag{vertical-align:0}
 section{display:flex;flex-direction:column;gap:14px}
 .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .box.key{border-left:4px solid var(--glue)} .box.key .eyebrow{color:var(--glue)}
@@ -88,7 +90,7 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
     <p class="lede">El paraguas de la Ethereum Foundation para verificar formalmente los zkVM, y adentro de él el tema
     que nos interesa de verdad: cómo se conecta código Rust de producción con teoremas en Lean. Qué herramientas
     existen, qué sale del otro lado, qué cuesta y qué no resuelve.</p>
-    <p class="eyebrow">Etiquetas de origen: <span class="tag m">verificado acá</span> lo comprobamos en un clon;
+    <p class="note">Etiquetas de origen: <span class="tag m">verificado acá</span> lo comprobamos en un clon;
     <span class="tag">repo original</span> sale del texto del repo o de su documentación;
     <span class="tag">fuente</span> remite a la lista del final.</p>
     <nav class="nav">

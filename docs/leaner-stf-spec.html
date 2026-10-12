@@ -41,8 +41,10 @@ p{margin:0;max-width:72ch}
 ul,ol{margin:0;padding-left:20px;max-width:72ch;display:flex;flex-direction:column;gap:5px}
 code{font-family:var(--f-mono);font-size:.85em;background:var(--code-bg);border:1px solid var(--line);padding:0 4px;border-radius:4px}
 a{color:var(--exec)}
-.eyebrow{font:600 12px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.eyebrow{font:600 12px/1.45 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .lede{color:var(--muted);font-size:18px}
+.note{color:var(--muted);font-size:13.5px;line-height:1.7}
+.note .tag{vertical-align:0}
 section{display:flex;flex-direction:column;gap:14px}
 .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .box.key{border-left:4px solid var(--glue)} .box.key .eyebrow{color:var(--glue)}
@@ -79,7 +81,7 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
     del consenso, este repo especifica la ejecución: qué pasa adentro de un bloque. Mismo lenguaje, misma técnica,
     otra capa de la torre. Y resuelve de otra manera los dos problemas que nos dieron más trabajo:
     los <i>native axioms</i> y cómo atar la spec al código que de verdad corre.</p>
-    <p class="eyebrow">Cada afirmación lleva su etiqueta de origen: <span class="tag m">verificado acá</span> lo comprobamos
+    <p class="note">Cada afirmación lleva su etiqueta de origen: <span class="tag m">verificado acá</span> lo comprobamos
     en un clon de solo lectura; <span class="tag">repo original</span> sale del texto del repo.</p>
     <nav class="nav">
       <a href="#problema">El problema</a>
@@ -147,7 +149,7 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
       <div class="fact"><b>2 318</b><span>teoremas y lemas</span></div>
       <div class="fact"><b>4 868</b><span>líneas de spec informal (13 <code>.md</code>)</span></div>
     </div>
-    <p class="eyebrow"><span class="tag m">verificado acá</span> contados en el clon. Para comparar:
+    <p class="note"><span class="tag m">verificado acá</span> contados en el clon. Para comparar:
     <code>cryptography-specs</code> tiene 77 archivos y 19 995 líneas, menos de la mitad.</p>
   </section>
 
@@ -163,7 +165,7 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
       <tr><td><b>TOML</b></td><td>6</td><td>Las fuentes de verdad declarativas</td></tr>
       <tr><td><b>Bash / YAML</b></td><td>3</td><td>Pegamento y CI</td></tr>
     </table></div>
-    <p class="eyebrow"><span class="tag m">verificado acá</span> conteo por extensión sobre <code>git ls-files</code>.</p>
+    <p class="note"><span class="tag m">verificado acá</span> conteo por extensión sobre <code>git ls-files</code>.</p>
 
     <div class="box key">
       <div class="eyebrow">El TOML manda</div>
@@ -228,7 +230,7 @@ differential.py       corre la spec contra el Python de EELS y compara</div>
       <tr><td><b>Quién sabe la respuesta</b></td><td>solo Lean; Python pregunta</td>
           <td>los dos por separado; un tercero compara</td></tr>
     </table></div>
-    <p class="eyebrow"><span class="tag m">verificado acá</span> cero <code>@[export]</code> en los 265 archivos;
+    <p class="note"><span class="tag m">verificado acá</span> cero <code>@[export]</code> en los 265 archivos;
     <code>differential.py</code> invoca <code>subprocess.run(["lake", "env", "lean", …])</code>.</p>
     <p>"Correr contra" es <b>enfrentar</b>, como jugar contra. Hay dos programas independientes que resuelven el mismo
     problema: el Python de EELS (las <code>execution-specs</code> oficiales, que ya existen y son la referencia) y la
@@ -313,7 +315,7 @@ differential.py       corre la spec contra el Python de EELS y compara</div>
       <tr><td class="vacio"><code>Vm</code>, <code>Field</code>, <code>Curve</code>, <code>Pairing</code>, <code>Precompiles</code></td>
           <td class="vacio">el EVM y la criptografía</td><td class="vacio">vacíos</td></tr>
     </table></div>
-    <p class="eyebrow"><span class="tag m">verificado acá</span> conteo por carpeta. Los cinco últimos son cáscaras de
+    <p class="note"><span class="tag m">verificado acá</span> conteo por carpeta. Los cinco últimos son cáscaras de
     13 líneas con el comentario <i>"No definitions yet: scaffolding only"</i> y la lista de lo que irá ahí.</p>
     <div class="box key">
       <div class="eyebrow">Y acá nos cruzamos</div>
