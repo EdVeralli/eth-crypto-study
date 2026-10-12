@@ -30,18 +30,24 @@ Antes de mirar código, abrí estas páginas en este orden:
    estudio. Explica el campo finito, que es la base de todo, línea por línea
    y con sus teoremas.
 
-Y para ubicar este repo en el ecosistema (otros proyectos de la Ethereum
-Foundation que usan Lean 4 para lo mismo, en otras capas):
+Y para ubicar este repo en el ecosistema: otros dos proyectos de la Ethereum
+Foundation que usan Lean 4 para lo mismo, en otras capas. Cada página analiza
+un repo distinto de los que leímos.
 
-4. **[leanerSTFSpec](docs/leaner-stf-spec.html)**: el EVM y la transición de
-   estado especificados en Lean, para validación *stateless* dentro de un zkVM.
-   Resuelve de otra forma los dos problemas que más nos costaron: prohíbe los
-   *native axioms* por regla verificada por máquina, y ata la spec al código
-   que corre con un teorema de refinamiento en vez de compilarla.
-5. **[Verified zkEVM y el puente Rust ↔ Lean](docs/verified-zkevm.html)**: el
-   proyecto paraguas de la Ethereum Foundation (meta 2027) y, adentro, cómo se
-   conecta código Rust de producción con teoremas en Lean (`hax`, Aeneas), con
-   ejemplos reales de traducción y del teorema que hay que escribir después.
+4. **[leanerSTFSpec](docs/leaner-stf-spec.html)** — analiza
+   [`alexanderlhicks/leanerSTFSpec`](https://github.com/alexanderlhicks/leanerSTFSpec):
+   el EVM y la transición de estado especificados en Lean, para validación
+   *stateless* dentro de un zkVM. Resuelve de otra forma los dos problemas que
+   más nos costaron: prohíbe los *native axioms* por regla verificada por
+   máquina, y ata la spec al código que corre con un teorema de refinamiento en
+   vez de compilarla. Nuestro repo es su referencia para curvas y pairings.
+5. **[Verified zkEVM y el puente Rust ↔ Lean](docs/verified-zkevm.html)** —
+   analiza [`github.com/verified-zkevm`](https://github.com/Verified-zkEVM), la
+   organización paraguas de la Ethereum Foundation (meta 2027, catorce repos en
+   tres frentes) y, adentro, cómo se conecta código Rust de producción con
+   teoremas en Lean ([`hax`](https://github.com/cryspen/hax),
+   [Aeneas](https://github.com/AeneasVerif/aeneas)), con ejemplos reales de
+   traducción y del teorema que hay que escribir después.
 
 El mapa es la vista de arriba y cada guía baja a un archivo. Se estudian de
 abajo hacia arriba, porque cada piso usa al anterior:
