@@ -57,6 +57,9 @@ section{display:flex;flex-direction:column;gap:14px}
 .pipe{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px;font:13.5px/1.7 var(--f-mono);overflow-x:auto;white-space:pre}
 .tag{font:600 10.5px/1 var(--f-mono);letter-spacing:.03em;padding:2px 5px;border-radius:4px;background:var(--code-bg);border:1px solid var(--line);color:var(--muted);white-space:nowrap;vertical-align:1px}
 .tag.m{background:var(--exec-bg);color:var(--exec-fg);border-color:var(--exec)}
+a.tag{text-decoration:none;cursor:pointer}
+a.tag:hover{border-color:var(--muted);color:var(--fg)}
+a.tag.m:hover{border-color:var(--exec-fg)}
 table{border-collapse:collapse;font-size:14px;width:100%}
 th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
 th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
@@ -81,8 +84,8 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
     del consenso, este repo especifica la ejecución: qué pasa adentro de un bloque. Mismo lenguaje, misma técnica,
     otra capa de la torre. Y resuelve de otra manera los dos problemas que nos dieron más trabajo:
     los <i>native axioms</i> y cómo atar la spec al código que de verdad corre.</p>
-    <p class="note">Cada afirmación lleva su etiqueta de origen: <span class="tag m">verificado acá</span> lo comprobamos
-    en un clon de solo lectura; <span class="tag">repo original</span> sale del texto del repo.</p>
+    <p class="note">Cada afirmación lleva su etiqueta de origen: <a class="tag m" href="#fuentes" title="Lo comprobamos nosotros en un clon de solo lectura. Qué se contó y sobre qué commit: ver Fuentes.">verificado acá</a> lo comprobamos
+    en un clon de solo lectura; <a class="tag" href="#fuentes" title="Sale del texto del repo o de su documentación. Ver Fuentes.">repo original</a> sale del texto del repo.</p>
     <nav class="nav">
       <a href="#problema">El problema</a>
       <a href="#contrato">El contrato</a>
@@ -128,7 +131,7 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
     <div class="eyebrow">Mundo Lean · spec ejecutable</div>
     <h2>El contrato: una función, un booleano</h2>
     <p>Todo el repo apunta a una sola función. Así está declarada en <code>STFSpec/informal/CONTRACT.md</code>:
-    <span class="tag">repo original</span></p>
+    <a class="tag" href="#fuentes" title="Sale del texto del repo o de su documentación. Ver Fuentes.">repo original</a></p>
     <div class="pipe">runStatelessGuest : ByteArray → ByteArray</div>
     <p>Y el contrato aclara dos cosas no negociables: la función es <b>total</b> (termina siempre, para cualquier
     entrada, incluso una maliciosa) y <b>determinística</b> (<i>"It reads no environment"</i>: no mira el reloj, no hay azar).</p>
@@ -149,7 +152,7 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
       <div class="fact"><b>2 318</b><span>teoremas y lemas</span></div>
       <div class="fact"><b>4 868</b><span>líneas de spec informal (13 <code>.md</code>)</span></div>
     </div>
-    <p class="note"><span class="tag m">verificado acá</span> contados en el clon. Para comparar:
+    <p class="note"><a class="tag m" href="#fuentes" title="Lo comprobamos nosotros en un clon de solo lectura. Qué se contó y sobre qué commit: ver Fuentes.">verificado acá</a> contados en el clon. Para comparar:
     <code>cryptography-specs</code> tiene 77 archivos y 19 995 líneas, menos de la mitad.</p>
   </section>
 
@@ -165,7 +168,7 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
       <tr><td><b>TOML</b></td><td>6</td><td>Las fuentes de verdad declarativas</td></tr>
       <tr><td><b>Bash / YAML</b></td><td>3</td><td>Pegamento y CI</td></tr>
     </table></div>
-    <p class="note"><span class="tag m">verificado acá</span> conteo por extensión sobre <code>git ls-files</code>.</p>
+    <p class="note"><a class="tag m" href="#fuentes" title="Lo comprobamos nosotros en un clon de solo lectura. Qué se contó y sobre qué commit: ver Fuentes.">verificado acá</a> conteo por extensión sobre <code>git ls-files</code>.</p>
 
     <div class="box key">
       <div class="eyebrow">El TOML manda</div>
@@ -230,7 +233,7 @@ differential.py       corre la spec contra el Python de EELS y compara</div>
       <tr><td><b>Quién sabe la respuesta</b></td><td>solo Lean; Python pregunta</td>
           <td>los dos por separado; un tercero compara</td></tr>
     </table></div>
-    <p class="note"><span class="tag m">verificado acá</span> cero <code>@[export]</code> en los 265 archivos;
+    <p class="note"><a class="tag m" href="#fuentes" title="Lo comprobamos nosotros en un clon de solo lectura. Qué se contó y sobre qué commit: ver Fuentes.">verificado acá</a> cero <code>@[export]</code> en los 265 archivos;
     <code>differential.py</code> invoca <code>subprocess.run(["lake", "env", "lean", …])</code>.</p>
     <p>"Correr contra" es <b>enfrentar</b>, como jugar contra. Hay dos programas independientes que resuelven el mismo
     problema: el Python de EELS (las <code>execution-specs</code> oficiales, que ya existen y son la referencia) y la
@@ -243,14 +246,14 @@ differential.py       corre la spec contra el Python de EELS y compara</div>
     observaciones son <i>"bug-finding evidence"</i>. La obsesión por el aislamiento vale leerla: clona EELS en el commit
     pinneado, lo instala congelado (<code>uv sync --frozen</code>), invoca el intérprete con <code>python -I</code>,
     ignora overrides del ambiente, y admite hasta dónde llega la garantía:
-    <i>"this does not authenticate a hostile host"</i>. <span class="tag">repo original</span></p>
+    <i>"this does not authenticate a hostile host"</i>. <a class="tag" href="#fuentes" title="Sale del texto del repo o de su documentación. Ver Fuentes.">repo original</a></p>
     <div class="box">
       <div class="eyebrow">Ojo: Lean sí se compila</div>
       <p>Que no se exporte como biblioteca no quiere decir que no se compile. <code>lake build</code> compila a C y de
       ahí a nativo, y les importa la velocidad en serio: <code>CONTRIBUTING.md</code> fija el objetivo de estar
       <i>"within 10× of native clients (evmone/revm-class)… aiming for about 2×"</i>. Estar a 2× de revm no se consigue
       interpretando. La spec es ejecutable y rápida a propósito, para poder usarla en testing diferencial y fuzzing.
-      <span class="tag">repo original</span></p>
+      <a class="tag" href="#fuentes" title="Sale del texto del repo o de su documentación. Ver Fuentes.">repo original</a></p>
     </div>
   </section>
 
@@ -259,7 +262,7 @@ differential.py       corre la spec contra el Python de EELS y compara</div>
     <h2>La regla D21: los <i>native axioms</i> prohibidos, y verificado por máquina</h2>
     <p>Esto es lo que más nos toca. Nuestro "Matiz 2" del mapa completo decía que 10 de 492 teoremas dependen de pasos
     que verifica código compilado en vez del kernel. Acá eso no se discute caso por caso: está prohibido por regla y
-    chequeado automáticamente. De <code>CONTRIBUTING.md</code> §4: <span class="tag">repo original</span></p>
+    chequeado automáticamente. De <code>CONTRIBUTING.md</code> §4: <a class="tag" href="#fuentes" title="Sale del texto del repo o de su documentación. Ver Fuentes.">repo original</a></p>
     <blockquote><b>No additional trust assumptions (D21).</b> […] No axiom beyond <code>propext</code>,
     <code>Quot.sound</code> and <code>Classical.choice</code> may appear, directly or transitively. So
     <code>native_decide</code>, <code>bv_decide</code> and <code>decide +native</code> are rejected (each adds a
@@ -273,7 +276,7 @@ differential.py       corre la spec contra el Python de EELS y compara</div>
       <p>Buscamos <code>sorry</code>, <code>native_decide</code> y <code>bv_decide</code> en los 265 archivos. Los
       únicos resultados están en <code>scripts/CheckDeclsTest/</code>, que son los casos de prueba del propio detector
       (hay un archivo llamado <code>Bad.lean</code> con los pecados a detectar). <b>La spec está limpia.</b>
-      <span class="tag m">verificado acá</span></p>
+      <a class="tag m" href="#fuentes" title="Lo comprobamos nosotros en un clon de solo lectura. Qué se contó y sobre qué commit: ver Fuentes.">verificado acá</a></p>
     </div>
     <details>
       <summary>Qué más prohíbe, y por qué (no todo es por soundness)</summary>
@@ -315,7 +318,7 @@ differential.py       corre la spec contra el Python de EELS y compara</div>
       <tr><td class="vacio"><code>Vm</code>, <code>Field</code>, <code>Curve</code>, <code>Pairing</code>, <code>Precompiles</code></td>
           <td class="vacio">el EVM y la criptografía</td><td class="vacio">vacíos</td></tr>
     </table></div>
-    <p class="note"><span class="tag m">verificado acá</span> conteo por carpeta. Los cinco últimos son cáscaras de
+    <p class="note"><a class="tag m" href="#fuentes" title="Lo comprobamos nosotros en un clon de solo lectura. Qué se contó y sobre qué commit: ver Fuentes.">verificado acá</a> conteo por carpeta. Los cinco últimos son cáscaras de
     13 líneas con el comentario <i>"No definitions yet: scaffolding only"</i> y la lista de lo que irá ahí.</p>
     <div class="box key">
       <div class="eyebrow">Y acá nos cruzamos</div>
@@ -324,7 +327,7 @@ differential.py       corre la spec contra el Python de EELS y compara</div>
       escriba, <b><code>cryptography-specs</code> es su referencia</b>: en su diagrama de arquitectura figura como nodo
       externo "BLS12-381 · KZG reference", y <code>modules/EthCurve.md</code> dice que validará contra
       <code>Bls/G1.lean</code> y <code>G2.lean</code> (las coordenadas jacobianas del mapa de arquitectura).
-      <span class="tag">repo original</span></p>
+      <a class="tag" href="#fuentes" title="Sale del texto del repo o de su documentación. Ver Fuentes.">repo original</a></p>
       <p>O sea: lo que estudiamos nosotros es la capa de abajo, la que este proyecto todavía no escribió y va a tener
       que apoyarse en ella.</p>
     </div>
@@ -347,7 +350,7 @@ differential.py       corre la spec contra el Python de EELS y compara</div>
     <div class="box gap">
       <div class="eyebrow">Pero el teorema todavía no existe</div>
       <p>En <code>modules/EthStateless.md</code> figura como hueco abierto, y con un detalle que da para pensar: ni
-      siquiera está acordado cómo debe enunciarse. <span class="tag">repo original</span></p>
+      siquiera está acordado cómo debe enunciarse. <a class="tag" href="#fuentes" title="Sale del texto del repo o de su documentación. Ver Fuentes.">repo original</a></p>
       <blockquote><b>Consumer seams.</b> The exact <code>Faithful</code> statement evm-asm and pancaketh want
       (bytes-level equality versus <code>classify</code>-level) is not agreed with them.</blockquote>
       <p>Es el mismo tipo de hueco que <code>ConcreteBlsLaws</code> en <code>cryptography-specs</code>: la pieza más
@@ -403,7 +406,7 @@ differential.py       corre la spec contra el Python de EELS y compara</div>
     <a href="verified-zkevm.html">Verified zkEVM y el puente Rust ↔ Lean</a>.</p>
   </section>
 
-  <section>
+  <section id="fuentes">
     <div class="eyebrow">Fuentes</div>
     <h2>De dónde sale cada cosa</h2>
     <ol>

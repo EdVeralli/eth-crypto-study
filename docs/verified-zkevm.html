@@ -64,6 +64,9 @@ section{display:flex;flex-direction:column;gap:14px}
 .lang.ln{background:var(--thm-bg);color:var(--thm-fg);border-color:var(--thm)}
 .tag{font:600 10.5px/1 var(--f-mono);letter-spacing:.03em;padding:2px 5px;border-radius:4px;background:var(--code-bg);border:1px solid var(--line);color:var(--muted);white-space:nowrap;vertical-align:1px}
 .tag.m{background:var(--exec-bg);color:var(--exec-fg);border-color:var(--exec)}
+a.tag{text-decoration:none;cursor:pointer}
+a.tag:hover{border-color:var(--muted);color:var(--fg)}
+a.tag.m:hover{border-color:var(--exec-fg)}
 table{border-collapse:collapse;font-size:14px;width:100%}
 th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
 th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
@@ -90,8 +93,8 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
     <p class="lede">El paraguas de la Ethereum Foundation para verificar formalmente los zkVM, y adentro de él el tema
     que nos interesa de verdad: cómo se conecta código Rust de producción con teoremas en Lean. Qué herramientas
     existen, qué sale del otro lado, qué cuesta y qué no resuelve.</p>
-    <p class="note">Etiquetas de origen: <span class="tag m">verificado acá</span> lo comprobamos en un clon;
-    <span class="tag">repo original</span> sale del texto del repo o de su documentación;
+    <p class="note">Etiquetas de origen: <a class="tag m" href="#fuentes" title="Lo comprobamos nosotros en un clon de solo lectura. Qué se contó y sobre qué commit: ver Fuentes.">verificado acá</a> lo comprobamos en un clon;
+    <a class="tag" href="#fuentes" title="Sale del texto del repo o de su documentación. Ver Fuentes.">repo original</a> sale del texto del repo o de su documentación;
     <span class="tag">fuente</span> remite a la lista del final.</p>
     <nav class="nav">
       <a href="#paraguas">El paraguas</a>
@@ -111,7 +114,7 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
     <h2>El paraguas: una organización, no un repo</h2>
     <p><code>github.com/verified-zkevm</code> no es un proyecto con código propio: es una <b>organización</b> de GitHub
     de la Ethereum Foundation que contiene catorce repos. Su repo <code>Overview</code> declara el objetivo:
-    <span class="tag">repo original</span></p>
+    <a class="tag" href="#fuentes" title="Sale del texto del repo o de su documentación. Ver Fuentes.">repo original</a></p>
     <blockquote>making formally verified bug-free zk(E)VMs a possibility by <b>2027</b></blockquote>
     <p>El trabajo está partido en tres frentes:</p>
     <div class="tw"><table>
@@ -182,7 +185,7 @@ alexanderlhicks/leanerSTFSpec ────┘  ← cuenta personal</div>
       representación intermedia del compilador de Rust) y lo baja a un formato propio llamado <b>LLBC</b>.
       <b>Aeneas</b> toma ese LLBC y lo traduce a Lean 4. Su README lo define así: <i>"relies on a translation from
       Rust's MIR"</i> a un lambda-cálculo puro. O sea, tu Rust imperativo con préstamos y mutaciones sale del otro lado
-      como funciones puras. <span class="tag">repo original</span></p>
+      como funciones puras. <a class="tag" href="#fuentes" title="Sale del texto del repo o de su documentación. Ver Fuentes.">repo original</a></p>
       <div class="pipe"># 1. generar el LLBC desde el crate de Rust
 cd ~/mi-crate-rust
 charon cargo --preset=aeneas          # produce mi-crate.llbc
@@ -198,7 +201,7 @@ cd ~/aeneas
       <div class="eyebrow">Vía 2 · hax (de Cryspen)</div>
       <p>Más simple de arrancar, se maneja como un subcomando de cargo. Se define como <i>"a tool for high assurance
       translations of a large subset of Rust into formal languages such as Lean, F* or Rocq"</i>.
-      <span class="tag">repo original</span></p>
+      <a class="tag" href="#fuentes" title="Sale del texto del repo o de su documentación. Ver Fuentes.">repo original</a></p>
       <div class="pipe">cd ~/mi-crate-rust
 cargo hax into lean</div>
       <p>Y acá está el dato que une las dos vías: desde la versión 0.4.0, el backend Lean recomendado de hax <b>usa
@@ -224,7 +227,7 @@ FunsExternal.lean          ← lo escribís vos, no se sobreescribe</div>
     <div class="eyebrow">Mundos Rust y Lean · ejemplo real</div>
     <h2>Cómo se ve la traducción</h2>
     <p>Esto no es inventado: Aeneas trae sus tests con el Lean generado commiteado, así que es exactamente lo que la
-    herramienta produce. <span class="tag m">verificado acá</span></p>
+    herramienta produce. <a class="tag m" href="#fuentes" title="Lo comprobamos nosotros en un clon de solo lectura. Qué se contó y sobre qué commit: ver Fuentes.">verificado acá</a></p>
     <div class="pair">
       <div>
         <div class="eyebrow"><span class="lang rs">Rust</span> tests/src/bitwise.rs</div>
@@ -374,7 +377,7 @@ def xor_u32 (a b : Std.U32) :
     <div class="box ok">
       <div class="eyebrow">SymCrypt de Microsoft · ML-KEM (Kyber)</div>
       <p>Aeneas trae una guía entera, <code>documentation/crypto-verification.md</code>, cuyas técnicas salen de un
-      proyecto real: <span class="tag">repo original</span></p>
+      proyecto real: <a class="tag" href="#fuentes" title="Sale del texto del repo o de su documentación. Ver Fuentes.">repo original</a></p>
       <blockquote>The techniques are drawn from the <b>SymCrypt verification project</b>, which verifies <b>ML-KEM</b>
       (NIST FIPS 203, also known as <b>Kyber</b>) — a post-quantum key encapsulation mechanism originally written in
       <b>Rust</b> as part of Microsoft's SymCrypt library.</blockquote>
@@ -409,7 +412,7 @@ def xor_u32 (a b : Std.U32) :
       <p>Un trabajo de Runtime Verification, <b>financiado por la Ethereum Foundation</b> bajo este mismo proyecto,
       combina tres piezas: extracción con Charon/Aeneas y hax, especificación en <code>ArkLib</code> y
       <code>CompPoly</code>, y provers de IA (Aristotle de Harmonic, Aleph de Logical Intelligence) buscando las
-      demostraciones. <span class="tag">fuente 4</span></p>
+      demostraciones. <a class="tag" href="#fuentes" title="Fuente 4 de la lista del final.">fuente 4</a></p>
       <p>El detalle que importa: <i>"Every proof is checked by the Lean kernel, so AI output cannot compromise
       soundness."</i> La IA propone, el kernel verifica. Es el mismo kernel del que hablamos en el mapa completo, y la
       misma lógica: no importa de dónde salió la demostración, importa quién la revisa.</p>
@@ -504,7 +507,7 @@ def xor_u32 (a b : Std.U32) :
     </ol>
   </section>
 
-  <section>
+  <section id="fuentes">
     <div class="eyebrow">Fuentes</div>
     <h2>De dónde sale cada cosa</h2>
     <ol>
