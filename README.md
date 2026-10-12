@@ -30,6 +30,19 @@ Antes de mirar código, abrí estas páginas en este orden:
    estudio. Explica el campo finito, que es la base de todo, línea por línea
    y con sus teoremas.
 
+Y para ubicar este repo en el ecosistema (otros proyectos de la Ethereum
+Foundation que usan Lean 4 para lo mismo, en otras capas):
+
+4. **[leanerSTFSpec](docs/leaner-stf-spec.html)**: el EVM y la transición de
+   estado especificados en Lean, para validación *stateless* dentro de un zkVM.
+   Resuelve de otra forma los dos problemas que más nos costaron: prohíbe los
+   *native axioms* por regla verificada por máquina, y ata la spec al código
+   que corre con un teorema de refinamiento en vez de compilarla.
+5. **[Verified zkEVM y el puente Rust ↔ Lean](docs/verified-zkevm.html)**: el
+   proyecto paraguas de la Ethereum Foundation (meta 2027) y, adentro, cómo se
+   conecta código Rust de producción con teoremas en Lean (`hax`, Aeneas), con
+   ejemplos reales de traducción y del teorema que hay que escribir después.
+
 El mapa es la vista de arriba y cada guía baja a un archivo. Se estudian de
 abajo hacia arriba, porque cada piso usa al anterior:
 
@@ -199,6 +212,8 @@ caffeinate -i -s -w <PID>                           # si ya está corriendo
 ## Documentación generada
 
 - [`docs/propuesta-foda.html`](docs/propuesta-foda.html): la propuesta, cómo se implementa, FODA y preguntas abiertas
+- [`docs/leaner-stf-spec.html`](docs/leaner-stf-spec.html): el EVM en Lean (`leanerSTFSpec`), los cinco lenguajes que encadena y la regla que prohíbe los native axioms
+- [`docs/verified-zkevm.html`](docs/verified-zkevm.html): el paraguas Verified zkEVM y el puente Rust ↔ Lean (`hax`, Aeneas), con ejemplos reales
 - [`docs/mapa-completo.html`](docs/mapa-completo.html): big picture, spec ejecutable vs teoremas, pisos de estudio
 - [`docs/fp-paso-a-paso.html`](docs/fp-paso-a-paso.html): guía del piso 1, `Bls/Fp.lean` y sus teoremas
 - [`docs/RETOMAR.md`](docs/RETOMAR.md) — dónde quedamos y cómo volver a arrancar

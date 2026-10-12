@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>leanerSTFSpec: el EVM especificado en Lean</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: documento de lectura en una columna. Mismos colores y tags de fuente que propuesta-foda.html: verde = se ejecuta, violeta = teoremas, naranja = clave, rojo = hueco. */
+:root{
+  --bg:#f3f6f7; --panel:#ffffff; --fg:#17212b; --muted:#5a6773; --line:#d5dde2; --code-bg:#f7f9fa;
+  --exec:#1f8a6b; --exec-bg:#dcf2ea; --exec-fg:#0b3b2e;
+  --thm:#6a4fd1;  --thm-bg:#e8e3fb;  --thm-fg:#281a5e;
+  --glue:#b8730f; --glue-bg:#fbead2; --glue-fg:#4a2d00;
+  --warn:#c2412d; --warn-bg:#fde3de;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f1519; --panel:#172027; --fg:#e4ebef; --muted:#9aa8b3; --line:#2b3841; --code-bg:#121a20;
+  --exec:#4cc9a0; --exec-bg:#12352b; --exec-fg:#c9f3e4;
+  --thm:#a893ff;  --thm-bg:#2a2350;  --thm-fg:#e3dcff;
+  --glue:#f0a94a; --glue-bg:#3d2a0e; --glue-fg:#fde6c4;
+  --warn:#ff8a73; --warn-bg:#44201a; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0f1519; --panel:#172027; --fg:#e4ebef; --muted:#9aa8b3; --line:#2b3841; --code-bg:#121a20;
+  --exec:#4cc9a0; --exec-bg:#12352b; --exec-fg:#c9f3e4;
+  --thm:#a893ff;  --thm-bg:#2a2350;  --thm-fg:#e3dcff;
+  --glue:#f0a94a; --glue-bg:#3d2a0e; --glue-fg:#fde6c4;
+  --warn:#ff8a73; --warn-bg:#44201a; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.65 var(--f-body);padding:0 16px}
+main{max-width:900px;margin:0 auto;padding-block:40px 72px;display:flex;flex-direction:column;gap:44px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:clamp(30px,5vw,46px);font-weight:800;letter-spacing:-.01em}
+h2{font-size:25px;font-weight:800}
+h3{font-size:17px;font-weight:600}
+p{margin:0;max-width:72ch}
+ul,ol{margin:0;padding-left:20px;max-width:72ch;display:flex;flex-direction:column;gap:5px}
+code{font-family:var(--f-mono);font-size:.85em;background:var(--code-bg);border:1px solid var(--line);padding:0 4px;border-radius:4px}
+a{color:var(--exec)}
+.eyebrow{font:600 12px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lede{color:var(--muted);font-size:18px}
+section{display:flex;flex-direction:column;gap:14px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.box.key{border-left:4px solid var(--glue)} .box.key .eyebrow{color:var(--glue)}
+.box.ok{border-left:4px solid var(--exec)} .box.ok .eyebrow{color:var(--exec)}
+.box.gap{border-left:4px solid var(--warn)} .box.gap .eyebrow{color:var(--warn)}
+.box.thm{border-left:4px solid var(--thm)} .box.thm .eyebrow{color:var(--thm)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.fact{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.fact b{font:800 22px/1.1 var(--f-display)} .fact span{font-size:13px;color:var(--muted)}
+.pipe{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px;font:13.5px/1.7 var(--f-mono);overflow-x:auto;white-space:pre}
+.tag{font:600 10.5px/1 var(--f-mono);letter-spacing:.03em;padding:2px 5px;border-radius:4px;background:var(--code-bg);border:1px solid var(--line);color:var(--muted);white-space:nowrap;vertical-align:1px}
+.tag.m{background:var(--exec-bg);color:var(--exec-fg);border-color:var(--exec)}
+table{border-collapse:collapse;font-size:14px;width:100%}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.tw{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 10px}
+td.vacio{color:var(--warn);font-weight:600}
+details{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:0 18px}
+details[open]{padding-bottom:16px}
+summary{cursor:pointer;padding:14px 0;font-weight:600;font-family:var(--f-display)}
+details > *:not(summary){margin-top:10px}
+blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);color:var(--muted);font-size:14.5px;max-width:72ch}
+.nav{display:flex;flex-wrap:wrap;gap:10px;font-size:14px}
+.nav a{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;text-decoration:none}
+</style>
+</head>
+<body>
+
+<main>
+  <header style="display:flex;flex-direction:column;gap:12px">
+    <div class="eyebrow">alexanderlhicks/leanerSTFSpec · commit <code>daa6a8a</code> (7 oct 2026) · leído el 11 oct 2026</div>
+    <h1>leanerSTFSpec: el EVM especificado en Lean</h1>
+    <p class="lede">El otro extremo del mismo oficio. Mientras <code>cryptography-specs</code> especifica la criptografía
+    del consenso, este repo especifica la ejecución: qué pasa adentro de un bloque. Mismo lenguaje, misma técnica,
+    otra capa de la torre. Y resuelve de otra manera los dos problemas que nos dieron más trabajo:
+    los <i>native axioms</i> y cómo atar la spec al código que de verdad corre.</p>
+    <p class="eyebrow">Cada afirmación lleva su etiqueta de origen: <span class="tag m">verificado acá</span> lo comprobamos
+    en un clon de solo lectura; <span class="tag">repo original</span> sale del texto del repo.</p>
+    <nav class="nav">
+      <a href="#problema">El problema</a>
+      <a href="#contrato">El contrato</a>
+      <a href="#lenguajes">Los cinco lenguajes</a>
+      <a href="#contra">Correr contra Python</a>
+      <a href="#d21">La regla D21</a>
+      <a href="#estado">Qué hay escrito</a>
+      <a href="#hueco">El hueco</a>
+      <a href="#sirve">Qué nos sirve</a>
+    </nav>
+  </header>
+
+  <section id="problema">
+    <div class="eyebrow">Mundo Ethereum · por qué existe</div>
+    <h2>El problema: validar bloques sin tener el estado</h2>
+    <p>Hoy, para validar un bloque, un nodo necesita <b>todo el estado</b> de la cadena en disco (cientos de GB) y
+    re-ejecuta todas las transacciones. Lo hacen miles de nodos, todos el mismo trabajo. La idea a futuro son dos
+    cambios juntos:</p>
+    <div class="box">
+      <div class="eyebrow">Stateless</div>
+      <p>El que valida <b>no tiene el estado</b>. Recibe el bloque y, pegado, un <b>witness</b>: solo los pedacitos del
+      estado que ese bloque toca, cada uno con su prueba de Merkle de que pertenece al estado real. Como si en vez de
+      mandarte la guía telefónica entera te mandaran las cinco páginas que necesitás, más un certificado de que esas
+      páginas son de la guía auténtica.</p>
+    </div>
+    <div class="box">
+      <div class="eyebrow">zkVM</div>
+      <p>En vez de que cada nodo ejecute, <b>uno solo</b> ejecuta el bloque adentro de una máquina virtual especial que,
+      además de correr el programa, emite una <b>prueba criptográfica de que lo corrió bien</b>. Los demás no ejecutan:
+      verifican la prueba, que es chica y rápida. El zkVM es como un escribano que mira correr el programa y firma un acta.</p>
+    </div>
+    <div class="box gap">
+      <div class="eyebrow">El punto flojo</div>
+      <p>Si el escribano firma que el programa se ejecutó bien, pero <b>el programa está mal escrito</b>, la prueba es
+      perfecta y el resultado es basura. La prueba garantiza "este programa, con estas entradas, dio esta salida". No
+      garantiza que el programa haga lo que las reglas de Ethereum dicen.</p>
+      <p>Ese programa, el que corre adentro del zkVM, se llama <b>guest program</b>. Es el eslabón que nadie estaba
+      verificando, y es lo que este repo especifica.</p>
+    </div>
+  </section>
+
+  <section id="contrato">
+    <div class="eyebrow">Mundo Lean · spec ejecutable</div>
+    <h2>El contrato: una función, un booleano</h2>
+    <p>Todo el repo apunta a una sola función. Así está declarada en <code>STFSpec/informal/CONTRACT.md</code>:
+    <span class="tag">repo original</span></p>
+    <div class="pipe">runStatelessGuest : ByteArray → ByteArray</div>
+    <p>Y el contrato aclara dos cosas no negociables: la función es <b>total</b> (termina siempre, para cualquier
+    entrada, incluso una maliciosa) y <b>determinística</b> (<i>"It reads no environment"</i>: no mira el reloj, no hay azar).</p>
+    <div class="tw"><table>
+      <tr><th>Lado</th><th>Qué lleva</th></tr>
+      <tr><td><b>Entra</b></td><td>2 bytes de <code>schema_id</code> más el bloque y el witness serializados en SSZ:
+        el <code>new_payload_request</code>, los nodos del trie, los códigos de los contratos, los headers,
+        el <code>chain_id</code> y las claves públicas de los firmantes.</td></tr>
+      <tr><td><b>Sale</b></td><td>43 bytes. El que importa es <b>uno solo</b>: el booleano
+        <code>successful_validation</code>. Los otros 42 son la raíz del pedido, el chain id y el schema id.</td></tr>
+    </table></div>
+    <p>Adentro de esa función tiene que pasar todo lo que hace un nodo: decodificar el bloque, recorrer el trie de
+    Merkle-Patricia, correr el EVM opcode por opcode, los precompilados, verificar las firmas y comparar el estado final
+    con la raíz que el bloque declara. De ahí el tamaño:</p>
+    <div class="facts">
+      <div class="fact"><b>265</b><span>archivos <code>.lean</code></span></div>
+      <div class="fact"><b>41 736</b><span>líneas de Lean</span></div>
+      <div class="fact"><b>2 318</b><span>teoremas y lemas</span></div>
+      <div class="fact"><b>4 868</b><span>líneas de spec informal (13 <code>.md</code>)</span></div>
+    </div>
+    <p class="eyebrow"><span class="tag m">verificado acá</span> contados en el clon. Para comparar:
+    <code>cryptography-specs</code> tiene 77 archivos y 19 995 líneas, menos de la mitad.</p>
+  </section>
+
+  <section id="lenguajes">
+    <div class="eyebrow">Mundos Lean · Python · Markdown · TOML</div>
+    <h2>Los cinco lenguajes y cómo los encadena</h2>
+    <p>Cada lenguaje tiene un rol delimitado, y ninguno hace el trabajo del otro.</p>
+    <div class="tw"><table>
+      <tr><th>Lenguaje</th><th>Archivos</th><th>Rol</th></tr>
+      <tr><td><b>Lean 4</b> (v4.34.0)</td><td>265</td><td>La spec, los teoremas <b>y</b> las herramientas de chequeo</td></tr>
+      <tr><td><b>Python</b></td><td>73</td><td>Guardias y generadores. Nada de spec</td></tr>
+      <tr><td><b>Markdown</b></td><td>41</td><td>La spec informal, que es normativa, no decorativa</td></tr>
+      <tr><td><b>TOML</b></td><td>6</td><td>Las fuentes de verdad declarativas</td></tr>
+      <tr><td><b>Bash / YAML</b></td><td>3</td><td>Pegamento y CI</td></tr>
+    </table></div>
+    <p class="eyebrow"><span class="tag m">verificado acá</span> conteo por extensión sobre <code>git ls-files</code>.</p>
+
+    <div class="box key">
+      <div class="eyebrow">El TOML manda</div>
+      <p><code>reference.toml</code> fija qué es "la verdad": <code>execution-specs</code> tag
+      <code>tests-zkevm@v21.0.0</code>, commit <code>e1a316a0</code>, el archivo de fixtures con su SHA-256 (586 MB) y
+      hasta <b>las versiones exactas de las dependencias Python cuyo comportamiento es parte de la semántica de
+      referencia</b>:</p>
+      <div class="pipe">[release.python_dependencies]
+ethereum-types   = "0.4.1"    # semántica de Uint / U256 / Bytes
+ethereum-rlp     = "0.1.6"    # RLP y reglas de forma canónica
+eth-remerkleable = "0.1.31"   # SSZ
+py-ecc           = "8.0.0"    # BN254, BLS12-381 y KZG</div>
+      <p>Fijate el último: <b><code>py_ecc</code> 8.0.0</b>, la misma librería contra la que corrimos nuestro
+      <code>docs/bls_smoke.py</code>. Está pinneada porque si <code>py_ecc</code> cambia, cambia lo que la spec tiene
+      que reproducir. Los otros TOML: <code>boundaries.toml</code> declara qué librería puede importar a qué, y
+      <code>contracts.toml</code> las dependencias entre demostraciones.</p>
+    </div>
+
+    <div class="box">
+      <div class="eyebrow">El Markdown es normativo</div>
+      <p>Un documento por módulo, más <code>CONTRACT.md</code> (la firma y la tabla de resultados O1–O13),
+      <code>DECISIONS.md</code> (cada decisión numerada: D21, D25, P6…), <code>GAPS.md</code> (registro de huecos
+      generado, con dueño por hueco), <code>DISCREPANCIES.md</code> y <code>DEBT.md</code>. El código Lean cita esos
+      números. Es nuestro <code>notas-investigacion.md</code> más <code>RETOMAR.md</code>, elevado a institución.</p>
+    </div>
+
+    <div class="box thm">
+      <div class="eyebrow">Lean hace dos trabajos</div>
+      <p>Uno es la spec: tres paquetes, el núcleo <b>sin Mathlib</b>, el puente <code>STFSpecMathlib</code> (isomorfismos
+      de campos, leyes de grupo, bilinealidad) y <code>STFSpecSecurity</code> (binding del witness,
+      "stateless implica stateful", cotas de random oracle).</p>
+      <p>El otro es más raro y más interesante: <b>las herramientas de chequeo también están en Lean</b>.
+      <code>scripts/CheckDecls.lean</code> se compila como ejecutable y revisa las declaraciones
+      <b>ya compiladas</b> del propio repo. Lean inspeccionándose a sí mismo. Hay doce ejecutables así, entre chequeos,
+      benchmarks y tests nativos.</p>
+    </div>
+
+    <div class="box">
+      <div class="eyebrow">Python es el policía, nunca el especificador</div>
+      <p>Ninguno de los 73 <code>.py</code> define semántica. Son todos guardias y generadores:</p>
+      <div class="pipe">check_boundaries.py   ¿alguien importó algo que no debía?
+check_reference.py    ¿el pin del TOML coincide con la realidad?
+check_spec.py         ¿la documentación cumple su propio formato?
+gen_gaps.py           regenera GAPS.md desde las fuentes   (--check: ¿está al día?)
+gen_arch_diagram.py   regenera el diagrama del README desde boundaries.toml
+differential.py       corre la spec contra el Python de EELS y compara</div>
+      <p>El patrón que se repite es <code>--check</code>: todo lo generado se puede regenerar y comparar, así que el CI
+      falla si alguien editó a mano algo que debía salir de su fuente.</p>
+    </div>
+  </section>
+
+  <section id="contra">
+    <div class="eyebrow">Mundos Lean y Python · la diferencia con lo nuestro</div>
+    <h2>Acá Lean no se exporta: se corre <i>contra</i> Python</h2>
+    <p>Esta es la diferencia de método más importante respecto de <code>cryptography-specs</code>, y conviene no
+    confundirla.</p>
+    <div class="tw"><table>
+      <tr><th></th><th>cryptography-specs (lo nuestro)</th><th>leanerSTFSpec</th></tr>
+      <tr><td><b>Relación</b></td><td>Python <b>llama</b> a Lean</td><td>Lean <b>compite</b> con Python</td></tr>
+      <tr><td><b>Plomería</b></td><td>33 <code>@[export]</code>, binding en C, un <code>.so</code></td>
+          <td><b>cero <code>@[export]</code></b>; se lanza como proceso con <code>lake env lean</code></td></tr>
+      <tr><td><b>Quién sabe la respuesta</b></td><td>solo Lean; Python pregunta</td>
+          <td>los dos por separado; un tercero compara</td></tr>
+    </table></div>
+    <p class="eyebrow"><span class="tag m">verificado acá</span> cero <code>@[export]</code> en los 265 archivos;
+    <code>differential.py</code> invoca <code>subprocess.run(["lake", "env", "lean", …])</code>.</p>
+    <p>"Correr contra" es <b>enfrentar</b>, como jugar contra. Hay dos programas independientes que resuelven el mismo
+    problema: el Python de EELS (las <code>execution-specs</code> oficiales, que ya existen y son la referencia) y la
+    spec en Lean, escrita desde cero. Y un tercer programa, <code>differential.py</code>, hace de juez:</p>
+    <div class="pipe">        entrada (un bloque + witness)
+          ├──────────────→ Python de EELS  ──→ respuesta A
+          └──────────────→ spec en Lean    ──→ respuesta B
+                                    ¿A == B?</div>
+    <p>Si difieren, hay un bug en alguno de los dos, y encontrarlo es el objetivo: el propio script dice que las
+    observaciones son <i>"bug-finding evidence"</i>. La obsesión por el aislamiento vale leerla: clona EELS en el commit
+    pinneado, lo instala congelado (<code>uv sync --frozen</code>), invoca el intérprete con <code>python -I</code>,
+    ignora overrides del ambiente, y admite hasta dónde llega la garantía:
+    <i>"this does not authenticate a hostile host"</i>. <span class="tag">repo original</span></p>
+    <div class="box">
+      <div class="eyebrow">Ojo: Lean sí se compila</div>
+      <p>Que no se exporte como biblioteca no quiere decir que no se compile. <code>lake build</code> compila a C y de
+      ahí a nativo, y les importa la velocidad en serio: <code>CONTRIBUTING.md</code> fija el objetivo de estar
+      <i>"within 10× of native clients (evmone/revm-class)… aiming for about 2×"</i>. Estar a 2× de revm no se consigue
+      interpretando. La spec es ejecutable y rápida a propósito, para poder usarla en testing diferencial y fuzzing.
+      <span class="tag">repo original</span></p>
+    </div>
+  </section>
+
+  <section id="d21">
+    <div class="eyebrow">Mundo Lean · teoremas</div>
+    <h2>La regla D21: los <i>native axioms</i> prohibidos, y verificado por máquina</h2>
+    <p>Esto es lo que más nos toca. Nuestro "Matiz 2" del mapa completo decía que 10 de 492 teoremas dependen de pasos
+    que verifica código compilado en vez del kernel. Acá eso no se discute caso por caso: está prohibido por regla y
+    chequeado automáticamente. De <code>CONTRIBUTING.md</code> §4: <span class="tag">repo original</span></p>
+    <blockquote><b>No additional trust assumptions (D21).</b> […] No axiom beyond <code>propext</code>,
+    <code>Quot.sound</code> and <code>Classical.choice</code> may appear, directly or transitively. So
+    <code>native_decide</code>, <code>bv_decide</code> and <code>decide +native</code> are rejected (each adds a
+    <code>…._native…</code> axiom), and renaming or wrapping a tactic cannot bypass the check. […]
+    <b>Enforcement:</b> <code>check-decls</code>. <b>There is no exemption mechanism.</b></blockquote>
+    <p>Esos tres axiomas son <b>exactamente</b> los mismos que tienen nuestros 482 teoremas limpios. Y no es una buena
+    intención: el chequeo mira las declaraciones <b>compiladas</b>, <i>"so that no source-level formatting can hide a
+    violation"</i>, y corre en CI en cada push y en cada pull request.</p>
+    <div class="box ok">
+      <div class="eyebrow">Lo verificamos</div>
+      <p>Buscamos <code>sorry</code>, <code>native_decide</code> y <code>bv_decide</code> en los 265 archivos. Los
+      únicos resultados están en <code>scripts/CheckDeclsTest/</code>, que son los casos de prueba del propio detector
+      (hay un archivo llamado <code>Bad.lean</code> con los pecados a detectar). <b>La spec está limpia.</b>
+      <span class="tag m">verificado acá</span></p>
+    </div>
+    <details>
+      <summary>Qué más prohíbe, y por qué (no todo es por soundness)</summary>
+      <p>Además de los native axioms, la D21 prohíbe <code>@[csimp]</code>, <code>implemented_by</code>,
+      <code>extern</code>, <code>unsafe</code>, <code>partial</code> y <code>opaque</code>. Y el razonamiento es
+      interesante, porque distingue dos motivos distintos:</p>
+      <blockquote><code>@[csimp]</code> and <code>opaque</code> are not <i>logically</i> unsound; the prohibition is
+      about executable correspondence (compiled code must run the definition we reason about) and transparency (every
+      definition must unfold).</blockquote>
+      <p>O sea: no alcanza con que el teorema sea válido. Además, el código que se ejecuta tiene que ser el mismo sobre
+      el que se razona. <code>@[csimp]</code> permite decirle al compilador "cuando corras, usá esta otra función más
+      rápida"; eso no rompe la lógica, pero rompe el vínculo entre lo demostrado y lo ejecutado. El chequeo incluso
+      enumera los <code>@[csimp]</code> de las dependencias, porque una librería ajena podría registrar uno que afecte
+      a este código.</p>
+      <p>El costo de la regla también está escrito: para bit-vectors hay que usar <i>"Std's operation lemmas, bit
+      extensionality, <code>simp</code>, <code>omega</code> and arithmetic reasoning, plus plain <code>decide</code> for
+      small concrete checks"</i>. Es decir, a mano y con paciencia, en vez de tirarle <code>bv_decide</code>. Es
+      exactamente el trabajo que upstream dejó pendiente en su issue #28 para Blake2s.</p>
+      <p>Y un detalle que descubrimos de paso en <code>cryptography-specs</code>: cuando upstream necesitó verificar un
+      número gigante (el tamaño del código target-sum de XMSS, PR #44), usó <code>decide +kernel</code>, que hace el
+      cálculo <b>en el kernel</b>, lento pero sin código compilado. Es la salida que la D21 habilita.</p>
+    </details>
+  </section>
+
+  <section id="estado">
+    <div class="eyebrow">Mundo Lean · estado al 7 oct 2026</div>
+    <h2>Qué hay escrito y qué está vacío</h2>
+    <p>El README lo dice sin vueltas: <i>"Lower-layer implementation is in progress"</i>. En concreto, empezó por los
+    cimientos (bytes, hashes, trie) y todavía no llegó ni al EVM ni a la criptografía:</p>
+    <div class="tw"><table>
+      <tr><th>Módulo</th><th>Qué es</th><th>Líneas</th></tr>
+      <tr><td><code>Conformance</code></td><td>runners contra las fixtures oficiales</td><td>15 112</td></tr>
+      <tr><td><code>Commit</code></td><td>trie de Merkle-Patricia</td><td>5 745</td></tr>
+      <tr><td><code>Base</code></td><td>tipos base, aritmética U256</td><td>4 910</td></tr>
+      <tr><td><code>Hash</code></td><td>keccak, ripemd</td><td>3 918</td></tr>
+      <tr><td><code>Codec</code></td><td>RLP, SSZ</td><td>3 175</td></tr>
+      <tr><td><code>State</code></td><td>el estado de cuentas</td><td>1 567</td></tr>
+      <tr><td><code>StateCommit</code></td><td>el puente entre estado y trie</td><td>695</td></tr>
+      <tr><td class="vacio"><code>Vm</code>, <code>Field</code>, <code>Curve</code>, <code>Pairing</code>, <code>Precompiles</code></td>
+          <td class="vacio">el EVM y la criptografía</td><td class="vacio">vacíos</td></tr>
+    </table></div>
+    <p class="eyebrow"><span class="tag m">verificado acá</span> conteo por carpeta. Los cinco últimos son cáscaras de
+    13 líneas con el comentario <i>"No definitions yet: scaffolding only"</i> y la lista de lo que irá ahí.</p>
+    <div class="box key">
+      <div class="eyebrow">Y acá nos cruzamos</div>
+      <p><code>Curve.lean</code> anuncia <i>"secp256k1, P-256, BN254, BLS12-381, ECDSA recover/verify, map-to-curve"</i> y
+      <code>Pairing.lean</code> anuncia <i>"Pairings (BN254, BLS12-381) and KZG point evaluation"</i>. Cuando los
+      escriba, <b><code>cryptography-specs</code> es su referencia</b>: en su diagrama de arquitectura figura como nodo
+      externo "BLS12-381 · KZG reference", y <code>modules/EthCurve.md</code> dice que validará contra
+      <code>Bls/G1.lean</code> y <code>G2.lean</code> (las coordenadas jacobianas del mapa de arquitectura).
+      <span class="tag">repo original</span></p>
+      <p>O sea: lo que estudiamos nosotros es la capa de abajo, la que este proyecto todavía no escribió y va a tener
+      que apoyarse en ella.</p>
+    </div>
+  </section>
+
+  <section id="hueco">
+    <div class="eyebrow">Mundo Lean · lo que falta</div>
+    <h2>El hueco: el teorema que une la spec con lo que corre</h2>
+    <p>La spec no genera el programa que corre en el zkVM. Son artefactos escritos por separado, y la spec los
+    <b>juzga</b>:</p>
+    <div class="tw"><table>
+      <tr><th>Consumidor</th><th>En qué está escrito</th><th>Relación</th></tr>
+      <tr><td><code>evm-asm</code></td><td>assembly RISC-V (RV64IM) a mano</td><td>refina la spec</td></tr>
+      <tr><td><code>stateless-pancaketh</code></td><td>Pancake compilado a RISC-V</td><td>refina la spec</td></tr>
+    </table></div>
+    <p>Esa palabra, <b>refinar</b>, significa "hace exactamente lo mismo que la spec, para toda entrada", y es un
+    teorema. La jugada de fondo es separar roles: la spec es legible y razonablemente rápida; la implementación de
+    producción es otra cosa, optimizada, atada por ese teorema. Nuestro repo eligió el camino opuesto (un solo artefacto
+    que se compila y se razona) y quedó sin consumidores.</p>
+    <div class="box gap">
+      <div class="eyebrow">Pero el teorema todavía no existe</div>
+      <p>En <code>modules/EthStateless.md</code> figura como hueco abierto, y con un detalle que da para pensar: ni
+      siquiera está acordado cómo debe enunciarse. <span class="tag">repo original</span></p>
+      <blockquote><b>Consumer seams.</b> The exact <code>Faithful</code> statement evm-asm and pancaketh want
+      (bytes-level equality versus <code>classify</code>-level) is not agreed with them.</blockquote>
+      <p>Es el mismo tipo de hueco que <code>ConcreteBlsLaws</code> en <code>cryptography-specs</code>: la pieza más
+      importante de la cadena es la que falta. Allá, los teoremas de la ceremonia valen "si el pairing cumple estas
+      leyes"; acá, la spec vale como vara "si alguien demuestra que la implementación la refina".</p>
+    </div>
+    <details>
+      <summary>Cómo declaran los huecos, que es una práctica para copiar</summary>
+      <p><code>GAPS.md</code> son 708 líneas <b>generadas</b> por <code>gen_gaps.py</code> a partir de la sección §10 de
+      cada documento de módulo más un registro transversal. Cada hueco dice qué falta, cuál es la evidencia y
+      <b>quién debería ser el dueño</b>. Dos ejemplos del registro transversal:</p>
+      <ul>
+        <li><b>X1:</b> no están clasificados todos los puntos donde el Python de referencia puede lanzar una excepción
+        (un <code>OverflowError</code>, un <code>KeyError</code>, un <code>RecursionError</code>), y cada excepción se
+        convierte en un resultado del guest. Lo llaman <i>"highest divergence risk"</i>.</li>
+        <li><b>X2:</b> entradas adversarias con las que la referencia prácticamente no termina. Dan el número medido:
+        un header manipulado con un <code>excess_blob_gas</code> cerca de 2<sup>64</sup> necesitaría unas
+        4×10<sup>12</sup> iteraciones del loop de Taylor del precio del blob gas. Y aclaran que es un problema de
+        <i>liveness</i>, no de <i>soundness</i>.</li>
+      </ul>
+      <p>Comparado con nuestros dos "Matices", la diferencia no es la honestidad: es que acá el registro se genera desde
+      las fuentes y el CI falla si quedó viejo.</p>
+    </details>
+  </section>
+
+  <section id="sirve">
+    <div class="eyebrow">Para nuestro estudio</div>
+    <h2>Qué nos sirve de este repo</h2>
+    <ol>
+      <li><b>Confirma dónde estamos parados.</b> Nosotros estudiamos la criptografía del consenso; esto es la ejecución.
+      Son dos capas de la misma torre, y la de abajo es la nuestra: sus módulos <code>Curve</code> y
+      <code>Pairing</code> están vacíos y van a citar a <code>cryptography-specs</code> cuando se escriban.</li>
+      <li><b>Demuestra que los <i>native axioms</i> se pueden erradicar.</b> No es una debilidad inevitable de Lean: es
+      una decisión. La D21 los prohíbe, un programa en Lean lo verifica sobre el código compilado, y el CI lo corre en
+      cada cambio. Eso vuelve mucho más exigible nuestra observación sobre los 10 teoremas de
+      <code>Compress.lean</code> y <code>Blake2s.lean</code>.</li>
+      <li><b>Muestra un tercer método para atar spec y código.</b> Nosotros vimos "compilar la spec" (Lean → C, lo que
+      corre <i>es</i> lo verificado). Acá es "refinamiento": dos artefactos independientes y un teorema que los liga.
+      Son estrategias con costos distintos, y conviene saber las dos.</li>
+      <li><b>El testing diferencial como vara.</b> Nuestros 364 vectores son una foto: comparan contra valores
+      guardados. El testing diferencial compara contra <b>otro programa corriendo</b>, sobre entradas nuevas, incluidas
+      las que genera un fuzzer. Es una vara más exigente y el método es copiable.</li>
+      <li><b>Prácticas de documentación para robar.</b> Decisiones numeradas y citables (D21, P6), huecos generados
+      desde las fuentes con dueño asignado, y el patrón <code>--check</code>: si un documento o un diagrama se genera,
+      el CI verifica que esté al día. Nuestro <code>RETOMAR.md</code> y nuestros "Matices" apuntan a lo mismo, a mano.</li>
+      <li><b>Y un contraste que vale registrar:</b> dentro del mismo programa de la Ethereum Foundation hay dos criterios
+      opuestos sobre <code>bv_decide</code>. Acá está prohibido sin excepciones; en un trabajo financiado por la misma
+      fundación se usa para verificar un sumador de 32 bits. No hay un estándar único de qué significa "verificado", y
+      conviene preguntar siempre cuáles son los axiomas y cuáles las hipótesis abiertas.</li>
+    </ol>
+    <p>La vía Rust → Lean, que es el otro tema que trajo este repo, no está acá: en <code>leanerSTFSpec</code> no hay un
+    solo archivo Rust. Eso vive en el proyecto paraguas y tiene su propia página:
+    <a href="verified-zkevm.html">Verified zkEVM y el puente Rust ↔ Lean</a>.</p>
+  </section>
+
+  <section>
+    <div class="eyebrow">Fuentes</div>
+    <h2>De dónde sale cada cosa</h2>
+    <ol>
+      <li><a href="https://github.com/alexanderlhicks/leanerSTFSpec">alexanderlhicks/leanerSTFSpec</a>: clon de solo
+      lectura en <code>daa6a8a</code> (7 oct 2026). <code>README.md</code>, <code>CONTRIBUTING.md</code>,
+      <code>AGENTS.md</code>, <code>reference.toml</code>, <code>lakefile.toml</code>, <code>scripts/</code> y los 13
+      documentos de <code>STFSpec/informal/</code>. Leído el 11 oct 2026.</li>
+      <li>Conteos propios sobre ese clon (archivos, líneas, teoremas, <code>@[export]</code>, <code>sorry</code>,
+      <code>native_decide</code>, <code>bv_decide</code>).</li>
+      <li><a href="https://github.com/Verified-zkEVM/Overview">Verified-zkEVM/Overview</a>: el proyecto paraguas, para
+      ubicar a los consumidores <code>evm-asm</code> y <code>stateless-pancaketh</code>.</li>
+      <li>Nuestra copia: <a href="mapa-completo.html">mapa completo</a>,
+      <a href="architecture-map.html">mapa de arquitectura</a>, <a href="propuesta-foda.html">la propuesta y su FODA</a>,
+      <code>docs/native_axioms.lean</code>.</li>
+    </ol>
+  </section>
+</main>
+
+</body>
+</html>

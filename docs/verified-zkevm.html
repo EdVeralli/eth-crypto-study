@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verified zkEVM y el puente Rust ↔ Lean</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: documento de lectura en una columna. Mismos colores que el resto de docs/: verde = código que corre, violeta = teoremas, naranja = clave, rojo = límite o hueco. Los pares Rust → Lean van en dos columnas que se apilan en pantalla chica. */
+:root{
+  --bg:#f3f6f7; --panel:#ffffff; --fg:#17212b; --muted:#5a6773; --line:#d5dde2; --code-bg:#f7f9fa;
+  --exec:#1f8a6b; --exec-bg:#dcf2ea; --exec-fg:#0b3b2e;
+  --thm:#6a4fd1;  --thm-bg:#e8e3fb;  --thm-fg:#281a5e;
+  --glue:#b8730f; --glue-bg:#fbead2; --glue-fg:#4a2d00;
+  --warn:#c2412d; --warn-bg:#fde3de;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f1519; --panel:#172027; --fg:#e4ebef; --muted:#9aa8b3; --line:#2b3841; --code-bg:#121a20;
+  --exec:#4cc9a0; --exec-bg:#12352b; --exec-fg:#c9f3e4;
+  --thm:#a893ff;  --thm-bg:#2a2350;  --thm-fg:#e3dcff;
+  --glue:#f0a94a; --glue-bg:#3d2a0e; --glue-fg:#fde6c4;
+  --warn:#ff8a73; --warn-bg:#44201a; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0f1519; --panel:#172027; --fg:#e4ebef; --muted:#9aa8b3; --line:#2b3841; --code-bg:#121a20;
+  --exec:#4cc9a0; --exec-bg:#12352b; --exec-fg:#c9f3e4;
+  --thm:#a893ff;  --thm-bg:#2a2350;  --thm-fg:#e3dcff;
+  --glue:#f0a94a; --glue-bg:#3d2a0e; --glue-fg:#fde6c4;
+  --warn:#ff8a73; --warn-bg:#44201a; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.65 var(--f-body);padding:0 16px}
+main{max-width:900px;margin:0 auto;padding-block:40px 72px;display:flex;flex-direction:column;gap:44px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:clamp(30px,5vw,46px);font-weight:800;letter-spacing:-.01em}
+h2{font-size:25px;font-weight:800}
+h3{font-size:17px;font-weight:600}
+p{margin:0;max-width:72ch}
+ul,ol{margin:0;padding-left:20px;max-width:72ch;display:flex;flex-direction:column;gap:5px}
+code{font-family:var(--f-mono);font-size:.85em;background:var(--code-bg);border:1px solid var(--line);padding:0 4px;border-radius:4px}
+a{color:var(--exec)}
+.eyebrow{font:600 12px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lede{color:var(--muted);font-size:18px}
+section{display:flex;flex-direction:column;gap:14px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.box.key{border-left:4px solid var(--glue)} .box.key .eyebrow{color:var(--glue)}
+.box.ok{border-left:4px solid var(--exec)} .box.ok .eyebrow{color:var(--exec)}
+.box.gap{border-left:4px solid var(--warn)} .box.gap .eyebrow{color:var(--warn)}
+.box.thm{border-left:4px solid var(--thm)} .box.thm .eyebrow{color:var(--thm)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.fact{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.fact b{font:800 22px/1.1 var(--f-display)} .fact span{font-size:13px;color:var(--muted)}
+.pipe{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px;font:13.5px/1.7 var(--f-mono);overflow-x:auto;white-space:pre}
+.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:760px){.pair{grid-template-columns:1fr}}
+.pair > div{display:flex;flex-direction:column;gap:8px;min-width:0}
+.pair .eyebrow{display:flex;gap:7px;align-items:center}
+.lang{font:600 10.5px/1 var(--f-mono);padding:2px 5px;border-radius:4px;border:1px solid var(--line)}
+.lang.rs{background:var(--glue-bg);color:var(--glue-fg);border-color:var(--glue)}
+.lang.ln{background:var(--thm-bg);color:var(--thm-fg);border-color:var(--thm)}
+.tag{font:600 10.5px/1 var(--f-mono);letter-spacing:.03em;padding:2px 5px;border-radius:4px;background:var(--code-bg);border:1px solid var(--line);color:var(--muted);white-space:nowrap;vertical-align:1px}
+.tag.m{background:var(--exec-bg);color:var(--exec-fg);border-color:var(--exec)}
+table{border-collapse:collapse;font-size:14px;width:100%}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.tw{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 10px}
+details{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:0 18px}
+details[open]{padding-bottom:16px}
+summary{cursor:pointer;padding:14px 0;font-weight:600;font-family:var(--f-display)}
+details > *:not(summary){margin-top:10px}
+blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);color:var(--muted);font-size:14.5px;max-width:72ch}
+.nav{display:flex;flex-wrap:wrap;gap:10px;font-size:14px}
+.nav a{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;text-decoration:none}
+.steps{display:flex;flex-direction:column;gap:10px;counter-reset:s}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px;display:flex;gap:14px;align-items:flex-start}
+.step b.n{font:800 20px/1 var(--f-display);color:var(--muted);flex:none;width:22px}
+.step div{display:flex;flex-direction:column;gap:5px;min-width:0}
+</style>
+</head>
+<body>
+
+<main>
+  <header style="display:flex;flex-direction:column;gap:12px">
+    <div class="eyebrow">github.com/Verified-zkEVM · leído el 11 oct 2026</div>
+    <h1>Verified zkEVM y el puente Rust ↔ Lean</h1>
+    <p class="lede">El paraguas de la Ethereum Foundation para verificar formalmente los zkVM, y adentro de él el tema
+    que nos interesa de verdad: cómo se conecta código Rust de producción con teoremas en Lean. Qué herramientas
+    existen, qué sale del otro lado, qué cuesta y qué no resuelve.</p>
+    <p class="eyebrow">Etiquetas de origen: <span class="tag m">verificado acá</span> lo comprobamos en un clon;
+    <span class="tag">repo original</span> sale del texto del repo o de su documentación;
+    <span class="tag">fuente</span> remite a la lista del final.</p>
+    <nav class="nav">
+      <a href="#paraguas">El paraguas</a>
+      <a href="#direccion">Por qué Rust → Lean</a>
+      <a href="#herramientas">Las herramientas</a>
+      <a href="#traduccion">Cómo se ve la traducción</a>
+      <a href="#teorema">El teorema</a>
+      <a href="#tres">Los tres pasos</a>
+      <a href="#precedente">El precedente real</a>
+      <a href="#costo">El costo</a>
+      <a href="#sirve">Qué nos sirve</a>
+    </nav>
+  </header>
+
+  <section id="paraguas">
+    <div class="eyebrow">Mundo Ethereum · la organización</div>
+    <h2>El paraguas: una organización, no un repo</h2>
+    <p><code>github.com/verified-zkevm</code> no es un proyecto con código propio: es una <b>organización</b> de GitHub
+    de la Ethereum Foundation que contiene catorce repos. Su repo <code>Overview</code> declara el objetivo:
+    <span class="tag">repo original</span></p>
+    <blockquote>making formally verified bug-free zk(E)VMs a possibility by <b>2027</b></blockquote>
+    <p>El trabajo está partido en tres frentes:</p>
+    <div class="tw"><table>
+      <tr><th>Frente</th><th>Qué busca</th><th>Repos principales</th></tr>
+      <tr><td><b>zkVM</b></td><td>demostrar correctas las <i>constraints</i> del zkVM</td>
+          <td>spec Sail de RISC-V y sus extracciones a Lean, <code>clean</code> (DSL de circuitos AIR, 168★),
+          <code>zkLean</code>, <code>llzk-lib</code>, <code>lean-mlir</code>, <code>leanerVM</code></td></tr>
+      <tr><td><b>EVM</b></td><td>que el EVM corriendo sobre ese zkVM sea correcto</td>
+          <td><code>evm-asm</code> (51★), KEVM, <code>zkevm-harness</code>, <code>evm-equivalence</code></td></tr>
+      <tr><td><b>Criptografía</b></td><td>demostrar seguros los sistemas de prueba</td>
+          <td><b><code>ArkLib</code></b> (318★: sum-check, FRI/STIR/WHIR, Fiat–Shamir),
+          <b><code>VCVio</code></b> (130★), <code>CompPoly</code> (46★), <b><code>hax</code></b> (Rust → Lean)</td></tr>
+    </table></div>
+    <p>Dónde encaja el repo de Alexander Hicks: <a href="leaner-stf-spec.html"><code>leanerSTFSpec</code></a> vive en su
+    cuenta personal, pero es la spec contra la que se verifica <code>evm-asm</code>, que sí es de la organización.
+    El dibujo:</p>
+    <div class="pipe">github.com/verified-zkevm          ← el paraguas (EF, meta 2027)
+├── frente zkVM:   clean, zkLean, llzk-lib, lean-mlir, leanerVM
+├── frente EVM:    evm-asm ←──────┐
+│                  zkevm-harness  │ se verifica contra
+│                  evm-equivalence│
+└── frente cripto: ArkLib, VCVio, CompPoly, hax
+                                  │
+alexanderlhicks/leanerSTFSpec ────┘  ← cuenta personal</div>
+    <div class="box key">
+      <div class="eyebrow">Dos programas distintos de la misma fundación</div>
+      <p>Esto es <b>otro lugar</b> del mundo Ethereum que el nuestro. <code>cryptography-specs</code> nace del
+      <i>lean Ethereum</i> (consenso, migración post-cuántica); Verified zkEVM apunta a la <b>ejecución</b> dentro de un
+      zkVM, con horizonte 2027. Los dos usan Lean 4, los dos son de la EF, y se tocan en un solo punto: la ejecución
+      también necesita criptografía (precompilados de curvas, el KZG de los blobs), y ahí consumen lo nuestro.</p>
+      <p>Al margen: la palabra "lean" juega doble en todo esto. <i>Lean Ethereum</i> y <i>lean consensus</i> es "lean"
+      de liviano, por el rediseño del consenso; Lean 4 es el lenguaje. Nombres como <code>leanerSTFSpec</code> o
+      <code>leanerVM</code> aprovechan el doble sentido a propósito.</p>
+    </div>
+  </section>
+
+  <section id="direccion">
+    <div class="eyebrow">El tema que nos interesa</div>
+    <h2>Por qué la dirección es Rust → Lean y no al revés</h2>
+    <p>Hay tres maneras de conectar "código que corre" con "teoremas". Conviene verlas juntas, porque elegir una es
+    elegir sus costos:</p>
+    <div class="tw"><table>
+      <tr><th>Estrategia</th><th>Dirección</th><th>Dónde</th><th>Qué garantiza</th></tr>
+      <tr><td><b>Compilar la spec</b></td><td>Lean → C</td><td><code>cryptography-specs</code> (lo nuestro)</td>
+          <td>el código verificado <b>es</b> el que corre… pero nadie lo corre en producción</td></tr>
+      <tr><td><b>Refinamiento</b></td><td>spec en Lean ← implementación aparte</td>
+          <td><code>leanerSTFSpec</code> → <code>evm-asm</code>, Pancake</td>
+          <td>dos artefactos independientes y un teorema que los liga</td></tr>
+      <tr><td><b>Extracción inversa</b></td><td><b>Rust → Lean</b></td><td><code>hax</code>, Aeneas; Plonky3, RISC Zero</td>
+          <td>se demuestra sobre el código que ya existe y ya corre</td></tr>
+    </table></div>
+    <p>La tercera es la respuesta a la objeción más obvia: si la industria ya tiene su código en Rust y no lo va a
+    tirar, traé el Rust al mundo de los teoremas en vez de pedirle que reescriba todo.</p>
+    <div class="box gap">
+      <div class="eyebrow">Y al revés no se puede</div>
+      <p><b>Lean → Rust no existe.</b> Lean compila a C; no tiene backend Rust. Lo que aparece buscando son proyectos
+      sueltos de terceros (bindings, reescrituras del compilador), nada oficial ni usable para esto. Si querés que el
+      código de producción sea Rust y además esté demostrado, el camino es escribir el Rust y traerlo a Lean.</p>
+    </div>
+  </section>
+
+  <section id="herramientas">
+    <div class="eyebrow">Mundos Rust y Lean · las herramientas</div>
+    <h2>Las dos vías, que en realidad son una</h2>
+    <div class="box">
+      <div class="eyebrow">Vía 1 · Aeneas + Charon (la recomendada)</div>
+      <p>Dos herramientas en cadena. <b>Charon</b> es el front-end: toma el crate, lo compila hasta el <b>MIR</b> (la
+      representación intermedia del compilador de Rust) y lo baja a un formato propio llamado <b>LLBC</b>.
+      <b>Aeneas</b> toma ese LLBC y lo traduce a Lean 4. Su README lo define así: <i>"relies on a translation from
+      Rust's MIR"</i> a un lambda-cálculo puro. O sea, tu Rust imperativo con préstamos y mutaciones sale del otro lado
+      como funciones puras. <span class="tag">repo original</span></p>
+      <div class="pipe"># 1. generar el LLBC desde el crate de Rust
+cd ~/mi-crate-rust
+charon cargo --preset=aeneas          # produce mi-crate.llbc
+
+# 2. traducir ese LLBC a Lean
+cd ~/aeneas
+./bin/aeneas -backend lean ~/mi-crate-rust/mi-crate.llbc</div>
+      <p>Backends disponibles: F*, Coq, HOL4 y Lean; la documentación dice que <b>Lean y HOL4 son los más maduros</b>.
+      Detalle de instalación que muerde: la versión de Charon tiene que coincidir con el commit que figura en
+      <code>./charon-pin</code>.</p>
+    </div>
+    <div class="box">
+      <div class="eyebrow">Vía 2 · hax (de Cryspen)</div>
+      <p>Más simple de arrancar, se maneja como un subcomando de cargo. Se define como <i>"a tool for high assurance
+      translations of a large subset of Rust into formal languages such as Lean, F* or Rocq"</i>.
+      <span class="tag">repo original</span></p>
+      <div class="pipe">cd ~/mi-crate-rust
+cargo hax into lean</div>
+      <p>Y acá está el dato que une las dos vías: desde la versión 0.4.0, el backend Lean recomendado de hax <b>usa
+      Charon y Aeneas por debajo</b> (los descarga solo). El backend Lean viejo, que usaba el motor propio de hax,
+      quedó marcado como <i>legacy</i>. Así que hax es, en la práctica, el envoltorio cómodo de Aeneas.</p>
+    </div>
+    <div class="box key">
+      <div class="eyebrow">Qué sale del otro lado</div>
+      <p>No un archivo suelto: un <b>paquete Lean</b> que importa la librería <code>Aeneas</code>. Hay que armarlo con
+      <code>lake new</code>, copiar el <code>lean-toolchain</code> de <code>./backends/lean</code> y agregar Aeneas como
+      dependencia. Con la opción <code>-split-files</code> se separa en generado y a mano:</p>
+      <div class="pipe">Types.lean                   generado
+Funs.lean                    generado   (las funciones traducidas)
+FunsExternal_Template.lean   generado   (el molde de lo que falta)
+FunsExternal.lean          ← lo escribís vos, no se sobreescribe</div>
+      <p>Ese último archivo es la clave práctica: cada vez que tu Rust llama a algo que Aeneas no puede traducir (un
+      crate externo, una syscall), te deja un hueco y vos escribís a mano el <b>modelo</b> en Lean de qué hace esa cosa.
+      Eso no es un trámite: lo que escribís ahí se convierte en un <b>supuesto</b> de todas tus demostraciones.</p>
+    </div>
+  </section>
+
+  <section id="traduccion">
+    <div class="eyebrow">Mundos Rust y Lean · ejemplo real</div>
+    <h2>Cómo se ve la traducción</h2>
+    <p>Esto no es inventado: Aeneas trae sus tests con el Lean generado commiteado, así que es exactamente lo que la
+    herramienta produce. <span class="tag m">verificado acá</span></p>
+    <div class="pair">
+      <div>
+        <div class="eyebrow"><span class="lang rs">Rust</span> tests/src/bitwise.rs</div>
+        <div class="pipe">pub fn shift_u32(a: u32) -> u32 {
+    let i: usize = 16;
+    let mut t = a >> i;
+    t &lt;&lt;= i;
+    t
+}
+
+pub fn xor_u32(a: u32, b: u32) -> u32 {
+    a ^ b
+}</div>
+      </div>
+      <div>
+        <div class="eyebrow"><span class="lang ln">Lean</span> tests/lean/Bitwise.lean</div>
+        <div class="pipe">-- THIS FILE WAS AUTOMATICALLY
+-- GENERATED BY AENEAS
+
+/-- [bitwise::shift_u32]:
+    Source: 'bitwise.rs', lines 4:0-9:1 -/
+def shift_u32 (a : Std.U32) :
+    Result Std.U32 := do
+  let t ← a >>> 16#usize
+  t &lt;&lt;&lt; 16#usize
+
+/-- [bitwise::xor_u32]: … -/
+def xor_u32 (a b : Std.U32) :
+    Result Std.U32 := do
+  ok (a ^^^ b)</div>
+      </div>
+    </div>
+    <p>Cuatro cosas para mirar:</p>
+    <ol>
+      <li><b>La mutación desapareció.</b> El <code>let mut t = …; t &lt;&lt;= i; t</code> se volvió dos pasos
+      funcionales encadenados. Ese es el trabajo central de Aeneas: traducir préstamos y mutaciones a un
+      lambda-cálculo puro.</li>
+      <li><b>Todo devuelve <code>Result</code></b>, incluso <code>xor_u32</code>, que no puede fallar. ¿Por qué? Porque
+      los enteros de máquina son acotados y la aritmética <b>puede desbordar</b>. Lo que no puede fallar se envuelve con
+      <code>ok (…)</code>; lo que sí puede fallar usa la flecha <code>←</code>, que propaga el error.</li>
+      <li><b>Cada función conserva el link al fuente</b>, con línea y columna. Si el Rust cambia, se regenera y el link
+      dice de dónde salió cada cosa.</li>
+      <li><b>Los tipos son fieles:</b> <code>Std.U32</code>, literales como <code>16#usize</code>. No se idealiza a
+      enteros matemáticos: eso se hace después, en el teorema.</li>
+    </ol>
+  </section>
+
+  <section id="teorema">
+    <div class="eyebrow">Mundo Lean · teoremas</div>
+    <h2>El teorema, que es lo que de verdad avala</h2>
+    <p>Del tutorial oficial de Aeneas. Primero el Rust y su traducción:</p>
+    <div class="pair">
+      <div>
+        <div class="eyebrow"><span class="lang rs">Rust</span></div>
+        <div class="pipe">pub fn mul2_add1(x: u32) -> u32 {
+    (x + x) + 1
+}</div>
+      </div>
+      <div>
+        <div class="eyebrow"><span class="lang ln">Lean</span> generado</div>
+        <div class="pipe">def mul2_add1 (x : U32) :
+    Result U32 := do
+  let x1 ← x + x
+  let x2 ← x1 + 1#u32
+  ok x2</div>
+      </div>
+    </div>
+    <p>Y ahora el teorema, que se escribe <b>a mano</b>, en estilo Hoare (precondición y postcondición):</p>
+    <div class="pipe">theorem mul2_add1_spec
+  (x : U32)
+  (h : 2 * x.val + 1 ≤ U32.max)          -- precondición: no desborda
+  : mul2_add1 x ⦃ y =&gt;                    -- la llamada tiene éxito, y además:
+    ↑ y = 2 * ↑x + (1 : Nat) ⦄            -- el resultado vale 2x+1
+  := by
+  unfold mul2_add1
+  step with U32.add_spec as ⟨ x1 ⟩        -- avanza una suma
+  step with U32.add_spec as ⟨ x2 ⟩        -- avanza la otra
+  grind                                    -- cierra lo que queda</div>
+    <div class="box key">
+      <div class="eyebrow">Lo más instructivo es la precondición</div>
+      <p>El Rust dice <code>(x + x) + 1</code> y punto; no dice nada sobre el overflow (en <i>release</i>, Rust envuelve
+      en silencio). Para demostrar que la función hace lo que uno cree, hay que <b>declarar explícitamente</b> que no
+      desborda. Toda la basura que el programador barre bajo la alfombra sale a la luz acá, y hay que hacerse cargo de
+      ella una por una. <b>Si no podés demostrar esa precondición, acabás de encontrar un bug</b> antes de que lo
+      encuentre la red.</p>
+    </div>
+    <div class="box thm">
+      <div class="eyebrow">Y es el mismo patrón que estudiamos en Fp</div>
+      <p>Mirá los dos lados del teorema. <code>y</code> y <code>x</code> son <code>U32</code>: acotados, el mundo de la
+      máquina. Pero la postcondición habla en <code>Nat</code>, los naturales sin límite: el mundo de la matemática.
+      Las flechitas <code>↑</code> son coerciones, el <code>.val</code> que lleva un entero de máquina a un natural.
+      Es exactamente nuestro <b>puente con Mathlib</b> del paso 10 de la
+      <a href="fp-paso-a-paso.html">guía de <code>Fp.lean</code></a>:</p>
+      <div class="tw"><table>
+        <tr><th></th><th>Lo nuestro</th><th>El de Aeneas</th></tr>
+        <tr><td>El teorema puente</td><td><code>powNat_eq_pow : a.powNat n = a ^ n</code></td>
+            <td><code>mul2_add1_spec : ↑y = 2 * ↑x + 1</code></td></tr>
+        <tr><td>Lado programador</td><td><code>Fp.powNat</code>, escrito a mano en Lean</td>
+            <td>traducido desde Rust</td></tr>
+        <tr><td>Lado matemático</td><td>el <code>^</code> de Mathlib sobre <code>ZMod p</code></td>
+            <td>aritmética en <code>Nat</code></td></tr>
+        <tr><td>Quién hace el puente</td><td><code>toZMod</code> (la identidad)</td><td><code>.val</code> / <code>↑</code></td></tr>
+      </table></div>
+      <p>La única diferencia es de dónde viene el lado programador: nosotros lo escribimos en Lean, acá se importa de
+      Rust. El teorema que los une tiene la misma forma. Por eso el patrón se repite en todo el ecosistema: siempre hay
+      un código que corre, una matemática que lo describe, y un teorema que dice que coinciden.</p>
+    </div>
+  </section>
+
+  <section id="tres">
+    <div class="eyebrow">El malentendido que hay que evitar</div>
+    <h2>Traducir no es demostrar: son tres pasos</h2>
+    <p>Es tentador pensar que traducir el Rust a Lean ya avala las funciones. No: la traducción da el <b>objeto</b>, no
+    la garantía.</p>
+    <div class="steps">
+      <div class="step"><b class="n">1</b><div>
+        <h3>Traducir <span class="tag">automático</span></h3>
+        <p>Aeneas o hax. Resultado: tu función existe como objeto matemático en Lean. Ganaste la posibilidad de hablar
+        de ella con rigor. Nada más: todavía no sabés si está bien o mal.</p>
+      </div></div>
+      <div class="step"><b class="n">2</b><div>
+        <h3>Enunciar <span class="tag">a mano · el paso que más piensa</span></h3>
+        <p>Decidir <b>qué significa que esa función sea correcta</b> y escribirlo como teorema. En el ejemplo, alguien
+        decidió que lo interesante era "no desborda y devuelve exactamente 2x+1". Para una multiplicación de Montgomery
+        sería "devuelve a·b·R⁻¹ mod p"; para una verificación de firma, otra cosa. Ese enunciado no sale de ninguna
+        herramienta: sale de entender la función. Y si lo enunciás flojo, demostrarlo no sirve de nada.</p>
+      </div></div>
+      <div class="step"><b class="n">3</b><div>
+        <h3>Demostrar <span class="tag">a mano, con tácticas y a veces IA</span></h3>
+        <p>El paso caro.</p>
+      </div></div>
+    </div>
+    <p>Después de traducir, cada función queda en uno de tres estados:</p>
+    <div class="tw"><table>
+      <tr><th>Estado</th><th>Qué tenés</th></tr>
+      <tr><td>Traducida, sin enunciado</td><td>nada todavía: la función escrita en otro idioma</td></tr>
+      <tr><td>Con enunciado, con <code>sorry</code></td><td>sabés qué querés garantizar, no lo tenés demostrado</td></tr>
+      <tr><td>Con enunciado demostrado</td><td>ahí sí, la función está avalada</td></tr>
+    </table></div>
+    <p>La analogía: traducir el contrato al idioma del juez no es ganar el juicio. Lo que ganaste es que el juez ahora
+    puede leerlo.</p>
+  </section>
+
+  <section id="precedente">
+    <div class="eyebrow">Mundos Rust y Lean · casos reales</div>
+    <h2>No es teoría: ya se hizo con criptografía de producción</h2>
+    <div class="box ok">
+      <div class="eyebrow">SymCrypt de Microsoft · ML-KEM (Kyber)</div>
+      <p>Aeneas trae una guía entera, <code>documentation/crypto-verification.md</code>, cuyas técnicas salen de un
+      proyecto real: <span class="tag">repo original</span></p>
+      <blockquote>The techniques are drawn from the <b>SymCrypt verification project</b>, which verifies <b>ML-KEM</b>
+      (NIST FIPS 203, also known as <b>Kyber</b>) — a post-quantum key encapsulation mechanism originally written in
+      <b>Rust</b> as part of Microsoft's SymCrypt library.</blockquote>
+      <p>Criptografía post-cuántica, en Rust, de una librería que se usa en producción, verificada con esta herramienta.
+      Y la guía arranca listando los dolores propios de ese código: aritmética modular sobre <code>ZMod q</code>,
+      manipulación de bits, arrays de tamaño fijo con índices calculados, código performante con cálculos inline. Es la
+      descripción exacta de cualquier librería de criptografía en Rust.</p>
+    </div>
+    <details>
+      <summary>El patrón de cuatro niveles que proponen (y por qué el tercero existe)</summary>
+      <p>La guía recomienda no intentar un salto único entre el estándar y el código, sino una escalera:</p>
+      <div class="pipe">spec NIST  ⟷₁  spec en Lean  ⟷₂  spec auxiliar  ⟷₃  traducción de Aeneas
+ (el papel)     (la matemática)     (el puente)        (el Rust traducido)</div>
+      <ul>
+        <li><b>Nivel 1, spec NIST:</b> la definición matemática del estándar, escrita directo en Lean (polinomios como
+        <code>Vector (ZMod q) 256</code>, por ejemplo).</li>
+        <li><b>Nivel 2, spec en Lean:</b> traducción directa del estándar. Regla importante: <i>"Specifications are
+        always pure"</i>, nunca viven en la mónada <code>Result</code>.</li>
+        <li><b>Nivel 3, spec auxiliar:</b> acá está el truco. <i>"The Aeneas translation follows the Rust code structure
+        (loops, array indexing, bit-packing), which may differ significantly from the NIST spec. The auxiliary spec
+        mirrors the code structure but in pure math, making the refinement proof tractable."</i> O sea: un intermedio
+        que <b>tiene la forma del código pero es matemática pura</b>.</li>
+        <li><b>Nivel 4:</b> lo que generó Aeneas, que sí vive en <code>Result</code> porque puede fallar.</li>
+      </ul>
+      <p>Y se demuestra la equivalencia entre niveles adyacentes, por separado, porque cada paso es chico. Es la misma
+      razón por la que nuestro <code>FpZMod.lean</code> tiene dos versiones del teorema de potencias
+      (<code>powNat_eq_zmod_pow</code> sobre <code>ZMod</code> y <code>powNat_eq_pow</code> sobre <code>Fp</code>): para
+      que ningún paso sea demasiado grande.</p>
+    </details>
+    <div class="box">
+      <div class="eyebrow">Plonky3 y RISC Zero · con provers de IA</div>
+      <p>Un trabajo de Runtime Verification, <b>financiado por la Ethereum Foundation</b> bajo este mismo proyecto,
+      combina tres piezas: extracción con Charon/Aeneas y hax, especificación en <code>ArkLib</code> y
+      <code>CompPoly</code>, y provers de IA (Aristotle de Harmonic, Aleph de Logical Intelligence) buscando las
+      demostraciones. <span class="tag">fuente 4</span></p>
+      <p>El detalle que importa: <i>"Every proof is checked by the Lean kernel, so AI output cannot compromise
+      soundness."</i> La IA propone, el kernel verifica. Es el mismo kernel del que hablamos en el mapa completo, y la
+      misma lógica: no importa de dónde salió la demostración, importa quién la revisa.</p>
+      <p>Verificaron ocho objetivos de Plonky3 y RISC Zero: el <i>folding</i> de FRI, aritmética de los campos
+      Mersenne31 y KoalaBear, evaluación de Horner, la verificación de inclusión Merkle de RISC Zero, y un sumador de
+      32 bits. Resultados honestos: la IA cerró bien los lemas estructurales y la aritmética lineal, pero las
+      identidades algebraicas y los invariantes de loops quedaron para humanos, y <b>de las seis propiedades enunciadas
+      sobre una sola función, cuatro quedaron en <code>sorry</code></b> en el repo público.</p>
+    </div>
+    <div class="box key">
+      <div class="eyebrow">Un contraste que vale registrar</div>
+      <p>Ese sumador de 32 bits lo verificaron <i>"at the bit-vector level with <code>bv_decide</code>"</i>: el mismo
+      táctico que usan 10 de nuestros teoremas en <code>cryptography-specs</code>, y el que la regla D21 de
+      <a href="leaner-stf-spec.html"><code>leanerSTFSpec</code></a> prohíbe sin excepciones. Dentro del mismo programa
+      de la misma fundación hay <b>dos criterios opuestos</b> sobre si <code>bv_decide</code> es aceptable. Conclusión
+      práctica: no existe un estándar único de qué significa "verificado", y siempre hay que preguntar cuáles son los
+      axiomas y cuáles las hipótesis abiertas.</p>
+    </div>
+  </section>
+
+  <section id="costo">
+    <div class="eyebrow">Lo que cuesta</div>
+    <h2>Límites reales y el supuesto de confianza</h2>
+    <div class="box gap">
+      <div class="eyebrow">Qué no digiere la herramienta</div>
+      <ul>
+        <li><b>Nada de <code>unsafe</code> ni concurrencia.</b> Sin soporte hoy; esperan levantarlo con trabajo de
+        lógica de separación.</li>
+        <li><b>Referencias mutables con genéricos:</b> <i>"Instantiating a generic type (including <code>Self</code>
+        through a trait implementation) with a mutable reference is not supported yet"</i>. Algo tan simple como
+        <code>id(&amp;mut x)</code> con <code>fn id&lt;T&gt;(x: T) -&gt; T</code> no pasa.</li>
+        <li><b>Loops:</b> <i>"<code>return</code> inside nested loops, or <code>break</code>/<code>continue</code> to
+        outer loops are not supported yet"</i>. Lo llaman limitación técnica, no de fondo.</li>
+        <li>De hax: no admite referencias mutables en los tipos de retorno ni con aliasing, lo que empuja a escribir el
+        Rust en estilo funcional.</li>
+        <li>Del trabajo con Plonky3: límites con casts de <code>u128</code>, genéricos con <i>trait bounds</i>, llamadas
+        a crates externos, y <code>while</code> que necesitan medida de terminación. Más <b>drift de toolchains</b>:
+        tuvieron que coordinar Lean 4.26.0 para hax y 4.28.0 para Aeneas porque las librerías no coincidían. Es el
+        problema más prosaico y el que más tiempo come.</li>
+      </ul>
+    </div>
+    <div class="box gap">
+      <div class="eyebrow">El supuesto de confianza, que es lo más importante</div>
+      <p>Tu demostración vale <b>sobre la traducción</b>, no sobre tu Rust. Entre los dos hay una cadena:
+      <code>rustc</code> produce el MIR, Charon lo baja a LLBC, Aeneas lo sube a Lean. <b>Si alguna etapa traduce mal,
+      demostraste una propiedad preciosa sobre un programa que no es el tuyo.</b> Y lo que corre en producción no pasa
+      por ahí: tu Rust lo compila <code>rustc</code> por el camino normal.</p>
+      <p>Es el mismo tipo de agujero que los <i>native axioms</i>, movido de lugar:</p>
+      <div class="tw"><table>
+        <tr><th>Estrategia</th><th>En qué confiás, además del kernel</th></tr>
+        <tr><td><i>native axioms</i> (<code>cryptography-specs</code>)</td>
+            <td>el compilador de Lean, para 10 teoremas puntuales</td></tr>
+        <tr><td>Rust → Lean (Aeneas)</td>
+            <td>el traductor entero: <code>rustc</code> → Charon → Aeneas, para <b>todo</b></td></tr>
+      </table></div>
+      <p>Por eso el <code>FunsExternal.lean</code> es tan delicado: cada modelo que escribís a mano es un supuesto más.
+      Si tu modelo de la función externa es optimista, tu teorema es optimista.</p>
+      <p>Nada de esto lo invalida, pero cambia la frase que se puede decir con honestidad. No es "mi Rust está
+      demostrado correcto", sino: <i>"la traducción formal de mi Rust, hecha por Aeneas, cumple esta propiedad
+      demostrada mecánicamente, asumiendo que la traducción es fiel y que estos modelos de las partes externas son
+      correctos"</i>. Más largo, pero es lo que se sostiene cuando alguien pregunta en serio.</p>
+    </div>
+  </section>
+
+  <section id="sirve">
+    <div class="eyebrow">Para nuestro estudio</div>
+    <h2>Qué nos sirve de todo esto</h2>
+    <ol>
+      <li><b>Un camino concreto para código Rust existente.</b> Si hay una librería de criptografía o un cliente en Rust
+      y la pregunta es "¿se puede demostrar algo sin reescribirlo?", la respuesta es sí: Aeneas o hax, backend Lean, con
+      estas limitaciones conocidas. Es un conocimiento que no se saca de un README, sino de mirar qué les salió mal a
+      los que lo hicieron.</li>
+      <li><b>Qué se gana de verdad:</b> pasar de "probamos muchos casos" a "vale para todos". Dos cosas que ningún test
+      da: que la función <b>nunca desborda ni panica</b> para toda entrada (en un cliente, un panic determinístico es un
+      nodo caído, y si está en el cliente mayoritario es la red partida), y que <b>calcula lo que la matemática dice</b>,
+      no que coincide con un oráculo en N casos.</li>
+      <li><b>Dónde conviene y dónde es plata tirada.</b> Conviene en el núcleo chico, estable y crítico: aritmética de
+      campos, NTT, serialización, verificación de firmas. Código sin I/O, sin concurrencia, que cambia poco y donde un
+      bug es catastrófico. Veinte funciones, no doscientas mil líneas. No conviene en networking, base de datos,
+      runtime: la herramienta literalmente no lo soporta.</li>
+      <li><b>El precio, para no venderlo barato.</b> Semanas por función; refactorizar el Rust a un estilo digerible;
+      modelar a mano cada llamada externa; pelear versiones de toolchain. El mejor termómetro es el trabajo financiado
+      por la EF: ocho funciones, y de una sola, cuatro de seis teoremas sin cerrar.</li>
+      <li><b>El patrón que ya conocíamos, otra vez.</b> El puente entre "la función como la escribe un programador" y
+      "el concepto matemático" es el mismo que estudiamos en <code>FpZMod.lean</code>. Que aparezca igual en un proyecto
+      que no tiene nada que ver confirma que no era una curiosidad de nuestro repo: es el método.</li>
+      <li><b>Y el criterio de lectura.</b> Después de ver esto, "formalmente verificado" dejó de ser una frase: hay que
+      preguntar qué se enunció, qué se demostró, qué quedó en <code>sorry</code>, de qué axiomas depende y qué cadena de
+      herramientas hay que creer. Las tres distinciones que ya manejábamos — demostrado, demostrado con <i>native
+      axioms</i>, demostrado <b>si</b> alguien demuestra otra cosa — aplican igual acá, con una cuarta: demostrado sobre
+      una traducción.</li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="eyebrow">Fuentes</div>
+    <h2>De dónde sale cada cosa</h2>
+    <ol>
+      <li><a href="https://github.com/Verified-zkEVM">github.com/verified-zkevm</a> y
+      <a href="https://github.com/Verified-zkEVM/Overview">Verified-zkEVM/Overview</a>: la organización, la meta 2027,
+      los tres frentes y la tabla de repos. Leídos el 11 oct 2026.</li>
+      <li><a href="https://github.com/AeneasVerif/aeneas">AeneasVerif/aeneas</a>: clon de solo lectura.
+      <code>README.md</code>, <code>documentation/crypto-verification.md</code>, y los pares Rust → Lean de
+      <code>tests/src/</code> y <code>tests/lean/</code> (<code>bitwise</code>, <code>BaseTutorial</code>), que son
+      output real de la herramienta.</li>
+      <li><a href="https://github.com/cryspen/hax">cryspen/hax</a>: la herramienta de Cryspen, sus backends y el estado
+      del backend Lean.</li>
+      <li><a href="https://arxiv.org/html/2605.30106v1">A Rust-to-Lean Verification Pipeline with AI Provers: An
+      Experience Report</a>, Runtime Verification, financiado por la Ethereum Foundation bajo el zkEVM Verification
+      Project: Plonky3, RISC Zero, provers de IA y los resultados honestos.</li>
+      <li>Nuestra copia: <a href="leaner-stf-spec.html">leanerSTFSpec</a>,
+      <a href="fp-paso-a-paso.html">guía de <code>Fp.lean</code></a>,
+      <a href="mapa-completo.html">mapa completo</a>, <a href="propuesta-foda.html">la propuesta y su FODA</a>.</li>
+    </ol>
+  </section>
+</main>
+
+</body>
+</html>
