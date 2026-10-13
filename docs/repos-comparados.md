@@ -51,17 +51,30 @@ Nombres como `leanerSTFSpec` o `leanerVM` aprovechan el doble sentido a propósi
 
 ### Rigor: de qué axiomas dependen los teoremas
 
-Esta es la fila que más nos costó entender, y la que más dice sobre cada proyecto.
+Esta es la parte que más nos costó entender, y la que más dice sobre cada proyecto.
 
-| Repo | Axiomas permitidos | ¿Verificado por máquina? |
+**Primero, lo que es igual en los tres:** todo teorema en Lean lo revisa el *kernel*, el
+núcleo chico del lenguaje que acepta o rechaza cada paso. Eso pasa siempre, por el solo
+hecho de usar Lean; no distingue a nadie.
+
+**Lo que cambia es de qué se permite depender.** Un teorema puede apoyarse en axiomas:
+afirmaciones que se aceptan sin demostrar. Lean trae tres estándar, y además hay una vía
+de escape — `native_decide` y `bv_decide` — donde un paso **no lo verifica el kernel sino
+código compilado**, y eso deja un axioma extra que queda registrado en el teorema. A eso
+le decimos *native axiom*.
+
+Entonces la pregunta útil es: ¿qué axiomas se permiten, y hay **alguien que lo controle**?
+
+| Repo | Axiomas permitidos | ¿Quién controla que se cumpla? |
 |---|---|---|
-| **cryptography-specs** | `propext`, `Quot.sound`, `Classical.choice` **+ 10 teoremas con *native axioms*** | no tiene auditor propio; lo chequeamos con un script nuestro |
-| **leanerSTFSpec** | `propext`, `Quot.sound`, `Classical.choice` | **sí**: regla D21, `check-decls` en CI, "there is no exemption mechanism" |
-| **gasper-lean4** | **`propext` y `Quot.sound`. Nada más.** | **sí**: comando propio `#mr_audit_axioms` |
+| **cryptography-specs** | `propext`, `Quot.sound`, `Classical.choice` **+ 10 teoremas con *native axioms*** | **nadie**: no hay regla escrita ni programa que la vigile. Lo descubrimos nosotros corriendo `docs/native_axioms.lean` |
+| **leanerSTFSpec** | `propext`, `Quot.sound`, `Classical.choice` | **un programa, en cada push**: la regla D21 y `check-decls`, que inspecciona las declaraciones ya compiladas. *"There is no exemption mechanism"* |
+| **gasper-lean4** | **`propext` y `Quot.sound`. Nada más.** | **un comando propio**, `#mr_audit_axioms`, que reporta de qué axiomas depende cada declaración |
 
-*Native axiom* = un paso de la demostración que no verifica el kernel de Lean sino código
-compilado (`native_decide`, `bv_decide`). `cryptography-specs` tiene 10 teoremas así, uno de ellos
-central (`uncompress_compress`); los otros dos repos los prohíben.
+O sea: en los tres el kernel verifica las demostraciones. La diferencia es que en dos de
+ellos hay además un **guardia automático** que impide que se cuele un axioma de más, y en
+el tercero no — por eso ahí hay 10 teoremas con *native axioms*, uno de ellos central
+(`uncompress_compress`), y nadie lo había contado hasta que lo contamos nosotros.
 
 `gasper-lean4` llega al extremo: eliminó hasta el axioma de elección, y el premio es que
 las definiciones se vuelven **calculables** — la versión ejecutable sale casi gratis con
