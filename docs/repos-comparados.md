@@ -59,9 +59,14 @@ hecho de usar Lean; no distingue a nadie.
 
 **Lo que cambia es de qué se permite depender.** Un teorema puede apoyarse en axiomas:
 afirmaciones que se aceptan sin demostrar. Lean trae tres estándar, y además hay una vía
-de escape — `native_decide` y `bv_decide` — donde un paso **no lo verifica el kernel sino
-código compilado**, y eso deja un axioma extra que queda registrado en el teorema. A eso
-le decimos *native axiom*.
+de escape — `native_decide` y `bv_decide` — donde el kernel, en vez de revisar el paso,
+deja que **el compilador de Lean calcule el resultado en ese momento** y lo acepta sin
+mirarlo. Eso deja un axioma extra registrado en el teorema, y a eso le decimos
+*native axiom*.
+
+La analogía: el kernel es un escribano que revisa cada paso de una cuenta.
+`native_decide` es decirle "hacé la cuenta con la calculadora y confiá en lo que marque".
+La calculadora probablemente esté bien, pero ya no es el escribano el que responde.
 
 Entonces la pregunta útil es: ¿qué axiomas se permiten, y hay **alguien que lo controle**?
 
@@ -229,7 +234,7 @@ todos los clientes están transcribiendo:
 | **Formalizar**: demostrar que las reglas son correctas | **Implementar**: escribir el programa que las sigue |
 | **Compilar** Lean a C (backend del compilador) | **Traducir** código entre dos lenguajes de trabajo |
 | **Traducir** Rust a Lean (Aeneas) | **Demostrar**: eso se escribe a mano, después |
-| **Demostrado**: el kernel verificó todo | **Demostrado con *native axioms***: un paso lo verificó código compilado |
+| **Demostrado**: el kernel revisó cada paso | **Demostrado con *native axioms***: un paso lo calculó el compilador de Lean y el kernel lo aceptó sin revisar |
 | **Demostrado** | **Demostrado *si* alguien demuestra otra cosa** (`ConcreteBlsLaws`) |
 | **Kani**: todos los casos **hasta un límite** | **Teorema**: todos los casos, sin límite |
 
