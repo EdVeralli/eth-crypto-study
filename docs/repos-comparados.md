@@ -1,7 +1,9 @@
 # Cuadro sinóptico: los repos del ecosistema Lean 4 de Ethereum
 
-Los tres repos que nos pasó Pablo, más el nuestro como referencia. Todos los números
-están verificados sobre clones de solo lectura; la fecha de lectura está en cada ficha.
+Los cuatro repos que nos pasó Pablo. Del primero, `cryptography-specs`, tenemos copia de
+estudio propia y lo recorrimos archivo por archivo; de los otros tres hicimos el análisis
+leyéndolos. Todos los números están verificados sobre clones de solo lectura; la fecha de
+lectura está en cada ficha.
 
 Cada repo tiene su página HTML con el detalle; acá está el resumen para comparar de un
 vistazo.
@@ -14,18 +16,17 @@ Ethereum se parte en dos mundos, y cada repo vive en uno:
 
 ```
 CONSENSO  (quién propone bloques, quién vota, cómo se agregan las firmas)
-├── cryptography-specs ....... la criptografía del consenso (BLS, KZG, XMSS)   ← el nuestro
-└── gasper-lean4 ............. el protocolo de finalidad (Casper FFG)          ← Pablo
+├── cryptography-specs ....... la criptografía del consenso (BLS, KZG, XMSS)  ← copia propia
+└── gasper-lean4 ............. el protocolo de finalidad (Casper FFG)
 
 EJECUCIÓN  (qué pasa adentro de un bloque: el EVM, el estado, el gas)
-├── leanerSTFSpec ............ la transición de estado, para zkVM stateless    ← Pablo
-└── verified-zkevm ........... el paraguas de la EF para verificar zkVM        ← Pablo
+├── leanerSTFSpec ............ la transición de estado, para zkVM stateless
+└── verified-zkevm ........... el paraguas de la EF para verificar zkVM
 ```
 
 Y se tocan en un solo punto: la ejecución también necesita criptografía (los
 precompilados de curvas, el KZG de los blobs). Por eso `leanerSTFSpec` cita a
-`cryptography-specs` como referencia: **lo que estudiamos nosotros es la capa de abajo
-de lo que estudia él.**
+`cryptography-specs` como referencia: **el primer repo es la capa de abajo del segundo.**
 
 Ojo con la palabra "lean", que juega doble en todo esto: *lean Ethereum* y *Lean
 Consensus* es "lean" de liviano, por el rediseño del consenso; Lean 4 es el lenguaje.
@@ -54,13 +55,13 @@ Esta es la fila que más nos costó entender, y la que más dice sobre cada proy
 
 | Repo | Axiomas permitidos | ¿Verificado por máquina? |
 |---|---|---|
-| **cryptography-specs** | `propext`, `Quot.sound`, `Classical.choice` **+ 10 teoremas con *native axioms*** | no, lo chequeamos nosotros con un script |
+| **cryptography-specs** | `propext`, `Quot.sound`, `Classical.choice` **+ 10 teoremas con *native axioms*** | no tiene auditor propio; lo chequeamos con un script nuestro |
 | **leanerSTFSpec** | `propext`, `Quot.sound`, `Classical.choice` | **sí**: regla D21, `check-decls` en CI, "there is no exemption mechanism" |
 | **gasper-lean4** | **`propext` y `Quot.sound`. Nada más.** | **sí**: comando propio `#mr_audit_axioms` |
 
 *Native axiom* = un paso de la demostración que no verifica el kernel de Lean sino código
-compilado (`native_decide`, `bv_decide`). Nuestro repo tiene 10 teoremas así, uno de
-ellos central (`uncompress_compress`); los otros dos los prohíben.
+compilado (`native_decide`, `bv_decide`). `cryptography-specs` tiene 10 teoremas así, uno de ellos
+central (`uncompress_compress`); los otros dos repos los prohíben.
 
 `gasper-lean4` llega al extremo: eliminó hasta el axioma de elección, y el premio es que
 las definiciones se vuelven **calculables** — la versión ejecutable sale casi gratis con
@@ -76,7 +77,7 @@ las definiciones se vuelven **calculables** — la versión ejecutable sale casi
 | **gasper-lean4** | para razonar, no para servir | no | **no**, y no podría (pide `Fintype Hash`) |
 
 **La conclusión de toda la tabla:** Lean compilado y llamable desde otro lenguaje existe
-en **un solo repo, y es el que estudiamos nosotros**. Y todavía nadie lo usa en
+en **un solo repo de los cuatro**, `cryptography-specs`. Y todavía nadie lo usa en
 producción. En producción corre Rust, C y Go.
 
 ### El hueco principal de cada uno
@@ -92,12 +93,12 @@ producción. En producción corre Rust, C y Go.
 
 ## 3. Ficha por repo
 
-### `ethereum/cryptography-specs` — el nuestro
+### `ethereum/cryptography-specs` — la criptografía (del que tenemos copia propia)
 
 > La criptografía escrita una sola vez en Lean, de modo que la misma fuente se **ejecute**
 > (se compila a C, se llama desde Python, genera los vectores) y se **demuestre**.
 
-- **Lo verificamos en tu Mac**: `lake build` (3444 jobs), `bls_smoke.py` byte a byte
+- **Lo verificamos corriéndolo**: `lake build` (3444 jobs), `bls_smoke.py` byte a byte
   contra `py_ecc`, y la suite de 364 vectores regenerada sin una sola diferencia (2:57:50).
 - **La plomería**: 33 `@[export]`, 928 líneas de binding en C a mano, `_native.so` de
   8,8 MB enlazado contra `libleanshared`.
@@ -122,9 +123,9 @@ producción. En producción corre Rust, C y Go.
 - **El método que vale copiar**: testing diferencial. Lean y el Python de las
   `execution-specs` resuelven el mismo problema por separado, y un tercer programa compara
   las salidas. *"Observations are bug-finding evidence."*
-- **Dato para nosotros**: sus módulos `Field`, `Curve`, `Pairing` y `Precompiles` están
-  **vacíos** ("scaffolding only"), y cuando los escriba va a validar contra nuestro
-  `Bls/G1.lean` y `G2.lean`.
+- **Dato que los conecta**: sus módulos `Field`, `Curve`, `Pairing` y `Precompiles` están
+  **vacíos** ("scaffolding only"), y cuando los escriba va a validar contra el
+  `Bls/G1.lean` y `G2.lean` de `cryptography-specs`.
 - **Página**: `leaner-stf-spec.html`. Leído el 11 oct 2026, commit `daa6a8a`.
 
 ### `github.com/verified-zkevm` — el paraguas y el puente Rust ↔ Lean
