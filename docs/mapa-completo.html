@@ -488,6 +488,33 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
   <section id="frontera">
     <div class="eyebrow">La frontera</div>
     <h2>Dónde la separación no es perfecta</h2>
+
+    <div class="card warnc" style="margin:4px 0 2px">
+      <div class="eyebrow">Antes de los dos matices: por qué los axiomas importan tanto</div>
+      <p>La lista de axiomas de un teorema es, literalmente, <b>la lista de cosas que hay que creer sin
+      demostración</b> para que valga. Todo lo demás lo revisó el kernel. Por eso vale la pena mirarla.</p>
+      <p><b>Los tres axiomas estándar de Lean alcanzan para toda la matemática</b> — Mathlib entera está construida
+      sobre ellos. Así que cuando algo no está demostrado, nunca es "porque faltan axiomas", sino por una de estas
+      tres razones, que conviene no mezclar:</p>
+      <div class="tscroll"><table>
+        <tr><th>Caso</th><th>Ejemplo</th><th>¿Se puede arreglar?</th></tr>
+        <tr><td><b>Es una conjetura</b></td><td>que SHA-256 no tenga colisiones</td>
+            <td><b>no, nunca</b>: es el supuesto sobre el que se apoya toda la criptografía</td></tr>
+        <tr><td><b>Falta trabajo</b></td><td><code>ConcreteBlsLaws</code> (Matiz 1)</td>
+            <td><b>sí</b>: son leyes matemáticas, demostrables con los tres axiomas. Nadie lo hizo todavía</td></tr>
+        <tr><td><b>Se usó un atajo</b></td><td>los 10 <i>native axioms</i> (Matiz 2)</td>
+            <td><b>sí</b>: son evitables. Upstream abrió el issue #28 para sacar dos; en XMSS usaron
+            <code>decide +kernel</code>, el mismo cálculo hecho por el kernel</td></tr>
+      </table></div>
+      <p><b>Y lo que más conviene recordar:</b> la lista de axiomas <b>no muestra todo</b>. Un teorema puede valer
+      "si se cumple tal cosa", y esa hipótesis no aparece como axioma. Es el caso del Matiz 1: <code>#print axioms</code>
+      no lo dice. La base real de un teorema tiene tres pisos, y solo el primero se ve mirando axiomas:</p>
+      <pre style="background:var(--code-bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font:13px/1.7 var(--f-mono);overflow-x:auto;margin:0">1. Axiomas de Lean ............ los 3 estándar (+ native axioms donde se usó el atajo)
+2. Supuestos criptográficos ... hashes sin colisiones, log discreto difícil
+3. Hipótesis sin demostrar .... ConcreteBlsLaws  ← este NO aparece en #print axioms</pre>
+      <p>Por eso los dos matices que siguen están en ese orden: el segundo es el visible, el primero es el grave.</p>
+    </div>
+
     <p>Casi todo está demostrado por el kernel de Lean, sin ayuda externa: no hay ningún <code>sorry</code>, que es el "creeme, después lo pruebo" de Lean. Además, si alguien cambia una función de la spec, sus teoremas dejan de compilar, así que código y demostraciones no pueden desincronizarse.</p>
     <p>Hay dos matices, marcados con <span class="flag" style="margin:0">rojo</span> en el mapa de arriba. Van del más grave al menos grave.</p>
     <p><b>Matiz 1, el más importante: <code>CeremonyChecks</code> supone algo que nadie demostró.</b> El teorema más ambicioso del repo asume que el pairing de BLS cumple ciertas leyes matemáticas (<code>ConcreteBlsLaws</code>: bilinealidad, no-degeneración, fidelidad del mul escalar). La conclusión vale <i>si</i> esas leyes valen, pero todavía nadie las probó para el código de <code>Pairing.lean</code>: ni el kernel ni ningún programa. Es un supuesto matemático abierto. Y no aparece en <code>#print axioms</code>, porque está escrito como hipótesis del enunciado, no como axioma.</p>
