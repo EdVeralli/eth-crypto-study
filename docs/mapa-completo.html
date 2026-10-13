@@ -493,6 +493,16 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
       <div class="eyebrow">Antes de los dos matices: por qué los axiomas importan tanto</div>
       <p>La lista de axiomas de un teorema es, literalmente, <b>la lista de cosas que hay que creer sin
       demostración</b> para que valga. Todo lo demás lo revisó el kernel. Por eso vale la pena mirarla.</p>
+      <p><b>¿Y qué sería un axioma que no vale?</b> Lean <b>no verifica que un axioma sea verdad</b>: lo acepta
+      por definición, ése es el trato, y declararlo no produce ningún error. Se vuelve inválido por dos motivos:
+      porque <b>es falso</b> —de una falsedad se deduce cualquier cosa, mientras todo lo que se apoye en él sigue
+      compilando perfecto— o porque <b>es verdadero pero habla del problema</b>. Si alguien declarara como axioma
+      "la verificación de firmas BLS es correcta", la ceremonia de KZG entera compilaría y diría
+      <code>theorem</code>, sin que nadie hubiera demostrado lo único que importaba.</p>
+      <p>Así que <b>un axioma válido es el que no sabe nada del problema que estás resolviendo</b>: un enunciado
+      general de lógica del que además existe una demostración —hecha fuera de Lean— de que no introduce
+      contradicciones. Y <b>adentro de Lean no lo detecta nadie</b>: el kernel acepta cualquier axioma sin chistar,
+      eso <i>es</i> un axioma. Lo único que lo delata es la lista de axiomas del teorema, y alguien que la mire.</p>
       <p><b>Los tres axiomas estándar de Lean alcanzan para toda la matemática</b> — Mathlib entera está construida
       sobre ellos. Así que cuando algo no está demostrado, nunca es "porque faltan axiomas", sino por una de estas
       tres razones, que conviene no mezclar:</p>

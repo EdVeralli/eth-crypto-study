@@ -130,6 +130,31 @@ de teoremas de álgebra, análisis y teoría de números— está construida sob
 nada más. Toda la matemática que usan estos repos (campos finitos, curvas elípticas,
 polinomios) sale de ahí. No hay nada que falte *por culpa de los axiomas*.
 
+**¿Y qué sería un axioma que no vale?** Lo primero es saber que Lean **no verifica que un
+axioma sea verdad**: lo acepta por definición, ése es el trato. Declarar uno es gratis y no
+produce ningún error. La disciplina está afuera del lenguaje. Un axioma se vuelve inválido por
+dos motivos distintos:
+
+- **Porque es falso.** De una falsedad se deduce cualquier cosa, incluso su propia negación.
+  No hace falta que el error salte a la vista: alcanza con un enunciado que parezca razonable y
+  no lo sea. A partir de ahí todo lo que se apoye en él sigue compilando perfecto y ya no
+  significa nada.
+- **Porque es verdadero, pero habla del problema.** Éste es el peligroso en la práctica. Si
+  alguien declarara como axioma "la verificación de firmas BLS es correcta", todo lo que se
+  construya encima compilaría y diría `theorem`, sin que nadie hubiera demostrado justo lo único
+  que importaba: se pidió prestado el enunciado en lugar de probarlo.
+
+**Qué caracteriza entonces a uno válido:** que sea un enunciado **general de lógica, que no sepa
+nada del problema que estás resolviendo**, y que exista una demostración —hecha fuera de Lean, en
+teoría de conjuntos— de que agregarlo no introduce contradicciones. Los tres estándar cumplen las
+dos cosas: no saben nada de BLS, de hashes ni de Ethereum, y está probado que son seguros de usar.
+
+**Quién lo detecta:** adentro de Lean, nadie. El kernel acepta cualquier axioma sin chistar — eso
+*es* un axioma. Lo único que lo delata es la lista de axiomas del teorema, y alguien que la mire y
+decida si esa lista es aceptable. Por eso importa tanto quién controla esa lista, que es lo que
+compara la tabla de arriba: en `leanerSTFSpec` y en `gasper-lean4` la revisa un programa en cada
+cambio; en `cryptography-specs`, nadie.
+
 Entonces, cuando algo no está demostrado, es por una de estas tres razones, que conviene
 no mezclar:
 
