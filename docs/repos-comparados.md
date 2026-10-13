@@ -64,10 +64,6 @@ deja que **el compilador de Lean calcule el resultado en ese momento** y lo acep
 mirarlo. Eso deja un axioma extra registrado en el teorema, y a eso le decimos
 *native axiom*.
 
-La analogía: el kernel es un escribano que revisa cada paso de una cuenta.
-`native_decide` es decirle "hacé la cuenta con la calculadora y confiá en lo que marque".
-La calculadora probablemente esté bien, pero ya no es el escribano el que responde.
-
 Entonces la pregunta útil es: ¿qué axiomas se permiten, y hay **alguien que lo controle**?
 
 | Repo | Axiomas permitidos | ¿Quién controla que se cumpla? |
