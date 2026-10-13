@@ -1,0 +1,226 @@
+# Cuadro sinóptico: los repos del ecosistema Lean 4 de Ethereum
+
+Los tres repos que nos pasó Pablo, más el nuestro como referencia. Todos los números
+están verificados sobre clones de solo lectura; la fecha de lectura está en cada ficha.
+
+Cada repo tiene su página HTML con el detalle; acá está el resumen para comparar de un
+vistazo.
+
+---
+
+## 1. Dónde está cada uno
+
+Ethereum se parte en dos mundos, y cada repo vive en uno:
+
+```
+CONSENSO  (quién propone bloques, quién vota, cómo se agregan las firmas)
+├── cryptography-specs ....... la criptografía del consenso (BLS, KZG, XMSS)   ← el nuestro
+└── gasper-lean4 ............. el protocolo de finalidad (Casper FFG)          ← Pablo
+
+EJECUCIÓN  (qué pasa adentro de un bloque: el EVM, el estado, el gas)
+├── leanerSTFSpec ............ la transición de estado, para zkVM stateless    ← Pablo
+└── verified-zkevm ........... el paraguas de la EF para verificar zkVM        ← Pablo
+```
+
+Y se tocan en un solo punto: la ejecución también necesita criptografía (los
+precompilados de curvas, el KZG de los blobs). Por eso `leanerSTFSpec` cita a
+`cryptography-specs` como referencia: **lo que estudiamos nosotros es la capa de abajo
+de lo que estudia él.**
+
+Ojo con la palabra "lean", que juega doble en todo esto: *lean Ethereum* y *Lean
+Consensus* es "lean" de liviano, por el rediseño del consenso; Lean 4 es el lenguaje.
+Nombres como `leanerSTFSpec` o `leanerVM` aprovechan el doble sentido a propósito.
+
+---
+
+## 2. La tabla maestra
+
+| | **cryptography-specs** | **leanerSTFSpec** | **verified-zkevm** | **gasper-lean4** |
+|---|---|---|---|---|
+| **Quién** | Ethereum Foundation | Alexander Hicks (lidera el proyecto zkEVM de la EF) | Ethereum Foundation (organización) | Nyx Foundation (Japón) |
+| **Qué especifica** | criptografía: BLS12-381, KZG, XMSS | el EVM y la transición de estado | — (es un paraguas de 14 repos) | Casper FFG: la finalidad |
+| **Capa** | consenso | ejecución | ejecución | consenso |
+| **Consenso** | el nuevo (post-cuántico) | — | — | **el actual** (Beacon Chain) |
+| **Archivos `.lean`** | 77 | 265 | varía por repo | 65 |
+| **Líneas de Lean** | 19 995 | 41 736 | — | 11 948 |
+| **Teoremas** | 357 a mano (492 con los autogenerados) | 2 318 | — | 359 |
+| **Lean / Mathlib** | v4.29.1 | v4.34.0 | varía | v4.31.0 |
+| **Licencia** | CC0 | Apache-2.0 o MIT | varias | MIT |
+| **Estado al leerlo** | activo (XMSS completado oct 2026) | activo | activo | **quieto desde jun 2026** |
+
+### Rigor: de qué axiomas dependen los teoremas
+
+Esta es la fila que más nos costó entender, y la que más dice sobre cada proyecto.
+
+| Repo | Axiomas permitidos | ¿Verificado por máquina? |
+|---|---|---|
+| **cryptography-specs** | `propext`, `Quot.sound`, `Classical.choice` **+ 10 teoremas con *native axioms*** | no, lo chequeamos nosotros con un script |
+| **leanerSTFSpec** | `propext`, `Quot.sound`, `Classical.choice` | **sí**: regla D21, `check-decls` en CI, "there is no exemption mechanism" |
+| **gasper-lean4** | **`propext` y `Quot.sound`. Nada más.** | **sí**: comando propio `#mr_audit_axioms` |
+
+*Native axiom* = un paso de la demostración que no verifica el kernel de Lean sino código
+compilado (`native_decide`, `bv_decide`). Nuestro repo tiene 10 teoremas así, uno de
+ellos central (`uncompress_compress`); los otros dos los prohíben.
+
+`gasper-lean4` llega al extremo: eliminó hasta el axioma de elección, y el premio es que
+las definiciones se vuelven **calculables** — la versión ejecutable sale casi gratis con
+`decide`, y el teorema puente entre las dos se demuestra en una línea.
+
+### Dónde se usa Lean (las tres preguntas)
+
+| Repo | ¿Se compila el Lean? | ¿Se traduce código entre Lean y otro lenguaje? | ¿Hay Lean en el entorno de ejecución? |
+|---|---|---|---|
+| **cryptography-specs** | **sí** → `_native.so` de 8,8 MB | no | **invocable** (33 `@[export]`), pero **nadie lo consume** |
+| **leanerSTFSpec** | sí, apuntan a 2× de revm | no | **no**: cero `@[export]`, corre como proceso aparte |
+| **verified-zkevm** | no (se compila el Rust) | **sí: Rust → Lean** (hax, Aeneas/Charon) | **no** |
+| **gasper-lean4** | para razonar, no para servir | no | **no**, y no podría (pide `Fintype Hash`) |
+
+**La conclusión de toda la tabla:** Lean compilado y llamable desde otro lenguaje existe
+en **un solo repo, y es el que estudiamos nosotros**. Y todavía nadie lo usa en
+producción. En producción corre Rust, C y Go.
+
+### El hueco principal de cada uno
+
+| Repo | Qué falta |
+|---|---|
+| **cryptography-specs** | `ConcreteBlsLaws`: los teoremas de la ceremonia valen *si* el pairing programado cumple tres leyes que nadie demostró |
+| **leanerSTFSpec** | el teorema de refinamiento que ata la spec a las implementaciones: ni siquiera está acordado **cómo enunciarlo** |
+| **verified-zkevm** | la demostración vale sobre la *traducción*, no sobre el Rust: hay que confiar en `rustc` → Charon → Aeneas |
+| **gasper-lean4** | falta LMD-GHOST, o sea **la mitad de Gasper**: la que elige qué cadena seguir |
+
+---
+
+## 3. Ficha por repo
+
+### `ethereum/cryptography-specs` — el nuestro
+
+> La criptografía escrita una sola vez en Lean, de modo que la misma fuente se **ejecute**
+> (se compila a C, se llama desde Python, genera los vectores) y se **demuestre**.
+
+- **Lo verificamos en tu Mac**: `lake build` (3444 jobs), `bls_smoke.py` byte a byte
+  contra `py_ecc`, y la suite de 364 vectores regenerada sin una sola diferencia (2:57:50).
+- **La plomería**: 33 `@[export]`, 928 líneas de binding en C a mano, `_native.so` de
+  8,8 MB enlazado contra `libleanshared`.
+- **Lo que descubrimos investigando**: nadie lo consume. Las specs de consenso en Python
+  usan `py_arkworks_bls12381` y `ckzg`; el paquete está en PyPI desde mayo de 2026 y
+  ningún cliente lo pinea.
+- **Páginas**: `propuesta-foda.html`, `mapa-completo.html`, `architecture-map.html`,
+  `fp-paso-a-paso.html`.
+
+### `alexanderlhicks/leanerSTFSpec` — el EVM en Lean
+
+> Una spec formal y ejecutable del *guest program*: el programa que corre adentro de un
+> zkVM para validar bloques sin tener el estado.
+
+- **Una sola función**: `runStatelessGuest : ByteArray → ByteArray`. Entra bloque más
+  witness; salen 43 bytes de los que importa **uno**: válido o inválido. Total y
+  determinística.
+- **Cinco lenguajes encadenados**: Lean (la spec, los teoremas y las herramientas de
+  chequeo), Python (73 scripts que son guardias, nunca spec), Markdown (4 868 líneas de
+  spec informal, normativa), TOML (las fuentes de verdad, incluida la versión exacta de
+  `py_ecc` que la semántica asume) y Bash/YAML.
+- **El método que vale copiar**: testing diferencial. Lean y el Python de las
+  `execution-specs` resuelven el mismo problema por separado, y un tercer programa compara
+  las salidas. *"Observations are bug-finding evidence."*
+- **Dato para nosotros**: sus módulos `Field`, `Curve`, `Pairing` y `Precompiles` están
+  **vacíos** ("scaffolding only"), y cuando los escriba va a validar contra nuestro
+  `Bls/G1.lean` y `G2.lean`.
+- **Página**: `leaner-stf-spec.html`. Leído el 11 oct 2026, commit `daa6a8a`.
+
+### `github.com/verified-zkevm` — el paraguas y el puente Rust ↔ Lean
+
+> Organización de la EF, 14 repos, meta declarada: *"making formally verified bug-free
+> zk(E)VMs a possibility by 2027"*.
+
+- **Tres frentes**: zkVM (`clean`, `zkLean`, spec Sail de RISC-V), EVM (`evm-asm`, KEVM) y
+  criptografía (`ArkLib` 318★, `VCVio` 130★, `CompPoly`, `hax`).
+- **El tema que le interesaba a Pablo**: cómo se conecta Rust con Lean.
+  - **Rust → Lean existe y está maduro**: Charon baja el Rust a un formato intermedio
+    (LLBC) y Aeneas lo sube a Lean 4; `cargo hax into lean` es el envoltorio cómodo.
+  - **Lean → Rust no existe.** Lean compila a C, no tiene backend Rust.
+- **Lo que hay que entender**: traducir **no es** demostrar. Son tres pasos —
+  traducir (automático), **enunciar** qué significa que la función sea correcta (a mano,
+  y es el paso que más piensa) y demostrar (a mano). Después de traducir, cada función
+  queda traducida sin enunciado, con enunciado y `sorry`, o demostrada.
+- **El precedente real**: ML-KEM (Kyber) de la librería SymCrypt de Microsoft, escrito en
+  Rust, verificado con esta herramienta.
+- **El costo**: la demostración vale sobre la traducción. Si Charon o Aeneas traducen mal,
+  demostraste algo precioso sobre un programa que no es el tuyo.
+- **Página**: `verified-zkevm.html`. Leído el 11 oct 2026.
+
+### `NyxFoundation/gasper-lean4` — el consenso demostrado
+
+> Casper FFG, el mecanismo de finalidad del consenso que corre **hoy** en Ethereum,
+> formalizado en Lean 4 + Mathlib.
+
+- **Tres teoremas**: *accountable safety* (si hay fork entre bloques finalizados, todos
+  los validadores de la intersección son castigables), *slashable bound* (y esa
+  intersección pesa, con cota explícita) y *plausible liveness* (y aun así el sistema
+  puede seguir finalizando).
+- **Generaliza el paper**: de 1-finalización a *k*-finalización, y de validadores
+  estáticos a dinámicos. Traduce la formalización en Coq de Runtime Verification y
+  **corrige un bug** del original.
+- **Lo que no cubre**: LMD-GHOST. Casper FFG no elige qué cadena seguir, solo pone
+  candados: "de este punto para atrás no se toca más".
+- **Página**: `gasper-lean4.html`. Leído el 12 oct 2026, commit `7650709`.
+
+#### Los dos repos hermanos (misma fundación)
+
+| Repo | Qué es | Dato |
+|---|---|---|
+| `formal-leanSpec` | el modelo en Lean del **consenso nuevo** | 36 proposiciones, todas demostradas, con IDs (`ST-1`, `FC-3`…) que el cliente cita en sus comentarios |
+| `verity` | el **cliente** de Lean Consensus | 29 235 líneas de Rust, **cero de Lean**; corre en devnet junto a `ethlambda` y `ream` |
+
+**Y acá está el hallazgo más valioso de todo el estudio:** el Lean de `formal-leanSpec`
+nunca procesó un bloque, y aun así encontró **dos bugs críticos** en la especificación que
+todos los clientes están transcribiendo:
+
+- **Sin horizonte de slot futuro**: un proposer honesto puede firmar un bloque en el slot
+  2⁶³ y el loop de `process_slots` itera esa cantidad de veces. DoS para todos. Lo
+  descubrieron *al demostrar que el loop termina*: termina matemáticamente, lo cual es
+  silencioso sobre que sea un loop real no acotado.
+- **La cabeza de la cadena no es función pura del store**: ante una equivocación, el
+  código se queda con la atestación que entró primero al diccionario. Dos nodos honestos
+  con los mismos bloques en distinto orden pueden elegir cabezas distintas. *"Every unit
+  test passes, and heads diverge only on the interop network."*
+
+---
+
+## 4. Lo que se repite en los cuatro
+
+1. **Spec ejecutable.** Los cuatro escriben la especificación como código que corre, no
+   como prosa. Es la misma idea que Ethereum ya aplica con el Python de `consensus-specs`,
+   un escalón más abajo.
+2. **Cada proyecto serio se escribe su propio auditor de axiomas.** `cryptography-specs`
+   no lo tiene (lo hicimos nosotros); `leanerSTFSpec` tiene `check-decls`; `gasper-lean4`
+   tiene `#mr_audit_axioms`. Todos revisan lo mismo: de qué depende cada teorema.
+3. **El patrón "puente".** Siempre hay un código que corre, una matemática que lo describe
+   y un teorema que dice que coinciden. Lo vimos en `FpZMod.lean` (`powNat_eq_pow`), en
+   `gasper-lean4` (`justifiedB_iff`) y en Aeneas (`mul2_add1_spec`). Cambia de dónde viene
+   el lado programador; la forma del teorema es la misma.
+4. **El hueco está siempre en el mismo lugar**: en la unión entre lo demostrado y lo que
+   corre. `ConcreteBlsLaws`, el teorema de refinamiento, la fidelidad del traductor, el
+   backend C que "sits outside every proof". Nadie lo cerró todavía.
+5. **Y la conclusión práctica**: en producción corre Rust, C y Go. Lean está en la mesa de
+   al lado — demuestra, genera vectores, audita specs y encuentra bugs antes de que
+   lleguen a la red. El puente para que entre al runtime existe y está probado, pero nadie
+   lo cruzó con algo que procese bloques de verdad.
+
+---
+
+## 5. No confundir
+
+| Esto | No es esto |
+|---|---|
+| **Formalizar**: demostrar que las reglas son correctas | **Implementar**: escribir el programa que las sigue |
+| **Compilar** Lean a C (backend del compilador) | **Traducir** código entre dos lenguajes de trabajo |
+| **Traducir** Rust a Lean (Aeneas) | **Demostrar**: eso se escribe a mano, después |
+| **Demostrado**: el kernel verificó todo | **Demostrado con *native axioms***: un paso lo verificó código compilado |
+| **Demostrado** | **Demostrado *si* alguien demuestra otra cosa** (`ConcreteBlsLaws`) |
+| **Kani**: todos los casos **hasta un límite** | **Teorema**: todos los casos, sin límite |
+
+---
+
+*Fuentes: clones de solo lectura de los cuatro repos, leídos entre el 11 y el 12 de
+octubre de 2026. El detalle y las citas textuales, en las páginas HTML de esta misma
+carpeta.*

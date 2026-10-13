@@ -44,6 +44,7 @@ las sesiones. Son cuatro paginas HTML que se abren con el navegador:
 0b. `docs/leaner-stf-spec.html` — el EVM en Lean, repo de Alexander Hicks (11 oct)
 0c. `docs/verified-zkevm.html` — el paraguas de la EF y el puente Rust/Lean (11 oct)
 0d. `docs/gasper-lean4.html` — el consenso (Casper FFG) demostrado, y los tres repos de Nyx (12 oct)
+0e. `docs/repos-comparados.md` — cuadro sinoptico de los 4 repos en un solo lugar (13 oct)
 1. `docs/mapa-completo.html` — el big picture
 2. `docs/architecture-map.html` — los modulos por dentro y por que spec-first
 3. `docs/fp-paso-a-paso.html` — guia del piso 1 (`Bls/Fp.lean`)

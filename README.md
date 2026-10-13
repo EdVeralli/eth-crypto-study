@@ -63,6 +63,11 @@ Lean acá": si el Lean se compila, si se traduce código entre Lean y otro
 lenguaje, y si algo de Lean está en el entorno de ejecución. Sirve para comparar
 un repo con otro de un vistazo.
 
+Y si querés las cuatro comparadas en un solo lugar, sin abrir cuatro páginas:
+**[cuadro sinóptico de los repos](docs/repos-comparados.md)** — tabla maestra,
+rigor comparado, dónde se usa Lean en cada uno, el hueco de cada uno, lo que se
+repite en los cuatro y una lista de qué no confundir con qué.
+
 El mapa es la vista de arriba y cada guía baja a un archivo. Se estudian de
 abajo hacia arriba, porque cada piso usa al anterior:
 
@@ -235,6 +240,7 @@ caffeinate -i -s -w <PID>                           # si ya está corriendo
 - [`docs/leaner-stf-spec.html`](docs/leaner-stf-spec.html): el EVM en Lean (`leanerSTFSpec`), los cinco lenguajes que encadena y la regla que prohíbe los native axioms
 - [`docs/verified-zkevm.html`](docs/verified-zkevm.html): el paraguas Verified zkEVM y el puente Rust ↔ Lean (`hax`, Aeneas), con ejemplos reales
 - [`docs/gasper-lean4.html`](docs/gasper-lean4.html): Casper FFG demostrado en Lean, los tres repos de Nyx Foundation y los dos bugs críticos que el Lean encontró en la spec
+- [`docs/repos-comparados.md`](docs/repos-comparados.md): cuadro sinóptico de los cuatro repos en una sola página
 - [`docs/mapa-completo.html`](docs/mapa-completo.html): big picture, spec ejecutable vs teoremas, pisos de estudio
 - [`docs/fp-paso-a-paso.html`](docs/fp-paso-a-paso.html): guía del piso 1, `Bls/Fp.lean` y sus teoremas
 - [`docs/RETOMAR.md`](docs/RETOMAR.md) — dónde quedamos y cómo volver a arrancar
