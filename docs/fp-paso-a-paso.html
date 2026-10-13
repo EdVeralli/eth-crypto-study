@@ -192,7 +192,7 @@ a{color:var(--exec)}
     <p>Las mismas tres preguntas en todas las páginas de <code>docs/</code>, para poder comparar un repo con otro.</p>
     <dl>
       <dt>¿Se compila el Lean?</dt><dd><span class="si">Sí</span> — <code>Bls/Fp.lean</code> es spec ejecutable: <code>lake build</code> la compila a C y termina dentro del <code>.so</code> que Python importa. <code>Proofs/Bls/FpZMod.lean</code>, en cambio, son teoremas: Lean los revisa y nunca los ejecuta.</dd>
-      <dt>¿Hay traspilación desde o hacia Lean?</dt><dd><span class="no">No</span> — el C lo genera el compilador de Lean, más el binding a mano. No hay traducción de código fuente desde ni hacia otro lenguaje.</dd>
+      <dt>¿Se traduce código entre Lean y otro lenguaje?</dt><dd><span class="no">No</span> — el C lo genera el compilador de Lean, más el binding a mano. No hay traducción de código fuente desde ni hacia otro lenguaje.</dd>
       <dt>¿Hay Lean en el entorno de ejecución?</dt><dd><span class="si">Sí, es invocable</span> — <code>Fp</code> es la base de todo lo que Python llama (una verificación de firma la usa miles de veces). <span class="no">Pero nadie lo usa en producción</span>: ningún cliente consume este paquete.</dd>
     </dl>
     <p class="foot">Esta página es la guía de un archivo; la vista completa está en el <a href="mapa-completo.html">mapa completo</a> y la comparación con los otros repos en <a href="gasper-lean4.html">gasper-lean4</a>.</p>

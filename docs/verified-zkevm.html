@@ -137,7 +137,7 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
     <p>Las mismas tres preguntas en todas las páginas de <code>docs/</code>, para poder comparar un repo con otro.</p>
     <dl>
       <dt>¿Se compila el Lean?</dt><dd><span class="no">En este frente, no</span> — lo que se compila es el <b>Rust</b>, con <code>rustc</code>, por el camino de siempre. El Lean que sale de la traducción se usa para demostrar, no para generar un ejecutable.</dd>
-      <dt>¿Hay traspilación desde o hacia Lean?</dt><dd><span class="si">Sí, y es el tema de esta página</span> — <b>Rust → Lean</b>, con Charon (Rust → MIR → LLBC) y Aeneas (LLBC → Lean 4), o con <code>cargo hax into lean</code>, que desde la versión 0.4.0 usa Aeneas por debajo. <b>Lean → Rust no existe</b>: Lean compila a C, no tiene backend Rust.</dd>
+      <dt>¿Se traduce código entre Lean y otro lenguaje?</dt><dd><span class="si">Sí, y es el tema de esta página</span> — <b>Rust → Lean</b>, con Charon (Rust → MIR → LLBC) y Aeneas (LLBC → Lean 4), o con <code>cargo hax into lean</code>, que desde la versión 0.4.0 usa Aeneas por debajo. <b>Lean → Rust no existe</b>: Lean compila a C, no tiene backend Rust.</dd>
       <dt>¿Hay Lean en el entorno de ejecución?</dt><dd><span class="no">No</span> — lo que corre en producción es el Rust original, compilado por <code>rustc</code>. La traducción a Lean es un objeto de estudio que vive al costado: nunca se ejecuta.</dd>
     </dl>
     <p class="foot">Ojo con el costo que eso tiene: la demostración vale <b>sobre la traducción</b>, no sobre tu Rust. Si Charon o Aeneas traducen mal, demostraste una propiedad preciosa sobre un programa que no es el tuyo (ver "El costo").</p>

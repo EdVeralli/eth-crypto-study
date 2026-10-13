@@ -203,7 +203,8 @@ seccion "Empeza por aca"): el proximo es el piso 2, `Bls/G1.lean`.
 - `docs/gasper-lean4.html` — Casper FFG en Lean (NyxFoundation): justificacion/finalidad, S1/S2, los 3 teoremas, el rigor maximo (solo propext + Quot.sound), y los repos hermanos formal-leanSpec (2 bugs criticos encontrados en la spec) y verity (cliente en devnet con ethlambda y ream)
 
 Las 7 paginas de docs/ llevan el mismo bloque "Donde se usa Lean aca" con tres
-preguntas: si se compila, si hay traspilacion desde/hacia Lean, y si hay Lean en
+preguntas: si se compila, si se traduce codigo entre Lean y otro lenguaje, y si
+hay Lean en
 el entorno de ejecucion. Resumen: solo cryptography-specs tiene Lean compilado
 invocable (y nadie lo consume); en el resto, en produccion corre Rust/C/Go.
 - `docs/mapa-completo.html` — big picture: spec vs teoremas, vectores, pisos de estudio

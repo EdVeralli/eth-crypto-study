@@ -58,10 +58,10 @@ un repo distinto de los que leímos.
    [`verity`](https://github.com/NyxFoundation/verity), un cliente que corre en
    devnet junto a ethlambda y ream.
 
-Las seis páginas responden las mismas tres preguntas en un bloque "Dónde se usa
-Lean acá": si el Lean se compila, si hay traspilación desde o hacia Lean, y si
-algo de Lean está en el entorno de ejecución. Sirve para comparar un repo con
-otro de un vistazo.
+Las siete páginas responden las mismas tres preguntas en un bloque "Dónde se usa
+Lean acá": si el Lean se compila, si se traduce código entre Lean y otro
+lenguaje, y si algo de Lean está en el entorno de ejecución. Sirve para comparar
+un repo con otro de un vistazo.
 
 El mapa es la vista de arriba y cada guía baja a un archivo. Se estudian de
 abajo hacia arriba, porque cada piso usa al anterior:
