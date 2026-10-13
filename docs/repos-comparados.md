@@ -190,6 +190,31 @@ axioms): el segundo es el visible; el primero es el grave.
 | **verified-zkevm** | no (se compila el Rust) | **sí: Rust → Lean** (hax, Aeneas/Charon) | **no** |
 | **gasper-lean4** | para razonar, no para servir | no | **no**, y no podría (pide `Fintype Hash`) |
 
+De los ocho casilleros de las dos últimas columnas, sólo dos dicen algo. Van en detalle,
+porque son los dos que de verdad nos sirven:
+
+**Traducción de código: sólo en `verified-zkevm`, y en un solo sentido, Rust → Lean.** El Rust
+sigue siendo el original y nadie lo toca: la traducción se genera al costado, se vuelve a generar
+en cada cambio y no se edita a mano. Charon no lee el texto del `.rs` — lee la representación
+intermedia del compilador (MIR), el programa ya desazucarado y con los tipos resueltos — y la baja
+a LLBC. Aeneas convierte eso en Lean funcional puro: hace desaparecer las referencias mutables y
+los préstamos, y envuelve todo en una mónada `Result`, porque una función Rust puede entrar en
+pánico o desbordar y en Lean toda función tiene que ser total. Lo que Aeneas no sabe convertir
+—`unsafe`, llamadas al sistema, intrínsecos— queda declarado en `FunsExternal.lean` con un modelo
+escrito a mano: eso no es traducción, es un supuesto, y todo teorema que pase por ahí vale sólo si
+ese modelo describe bien lo que hace el Rust. Y **Lean → Rust no existe**: Lean compila a C, no
+tiene backend Rust.
+
+**Lean en el entorno de ejecución: sólo en `cryptography-specs`, y a medias.** Los 33 `@[export]`
+hacen que esas definiciones Lean aparezcan como símbolos C adentro del `.so`; el binding en C las
+envuelve y Python las llama con un `import` común y corriente. Eso es lo único que cierra el
+círculo entre teoremas y ejecución: lo que corre es *la misma definición* de la que hablan los
+teoremas, no una reimplementación que hace lo mismo. Si la spec se reescribiera en otro lenguaje,
+los teoremas seguirían valiendo sobre el Lean pero no sobre lo que se ejecuta, y recuperar esa
+garantía costaría un teorema de refinamiento — justo lo que a `leanerSTFSpec` le falta. Pero
+**ningún cliente importa el paquete**: las specs de consenso en Python siguen con
+`py_arkworks_bls12381` y `ckzg`. La puerta está abierta y todavía no entró nadie.
+
 **La conclusión de toda la tabla:** Lean compilado y llamable desde otro lenguaje existe
 en **un solo repo de los cuatro**, `cryptography-specs`. Y todavía nadie lo usa en
 producción. En producción corre Rust, C y Go.

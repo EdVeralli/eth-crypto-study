@@ -193,7 +193,13 @@ a{color:var(--exec)}
     <dl>
       <dt>¿Se compila el Lean?</dt><dd><span class="si">Sí</span> — <code>Bls/Fp.lean</code> es spec ejecutable: <code>lake build</code> la compila a C y termina dentro del <code>.so</code> que Python importa. <code>Proofs/Bls/FpZMod.lean</code>, en cambio, son teoremas: Lean los revisa y nunca los ejecuta.</dd>
       <dt>¿Se traduce código entre Lean y otro lenguaje?</dt><dd><span class="no">No</span> — el C lo genera el compilador de Lean, más el binding a mano. No hay traducción de código fuente desde ni hacia otro lenguaje.</dd>
-      <dt>¿Hay Lean en el entorno de ejecución?</dt><dd><span class="si">Sí, es invocable</span> — <code>Fp</code> es la base de todo lo que Python llama (una verificación de firma la usa miles de veces). <span class="no">Pero nadie lo usa en producción</span>: ningún cliente consume este paquete.</dd>
+      <dt>¿Hay Lean en el entorno de ejecución?</dt><dd><span class="si">Sí, es invocable</span> — <code>Fp</code> no tiene <code>@[export]</code> propio (los 33 están en <code>Exports.lean</code> y <code>Constants.lean</code>), pero es la base de todo lo que Python sí llama: una sola verificación de firma hace miles de operaciones en <code>Fp</code> adentro del <code>.so</code>. Cuando Python ejecuta <code>bls.fast_aggregate_verify</code>, lo que corre abajo es
+      este archivo compilado.
+      <p style="margin:8px 0 0"><b>Por qué importa.</b> Los teoremas de <code>Proofs/Bls/FpZMod.lean</code> hablan
+      de estas mismas definiciones, no de una copia parecida. Es el único caso, entre los repos que miramos, donde
+      el código demostrado y el código que corre son literalmente el mismo.</p>
+      <p style="margin:8px 0 0"><span class="no">Pero nadie lo usa en producción</span>: ningún cliente de Ethereum
+      consume este paquete.</p></dd>
     </dl>
     <p class="foot">Esta página es la guía de un archivo; la vista completa está en el <a href="mapa-completo.html">mapa completo</a> y la comparación con los otros repos en <a href="gasper-lean4.html">gasper-lean4</a>.</p>
   </section>

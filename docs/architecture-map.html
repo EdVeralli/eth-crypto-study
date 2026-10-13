@@ -582,7 +582,15 @@
     <dl>
       <dt>¿Se compila el Lean?</dt><dd><span class="si">Sí</span> — <code>lake build</code> genera un <code>.c.o.export</code> por módulo, y <code>setup.py</code> los compila dentro de la extensión <code>_native.cpython-311-darwin.so</code> (8,8 MB), enlazada dinámicamente contra <code>libleanshared</code>.</dd>
       <dt>¿Se traduce código entre Lean y otro lenguaje?</dt><dd><span class="no">No</span> — no se traduce código fuente a otro lenguaje ni viene de ninguno. El C lo genera el compilador de Lean, y aparte hay 928 líneas de binding en C escritas a mano (<code>bls.c</code>, <code>kzg.c</code>, <code>module.c</code>) que hacen el <i>marshalling</i> entre Python y Lean.</dd>
-      <dt>¿Hay Lean en el entorno de ejecución?</dt><dd><span class="si">Sí, es invocable</span> — 33 <code>@[export]</code> (14 funciones y 19 constantes) permiten <code>from eth_cryptography_specs import bls</code>, y así corrimos los 364 vectores. <span class="no">Pero nadie lo usa en producción</span>: las specs de consenso en Python siguen con <code>py_arkworks_bls12381</code> y <code>ckzg</code>.</dd>
+      <dt>¿Hay Lean en el entorno de ejecución?</dt><dd><span class="si">Sí, es invocable</span> — 33 <code>@[export]</code> (14 funciones y 19 constantes) hacen que esas definiciones Lean aparezcan como símbolos C adentro del <code>.so</code>; el binding en C las envuelve y Python las llama con un <code>from eth_cryptography_specs import bls</code> común y corriente. Así corrimos los 364 vectores: cada llamada ejecuta código Lean compilado, no una reimplementación que hace lo mismo.
+      <p style="margin:8px 0 0"><b>Por qué importa tanto.</b> Es lo único que cierra el círculo entre teoremas y
+      ejecución: lo que corre es <i>la misma definición</i> de la que hablan los teoremas. Si alguien reescribiera
+      la spec en otro lenguaje, los teoremas seguirían valiendo sobre el Lean pero no sobre lo que efectivamente
+      se ejecuta, y recuperar esa garantía costaría un teorema de refinamiento — que es justo lo que a
+      <a href="leaner-stf-spec.html">leanerSTFSpec</a> le falta.</p>
+      <p style="margin:8px 0 0"><span class="no">Pero nadie lo usa en producción</span>: las specs de consenso en
+      Python siguen con <code>py_arkworks_bls12381</code> y <code>ckzg</code>, y ningún cliente importa este
+      paquete. La puerta está abierta y todavía no entró nadie.</p></dd>
     </dl>
     <p class="foot">Es el único de los repos que estudiamos donde Lean compilado puede ser llamado desde otro lenguaje. Comparalo con <a href="leaner-stf-spec.html">leanerSTFSpec</a>, <a href="verified-zkevm.html">Verified zkEVM</a> y <a href="gasper-lean4.html">gasper-lean4</a>.</p>
   </section>
