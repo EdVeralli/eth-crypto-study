@@ -48,6 +48,20 @@ un repo distinto de los que leímos.
    teoremas en Lean ([`hax`](https://github.com/cryspen/hax),
    [Aeneas](https://github.com/AeneasVerif/aeneas)), con ejemplos reales de
    traducción y del teorema que hay que escribir después.
+6. **[gasper-lean4](docs/gasper-lean4.html)** — analiza
+   [`NyxFoundation/gasper-lean4`](https://github.com/NyxFoundation/gasper-lean4):
+   el **consenso** (Casper FFG: finalidad, quórums, slashing) demostrado en Lean,
+   con el rigor más alto de todos (ni `Classical.choice`). Y los otros dos repos
+   de la misma fundación:
+   [`formal-leanSpec`](https://github.com/NyxFoundation/formal-leanSpec), donde el
+   Lean **encontró dos bugs críticos** en la spec del consenso nuevo, y
+   [`verity`](https://github.com/NyxFoundation/verity), un cliente que corre en
+   devnet junto a ethlambda y ream.
+
+Las seis páginas responden las mismas tres preguntas en un bloque "Dónde se usa
+Lean acá": si el Lean se compila, si hay traspilación desde o hacia Lean, y si
+algo de Lean está en el entorno de ejecución. Sirve para comparar un repo con
+otro de un vistazo.
 
 El mapa es la vista de arriba y cada guía baja a un archivo. Se estudian de
 abajo hacia arriba, porque cada piso usa al anterior:
@@ -220,6 +234,7 @@ caffeinate -i -s -w <PID>                           # si ya está corriendo
 - [`docs/propuesta-foda.html`](docs/propuesta-foda.html): la propuesta, cómo se implementa, FODA y preguntas abiertas
 - [`docs/leaner-stf-spec.html`](docs/leaner-stf-spec.html): el EVM en Lean (`leanerSTFSpec`), los cinco lenguajes que encadena y la regla que prohíbe los native axioms
 - [`docs/verified-zkevm.html`](docs/verified-zkevm.html): el paraguas Verified zkEVM y el puente Rust ↔ Lean (`hax`, Aeneas), con ejemplos reales
+- [`docs/gasper-lean4.html`](docs/gasper-lean4.html): Casper FFG demostrado en Lean, los tres repos de Nyx Foundation y los dos bugs críticos que el Lean encontró en la spec
 - [`docs/mapa-completo.html`](docs/mapa-completo.html): big picture, spec ejecutable vs teoremas, pisos de estudio
 - [`docs/fp-paso-a-paso.html`](docs/fp-paso-a-paso.html): guía del piso 1, `Bls/Fp.lean` y sus teoremas
 - [`docs/RETOMAR.md`](docs/RETOMAR.md) — dónde quedamos y cómo volver a arrancar

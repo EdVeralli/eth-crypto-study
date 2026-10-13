@@ -163,6 +163,41 @@ a{color:var(--exec)}
     <p class="lede">Es un archivo corto (105 líneas) y el más básico: toda la criptografía de BLS y KZG hace cuentas con estos números. Vamos a leerlo de arriba abajo y después ver cómo se demuestra que está bien.</p>
     <p>Para que los ejemplos entren en la cabeza, en vez del primo real de 115 dígitos usamos <b>p = 7</b>. Todo lo que funciona con 7 funciona igual con el primo real: el código no cambia, solo el tamaño del número.</p>
   </header>
+<style>
+/* Bloque "Donde se usa Lean aca": autocontenido, para que se vea igual en las seis paginas
+   aunque cada una tenga su propio CSS. */
+.leanuse{border:1px solid currentColor;border-color:#d5dde2;border-radius:12px;padding:16px 18px;
+  margin:28px 0;font:15px/1.6 "IBM Plex Sans",system-ui,-apple-system,sans-serif;background:#ffffff;color:#17212b}
+.leanuse h3{font:800 18px/1.2 "Bricolage Grotesque","Segoe UI",system-ui,sans-serif;margin:0 0 4px}
+.leanuse p{margin:0 0 10px;max-width:72ch;font-size:14.5px}
+.leanuse dl{margin:0;display:flex;flex-direction:column;gap:9px}
+.leanuse dt{font:600 12px/1.45 "IBM Plex Sans",system-ui,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#5a6773}
+.leanuse dd{margin:2px 0 0;font-size:14.5px;max-width:72ch}
+.leanuse code{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;font-size:.86em;
+  background:#f7f9fa;border:1px solid #d5dde2;padding:0 4px;border-radius:4px}
+.leanuse .si{color:#0b3b2e;background:#dcf2ea;border:1px solid #1f8a6b;border-radius:4px;padding:1px 6px;font-weight:600;font-size:13px}
+.leanuse .no{color:#4a2d00;background:#fbead2;border:1px solid #b8730f;border-radius:4px;padding:1px 6px;font-weight:600;font-size:13px}
+.leanuse .foot{margin:12px 0 0;font-size:13px;color:#5a6773}
+@media (prefers-color-scheme: dark){
+  .leanuse{background:#172027;color:#e4ebef;border-color:#2b3841}
+  .leanuse dt,.leanuse .foot{color:#9aa8b3}
+  .leanuse code{background:#121a20;border-color:#2b3841}
+  .leanuse .si{color:#c9f3e4;background:#12352b;border-color:#4cc9a0}
+  .leanuse .no{color:#fde6c4;background:#3d2a0e;border-color:#f0a94a}
+}
+</style>
+
+  <section class="leanuse" id="lean-uso">
+    <h3>Dónde se usa Lean acá</h3>
+    <p>Las mismas tres preguntas en todas las páginas de <code>docs/</code>, para poder comparar un repo con otro.</p>
+    <dl>
+      <dt>¿Se compila el Lean?</dt><dd><span class="si">Sí</span> — <code>Bls/Fp.lean</code> es spec ejecutable: <code>lake build</code> la compila a C y termina dentro del <code>.so</code> que Python importa. <code>Proofs/Bls/FpZMod.lean</code>, en cambio, son teoremas: Lean los revisa y nunca los ejecuta.</dd>
+      <dt>¿Hay traspilación desde o hacia Lean?</dt><dd><span class="no">No</span> — el C lo genera el compilador de Lean, más el binding a mano. No hay traducción de código fuente desde ni hacia otro lenguaje.</dd>
+      <dt>¿Hay Lean en el entorno de ejecución?</dt><dd><span class="si">Sí, es invocable</span> — <code>Fp</code> es la base de todo lo que Python llama (una verificación de firma la usa miles de veces). <span class="no">Pero nadie lo usa en producción</span>: ningún cliente consume este paquete.</dd>
+    </dl>
+    <p class="foot">Esta página es la guía de un archivo; la vista completa está en el <a href="mapa-completo.html">mapa completo</a> y la comparación con los otros repos en <a href="gasper-lean4.html">gasper-lean4</a>.</p>
+  </section>
+
 
   <!-- dónde encaja -->
   <section class="step" id="donde">

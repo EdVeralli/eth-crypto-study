@@ -1,6 +1,6 @@
 # Retomar trabajo
 
-_Ultima actualizacion: 2026-10-11_
+_Ultima actualizacion: 2026-10-12_
 
 ## Donde quedamos (6 oct 2026): FODA investigado, mapas repasados
 
@@ -43,6 +43,7 @@ las sesiones. Son cuatro paginas HTML que se abren con el navegador:
 0. `docs/propuesta-foda.html` — la propuesta, como se implementa y FODA (5 oct)
 0b. `docs/leaner-stf-spec.html` — el EVM en Lean, repo de Alexander Hicks (11 oct)
 0c. `docs/verified-zkevm.html` — el paraguas de la EF y el puente Rust/Lean (11 oct)
+0d. `docs/gasper-lean4.html` — el consenso (Casper FFG) demostrado, y los tres repos de Nyx (12 oct)
 1. `docs/mapa-completo.html` — el big picture
 2. `docs/architecture-map.html` — los modulos por dentro y por que spec-first
 3. `docs/fp-paso-a-paso.html` — guia del piso 1 (`Bls/Fp.lean`)
@@ -199,6 +200,12 @@ seccion "Empeza por aca"): el proximo es el piso 2, `Bls/G1.lean`.
 - `docs/propuesta-foda.html` — la propuesta, como se implementa, FODA y preguntas abiertas investigadas
 - `docs/leaner-stf-spec.html` — leanerSTFSpec: el EVM/STF en Lean, 5 lenguajes encadenados, regla D21 (prohibe native axioms), testing diferencial
 - `docs/verified-zkevm.html` — Verified zkEVM (org de la EF, meta 2027) y la via Rust -> Lean: hax, Aeneas/Charon, ejemplos reales, costo de confianza
+- `docs/gasper-lean4.html` — Casper FFG en Lean (NyxFoundation): justificacion/finalidad, S1/S2, los 3 teoremas, el rigor maximo (solo propext + Quot.sound), y los repos hermanos formal-leanSpec (2 bugs criticos encontrados en la spec) y verity (cliente en devnet con ethlambda y ream)
+
+Las 7 paginas de docs/ llevan el mismo bloque "Donde se usa Lean aca" con tres
+preguntas: si se compila, si hay traspilacion desde/hacia Lean, y si hay Lean en
+el entorno de ejecucion. Resumen: solo cryptography-specs tiene Lean compilado
+invocable (y nadie lo consume); en el resto, en produccion corre Rust/C/Go.
 - `docs/mapa-completo.html` — big picture: spec vs teoremas, vectores, pisos de estudio
 - `docs/architecture-map.html` — modulos por dentro y por que spec-first
 - `docs/fp-paso-a-paso.html` — guia del piso 1, `Bls/Fp.lean` y sus teoremas

@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gasper-lean4: el consenso de Ethereum demostrado</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: documento de lectura en una columna. Mismos colores que el resto de docs/: verde = código que corre, violeta = teoremas, naranja = clave, rojo = hueco o límite. */
+:root{
+  --bg:#f3f6f7; --panel:#ffffff; --fg:#17212b; --muted:#5a6773; --line:#d5dde2; --code-bg:#f7f9fa;
+  --exec:#1f8a6b; --exec-bg:#dcf2ea; --exec-fg:#0b3b2e;
+  --thm:#6a4fd1;  --thm-bg:#e8e3fb;  --thm-fg:#281a5e;
+  --glue:#b8730f; --glue-bg:#fbead2; --glue-fg:#4a2d00;
+  --warn:#c2412d; --warn-bg:#fde3de;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f1519; --panel:#172027; --fg:#e4ebef; --muted:#9aa8b3; --line:#2b3841; --code-bg:#121a20;
+  --exec:#4cc9a0; --exec-bg:#12352b; --exec-fg:#c9f3e4;
+  --thm:#a893ff;  --thm-bg:#2a2350;  --thm-fg:#e3dcff;
+  --glue:#f0a94a; --glue-bg:#3d2a0e; --glue-fg:#fde6c4;
+  --warn:#ff8a73; --warn-bg:#44201a; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0f1519; --panel:#172027; --fg:#e4ebef; --muted:#9aa8b3; --line:#2b3841; --code-bg:#121a20;
+  --exec:#4cc9a0; --exec-bg:#12352b; --exec-fg:#c9f3e4;
+  --thm:#a893ff;  --thm-bg:#2a2350;  --thm-fg:#e3dcff;
+  --glue:#f0a94a; --glue-bg:#3d2a0e; --glue-fg:#fde6c4;
+  --warn:#ff8a73; --warn-bg:#44201a; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.65 var(--f-body);padding:0 16px}
+main{max-width:900px;margin:0 auto;padding-block:40px 72px;display:flex;flex-direction:column;gap:44px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:clamp(30px,5vw,46px);font-weight:800;letter-spacing:-.01em}
+h2{font-size:25px;font-weight:800}
+h3{font-size:17px;font-weight:600}
+p{margin:0;max-width:72ch}
+ul,ol{margin:0;padding-left:20px;max-width:72ch;display:flex;flex-direction:column;gap:5px}
+code{font-family:var(--f-mono);font-size:.85em;background:var(--code-bg);border:1px solid var(--line);padding:0 4px;border-radius:4px}
+a{color:var(--exec)}
+.eyebrow{font:600 12px/1.45 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lede{color:var(--muted);font-size:18px}
+.note{color:var(--muted);font-size:13.5px;line-height:1.7}
+.note .tag{vertical-align:0}
+section{display:flex;flex-direction:column;gap:14px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.box.key{border-left:4px solid var(--glue)} .box.key .eyebrow{color:var(--glue)}
+.box.ok{border-left:4px solid var(--exec)} .box.ok .eyebrow{color:var(--exec)}
+.box.gap{border-left:4px solid var(--warn)} .box.gap .eyebrow{color:var(--warn)}
+.box.thm{border-left:4px solid var(--thm)} .box.thm .eyebrow{color:var(--thm)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.fact{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.fact b{font:800 22px/1.1 var(--f-display)} .fact span{font-size:13px;color:var(--muted)}
+.pipe{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px;font:13.5px/1.7 var(--f-mono);overflow-x:auto;white-space:pre}
+.tag{font:600 10.5px/1 var(--f-mono);letter-spacing:.03em;padding:2px 5px;border-radius:4px;background:var(--code-bg);border:1px solid var(--line);color:var(--muted);white-space:nowrap;vertical-align:1px}
+.tag.m{background:var(--exec-bg);color:var(--exec-fg);border-color:var(--exec)}
+a.tag{text-decoration:none;cursor:pointer}
+a.tag:hover{border-color:var(--muted);color:var(--fg)}
+a.tag.m:hover{border-color:var(--exec-fg)}
+table{border-collapse:collapse;font-size:14px;width:100%}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.tw{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 10px}
+details{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:0 18px}
+details[open]{padding-bottom:16px}
+summary{cursor:pointer;padding:14px 0;font-weight:600;font-family:var(--f-display)}
+details > *:not(summary){margin-top:10px}
+blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);color:var(--muted);font-size:14.5px;max-width:72ch}
+.nav{display:flex;flex-wrap:wrap;gap:10px;font-size:14px}
+.nav a{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;text-decoration:none}
+.sev{font:600 10.5px/1 var(--f-mono);padding:3px 6px;border-radius:4px;background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn);white-space:nowrap}
+</style>
+</head>
+<body>
+
+<main>
+  <header style="display:flex;flex-direction:column;gap:12px">
+    <div class="eyebrow">NyxFoundation/gasper-lean4 · commit <code>7650709</code> (30 jun 2026) · leído el 12 oct 2026</div>
+    <h1>gasper-lean4: el consenso de Ethereum demostrado</h1>
+    <p class="lede">Los teoremas de Casper FFG, el mecanismo de finalidad del consenso que corre hoy en Ethereum,
+    escritos y verificados en Lean 4. Es el repo más estricto de todos los que miramos: ni siquiera usa el axioma de
+    elección. Y es la puerta de entrada a los otros dos repos de la misma fundación, donde el Lean dejó de ser
+    un ejercicio y se puso a encontrar bugs en la especificación del consenso nuevo.</p>
+    <p class="note">Etiquetas de origen: <span class="tag m">verificado acá</span> lo comprobamos en un clon de solo
+    lectura; <span class="tag">repo original</span> sale del texto del repo o de su documentación.</p>
+    <nav class="nav">
+      <a href="#que-es">Qué es</a>
+      <a href="#vocabulario">Cómo vota un validador</a>
+      <a href="#trampa">Las dos trampas</a>
+      <a href="#teoremas">Los tres teoremas</a>
+      <a href="#mitad">La mitad que falta</a>
+      <a href="#rigor">El rigor</a>
+      <a href="#lean-uso">Dónde se usa Lean</a>
+      <a href="#nyx">Los otros dos repos</a>
+      <a href="#sirve">Qué nos sirve</a>
+    </nav>
+  </header>
+
+  <section id="que-es">
+    <div class="eyebrow">Mundo Lean · teoremas</div>
+    <h2>Qué es</h2>
+    <p>Una formalización en Lean 4 + Mathlib de <b>Casper FFG</b>, el mecanismo que garantiza que un bloque
+    finalizado no se pueda dar marcha atrás. Es parte del protocolo <a href="https://arxiv.org/abs/2003.03052">Gasper</a>
+    (Buterin et al., 2020), o sea <b>el consenso que corre hoy</b> en el Beacon Chain, no el nuevo.
+    Autor: Nyx Foundation, licencia MIT, comentarios en japonés en el <code>lakefile</code>.</p>
+    <div class="facts">
+      <div class="fact"><b>65</b><span>archivos <code>.lean</code></span></div>
+      <div class="fact"><b>11 948</b><span>líneas, todas de Lean</span></div>
+      <div class="fact"><b>359</b><span>teoremas y lemas</span></div>
+      <div class="fact"><b>0</b><span><code>sorry</code>, <code>native_decide</code> y <code>bv_decide</code></span></div>
+    </div>
+    <p class="note"><span class="tag m">verificado acá</span> contados en el clon. Los 9 <code>sorry</code> que aparecen
+    al buscar están todos dentro de <code>Audit/</code>, que es un módulo propio que los <i>cuenta</i>. La spec está
+    limpia.</p>
+    <div class="box key">
+      <div class="eyebrow">Lo primero que hay que entender</div>
+      <p>Esto <b>no es "el consenso actual con código Lean agregado"</b>. No hay un nodo corriendo Lean, no cambia nada
+      en la red, ningún validador ejecuta esto. Es una <b>demostración matemática sobre el protocolo</b>, escrita en un
+      lenguaje que la computadora verifica. El protocolo sigue implementado en Go, Rust, Java y Nim, como siempre.</p>
+      <p>Formalizar es demostrar que <i>las reglas</i> son correctas. Implementar es escribir el programa que
+      <i>sigue</i> esas reglas. Este repo hace lo primero.</p>
+    </div>
+  </section>
+
+  <section id="vocabulario">
+    <div class="eyebrow">Mundo Lean · las definiciones</div>
+    <h2>Cómo vota un validador, en tres escalones</h2>
+    <p>Un voto en Casper FFG no es "voto por este bloque". Es un <b>par</b>: <i>"voto por el checkpoint <b>t</b>, que
+    está a la altura <code>t_h</code>, partiendo del checkpoint <b>s</b>, que está a la altura <code>s_h</code>"</i>.
+    Fuente y destino. Como decir "certifico que desde el kilómetro 5 se puede llegar al kilómetro 9". Sobre eso se
+    construye todo:</p>
+    <div class="tw"><table>
+      <tr><th>Escalón</th><th>Qué significa</th></tr>
+      <tr><td><b>Supermajority link</b></td><td>⅔ del stake votó <b>el mismo par</b> (s → t)</td></tr>
+      <tr><td><b>Justificado</b></td><td>el génesis lo está por definición; de ahí para arriba, cada checkpoint se
+        justifica apoyándose en uno ya justificado</td></tr>
+      <tr><td><b>Finalizado</b></td><td>está justificado <b>y</b> existe un hijo <b>directo</b> (a distancia
+        exactamente 1) con supermayoría desde él</td></tr>
+    </table></div>
+    <p>La justificación es literalmente una escalera, y en Lean se escribe como tal, con un primer peldaño y una
+    regla para subir: <span class="tag">repo original</span></p>
+    <div class="pipe">inductive justified … : Hash → Nat → Prop
+| justified_genesis :
+    justified … genesis 0                     -- el génesis, por definición
+| justified_link :
+    justified … s s_h →                       -- si s está justificado
+    justification_link … s t s_h t_h →        -- y hay un link de s a t
+    justified … t t_h                         -- entonces t está justificado</div>
+    <p>Nunca podés justificar algo colgado del aire: siempre hay que apoyarse en algo ya justificado, y la cadena
+    de apoyos termina en el génesis.</p>
+    <div class="box">
+      <div class="eyebrow">Por qué finalizar pide un hijo <i>directo</i></div>
+      <p>El comentario del código lo aclara: a diferencia de un link de justificación cualquiera, que puede saltar
+      varias alturas, la finalización exige el salto de exactamente 1. En criollo: no alcanza con que la comunidad
+      diga "este bloque es bueno". Hace falta que además ⅔ digan "y el que le sigue inmediatamente también".
+      <b>Dos sellos consecutivos.</b></p>
+    </div>
+  </section>
+
+  <section id="trampa">
+    <div class="eyebrow">Mundo Lean · las condiciones de slashing</div>
+    <h2>Las dos formas de hacer trampa</h2>
+    <p>Son dos fórmulas, y nada más que dos. Un validador es castigable si cumple cualquiera de las dos:</p>
+    <div class="box gap">
+      <div class="eyebrow">S1 · equivocación (<code>slashed_double_vote</code>)</div>
+      <p>Emitió dos votos con destinos <b>distintos</b> a la <b>misma altura</b>. Votó dos cosas incompatibles al
+      mismo nivel.</p>
+      <div class="pipe">t₁ ≠ t₂ ∧ vote_msg st v s₁ t₁ s₁_h t_h ∧ vote_msg st v s₂ t₂ s₂_h t_h
+                                      └── la misma t_h en los dos ──┘</div>
+    </div>
+    <div class="box gap">
+      <div class="eyebrow">S2 · voto envolvente (<code>slashed_surround_vote</code>)</div>
+      <p>Emitió dos votos donde uno <b>envuelve</b> al otro: el intervalo del primero (5 → 20) contiene estrictamente
+      al del segundo (8 → 12). Es apostar a una historia larga y después, por adentro, a otra que la contradice.</p>
+      <div class="pipe">s₁_h &lt; s₂_h  ∧  t₂_h &lt; t₁_h</div>
+    </div>
+    <p>Y ser castigable es simplemente la disyunción de las dos:</p>
+    <div class="pipe">def slashed st v : Prop := slashed_double_vote st v ∨ slashed_surround_vote st v</div>
+  </section>
+
+  <section id="teoremas">
+    <div class="eyebrow">Mundo Lean · los resultados</div>
+    <h2>Los tres teoremas</h2>
+
+    <div class="box thm">
+      <div class="eyebrow">1 · accountable_safety</div>
+      <p>Si se finalizaron dos bloques en conflicto, entonces <b>todo</b> validador en la intersección de los dos
+      quórums de ⅔ es castigable.</p>
+      <div class="pipe">theorem accountable_safety … (hfork : finalization_fork …) : q_intersection_slashed …</div>
+      <p>El comentario del propio teorema explica por qué se llama <i>accountable</i>: <span class="tag">repo original</span></p>
+      <blockquote>the theorem does not merely assert that honest validators would not create a fork, but that <b>*if* a
+      fork occurs, provable evidence exists to identify and punish the responsible validators</b>.</blockquote>
+      <p>No es "confiemos en que se portan bien". Es: si pasa, hay pruebas y hay a quién cobrarle.</p>
+      <p>Y "en conflicto" tiene una definición precisa, que es donde el teorema sí habla de cadenas: dos bloques
+      finalizados donde <b>ninguno es ancestro del otro</b>, o sea, en ramas distintas del árbol.</p>
+      <div class="pipe">∃ b1 b1_h b2 b2_h,
+  finalized … b1 b1_h ∧ finalized … b2 b2_h ∧
+  ¬ hash_ancestor parent b2 b1 ∧        -- b2 no desciende de b1
+  ¬ hash_ancestor parent b1 b2          -- ni b1 de b2</div>
+    </div>
+
+    <div class="box thm">
+      <div class="eyebrow">2 · slashable_bound</div>
+      <p>La parte cuantitativa, y es la que hace que el primer teorema valga algo. Esa intersección <b>pesa</b>, con
+      una cota explícita que contempla altas y bajas de validadores:</p>
+      <div class="pipe">max(wt(V_L) − a_L − e_R, wt(V_R) − a_R − e_L) − f⅓(wt(V_L)) − f⅓(wt(V_R)) ≤ wt(q_L ∩ q_R)</div>
+      <p>El primer teorema dice "alguien es culpable". Este dice <b>cuánto stake se puede quemar</b>. Sin él,
+      <code>accountable_safety</code> podría ser cierto con la intersección vacía, que es como tener una ley sin multa.
+      El propio archivo lo aclara en las "no-asunciones" del teorema 1.</p>
+    </div>
+
+    <div class="box thm">
+      <div class="eyebrow">3 · plausible_liveness</div>
+      <p>Que el protocolo nunca se trabe: siempre existe una manera de extender el estado y finalizar un bloque nuevo
+      <b>sin que nadie nuevo quede castigable</b>, mientras la cadena siga produciendo bloques y haya ⅔ de stake
+      honesto.</p>
+      <p>Sin esto, un protocolo podría ser perfectamente seguro por el método de no finalizar nunca nada.</p>
+    </div>
+
+    <p>Los tres juntos cierran el argumento: <b>no podés romperlo sin pagar</b> (1), <b>lo que pagás es mucho</b> (2),
+    y <b>aun así el sistema avanza</b> (3).</p>
+    <p class="note">Y no es una traducción literal del paper: lo generaliza en dos direcciones, de 1-finalización a
+    <i>k</i>-finalización arbitraria, y de validadores estáticos a dinámicos. <span class="tag">repo original</span></p>
+  </section>
+
+  <section id="mitad">
+    <div class="eyebrow">Lo que no cubre</div>
+    <h2>Es la mitad de Gasper: falta elegir la cadena</h2>
+    <p>El nombre Gasper es la suma de dos piezas, y este repo formaliza una sola:</p>
+    <div class="tw"><table>
+      <tr><th>Pieza</th><th>Qué hace</th><th>Cada cuánto</th><th>¿Está?</th></tr>
+      <tr><td><b>LMD-GHOST</b></td><td>elige <b>cuál cadena seguir</b> ahora mismo</td><td>todo el tiempo, slot a slot</td>
+          <td style="color:var(--warn);font-weight:600">no</td></tr>
+      <tr><td><b>Casper FFG</b></td><td>pone <b>candados</b> sobre checkpoints</td><td>cada época (32 slots)</td>
+          <td style="color:var(--exec);font-weight:600">sí, es todo el repo</td></tr>
+    </table></div>
+    <p>Casper FFG no opina sobre qué cadena seguís: dice "de este punto para atrás, no se toca más". Es el escribano
+    que sella una escritura; no te dice por qué calle seguir construyendo, te garantiza que lo ya escriturado no se
+    discute.</p>
+    <p>Las dos piezas se enganchan así: el fork choice de Gasper <b>no arranca del génesis</b>, arranca del último
+    checkpoint justificado y de ahí para arriba aplica LMD-GHOST. FFG le poda el árbol a GHOST, y GHOST decide dentro
+    de lo que quedó. Todo lo que pasa <b>de la última finalización para arriba</b> —qué bloque es la cabeza, qué pasa
+    con dos bloques en el mismo slot, cuándo hay una reorg— queda fuera de este repo.</p>
+  </section>
+
+  <section id="rigor">
+    <div class="eyebrow">Mundo Lean · teoremas</div>
+    <h2>El repo más estricto que miramos</h2>
+    <p>Acordate de la escala de axiomas que venimos siguiendo. Acá está el extremo:</p>
+    <div class="tw"><table>
+      <tr><th>Repo</th><th>Axiomas permitidos</th></tr>
+      <tr><td><a href="mapa-completo.html"><code>cryptography-specs</code></a> (lo nuestro)</td>
+          <td><code>propext</code>, <code>Quot.sound</code>, <code>Classical.choice</code>
+          <b>+ 10 teoremas con <i>native axioms</i></b></td></tr>
+      <tr><td><a href="leaner-stf-spec.html"><code>leanerSTFSpec</code></a></td>
+          <td><code>propext</code>, <code>Quot.sound</code>, <code>Classical.choice</code> (regla D21)</td></tr>
+      <tr><td><b><code>gasper-lean4</code></b></td>
+          <td><b><code>propext</code> y <code>Quot.sound</code>. Nada más.</b></td></tr>
+    </table></div>
+    <p>Eliminaron hasta el axioma de elección, que la versión original en Coq usaba globalmente. Y el motivo no es
+    purismo: es que así las definiciones se vuelven <b>calculables</b>. <span class="tag">repo original</span></p>
+    <blockquote>Eliminating <code>Classical.choice</code> means all proofs elaborate to closed terms in the kernel's
+    type theory, making the theorems constructively valid and the predicates <b>computationally executable</b> via
+    <code>decide</code>.</blockquote>
+    <div class="box ok">
+      <div class="eyebrow">El premio: la versión ejecutable sale casi gratis</div>
+      <p>Cada concepto existe en dos formas, pero la segunda <b>no es una reimplementación</b>: es la misma definición
+      envuelta en <code>decide</code>.</p>
+      <div class="pipe">inductive justified … : … → Prop     -- la definición lógica, sobre la que se demuestra
+
+def justifiedB … : Bool :=           -- la versión que devuelve verdadero o falso
+  decide (justified …)
+
+theorem justifiedB_iff … :           -- y el puente entre las dos…
+    justifiedB … = true ↔ justified … :=
+  iff_of_eq decide_eq_true_eq        -- …se demuestra en UNA línea</div>
+      <p>Compará con la <a href="fp-paso-a-paso.html">guía de <code>Fp.lean</code></a>: allá, <code>Fp.powNat</code>
+      (el square-and-multiply escrito como un programador) y <code>a ^ n</code> (la potencia de Mathlib) son
+      <b>dos cosas distintas</b>, y demostrar que coinciden costó una inducción fuerte con varios casos. Acá no hay dos
+      cosas: hay una sola definición que se lee de dos maneras.</p>
+    </div>
+    <details>
+      <summary>Qué más tiene: auditor propio, visualizaciones, y un bug corregido del original</summary>
+      <p><b>Un auditor de axiomas propio.</b> <code>Audit/Meta/AuditCommands.lean</code> define el comando
+      <code>#mr_audit_axioms</code>, que recorre las declaraciones y reporta de qué axiomas depende cada una, marcando
+      <code>sorryAx</code>, <code>_native_compute</code> y <code>Classical.choice</code> como hallazgos. Es la tercera
+      vez que vemos lo mismo: todo proyecto serio en Lean termina escribiéndose su propio verificador de axiomas.</p>
+      <p><b>Visualizaciones.</b> 11 archivos que dibujan SVG con ProofWidgets: el flujo de un voto envolvente, la
+      escalera de justificación, el diagrama de Venn de la intersección de quórums. Documentación literaria con Verso,
+      publicada en GitHub Pages.</p>
+      <p><b>Y corrigieron un bug del original.</b> El repo traduce la formalización en Coq de Runtime Verification y
+      declara, en una tabla, cada diferencia. Una fila dice que el predicado de existencia de bloques del Coq
+      <b>tiene un bug</b>, y que acá está corregido.</p>
+    </details>
+  </section>
+
+  <section id="lean-uso">
+    <div class="eyebrow">La pregunta de siempre</div>
+    <h2>Dónde se usa Lean acá</h2>
+    <div class="tw"><table>
+      <tr><th>Pregunta</th><th>Respuesta</th></tr>
+      <tr><td>¿Se compila el Lean?</td>
+          <td><b>Para razonar, no para servir.</b> <code>lake build</code> verifica los 359 teoremas. Hay
+          <code>#eval</code> en <code>Executable/</code>, pero son escenarios de juguete.</td></tr>
+      <tr><td>¿Hay traspilación desde o hacia Lean?</td>
+          <td><b>No.</b> No se traduce a ningún otro lenguaje ni viene de ninguno. El repo es 100% Lean: 65 archivos
+          <code>.lean</code> y nada más que tipografías y CSS para la documentación.</td></tr>
+      <tr><td>¿Hay Lean en el entorno de ejecución?</td>
+          <td><b>No, y no puede haberlo.</b> Ver abajo.</td></tr>
+    </table></div>
+    <div class="box gap">
+      <div class="eyebrow">Por qué esta formalización no escalaría nunca</div>
+      <p>No es una opinión: está en la firma de la función. <span class="tag m">verificado acá</span></p>
+      <div class="pipe">def justifiedB … [Fintype Validator] <b>[Fintype Hash]</b> … : Bool</div>
+      <p>Ese <code>[Fintype Hash]</code> exige que el conjunto de hashes posibles sea <b>finito y enumerable</b>. En los
+      ejemplos del repo son 8 bloques. En una cadena real los hashes son 2²⁵⁶ posibilidades: la función literalmente
+      no se puede instanciar para Ethereum.</p>
+      <p>Está escrita para razonar y para jugar con escenarios chicos, no para procesar bloques. Y eso está bien: el
+      producto de este repo es el teorema, no el binario.</p>
+    </div>
+  </section>
+
+  <section id="nyx">
+    <div class="eyebrow">El contexto · tres repos de la misma fundación</div>
+    <h2>Dónde encaja: Nyx tiene tres repos, y este es el más viejo</h2>
+    <p>La cronología lo cuenta sola:</p>
+    <div class="tw"><table>
+      <tr><th>Repo</th><th>Qué formaliza</th><th>Consenso</th><th>Último commit</th></tr>
+      <tr><td><code>gasper-lean4</code></td><td>Casper FFG</td><td><b>el actual</b> (Gasper / Beacon Chain)</td><td>30 jun 2026</td></tr>
+      <tr><td><code>formal-leanSpec</code></td><td>el leanSpec</td><td><b>el nuevo</b> (Lean Consensus)</td><td>30 jul 2026</td></tr>
+      <tr><td><code>verity</code></td><td>el cliente en sí</td><td><b>el nuevo</b></td><td>11 oct 2026</td></tr>
+    </table></div>
+    <p>Se fueron corriendo de uno al otro. <code>gasper-lean4</code> está quieto hace tres meses y medio; la actividad
+    está en los otros dos. <span class="tag m">verificado acá</span></p>
+
+    <div class="box">
+      <div class="eyebrow"><code>formal-leanSpec</code> · el catálogo</div>
+      <p>41 archivos, 8.534 líneas, <b>36 proposiciones, todas demostradas</b> (3 quedan como axiomas: la criptografía,
+      delegada a ArkLib). Cada una tiene un ID, y los prefijos mapean 1:1 con las carpetas: <code>SSZ</code>,
+      <code>CONT</code> (containers), <code>ST</code> (transición de estado), <code>FC</code> (fork choice),
+      <code>VAL</code>, <code>NET</code>, <code>STOR</code>, <code>SYNC</code>. Por ejemplo:</p>
+      <ul>
+        <li><b>ST-3</b> — <code>latest_justified.slot</code> y <code>latest_finalized.slot</code> nunca retroceden.</li>
+        <li><b>ST-4</b> — finalizado nunca pasa a justificado.</li>
+        <li><b>ST-6</b> — la finalización es irreversible.</li>
+        <li><b>VAL-1 / VAL-3</b> — el proposer es round-robin y hay exactamente uno por slot.</li>
+        <li><b>SSZ-1..5</b> — <code>decode ∘ encode = id</code>.</li>
+      </ul>
+      <p>Y para qué sirven, dicho por ellos: <i>"Client teams can treat each as a property their own implementation must
+      satisfy"</i>. Son objetivos de conformidad para <b>cualquier</b> cliente, no solo el propio.</p>
+    </div>
+
+    <div class="box key">
+      <div class="eyebrow">Y acá está lo mejor de todo: el Lean encontró dos bugs críticos en la spec</div>
+      <p>El repo publica un documento, <code>docs/spec-feedback.md</code>, con lo que la formalización le reveló a la
+      especificación en Python. La justificación de por qué eso importa: <span class="tag">repo original</span></p>
+      <blockquote>leanSpec is the <b>reference specification</b> […] every client team transliterates it into their own
+      implementation. Any ambiguity, implicit precondition, or non-determinism in the reference becomes
+      <b>a *class* of bugs replicated across all clients, surfacing only in cross-client interop</b>.</blockquote>
+
+      <p><span class="sev">Critical-1</span> <b>No hay horizonte de slot futuro para bloques.</b>
+      <code>process_slots</code> solo rechaza slots pasados; no hay cota superior. Como el proposer es
+      <code>slot % num_validators</code>, el tenedor de una sola clave honesta es proposer válido de infinitos slots y
+      puede firmar un bloque en el slot 2⁶³. El loop <code>while state.slot &lt; target_slot</code> itera esa cantidad
+      de veces: DoS que heredarían todos los clientes.</p>
+      <p>Y cómo lo descubrieron es la mejor parte:</p>
+      <blockquote><b>Why the proof surfaced it:</b> <code>processSlots</code> is total with
+      <code>termination_by target.toNat - s.slot.toNat</code>. The proof shows the loop <i>terminates
+      mathematically</i> — which is exactly silent about it being an unbounded real loop.</blockquote>
+      <p>Al demostrar que el loop termina, se dieron cuenta de que "termina matemáticamente" y "termina antes del fin
+      del universo" son cosas distintas. El teorema no los engañó: les mostró exactamente qué no cubría.</p>
+
+      <p><span class="sev">Critical-2</span> <b>La cabeza de la cadena no es función pura del store.</b> Si un validador
+      equivoca (dos atestaciones distintas en el mismo slot), el código se queda con la que <b>entró primero al
+      diccionario</b>: orden de llegada, no contenido. Dos nodos honestos con exactamente los mismos bloques, recibidos
+      en distinto orden, pueden elegir cabezas distintas de manera persistente.</p>
+      <blockquote>this is the worst class of reference bug. Client teams will each resolve the tie differently —
+      arrival order, <code>hash_tree_root</code> order, validator index order — every unit test passes, and heads
+      diverge only on the interop network.</blockquote>
+      <p>El remate: eso <b>hace falsa</b> la proposición FC-1 (determinismo de la cabeza) que tenían planeada. No
+      pudieron demostrarla, y al no poder, encontraron el bug.</p>
+    </div>
+
+    <div class="box">
+      <div class="eyebrow"><code>verity</code> · el cliente, donde el Lean todavía no entró</div>
+      <p>Un nodo completo para el Lean Consensus. Hoy: <b>29.235 líneas de Rust en 10 crates, y cero líneas de
+      Lean</b>. Sin <code>build.rs</code>, sin <code>extern "C"</code>, sin ningún <code>.so</code> ni <code>.a</code>.
+      <span class="tag m">verificado acá</span></p>
+      <p>El Lean influye de otra manera, y se ve en los comentarios del propio código Rust:</p>
+      <div class="pipe">// crates/verity-chain/src/state_transition/slots.rs
+// Lean overlap: ST-1 (`State.process_slots_advances`). Future Lean-adoption deletion candidate.</div>
+      <p>Hay <b>13 comentarios así</b> entre los 42 chequeos de <b>Kani</b> (un <i>model checker</i> acotado para Rust:
+      prueba todas las entradas posibles dentro de un límite, en vez de los casos que se te ocurrieron). Cada uno dice
+      qué teorema del catálogo está cubriendo, y que ese chequeo <b>se borra</b> el día que la función venga de Lean.</p>
+      <p>Y Kani ya pagó: encontró que la retención del historial de atestaciones usaba <code>seen + retention</code>,
+      que <b>desborda cerca de <code>u64::MAX</code></b>.</p>
+      <p>La estrategia declarada, que responde la objeción obvia sobre performance:</p>
+      <blockquote>Rust-first. Everything runs in Rust initially; Lean-compiled logic is adopted per-logic later
+      (<b>stable / proved / measured-within-budget first</b>; STF and fork choice last, as they track a volatile
+      upstream spec).</blockquote>
+      <p>Tres condiciones de admisión, y una es la velocidad. Lo más importante se migra <b>al final</b>, porque la
+      spec del consenso nuevo todavía se mueve.</p>
+    </div>
+
+    <details>
+      <summary>La honestidad de Verity: publican dónde se corta la garantía</summary>
+      <p>Su documentación trae una tabla de cinco eslabones diciendo, en cada uno, de qué depende la fidelidad.
+      Es el documento más honesto que leímos en todo el estudio: <span class="tag">repo original</span></p>
+      <div class="tw"><table>
+        <tr><th>Eslabón</th><th>Qué es</th><th>Qué lo sostiene</th></tr>
+        <tr><td>Verdad de base</td><td>leanSpec (Python, en movimiento)</td><td>—</td></tr>
+        <tr><td>Transcripción</td><td><code>formal-leanSpec</code></td><td><b>Evidenciado, no demostrado</b>: cada
+          archivo Lean cita el Python que espeja</td></tr>
+        <tr><td>Demostración</td><td>el catálogo de proposiciones</td><td><b>Verificado por máquina</b>, sin
+          <code>sorry</code></td></tr>
+        <tr><td>Artefacto</td><td>el subconjunto compilado (backend C de Lean → librería estática → C ABI)</td>
+          <td><b>Confiado</b>: el backend C y el linkeo quedan fuera de toda demostración</td></tr>
+        <tr><td>Runtime</td><td>el shell de Rust</td><td><b>Chequeado, no demostrado</b></td></tr>
+      </table></div>
+      <p>Reconocé el cuarto eslabón: <b>es el mismo esquema que <code>cryptography-specs</code></b>. Lean compilado a C,
+      expuesto por C ABI, llamado desde otro lenguaje. Y dicen sin vueltas que esa parte es <i>trusted</i>, no probada.
+      Lo mismo que el binding en C que estudiamos nosotros.</p>
+      <p>Y sobre los teoremas que todavía no tienen harness:</p>
+      <blockquote>until a harness targets a given proposition, that proposition constrains the design but says nothing
+      yet about the running Rust</blockquote>
+      <p>También declaran por qué lo cuentan así: para que <i>"la frontera de verificación quede explícita, en vez de
+      pretender que el código no verificado ya está demostrado"</i>.</p>
+    </details>
+  </section>
+
+  <section id="sirve">
+    <div class="eyebrow">Para nuestro estudio</div>
+    <h2>Qué nos sirve</h2>
+    <ol>
+      <li><b>Es nuestro terreno.</b> Los otros repos que miramos son ejecución (el EVM, los zkVM). Este es
+      <b>consenso</b>: finalidad, quórums, slashing. Y <code>formal-leanSpec</code> es el consenso nuevo, el del
+      roadmap post-cuántico que estudiamos en <a href="propuesta-foda.html">el FODA</a>.</li>
+      <li><b>Muestra el techo del rigor.</b> Sin <code>Classical.choice</code>, sin <code>native_decide</code>, sin
+      <code>sorry</code>: solo <code>propext</code> y <code>Quot.sound</code>. Ahora tenemos los tres niveles
+      completos, y el nuestro es el más permisivo de los tres.</li>
+      <li><b>Y muestra para qué sirve el Lean cuando no corre.</b> Esta es la lección más valiosa de todo el estudio.
+      El Lean de Nyx nunca procesó un bloque, y aun así encontró un DoS y un no-determinismo de consenso en la
+      especificación que todos los clientes están transcribiendo ahora mismo. No sirve para correr: sirve para que lo
+      que corra esté bien pensado.</li>
+      <li><b>Confirma el patrón de todo el ecosistema.</b> En producción corre Rust, C y Go. Lean está en la mesa de al
+      lado: demuestra, genera vectores, audita specs y encuentra bugs. El puente para que entre al runtime existe y está
+      probado, pero nadie lo cruzó todavía con algo que procese bloques de verdad.</li>
+      <li><b>Un modelo de documentación para copiar:</b> el <code>spec-feedback.md</code>, que separa
+      <i>assurances</i> (lo demostrado, usable como objetivo de conformidad por otros equipos) de <i>feedback</i>
+      (lo que la demostración reveló), con severidad explícita y "coverage limits" dichos de frente.</li>
+    </ol>
+  </section>
+
+  <section id="fuentes">
+    <div class="eyebrow">Fuentes</div>
+    <h2>De dónde sale cada cosa</h2>
+    <ol>
+      <li><a href="https://github.com/NyxFoundation/gasper-lean4">NyxFoundation/gasper-lean4</a>: clon de solo lectura
+      en <code>7650709</code> (30 jun 2026). <code>README.md</code>, <code>Core/AtomicDef/</code>,
+      <code>Core/Theories/</code>, <code>Audit/</code>, <code>Executable/</code>. Leído el 12 oct 2026.</li>
+      <li><a href="https://github.com/NyxFoundation/formal-leanSpec">NyxFoundation/formal-leanSpec</a>:
+      <code>docs/lean4-proof-propositions.md</code> (el catálogo) y <code>docs/spec-feedback.md</code> (los hallazgos).</li>
+      <li><a href="https://github.com/NyxFoundation/verity">NyxFoundation/verity</a>: <code>README.md</code>,
+      <code>docs/src/concepts/formal-verification.md</code>, los 10 crates y los harness de Kani.</li>
+      <li>Conteos propios sobre esos clones: archivos, líneas, teoremas, <code>sorry</code>, <code>native_decide</code>,
+      <code>bv_decide</code>, <code>build.rs</code>, <code>extern "C"</code>.</li>
+      <li><a href="https://arxiv.org/abs/2003.03052">Combining GHOST and Casper</a> (Buterin et al., 2020), el paper de
+      Gasper; y la <a href="https://github.com/runtimeverification/beacon-chain-verification">formalización en Coq</a>
+      de Runtime Verification que este repo traduce y extiende.</li>
+      <li>Nuestra copia: <a href="mapa-completo.html">mapa completo</a>,
+      <a href="fp-paso-a-paso.html">guía de <code>Fp.lean</code></a>,
+      <a href="leaner-stf-spec.html">leanerSTFSpec</a>, <a href="verified-zkevm.html">Verified zkEVM</a>.</li>
+    </ol>
+  </section>
+</main>
+
+</body>
+</html>
