@@ -82,11 +82,24 @@ Qué quiere decir cada caso:
 
 - **`leanerSTFSpec`: un programa propio, llamado `check-decls`.** Recorre todos los
   teoremas del repo y, si alguno depende de un axioma que no está en la lista permitida,
-  **el build falla**. Dos detalles que lo hacen serio: revisa el *resultado compilado* y no
-  el texto fuente, así nadie puede disfrazar una violación escribiéndola de otra forma; y
-  no existe manera de pedir una excepción para un caso puntual, ni siquiera "por esta vez"
-  (*"There is no exemption mechanism"*, dice el reglamento). Corre automáticamente en cada
-  cambio que alguien sube.
+  **el build falla**. Corre automáticamente en cada cambio que alguien sube, y no existe
+  manera de pedir una excepción, ni siquiera "por esta vez" (*"There is no exemption
+  mechanism"*, dice el reglamento).
+
+  **Ojo, no revalida las demostraciones.** El kernel y `check-decls` responden preguntas
+  distintas: el kernel, *¿esta demostración es correcta?*; `check-decls`, *¿de qué depende,
+  y está permitido?*. Lean ya deja registrado de qué axiomas depende cada teorema;
+  `check-decls` lee esa lista y la compara. No recalcula ni un paso. (Sí revisa el
+  resultado compilado y no el texto fuente, así nadie puede disfrazar una violación
+  escribiéndola de otra forma.)
+
+  Donde sí agrega validaciones propias es en cosas que **al kernel le dan igual**:
+  prohíbe `@[csimp]`, `@[extern]`, `unsafe`, `partial` y `opaque`. El reglamento explica
+  la diferencia: esas no son inseguras *lógicamente*, pero rompen la **correspondencia
+  entre lo demostrado y lo ejecutado**. `@[csimp]`, por ejemplo, permite decirle al
+  compilador "cuando corras, usá esta otra función más rápida en vez de la que escribí":
+  el teorema sigue siendo cierto sobre la función original, pero ya no es esa la que
+  corre.
 
 - **`gasper-lean4`: un comando propio que corre al compilar** y escupe un informe de todo
   el proyecto. El de este commit dice, textual:
@@ -106,6 +119,42 @@ tercero no — por eso ahí hay 10 teoremas con *native axioms*, uno de ellos ce
 `gasper-lean4` llega al extremo: eliminó hasta el axioma de elección, y el premio es que
 las definiciones se vuelven **calculables** — la versión ejecutable sale casi gratis con
 `decide`, y el teorema puente entre las dos se demuestra en una línea.
+
+### Por qué los axiomas importan tanto
+
+Porque la lista de axiomas es, literalmente, **la lista de cosas que hay que creer sin
+demostración** para que el teorema valga. Todo lo demás lo revisó el kernel.
+
+**Los tres estándar alcanzan para toda la matemática.** Mathlib entera —cientos de miles
+de teoremas de álgebra, análisis y teoría de números— está construida sobre esos tres y
+nada más. Toda la matemática que usan estos repos (campos finitos, curvas elípticas,
+polinomios) sale de ahí. No hay nada que falte *por culpa de los axiomas*.
+
+Entonces, cuando algo no está demostrado, es por una de estas tres razones, que conviene
+no mezclar:
+
+| Caso | Ejemplo | ¿Se puede arreglar? |
+|---|---|---|
+| **Es una conjetura** | que SHA-256 no tenga colisiones, que el logaritmo discreto sea difícil | **no, nunca**: es el supuesto sobre el que se apoya toda la criptografía. Se declara como axioma aparte y explícito |
+| **Falta trabajo** | `ConcreteBlsLaws` | **sí**: son leyes matemáticas, demostrables con los tres axiomas. Nadie las demostró todavía |
+| **Se usó un atajo** | los 10 teoremas con *native axioms* | **sí**: son evitables. Upstream abrió el issue #28 para sacar dos de ellos, y en XMSS usaron `decide +kernel` (el mismo cálculo, hecho por el kernel) |
+
+**Y el detalle que más importa:** la lista de axiomas **no muestra todo**. Un teorema puede
+valer "si se cumple tal cosa", y esa hipótesis no aparece como axioma. Es exactamente el
+caso de `ConcreteBlsLaws`: los teoremas de la ceremonia de KZG valen *si* el pairing
+programado cumple tres leyes que nadie demostró, y `#print axioms` no lo dice.
+
+Así que la base real de un teorema tiene tres pisos, y solo el primero se ve mirando
+axiomas:
+
+```
+1. Axiomas de Lean ............ los 3 estándar (+ native axioms donde se usó el atajo)
+2. Supuestos criptográficos ... hashes sin colisiones, log discreto difícil
+3. Hipótesis sin demostrar .... ConcreteBlsLaws  ← este NO aparece en #print axioms
+```
+
+Por eso en el mapa completo separamos "Matiz 1" (la hipótesis) de "Matiz 2" (los native
+axioms): el segundo es el visible; el primero es el grave.
 
 ### Dónde se usa Lean (las tres preguntas)
 
