@@ -158,11 +158,11 @@ cambio; en `cryptography-specs`, nadie.
 Entonces, cuando algo no está demostrado, es por una de estas tres razones, que conviene
 no mezclar:
 
-| Caso | Ejemplo | ¿Se puede arreglar? |
+| Ejemplo | Caso | ¿Se puede arreglar? |
 |---|---|---|
-| **Es una conjetura** | que SHA-256 no tenga colisiones, que el logaritmo discreto sea difícil | **no, nunca**: es el supuesto sobre el que se apoya toda la criptografía. Se declara como axioma aparte y explícito |
-| **Falta trabajo** | `ConcreteBlsLaws` | **sí**: son leyes matemáticas, demostrables con los tres axiomas. Nadie las demostró todavía |
-| **Se usó un atajo** | los 10 teoremas con *native axioms* | **sí**: son evitables. Upstream abrió el issue #28 para sacar dos de ellos, y en XMSS usaron `decide +kernel` (el mismo cálculo, hecho por el kernel) |
+| que SHA-256 no tenga colisiones, que el logaritmo discreto sea difícil | **Es una conjetura** | **no, nunca**: es el supuesto sobre el que se apoya toda la criptografía. Se declara como axioma aparte y explícito |
+| `ConcreteBlsLaws` | **Falta trabajo** | **sí**: son leyes matemáticas, demostrables con los tres axiomas. Nadie las demostró todavía |
+| los 10 teoremas con *native axioms* | **Se usó un atajo** | **sí**: son evitables. Upstream abrió el issue #28 para sacar dos de ellos, y en XMSS usaron `decide +kernel` (el mismo cálculo, hecho por el kernel) |
 
 **Y el detalle que más importa:** la lista de axiomas **no muestra todo**. Un teorema puede
 valer "si se cumple tal cosa", y esa hipótesis no aparece como axioma. Es exactamente el

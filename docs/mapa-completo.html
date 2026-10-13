@@ -507,12 +507,12 @@ output: false                <span class="c"># tiene que dar INVÁLIDA</span></p
       sobre ellos. Así que cuando algo no está demostrado, nunca es "porque faltan axiomas", sino por una de estas
       tres razones, que conviene no mezclar:</p>
       <div class="tscroll"><table>
-        <tr><th>Caso</th><th>Ejemplo</th><th>¿Se puede arreglar?</th></tr>
-        <tr><td><b>Es una conjetura</b></td><td>que SHA-256 no tenga colisiones</td>
+        <tr><th>Ejemplo</th><th>Caso</th><th>¿Se puede arreglar?</th></tr>
+        <tr><td>que SHA-256 no tenga colisiones</td><td><b>Es una conjetura</b></td>
             <td><b>no, nunca</b>: es el supuesto sobre el que se apoya toda la criptografía</td></tr>
-        <tr><td><b>Falta trabajo</b></td><td><code>ConcreteBlsLaws</code> (Matiz 1)</td>
+        <tr><td><code>ConcreteBlsLaws</code> (Matiz 1)</td><td><b>Falta trabajo</b></td>
             <td><b>sí</b>: son leyes matemáticas, demostrables con los tres axiomas. Nadie lo hizo todavía</td></tr>
-        <tr><td><b>Se usó un atajo</b></td><td>los 10 <i>native axioms</i> (Matiz 2)</td>
+        <tr><td>los 10 <i>native axioms</i> (Matiz 2)</td><td><b>Se usó un atajo</b></td>
             <td><b>sí</b>: son evitables. Upstream abrió el issue #28 para sacar dos; en XMSS usaron
             <code>decide +kernel</code>, el mismo cálculo hecho por el kernel</td></tr>
       </table></div>
