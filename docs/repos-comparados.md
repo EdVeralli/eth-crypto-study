@@ -68,14 +68,40 @@ Entonces la pregunta útil es: ¿qué axiomas se permiten, y hay **alguien que l
 
 | Repo | Axiomas permitidos | ¿Quién controla que se cumpla? |
 |---|---|---|
-| **cryptography-specs** | `propext`, `Quot.sound`, `Classical.choice` **+ 10 teoremas con *native axioms*** | **nadie**: no hay regla escrita ni programa que la vigile. Lo descubrimos nosotros corriendo `docs/native_axioms.lean` |
-| **leanerSTFSpec** | `propext`, `Quot.sound`, `Classical.choice` | **un programa, en cada push**: la regla D21 y `check-decls`, que inspecciona las declaraciones ya compiladas. *"There is no exemption mechanism"* |
-| **gasper-lean4** | **`propext` y `Quot.sound`. Nada más.** | **un comando propio**, `#mr_audit_axioms`, que reporta de qué axiomas depende cada declaración |
+| **cryptography-specs** | `propext`, `Quot.sound`, `Classical.choice` **+ 10 teoremas con *native axioms*** | **nadie** |
+| **leanerSTFSpec** | `propext`, `Quot.sound`, `Classical.choice` | **un programa, en cada cambio que alguien sube** |
+| **gasper-lean4** | **`propext` y `Quot.sound`. Nada más.** | **un programa, cada vez que se compila** |
 
-O sea: en los tres el kernel verifica las demostraciones. La diferencia es que en dos de
-ellos hay además un **guardia automático** que impide que se cuele un axioma de más, y en
-el tercero no — por eso ahí hay 10 teoremas con *native axioms*, uno de ellos central
-(`uncompress_compress`), y nadie lo había contado hasta que lo contamos nosotros.
+Qué quiere decir cada caso:
+
+- **`cryptography-specs`: nadie.** No hay una regla escrita que diga qué axiomas se
+  permiten, ni un programa que la controle. Por eso los 10 teoremas con *native axioms*
+  estaban ahí sin que nadie los hubiera contado: los encontramos nosotros, escribiendo
+  `docs/native_axioms.lean`, un script que recorre los teoremas y pregunta de qué depende
+  cada uno.
+
+- **`leanerSTFSpec`: un programa propio, llamado `check-decls`.** Recorre todos los
+  teoremas del repo y, si alguno depende de un axioma que no está en la lista permitida,
+  **el build falla**. Dos detalles que lo hacen serio: revisa el *resultado compilado* y no
+  el texto fuente, así nadie puede disfrazar una violación escribiéndola de otra forma; y
+  no existe manera de pedir una excepción para un caso puntual, ni siquiera "por esta vez"
+  (*"There is no exemption mechanism"*, dice el reglamento). Corre automáticamente en cada
+  cambio que alguien sube.
+
+- **`gasper-lean4`: un comando propio que corre al compilar** y escupe un informe de todo
+  el proyecto. El de este commit dice, textual:
+
+  ```text
+  Axiom Profile:
+    ✓ sorryAx: not used                                 (ninguna demostración incompleta)
+    ✓ native compute (trustCompiler / ._native.*): not used   (ningún native axiom)
+    ✓ Classical.choice: not used                        (ni siquiera el axioma de elección)
+  ```
+
+**En resumen:** en los tres, el kernel revisa las demostraciones. La diferencia es que en
+dos hay además un **guardia automático** que impide que se cuele un axioma de más, y en el
+tercero no — por eso ahí hay 10 teoremas con *native axioms*, uno de ellos central
+(`uncompress_compress`), que nadie había contado hasta que los contamos nosotros.
 
 `gasper-lean4` llega al extremo: eliminó hasta el axioma de elección, y el premio es que
 las definiciones se vuelven **calculables** — la versión ejecutable sale casi gratis con
