@@ -10,6 +10,65 @@ vistazo.
 
 ---
 
+## 0. Lo más importante: cómo convive Lean con los otros lenguajes
+
+Los cuatro repos usan Lean de cuatro maneras **distintas**, y ésa es la comparación que más
+sirve. En una línea cada una:
+
+| Repo | La jugada |
+|---|---|
+| **cryptography-specs** | Lean **es** el programa, y otro lenguaje lo llama |
+| **verified-zkevm** | otro lenguaje es el programa, y **genera** Lean para demostrar sobre él |
+| **leanerSTFSpec** | Lean y otro lenguaje corren **al lado**, y se comparan los resultados |
+| **gasper-lean4** | Lean **solo**: no hay programa que corra |
+
+Y en detalle:
+
+### cryptography-specs — Lean compilado, llamado desde Python
+
+Lean es el que programa la criptografía. `lake build` la baja a C, y 928 líneas de binding en C
+escritas a mano la envuelven en una extensión de Python (`_native.so`, 8,8 MB); 33 `@[export]`
+le dan nombre a las funciones del lado de afuera. Python hace `import` y ejecuta Lean sin
+enterarse. Así corrimos los 364 vectores de prueba.
+
+**Lo que hay que destacar:** es el único de los cuatro donde *el código demostrado y el código
+que corre son el mismo objeto*. Y, en el mismo repo, el único donde 10 teoremas se apoyan en
+**native axioms** — el atajo en que el kernel no revisa un paso y deja que lo calcule el
+compilador. La ventaja más grande y el relajo de rigor más grande, juntos.
+
+### verified-zkevm — el Rust genera el Lean
+
+Acá el original es Rust y nadie lo toca. Charon + Aeneas (o `cargo hax into lean`) leen la
+representación intermedia del compilador de Rust y escriben un Lean equivalente, que se vuelve a
+generar en cada cambio. Los teoremas se demuestran sobre ese Lean.
+
+**Lo que hay que destacar:** el Lean **nunca se ejecuta** — es un objeto de estudio al costado —
+y la demostración vale sobre *la traducción*, no sobre tu Rust: hay que confiar en `rustc`, en
+Charon y en Aeneas. Lo que no se pudo traducir queda en `FunsExternal.lean` como modelo escrito a
+mano, que es un supuesto más. Y en el otro sentido no existe nada: **Lean → Rust no hay**.
+
+### leanerSTFSpec — Lean corre en paralelo, como árbitro
+
+Lean sí se compila, y les importa la velocidad (apuntan a estar dentro de 2× de revm), pero hay
+**cero `@[export]`** en 265 archivos: no lo llama nadie. Se lanza como proceso suelto
+(`subprocess.run(["lake", "env", "lean", …])`) sobre los mismos inputs que el Python de EELS, y se
+comparan las salidas. Testing diferencial.
+
+**Lo que hay que destacar:** Lean no es una biblioteca acá, es un perito. Nada se linkea a nada. Y
+la pieza que haría falta para que esa comparación valga formalmente —el teorema de refinamiento que
+ate la spec a `evm-asm` y a Pancake— ni siquiera está acordado **cómo enunciarla**.
+
+### gasper-lean4 — Lean solo, sin salir de Lean
+
+No hay otro lenguaje en juego. Nada se compila para correr, nada se traduce, nada se ejecuta.
+
+**Lo que hay que destacar:** y no podría. Las definiciones piden `Fintype Hash`, o sea "recorrer
+todos los hashes posibles": sirve para razonar y es imposible de ejecutar. A cambio es el más
+riguroso de los cuatro — sus teoremas usan sólo `propext` y `Quot.sound`, ni siquiera
+`Classical.choice`.
+
+---
+
 ## 1. Dónde está cada uno
 
 Ethereum se parte en dos mundos, y cada repo vive en uno:
