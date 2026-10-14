@@ -20,7 +20,7 @@ sirve. Resumidas:
 | **cryptography-specs** | **Lean 4 → C → Python** | Lean **es** el programa. `lake build` lo compila a C; 928 líneas de binding en C escritas a mano lo envuelven como extensión de Python, y Python lo llama como a cualquier biblioteca, sin enterarse de que abajo hay Lean |
 | **verified-zkevm** | **Rust → Lean 4** (el Lean es el que se genera) | El programa es Rust y sigue siendo el original. Charon y Aeneas (o `cargo hax into lean`) leen el Rust y **generan** un Lean equivalente, que nunca se ejecuta. Ojo: lo generado son **sólo las definiciones**, y una definición no afirma nada. La pregunta que no contesta es *"¿demostración formal de qué?"* — esa respuesta se escribe a mano: el enunciado del teorema primero, la demostración del mismo después |
 | **leanerSTFSpec** | **Lean 4 + Python** en paralelo (y en el horizonte, assembly RISC-V y Pancake) | Hay **dos programas que hacen lo mismo**, escritos por separado: la spec oficial de Ethereum, que está en Python, y la de Alexander, en Lean. Se les da el mismo bloque, cada uno calcula el resultado por su cuenta, y después se comparan las dos respuestas. Si no coinciden, uno de los dos está mal. Ninguno de los dos llama al otro |
-| **gasper-lean4** | **Lean 4 y nada más** | No hay segundo lenguaje. Nada se compila para correr, nada se traduce: Lean se usa sólo para enunciar y demostrar |
+| **gasper-lean4** | **Lean 4 y nada más** | No hay segundo lenguaje, y tampoco hay un programa. Lean se usa acá como un matemático usa el papel: para escribir con precisión qué significa que un bloque quede finalizado y demostrar que dos bloques en conflicto no pueden finalizarse los dos. Y aunque quisieran, no podrían ejecutarlo: las definiciones dan por sentado que se pueden recorrer todos los hashes posibles |
 
 Y en detalle:
 
@@ -88,11 +88,19 @@ enunciarlo**.
 
 ### gasper-lean4 — Lean solo, sin salir de Lean
 
-No hay otro lenguaje en juego. Nada se compila para correr, nada se traduce, nada se ejecuta.
+El repo es Lean y nada más: 65 archivos, 359 teoremas y ningún programa. Lean se usa acá como un
+matemático usa el papel — para escribir con precisión qué significa que un bloque quede justificado
+y después finalizado, y demostrar cosas sobre eso.
 
-**Lo que hay que destacar:** y no podría. Las definiciones piden `Fintype Hash`, o sea "recorrer
-todos los hashes posibles": sirve para razonar y es imposible de ejecutar. A cambio es el más
-riguroso de los cuatro — sus teoremas usan sólo `propext` y `Quot.sound`, ni siquiera
+Lo que demuestran es Casper FFG, la parte del consenso que decide cuándo un bloque ya no se puede
+revertir. El resultado principal: no pueden quedar finalizados dos bloques en conflicto a menos que
+un tercio del stake haya hecho trampa — y si eso pasara, se puede señalar exactamente a quién
+castigar.
+
+**Lo que hay que destacar:** no es que no quisieron ejecutarlo, es que no podrían. Las definiciones
+piden `Fintype Hash`, o sea que dan por sentado que se pueden recorrer **todos los hashes
+posibles**, uno por uno. Perfectamente razonable para razonar, absurdo para correr. A cambio, es el
+más riguroso de los cuatro: sus teoremas usan sólo `propext` y `Quot.sound`, ni siquiera
 `Classical.choice`.
 
 ---
