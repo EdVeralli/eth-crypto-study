@@ -19,7 +19,7 @@ sirve. Resumidas:
 |---|---|---|
 | **cryptography-specs** | **Lean 4 → C → Python** | Lean **es** el programa. `lake build` lo compila a C; 928 líneas de binding en C escritas a mano lo envuelven como extensión de Python, y Python lo llama como a cualquier biblioteca, sin enterarse de que abajo hay Lean |
 | **verified-zkevm** | **Rust → Lean 4** (el Lean es el que se genera) | El programa es Rust y sigue siendo el original. Charon y Aeneas (o `cargo hax into lean`) leen el Rust y **generan** un Lean equivalente, que nunca se ejecuta. Ojo: lo generado son **sólo las definiciones**, y una definición no afirma nada. La pregunta que no contesta es *"¿demostración formal de qué?"* — esa respuesta se escribe a mano: el enunciado del teorema primero, la demostración del mismo después |
-| **leanerSTFSpec** | **Lean 4 + Python** en paralelo (y en el horizonte, assembly RISC-V y Pancake) | Nadie llama a nadie: Lean compilado y el Python de EELS corren como **dos procesos sueltos** sobre los mismos inputs, y se comparan las salidas |
+| **leanerSTFSpec** | **Lean 4 + Python** en paralelo (y en el horizonte, assembly RISC-V y Pancake) | Hay **dos programas que hacen lo mismo**, escritos por separado: la spec oficial de Ethereum, que está en Python, y la de Alexander, en Lean. Se les da el mismo bloque, cada uno calcula el resultado por su cuenta, y después se comparan las dos respuestas. Si no coinciden, uno de los dos está mal. Ninguno de los dos llama al otro |
 | **gasper-lean4** | **Lean 4 y nada más** | No hay segundo lenguaje. Nada se compila para correr, nada se traduce: Lean se usa sólo para enunciar y demostrar |
 
 Y en detalle:
@@ -68,14 +68,23 @@ Charon y en Aeneas. Y en el otro sentido no existe nada: **Lean → Rust no hay*
 
 ### leanerSTFSpec — Lean corre en paralelo, como árbitro
 
-Lean sí se compila, y les importa la velocidad (apuntan a estar dentro de 2× de revm), pero hay
-**cero `@[export]`** en 265 archivos: no lo llama nadie. Se lanza como proceso suelto
-(`subprocess.run(["lake", "env", "lean", …])`) sobre los mismos inputs que el Python de EELS, y se
-comparan las salidas. Testing diferencial.
+Acá Lean sí se compila, y les importa que corra rápido: el objetivo escrito en `CONTRIBUTING.md`
+es quedar dentro de 2× de revm, uno de los clientes veloces de Ethereum. Pero **no lo llama nadie**:
+hay cero `@[export]` en los 265 archivos, o sea que ninguna de sus funciones está expuesta para que
+otro programa la use.
 
-**Lo que hay que destacar:** Lean no es una biblioteca acá, es un perito. Nada se linkea a nada. Y
-la pieza que haría falta para que esa comparación valga formalmente —el teorema de refinamiento que
-ate la spec a `evm-asm` y a Pancake— ni siquiera está acordado **cómo enunciarla**.
+Lo que hacen es esto. Existen dos programas que calculan lo mismo, escritos por separado: la spec
+oficial de Ethereum, que está en Python y se conoce como EELS, y ésta, que está en Lean. Un script
+les entrega a los dos el mismo bloque, cada uno calcula el nuevo estado por su cuenta, y después se
+comparan las dos respuestas. Si difieren, uno de los dos tiene un error y hay que ir a buscar cuál.
+A eso se le dice **testing diferencial**.
+
+**Lo que hay que destacar:** Lean no es una biblioteca acá, es un perito que se corre aparte para
+auditar a otro. Y ojo hasta dónde llega eso: comparar salidas demuestra que coincidieron *en los
+casos que probaste*, no en todos los posibles. Lo que convertiría eso en una garantía de verdad —el
+teorema de refinamiento que ate la spec en Lean a las implementaciones reales (`evm-asm`, en
+assembly RISC-V, y `stateless-pancaketh`, en Pancake)— ni siquiera está acordado **cómo
+enunciarlo**.
 
 ### gasper-lean4 — Lean solo, sin salir de Lean
 
