@@ -18,7 +18,7 @@ sirve. Resumidas:
 | Repo | Lenguajes en juego | La jugada |
 |---|---|---|
 | **cryptography-specs** | **Lean 4 → C → Python** | Lean **es** el programa. `lake build` lo compila a C; 928 líneas de binding en C escritas a mano lo envuelven como extensión de Python, y Python lo llama como a cualquier biblioteca, sin enterarse de que abajo hay Lean |
-| **verified-zkevm** | **Rust → Lean 4** (el Lean es el que se genera) | El programa es Rust y sigue siendo el original. Charon y Aeneas (o `cargo hax into lean`) leen el Rust y **generan** un Lean equivalente, que nunca se ejecuta. Ojo: lo generado son **sólo las definiciones** — los enunciados y las demostraciones se escriben a mano |
+| **verified-zkevm** | **Rust → Lean 4** (el Lean es el que se genera) | El programa es Rust y sigue siendo el original. Charon y Aeneas (o `cargo hax into lean`) leen el Rust y **generan** un Lean equivalente, que nunca se ejecuta. Ojo: lo generado son **sólo las definiciones**, y una definición no afirma nada. La pregunta que no contesta es *"¿demostración formal de qué?"* — esa respuesta se escribe a mano: el enunciado del teorema primero, la demostración del mismo después |
 | **leanerSTFSpec** | **Lean 4 + Python** en paralelo (y en el horizonte, assembly RISC-V y Pancake) | Nadie llama a nadie: Lean compilado y el Python de EELS corren como **dos procesos sueltos** sobre los mismos inputs, y se comparan las salidas |
 | **gasper-lean4** | **Lean 4 y nada más** | No hay segundo lenguaje. Nada se compila para correr, nada se traduce: Lean se usa sólo para enunciar y demostrar |
 
