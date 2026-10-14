@@ -20,7 +20,7 @@ sirve. Resumidas:
 | **cryptography-specs** | **Lean 4 → C → Python** | Lean **es** el programa. `lake build` lo compila a C; 928 líneas de binding en C escritas a mano lo envuelven como extensión de Python, y Python lo llama como a cualquier biblioteca, sin enterarse de que abajo hay Lean |
 | **verified-zkevm** | **Rust → Lean 4** (el Lean es el que se genera) | El programa es Rust y sigue siendo el original. Charon y Aeneas (o `cargo hax into lean`) leen el Rust y **generan** un Lean equivalente, que nunca se ejecuta. Ojo: lo generado son **sólo las definiciones**, y una definición no afirma nada. La pregunta que no contesta es *"¿demostración formal de qué?"* — esa respuesta se escribe a mano: el enunciado del teorema primero, la demostración del mismo después |
 | **leanerSTFSpec** | **Lean 4 + Python** en paralelo (y en el horizonte, assembly RISC-V y Pancake) | Hay **dos programas que hacen lo mismo**, escritos por separado: la spec oficial de Ethereum, que está en Python, y la de Alexander, en Lean. Se les da el mismo bloque, cada uno calcula el resultado por su cuenta, y después se comparan las dos respuestas. Si no coinciden, uno de los dos está mal. Ninguno de los dos llama al otro |
-| **gasper-lean4** | **Lean 4 y nada más** | No hay segundo lenguaje, y tampoco hay un programa. Lean se usa acá como un matemático usa el papel: para escribir con precisión qué significa que un bloque quede finalizado y demostrar que dos bloques en conflicto no pueden finalizarse los dos. Y aunque quisieran, no podrían ejecutarlo: las definiciones dan por sentado que se pueden recorrer todos los hashes posibles |
+| **gasper-lean4** | **Lean 4 y nada más** | No hay segundo lenguaje: el repo es 100% Lean. Se usa sobre todo como un matemático usa el papel — escribir con precisión qué significa que un bloque quede finalizado y demostrar que dos bloques en conflicto no pueden finalizarse los dos. Hay una parte que **sí calcula** (`Executable/`, con 58 `#eval`), pero corre adentro de Lean al compilar, sobre modelos de juguete de 6 u 8 bloques. Nada desplegable: el único ejecutable declarado imprime "Hello" |
 
 Y en detalle:
 
@@ -88,20 +88,30 @@ enunciarlo**.
 
 ### gasper-lean4 — Lean solo, sin salir de Lean
 
-El repo es Lean y nada más: 65 archivos, 359 teoremas y ningún programa. Lean se usa acá como un
-matemático usa el papel — para escribir con precisión qué significa que un bloque quede justificado
-y después finalizado, y demostrar cosas sobre eso.
+El repo es Lean y nada más: 65 archivos `.lean` y 359 teoremas. Lo único que no es Lean son el
+Makefile, el YAML de CI y las tipografías y el CSS de KaTeX, que son los assets del sitio de
+documentación. Lean se usa acá sobre todo como un matemático usa el papel — para escribir con
+precisión qué significa que un bloque quede justificado y después finalizado, y demostrar cosas
+sobre eso.
 
 Lo que demuestran es Casper FFG, la parte del consenso que decide cuándo un bloque ya no se puede
 revertir. El resultado principal: no pueden quedar finalizados dos bloques en conflicto a menos que
 un tercio del stake haya hecho trampa — y si eso pasara, se puede señalar exactamente a quién
 castigar.
 
-**Lo que hay que destacar:** no es que no quisieron ejecutarlo, es que no podrían. Las definiciones
-piden `Fintype Hash`, o sea que dan por sentado que se pueden recorrer **todos los hashes
-posibles**, uno por uno. Perfectamente razonable para razonar, absurdo para correr. A cambio, es el
-más riguroso de los cuatro: sus teoremas usan sólo `propext` y `Quot.sound`, ni siquiera
-`Classical.choice`.
+**Sí hay una parte que calcula, y conviene saberlo.** Las definiciones de `Core/` son afirmaciones
+y no se computan. Pero hay una carpeta `Executable/` con versiones *decidibles* de lo mismo: donde
+`Core/` dice `IsQIntersectionWitness : Prop`, `Executable/` da `qIntersectionWitnessB : Bool` —un
+cálculo que devuelve verdadero o falso— **más un teorema que demuestra que las dos coinciden**.
+Después, en `Executable/UseCases/`, hay 58 `#eval` que lo corren sobre modelos concretos: 99
+validadores, 6 u 8 bloques, y el árbol de padres escrito a mano.
+
+**Lo que hay que destacar:** eso corre adentro de Lean, al compilar, sobre juguetes. Desplegable no
+hay nada — el único ejecutable declarado en el `lakefile` imprime "Hello" y es el esqueleto que dejó
+`lake new`, sin tocar. Y el techo está escrito en la firma de las funciones: piden `Fintype Hash`,
+o sea que el conjunto de hashes tiene que ser finito y recorrible. Con `Hash := Fin 6` eso se cumple
+y anda; con los 2²⁵⁶ hashes de la cadena real, no. A cambio, es el más riguroso de los cuatro: sus
+teoremas usan sólo `propext` y `Quot.sound`, ni siquiera `Classical.choice`.
 
 ---
 
@@ -283,7 +293,7 @@ axioms): el segundo es el visible; el primero es el grave.
 | **cryptography-specs** | **sí** → `_native.so` de 8,8 MB | no | **invocable** (33 `@[export]`), pero **nadie lo consume** |
 | **leanerSTFSpec** | sí, apuntan a 2× de revm | no | **no**: cero `@[export]`, corre como proceso aparte |
 | **verified-zkevm** | no (se compila el Rust) | **sí: Rust → Lean** (hax, Aeneas/Charon) | **no** |
-| **gasper-lean4** | para razonar, no para servir | no | **no**, y no podría (pide `Fintype Hash`) |
+| **gasper-lean4** | para razonar, no para servir | no | **no**: hay `#eval` de juguete adentro de Lean, nada desplegable — y no escalaría (pide `Fintype Hash`) |
 
 De los ocho casilleros de las dos últimas columnas, sólo dos dicen algo. Van en detalle,
 porque son los dos que de verdad nos sirven:
