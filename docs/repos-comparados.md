@@ -18,7 +18,7 @@ sirve. Resumidas:
 | Repo | Lenguajes en juego | La jugada |
 |---|---|---|
 | **cryptography-specs** | **Lean 4 → C → Python** | Lean **es** el programa. `lake build` lo compila a C; 928 líneas de binding en C escritas a mano lo envuelven como extensión de Python, y Python lo llama como a cualquier biblioteca, sin enterarse de que abajo hay Lean |
-| **verified-zkevm** | **Rust → Lean 4** (el Lean es el que se genera) | El programa es Rust y sigue siendo el original. Charon y Aeneas (o `cargo hax into lean`) leen el Rust y **generan** un Lean equivalente; los teoremas se demuestran sobre ese Lean, que nunca se ejecuta |
+| **verified-zkevm** | **Rust → Lean 4** (el Lean es el que se genera) | El programa es Rust y sigue siendo el original. Charon y Aeneas (o `cargo hax into lean`) leen el Rust y **generan** un Lean equivalente, que nunca se ejecuta. Ojo: lo generado son **sólo las definiciones** — los enunciados y las demostraciones se escriben a mano |
 | **leanerSTFSpec** | **Lean 4 + Python** en paralelo (y en el horizonte, assembly RISC-V y Pancake) | Nadie llama a nadie: Lean compilado y el Python de EELS corren como **dos procesos sueltos** sobre los mismos inputs, y se comparan las salidas |
 | **gasper-lean4** | **Lean 4 y nada más** | No hay segundo lenguaje. Nada se compila para correr, nada se traduce: Lean se usa sólo para enunciar y demostrar |
 
@@ -42,10 +42,29 @@ Acá el original es Rust y nadie lo toca. Charon + Aeneas (o `cargo hax into lea
 representación intermedia del compilador de Rust y escriben un Lean equivalente, que se vuelve a
 generar en cada cambio. Los teoremas se demuestran sobre ese Lean.
 
+**Lo que se genera y lo que no.** Acá conviene ser preciso, porque es donde se confunde todo el
+mundo: la traducción produce **las definiciones**, y nada más. El enunciado de qué quiere decir
+"esta función es correcta", y la demostración de que lo es, se escriben **a mano** en Lean, igual
+que en cualquier otro repo. La herramienta te ahorra transcribir el programa; no te ahorra probar
+nada.
+
+*Ejemplo, del tutorial de Aeneas.* De la función Rust `fn mul2_add1(x: u32) -> u32 { (x + x) + 1 }`
+la herramienta genera sola su equivalente en Lean. Lo que no genera —y no podría— es el enunciado
+`mul2_add1_spec`, que dice dos cosas que el Rust no dice en ninguna parte: que el resultado vale
+2x+1, y, la parte interesante, **la precondición de que no desborda**. El Rust en modo release
+envuelve el overflow en silencio; para demostrar que la función hace lo que uno cree, hay que
+declarar explícitamente que eso no pasa. Toda la basura que el programador barrió bajo la alfombra
+sale a la luz ahí, y hay que hacerse cargo una por una. (Si no se puede demostrar la precondición,
+acabás de encontrar un bug.) Y después todavía falta escribir la demostración, paso por paso.
+
+A eso hay que sumarle lo que ni siquiera se traduce: `unsafe`, llamadas al sistema e intrínsecos
+quedan en `FunsExternal.lean` con un modelo escrito a mano, que es un supuesto más. **De las tres
+piezas que hacen falta —definiciones, enunciados, demostraciones— la traducción automática cubre
+una.**
+
 **Lo que hay que destacar:** el Lean **nunca se ejecuta** — es un objeto de estudio al costado —
 y la demostración vale sobre *la traducción*, no sobre tu Rust: hay que confiar en `rustc`, en
-Charon y en Aeneas. Lo que no se pudo traducir queda en `FunsExternal.lean` como modelo escrito a
-mano, que es un supuesto más. Y en el otro sentido no existe nada: **Lean → Rust no hay**.
+Charon y en Aeneas. Y en el otro sentido no existe nada: **Lean → Rust no hay**.
 
 ### leanerSTFSpec — Lean corre en paralelo, como árbitro
 
