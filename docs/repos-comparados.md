@@ -13,14 +13,14 @@ vistazo.
 ## 0. Lo más importante: cómo convive Lean con los otros lenguajes
 
 Los cuatro repos usan Lean de cuatro maneras **distintas**, y ésa es la comparación que más
-sirve. En una línea cada una:
+sirve. Resumidas:
 
-| Repo | La jugada |
-|---|---|
-| **cryptography-specs** | Lean **es** el programa, y otro lenguaje lo llama |
-| **verified-zkevm** | otro lenguaje es el programa, y **genera** Lean para demostrar sobre él |
-| **leanerSTFSpec** | Lean y otro lenguaje corren **al lado**, y se comparan los resultados |
-| **gasper-lean4** | Lean **solo**: no hay programa que corra |
+| Repo | Lenguajes en juego | La jugada |
+|---|---|---|
+| **cryptography-specs** | **Lean 4 → C → Python** | Lean **es** el programa. `lake build` lo compila a C; 928 líneas de binding en C escritas a mano lo envuelven como extensión de Python, y Python lo llama como a cualquier biblioteca, sin enterarse de que abajo hay Lean |
+| **verified-zkevm** | **Rust → Lean 4** (el Lean es el que se genera) | El programa es Rust y sigue siendo el original. Charon y Aeneas (o `cargo hax into lean`) leen el Rust y **generan** un Lean equivalente; los teoremas se demuestran sobre ese Lean, que nunca se ejecuta |
+| **leanerSTFSpec** | **Lean 4 + Python** en paralelo (y en el horizonte, assembly RISC-V y Pancake) | Nadie llama a nadie: Lean compilado y el Python de EELS corren como **dos procesos sueltos** sobre los mismos inputs, y se comparan las salidas |
+| **gasper-lean4** | **Lean 4 y nada más** | No hay segundo lenguaje. Nada se compila para correr, nada se traduce: Lean se usa sólo para enunciar y demostrar |
 
 Y en detalle:
 
