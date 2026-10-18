@@ -57,16 +57,28 @@ un repo distinto de los que leímos.
    Lean **encontró dos bugs críticos** en la spec del consenso nuevo, y
    [`verity`](https://github.com/NyxFoundation/verity), un cliente que corre en
    devnet junto a ethlambda y ream.
+7. **[verified-consensus](docs/repos-comparados.md#fradamtverified-consensus--el-protocolo-nuevo-demostrado-entero)**
+   (todavía sin página propia, está en el cuadro) — analiza
+   [`fradamt/verified-consensus`](https://github.com/fradamt/verified-consensus):
+   el **protocolo de consenso candidato** (*decoupled consensus*) formalizado entero
+   por Francesco D'Amato. 334.092 líneas de Lean y 8.360 teoremas, pero sólo 6.850
+   líneas que un humano tiene que leer. Es el único de los cinco que **ya trae
+   escrito el enunciado** de qué significa que un consenso sea correcto — la pieza
+   cara, si alguna vez queremos atar un cliente Rust a teoremas. El paper que
+   formaliza es el que estudiamos en
+   [`decoupled-consensus-apuntes`](https://github.com/EdVeralli/decoupled-consensus-apuntes).
 
 Las siete páginas responden las mismas tres preguntas en un bloque "Dónde se usa
 Lean acá": si el Lean se compila, si se traduce código entre Lean y otro
 lenguaje, y si algo de Lean está en el entorno de ejecución. Sirve para comparar
 un repo con otro de un vistazo.
 
-Y si querés las cuatro comparadas en un solo lugar, sin abrir cuatro páginas:
+Y si querés los cinco comparados en un solo lugar, sin abrir página por página:
 **[cuadro sinóptico de los repos](docs/repos-comparados.md)** — tabla maestra,
 rigor comparado, dónde se usa Lean en cada uno, el hueco de cada uno, lo que se
-repite en los cuatro y una lista de qué no confundir con qué.
+repite en todos y una lista de qué no confundir con qué. Arranca por la sección 0,
+que es la que le interesa a Pablo: cómo convive Lean con los otros lenguajes en
+cada repo.
 
 El mapa es la vista de arriba y cada guía baja a un archivo. Se estudian de
 abajo hacia arriba, porque cada piso usa al anterior:
@@ -240,7 +252,7 @@ caffeinate -i -s -w <PID>                           # si ya está corriendo
 - [`docs/leaner-stf-spec.html`](docs/leaner-stf-spec.html): el EVM en Lean (`leanerSTFSpec`), los cinco lenguajes que encadena y la regla que prohíbe los native axioms
 - [`docs/verified-zkevm.html`](docs/verified-zkevm.html): el paraguas Verified zkEVM y el puente Rust ↔ Lean (`hax`, Aeneas), con ejemplos reales
 - [`docs/gasper-lean4.html`](docs/gasper-lean4.html): Casper FFG demostrado en Lean, los tres repos de Nyx Foundation y los dos bugs críticos que el Lean encontró en la spec
-- [`docs/repos-comparados.md`](docs/repos-comparados.md): cuadro sinóptico de los cuatro repos en una sola página
+- [`docs/repos-comparados.md`](docs/repos-comparados.md): cuadro sinóptico de los cinco repos en una sola página
 - [`docs/mapa-completo.html`](docs/mapa-completo.html): big picture, spec ejecutable vs teoremas, pisos de estudio
 - [`docs/fp-paso-a-paso.html`](docs/fp-paso-a-paso.html): guía del piso 1, `Bls/Fp.lean` y sus teoremas
 - [`docs/RETOMAR.md`](docs/RETOMAR.md) — dónde quedamos y cómo volver a arrancar
