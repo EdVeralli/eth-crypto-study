@@ -236,7 +236,9 @@ caffeinate -i -s .venv/bin/python -m pytest bindings/python/tests/kzg -k compute
 caffeinate -i -s -w <PID>                           # si ya está corriendo
 ```
 
-## Cómo retomar (incluido desde la app de Claude para Mac)
+## Cómo retomar
+
+### En la Mac (incluido desde la app de Claude)
 
 1. Pasarle **`/Users/eduardoveralli/eth-crypto-study`** como carpeta de trabajo.
    Es la única que hace falta: acá están las fuentes, el build, el venv y los
@@ -245,6 +247,24 @@ caffeinate -i -s -w <PID>                           # si ya está corriendo
 3. Elegir una de las tareas de **Qué falta** de acá arriba.
 4. Recordar la regla: se commitea y pushea **solo** en este repo. Nunca a
    `ethereum/cryptography-specs`.
+
+### En otra computadora
+
+**Para leer y editar la documentación no hace falta instalar nada.** Se clona por
+HTTPS (la clave SSH está en la Mac y no viaja) y los HTML se abren con doble clic:
+
+```
+git clone https://github.com/EdVeralli/eth-crypto-study.git
+```
+
+El clon trae las fuentes Lean, los 364 vectores, el binding y los `docs/` — unos
+100 MB. Lo que **no** trae, porque está en el `.gitignore`, es `.lake/` (7,1 GB, el
+build de Lean) ni `.venv/` (los bindings de Python compilados). Sin eso no se puede
+compilar ni correr la suite; para rehacerlos hay que instalar `elan` y después
+`lake exe cache get && lake build`. El toolchain fijado es `leanprover/lean4:v4.29.1`.
+
+Los pasos detallados, incluido cómo pushear desde una máquina nueva, están en
+[`docs/RETOMAR.md`](docs/RETOMAR.md).
 
 ## Documentación generada
 

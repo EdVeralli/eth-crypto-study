@@ -1,8 +1,105 @@
 # Retomar trabajo
 
-_Ultima actualizacion: 2026-10-12_
+_Ultima actualizacion: 2026-10-19_
 
-## Donde quedamos (6 oct 2026): FODA investigado, mapas repasados
+## Como retomar en otra computadora (Windows)
+
+Para **leer y editar la documentacion no hace falta instalar nada**. Clonar y listo.
+
+```powershell
+cd $env:USERPROFILE
+git clone https://github.com/EdVeralli/eth-crypto-study.git
+cd eth-crypto-study
+```
+
+Clonar por **HTTPS**, no por SSH: la clave privada esta en la Mac y no viaja.
+
+**Que viene en el clon** (~100 MB): las fuentes Lean (`EthCryptographySpecs/`), los
+364 vectores de prueba (`tests/`), el binding de Python (`bindings/`) y toda la
+documentacion (`docs/`). Los siete HTML se abren con doble clic; los `.md` con
+cualquier editor.
+
+**Que NO viene, porque esta en el `.gitignore`:**
+
+| Carpeta | Peso en la Mac | Para que hace falta |
+|---|---|---|
+| `.lake/` | 7,1 GB | compilar Lean (`lake build`) |
+| `.venv/` | 56 MB | llamar a Lean desde Python y correr la suite |
+
+O sea que en la HP **no se puede compilar ni correr la suite sin reconstruir eso**.
+Si en algun momento hiciera falta: instalar `elan` (el gestor de toolchains de Lean,
+desde elan.lean-lang.org), despues `lake exe cache get` (baja Mathlib ya compilado;
+sin eso son horas) y `lake build`. El toolchain fijado es `leanprover/lean4:v4.29.1`.
+
+**El clon de solo lectura de `ethereum/cryptography-specs` tampoco esta**, y para la
+documentacion no se necesita: solo servia para traer commits de upstream.
+
+**Para pushear desde la HP** hace falta credencial propia: lo mas simple es HTTPS con
+un personal access token de GitHub. Si se usa SSH y el `git push` falla con
+`connect to host github.com port 22: Connection refused` (paso en la Mac, la red
+bloquea el puerto 22), la solucion es agregar esto al `~/.ssh/config`:
+
+```
+Host github.com
+  Hostname ssh.github.com
+  Port 443
+  User git
+```
+
+---
+
+## Donde quedamos (19 oct 2026): los cinco repos de Pablo, comparados
+
+Del 11 al 18 de octubre el trabajo se corrio de nuestro repo al **ecosistema**:
+Pablo fue pasando repos y los analizamos uno por uno, siempre con la misma
+pregunta de fondo, que es la que a el le importa: **como juegan Rust y Lean**.
+
+El resultado esta en `docs/repos-comparados.md` (el cuadro sinoptico) y en una
+pagina HTML por repo. La seccion 0 del cuadro es la que hay que leer primero: las
+cuatro maneras distintas en que cada repo usa Lean con otros lenguajes.
+
+| Repo | La jugada |
+|---|---|
+| `cryptography-specs` | Lean **es** el programa, y Python lo llama (Lean -> C -> .so) |
+| `verified-zkevm` | el programa es Rust, y **genera** Lean para demostrar sobre el |
+| `leanerSTFSpec` | Lean y Python corren **al lado** y se comparan las salidas |
+| `gasper-lean4` | Lean solo: no hay programa que corra |
+| `verified-consensus` | Lean solo, **pero ya trae escrito el enunciado** de que es un consenso correcto |
+
+Hitos de esas dos semanas, por si hace falta rastrear algo:
+
+- **13 oct** — se armo el cuadro sinoptico. Se agrego en todos los HTML el bloque
+  "Donde se usa Lean aca" con las tres preguntas (se compila / se traduce codigo /
+  hay Lean en el entorno de ejecucion).
+- **13 oct** — se explico por que importan los axiomas, en el cuadro y en
+  `mapa-completo.html`: la lista de axiomas es la lista de cosas que hay que creer
+  sin demostracion, y que hace que uno sea o no permitido.
+- **13 oct** — **correccion importante**: lo que el cuadro decia de `gasper-lean4`
+  estaba mal. Si hay Lean que calcula (carpeta `Executable/`, 58 `#eval` sobre
+  modelos de juguete). El `Fintype Hash` es un techo de escala, no un impedimento.
+- **13 oct** — revision completa del cuadro con un agente de ojos frescos: 13
+  correcciones de datos, citas y terminologia (ver el commit
+  "revision - 13 correcciones").
+- **18 oct** — quinto repo: `fradamt/verified-consensus`. Esta en el cuadro pero
+  **todavia no tiene pagina HTML propia**.
+
+### Pendiente inmediato
+
+1. **`docs/verified-consensus.html`** — la pagina del quinto repo, con el mismo
+   bloque de las tres preguntas que tienen las otras seis.
+2. **El cruce con `decoupled-consensus-apuntes`** (repo aparte,
+   `github.com/EdVeralli/decoupled-consensus-apuntes`): ese repo tiene el **paper**
+   que `verified-consensus` formaliza, y que su README declara "not yet public".
+   Vale cruzar que dice la formalizacion sobre el problema del ancla de la clase 7,
+   y la diferencia `K >= 4` (paper) vs `K >= 5` (formalizacion). Ojo: nuestro PDF es
+   del 28 de agosto y llega a §7; el `.tex` que formalizaron referencia ademas §8,
+   §9 y §10, asi que es una version posterior.
+3. Lo de antes, que sigue abierto: la guia paso a paso de `accountable_safety` y la
+   guia del piso 2 (`Bls/G1.lean`).
+
+---
+
+## Historial: donde quedabamos el 6 oct 2026 (FODA investigado, mapas repasados)
 
 Cortamos el 6 oct con todo commiteado y pusheado (`2ad46ec`). Hecho hoy:
 investigadas y respondidas (hasta donde hay informacion publica) las 5 preguntas
@@ -38,7 +135,8 @@ C sigue sin verificar. Fuente nueva (6): metadatos de PyPI via `pip download`.
 La infraestructura esta cerrada (ver mas abajo). Desde el 29 sept estamos
 armando y repasando la **documentacion de estudio** en `docs/`, para que
 alguien que llega (Pablo, por ejemplo) entienda el repo sin haber estado en
-las sesiones. Son cuatro paginas HTML que se abren con el navegador:
+las sesiones. Son siete paginas HTML que se abren con el navegador, mas el
+cuadro sinoptico en markdown:
 
 0. `docs/propuesta-foda.html` — la propuesta, como se implementa y FODA (5 oct)
 0b. `docs/leaner-stf-spec.html` — el EVM en Lean, repo de Alexander Hicks (11 oct)
@@ -123,7 +221,16 @@ para el desglose por handler y las dos lecciones sobre el costo de correrla.
   Autocontenido desde el 29 sept 2026: fuentes Lean, `lake build` en verde,
   `.venv` con los bindings compilados, los 364 vectores y los docs.
 - **Repo original (solo lectura):** `~/cryptography-specs` — clon de
-  `ethereum/cryptography-specs`, solo para traer commits de upstream.
+  `ethereum/cryptography-specs`, solo para traer commits de upstream. Solo existe
+  en la Mac; en otra maquina no hace falta.
+- **Los otros repos del ecosistema**, clonados de solo lectura cuando los
+  analizamos (no viven en la Mac, se vuelven a clonar cuando hagan falta):
+  `alexanderlhicks/leanerSTFSpec`, `github.com/verified-zkevm`,
+  `NyxFoundation/gasper-lean4` y `fradamt/verified-consensus`. Lo que escribimos
+  sobre ellos esta en `docs/` de este repo. **Nunca se pushea ahi.**
+- **Repo hermano, aparte:** `github.com/EdVeralli/decoupled-consensus-apuntes` —
+  apuntes del paper "Decoupled consensus", que es justo el que formaliza
+  `verified-consensus`. Tiene el PDF del paper.
 - **Docs generados:** `~/eth-crypto-study/docs/` — mapa interactivo + notas de investigacion
 
 ## Estado actual
@@ -193,9 +300,13 @@ cliente de consenso.
 
 ## Proximos pasos posibles
 
-Ya no queda nada de infraestructura ni de repaso de mapas (salvo
-`fp-paso-a-paso.html`). El estudio sigue piso por piso (tabla en el README,
-seccion "Empeza por aca"): el proximo es el piso 2, `Bls/G1.lean`.
+La lista al dia esta arriba, en **"Pendiente inmediato"** (seccion del 19 oct).
+En dos palabras: la pagina de `verified-consensus`, el cruce con el repo de
+apuntes del paper, y las dos guias de estudio que vienen de antes
+(`accountable_safety` y el piso 2, `Bls/G1.lean`).
+
+De infraestructura y de repaso de mapas no queda nada, salvo repasar
+`fp-paso-a-paso.html`.
 
 ## Documentacion generada
 

@@ -21,6 +21,16 @@ Esta carpeta es la única carpeta de trabajo necesaria. Tiene `lake build` en
 verde (3444 jobs), su propio `.venv` con los bindings de Python compilados y los
 364 vectores de prueba. No hace falta agregar el clon de lectura a la sesión.
 
+**Ojo con la máquina.** Lo de arriba vale en la Mac. `.lake/` y `.venv/` están en
+el `.gitignore`, así que en un clon nuevo **no existen**: ahí solo se puede trabajar
+sobre la documentación, salvo que se instale `elan` y se rehaga el build. El clon de
+solo lectura de `cryptography-specs` tampoco está en otra máquina, y para los docs no
+hace falta. Ver `docs/RETOMAR.md`, sección "Como retomar en otra computadora".
+
+**Los repos del ecosistema** (`leanerSTFSpec`, `verified-zkevm`, `gasper-lean4`,
+`verified-consensus`) se clonan **de solo lectura** para analizarlos. Vale la misma
+regla: nunca pushear ahí. Lo que escribimos sobre ellos vive en `docs/` de este repo.
+
 ```bash
 lake build                            # verde
 .venv/bin/python docs/bls_smoke.py    # ALL CHECKS PASSED
@@ -32,8 +42,11 @@ caffeinate -i -s .venv/bin/python -m pytest -q   # suite completa, ~3 h
 - `README.md` — qué estamos haciendo y las tareas pendientes
 - `docs/RETOMAR.md` — dónde quedamos y los comandos para volver a arrancar
 - `docs/notas-investigacion.md` — todo lo aprendido sobre el repo original
+- `docs/repos-comparados.md` — el cuadro comparativo de los cinco repos del
+  ecosistema que nos pasó Pablo. **La sección 0 es la que más le importa a él**:
+  cómo convive Lean con los otros lenguajes (Rust, Python, C) en cada repo.
 
-Leer esos tres antes de proponer el próximo paso.
+Leer esos cuatro antes de proponer el próximo paso.
 
 ## Contexto del proyecto
 
