@@ -240,6 +240,19 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
   <section id="teorema">
     <div class="eyebrow">Mundo Lean · el resultado</div>
     <h2>Un solo teorema para trece garantías</h2>
+    <div class="box key">
+      <div class="eyebrow">Antes de seguir: qué es una garantía</div>
+      <p><b>La construcción</b> dice cómo funciona la máquina: "el validador suma el peso de los votos y elige el
+      bloque más profundo que cumple tal condición". Es una receta, y una receta no puede ser verdadera ni falsa.
+      <b>La garantía</b> dice qué promete esa máquina, con precisión suficiente como para poder ser falsa: "si dos
+      tercios del peso son honestos y los mensajes llegan dentro de Δ, entonces dos nodos honestos nunca finalizan
+      bloques que se contradigan".</p>
+      <p>Vienen en dos familias. <b>Safety</b>: nunca pasa algo malo — vale siempre, incluso con la red partida.
+      <b>Liveness</b>: eventualmente pasa algo bueno — sólo vale si la red se porta bien. Por eso toda garantía
+      tiene la forma <b>"si estas premisas, entonces esto"</b>, y por eso hacen falta los
+      <a href="#testigos">testigos</a>: un enunciado cuyas premisas no se puedan cumplir nunca es verdadero y no
+      dice nada.</p>
+    </div>
     <p>Todo el repo apunta a una línea, en <code>DecoupledConsensusProofs/ReviewTheorem.lean</code>:</p>
     <div class="pipe">theorem concreteConsensus (S : Setup V) : Statements.Instantiation.Consensus S</div>
     <p><code>Consensus</code> es un paquete con <b>trece campos</b>. No son trece teoremas sueltos que alguien juntó
