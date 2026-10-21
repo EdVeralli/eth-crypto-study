@@ -154,28 +154,15 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
       que formalizaron referencia además §8 (<i>leak identification</i>), §9 y §10, así que es posterior.</p>
     </div>
     <div class="box key">
-      <div class="eyebrow">Y el paper que tenemos no enuncia ninguna garantía <span class="tag m">verificado acá</span></div>
-      <p>Esto lo descubrimos al cruzar los dos repos, y cambia cómo hay que leer la formalización. Nuestro PDF
-      —19 páginas, §1 a §7— es <b>pura construcción</b>: define el substrato, Goldfish, el estabilizador, el gadget
-      de finalidad, el healing graduado y el protocolo completo. Y nada más. Contando sobre el texto extraído:</p>
-      <div class="tw"><table>
-        <tr><th>Palabra</th><th>Veces en las 19 páginas</th></tr>
-        <tr><td><code>theorem</code></td><td><b>0</b></td></tr>
-        <tr><td><code>proposition</code></td><td><b>0</b></td></tr>
-        <tr><td><code>lemma</code></td><td><b>0</b></td></tr>
-        <tr><td><code>safety</code></td><td><b>0</b></td></tr>
-        <tr><td><code>liveness</code></td><td><b>0</b></td></tr>
-      </table></div>
-      <p>Tampoco hay una sola línea que mencione <i>stable</i> y <i>confirmed</i> juntas, o sea que el encaje de las
-      tres cadenas no está planteado. Sí está <code>Σ.F ⪯ Σ.J</code> —que la finalidad no retrocede—, pero eso es
-      adentro del gadget de finalidad, no entre las tres salidas del nodo.</p>
-      <p><b>La consecuencia:</b> este repo no es "el paper en Lean". Para poder demostrar algo, su autor tuvo que
-      <b>escribir trece enunciados que en esta versión del paper no existen</b>. Es, otra vez, la distinción que
-      atraviesa todo nuestro estudio —la definición se puede traducir, el enunciado lo escribe una persona— pero acá
-      se ve el antes y el después <i>del mismo autor</i>. Y de paso: los trece campos de <code>Consensus</code> son
-      la parte del protocolo que nuestros apuntes todavía no cubren, porque vivía en las secciones que a nuestro PDF
-      le faltan.</p>
+      <div class="eyebrow">Y este repo no es "el paper en Lean" <span class="tag m">verificado acá</span></div>
+      <p>Nuestro PDF es <b>pura construcción</b>: define la máquina y no afirma nada sobre ella. En sus 19 páginas
+      no aparece ni una vez la palabra <code>theorem</code>, ni <code>lemma</code>, ni <code>safety</code>, ni
+      <code>liveness</code>. Así que para poder demostrar algo, su autor tuvo que <b>escribir trece enunciados que
+      en esa versión del paper no existen</b>.</p>
+      <p>Es la distinción que atraviesa todo nuestro estudio —la definición se puede traducir, el enunciado lo
+      escribe una persona— pero acá se ve el antes y el después <i>del mismo autor</i>.</p>
     </div>
+
     <p>Para entender el protocolo en sí están los apuntes. Acá alcanza con la idea: una cadena no puede ser siempre
     disponible y siempre segura a la vez, así que en vez de dos niveles —como el Ethereum de hoy, donde LMD-GHOST
     da la cabeza que siempre avanza y Casper FFG finaliza por detrás— se ofrecen <b>tres cadenas encajadas</b>, cada
