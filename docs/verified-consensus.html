@@ -153,6 +153,29 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
       <p class="note">Ojo con las versiones: nuestro PDF es del 28 de agosto y llega hasta §7. El <code>.tex</code>
       que formalizaron referencia además §8 (<i>leak identification</i>), §9 y §10, así que es posterior.</p>
     </div>
+    <div class="box key">
+      <div class="eyebrow">Y el paper que tenemos no enuncia ninguna garantía <span class="tag m">verificado acá</span></div>
+      <p>Esto lo descubrimos al cruzar los dos repos, y cambia cómo hay que leer la formalización. Nuestro PDF
+      —19 páginas, §1 a §7— es <b>pura construcción</b>: define el substrato, Goldfish, el estabilizador, el gadget
+      de finalidad, el healing graduado y el protocolo completo. Y nada más. Contando sobre el texto extraído:</p>
+      <div class="tw"><table>
+        <tr><th>Palabra</th><th>Veces en las 19 páginas</th></tr>
+        <tr><td><code>theorem</code></td><td><b>0</b></td></tr>
+        <tr><td><code>proposition</code></td><td><b>0</b></td></tr>
+        <tr><td><code>lemma</code></td><td><b>0</b></td></tr>
+        <tr><td><code>safety</code></td><td><b>0</b></td></tr>
+        <tr><td><code>liveness</code></td><td><b>0</b></td></tr>
+      </table></div>
+      <p>Tampoco hay una sola línea que mencione <i>stable</i> y <i>confirmed</i> juntas, o sea que el encaje de las
+      tres cadenas no está planteado. Sí está <code>Σ.F ⪯ Σ.J</code> —que la finalidad no retrocede—, pero eso es
+      adentro del gadget de finalidad, no entre las tres salidas del nodo.</p>
+      <p><b>La consecuencia:</b> este repo no es "el paper en Lean". Para poder demostrar algo, su autor tuvo que
+      <b>escribir trece enunciados que en esta versión del paper no existen</b>. Es, otra vez, la distinción que
+      atraviesa todo nuestro estudio —la definición se puede traducir, el enunciado lo escribe una persona— pero acá
+      se ve el antes y el después <i>del mismo autor</i>. Y de paso: los trece campos de <code>Consensus</code> son
+      la parte del protocolo que nuestros apuntes todavía no cubren, porque vivía en las secciones que a nuestro PDF
+      le faltan.</p>
+    </div>
     <p>Para entender el protocolo en sí están los apuntes. Acá alcanza con la idea: una cadena no puede ser siempre
     disponible y siempre segura a la vez, así que en vez de dos niveles —como el Ethereum de hoy, donde LMD-GHOST
     da la cabeza que siempre avanza y Casper FFG finaliza por detrás— se ofrecen <b>tres cadenas encajadas</b>, cada
@@ -168,10 +191,24 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
           <td>irreversible, y con la misma propiedad de Casper FFG: si se finalizan dos cosas incompatibles, se
           puede señalar a un tercio del peso y castigarlo</td></tr>
     </table></div>
-    <p>El encaje —finalizado adentro de estable, estable adentro de confirmado, en toda lectura— <b>es él mismo uno
-    de los teoremas</b>. Y ése es el punto que lo separa de <a href="gasper-lean4.html">gasper-lean4</a>: ahí sólo
-    está formalizada la mitad de la finalidad, así que un enunciado que compare las tres capas <i>ni siquiera se
-    puede escribir</i>. Acá las tres están en el mismo paquete.</p>
+    <p>Que las tres estén <b>una adentro de la otra</b> —todo lo finalizado está también en la estable, y todo lo
+    estable está también en la confirmada— no es una obviedad: <b>es uno de los trece teoremas</b>, el que se llama
+    <code>nested</code>. Y es un teorema porque <i>podría fallar</i>. Son tres mecanismos distintos corriendo en
+    paralelo, con sus propios votos y sus propias reglas; nada impide a priori que el gadget de finalidad finalice un
+    bloque que la cadena estable no tiene. Si eso pasara, el nodo estaría afirmando dos cosas incompatibles sobre su
+    propio estado: "esto es irreversible" y "esto no lo tengo".</p>
+    <div class="box key">
+      <div class="eyebrow">Y acá está la diferencia con gasper-lean4</div>
+      <p>Para <b>enunciar</b> que lo finalizado está adentro de lo confirmado, las dos cosas tienen que existir en la
+      misma formalización. <a href="gasper-lean4.html">gasper-lean4</a> formalizó Casper FFG, que es el mecanismo que
+      produce <b>lo finalizado</b>. La otra mitad de Gasper —LMD-GHOST, la que decide qué cadena seguir en este
+      momento y daría el equivalente de <b>lo confirmado</b>— no está escrita en ese repo.</p>
+      <p>Así que no es que no lo demostraron: <b>la frase no se puede ni escribir</b>, porque le falta una de las dos
+      mitades que compara. Es como querer enunciar "lo que tengo en la caja de ahorro nunca supera mi saldo total"
+      cuando la cuenta corriente nunca se modeló: el enunciado no tiene de dónde agarrarse.</p>
+      <p>Acá las tres capas están en el mismo paquete de teoremas, y por eso las comparaciones entre ellas
+      <b>son enunciables</b> — que es donde estos protocolos se rompen en la práctica.</p>
+    </div>
   </section>
 
   <section id="tamano">
