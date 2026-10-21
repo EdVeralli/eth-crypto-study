@@ -300,6 +300,45 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
     validador bizantino adentro. Su propio índice lo dice:</p>
     <blockquote>"This library holds, for each statement, one concrete kernel-checked run for which EVERY premise
     holds, with at least one Byzantine validator, <b>so that the guarantee really applies to something</b>."</blockquote>
+
+    <div class="box key">
+      <div class="eyebrow">Cómo se encadena, que es lo que más confunde</div>
+      <p><b>El teorema general no usa los testigos.</b> Se demuestra una sola vez, para toda corrida que cumpla las
+      premisas, y eso vive en <code>Proofs/</code>. Si borraras <code>Witnesses/</code> entera, las trece garantías
+      seguirían demostradas. El testigo hace el camino inverso: agarra <i>una</i> corrida y le aplica el teorema.</p>
+      <div class="tw"><table>
+        <tr><th>#</th><th>Qué pasa</th><th>Dónde</th></tr>
+        <tr><td>1</td><td>alguien <b>escribe las premisas</b>: ejecución bien formada, firmas infalsificables, sincronía parcial, mayoría honesta por committee</td><td><code>Statements/</code></td></tr>
+        <tr><td>2</td><td>alguien <b>demuestra el condicional en general</b> a partir de esas premisas</td><td><code>Proofs/</code> · 851 archivos</td></tr>
+        <tr><td>3</td><td>alguien <b>construye una corrida concreta</b> y demuestra que cumple cada premisa</td><td><code>Witnesses/</code> · 8 archivos</td></tr>
+        <tr><td>4</td><td><b>aplicar el (2) al (3) compila</b> — y que compile <i>es</i> la demostración de que las premisas no son imposibles</td><td>el kernel</td></tr>
+      </table></div>
+      <p>Por eso los testigos se llaman <code>…_activated</code>: las premisas quedaron activadas, cumplidas por una
+      corrida de carne y hueso. Y la demostración de un testigo suele ser una línea —<code>exact (Proofs.nestedOutputs S) rho v t</code>—
+      porque no prueba nada nuevo: <b>aplica</b>. Lo que no se puede hacer es aplicar un condicional sin entregarle
+      las premisas; si fueran imposibles, esa línea no compilaría.</p>
+    </div>
+
+    <div class="box ok">
+      <div class="eyebrow">Y la corrida es con números, no es una abstracción <span class="tag m">verificado acá</span></div>
+      <p>El escenario completo del testigo <code>WeakGenesis</code>, tal cual está escrito:</p>
+      <div class="pipe">Δ := 1                        -- un mensaje tarda a lo sumo 1
+t_GST := 0                    -- la red se porta bien desde el arranque
+proposer := fun _ => 0        -- siempre propone el validador 0
+committees := fun _ => {0}    -- el committee es sólo el validador 0
+weight := if v = 0 then 2 else 1
+awake := fun _ => v = 0       -- el 1 nunca despierta: el bizantino silencioso
+
+K := 4   D := 2   timeoutDelay := 6   R := 3   η_SG := 2
+
+events  := (List.range 31).map (fun n => .tick 0 n)   -- 31 tics de reloj
+honest  := {0}
+horizon := 30</div>
+      <p>Dos validadores y 31 tics. Se dibuja en una servilleta. No es una simulación sobre una red: no hay sockets,
+      no hay firmas que se calculen, no hay reloj de pared — "el tiempo" es un número en una lista. Pero como el
+      modelo computa, la máquina <b>evalúa</b> esa corrida de verdad: los <code>#eval</code> de más arriba le piden
+      el estado del nodo 0 después de 30 rondas y devuelven un número.</p>
+    </div>
     <div class="tw"><table>
       <tr><th>Grupo o resultado</th><th>Testigo elegido</th></tr>
       <tr><td>Salidas encajadas (incondicional)</td><td><code>WeakGenesis.nested_outputs_activated</code></td></tr>
@@ -313,10 +352,29 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
     no lleva uno, y el índice aclara que no lo necesita porque es un resultado del lado de las demostraciones.
     <span class="tag m">verificado acá</span></p>
     <div class="box gap">
-      <div class="eyebrow">Hasta dónde llega el testigo</div>
-      <p>Los declaran ellos: las corridas de prueba tienen <b>un nodo honesto y un bizantino silencioso</b>. O sea
-      que demuestran que las premisas son satisfacibles, pero <b>no ejercitan equivocación ni tráfico
-      adversario</b>. Es una vacuna contra el teorema vacío, no un test de penetración.</p>
+      <div class="eyebrow">Hasta dónde llega el testigo, y esto es lo importante</div>
+      <p><b>El testigo demuestra que las premisas son satisfacibles, no que se cumplan en producción.</b> Cuando el
+      protocolo corra de verdad nadie va a validar nada con un testigo: "las firmas no se pueden falsificar", "los
+      mensajes llegan dentro de Δ" y "dos tercios del peso son honestos" son <b>supuestos sobre el mundo</b>. Se
+      cumplen o no se cumplen allá afuera, y si no se cumplen el teorema no dice nada. Lo único que el testigo
+      descarta es que el conjunto de premisas se contradiga a sí mismo.</p>
+      <p>Y los límites que declaran ellos: las corridas tienen <b>un nodo honesto y un bizantino silencioso</b>, así
+      que <b>no ejercitan equivocación ni tráfico adversario</b>. Es una vacuna contra el teorema vacío, no un test
+      de penetración.</p>
+    </div>
+    <div class="box key">
+      <div class="eyebrow">Un hallazgo al mirar los cuatro escenarios <span class="tag m">verificado acá</span></div>
+      <p>Comparamos la constante <code>K</code> de los cuatro testigos:</p>
+      <div class="tw"><table>
+        <tr><th>Testigo</th><th><code>K</code></th></tr>
+        <tr><td><code>WeakGenesis</code></td><td>4</td></tr>
+        <tr><td><code>StrongRecovery</code></td><td>4</td></tr>
+        <tr><td><code>Outage</code></td><td>4</td></tr>
+        <tr><td><b><code>FinalityLiveness</code></b></td><td><b>5</b></td></tr>
+      </table></div>
+      <p>El único que tuvo que subir a 5 es justamente el de la finalidad. O sea que lo de
+      <a href="#falta"><code>K ≥ 5</code> en vez del <code>K ≥ 4</code> del paper</a> no es una nota al pie del
+      README: <b>está en el código</b>, y ese escenario no cerraría con 4.</p>
     </div>
   </section>
 
