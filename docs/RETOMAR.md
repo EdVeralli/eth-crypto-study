@@ -85,28 +85,25 @@ Hitos de esas dos semanas, por si hace falta rastrear algo:
 
 ### Pendiente inmediato
 
-1. **`docs/verified-consensus.html`** — ESCRITA el 20 oct, con el bloque de las tres
-   preguntas igual que las otras seis. **Falta una sola cosa**: pegarle la salida real
-   del chequeo de axiomas, para poder ponerle la etiqueta "verificado aca" en vez de
-   citar el README.
+1. ~~`docs/verified-consensus.html`~~ **HECHA** (20-21 oct). La pagina del quinto repo,
+   con el bloque de las tres preguntas igual que las otras seis, y el chequeo de axiomas
+   **corrido por nosotros**, no citado del README.
 
-   El repo ya esta clonado y compilado en la Mac, en `~/verified-consensus`
-   (Lean v4.34.1, `lake build` en verde, 9972 jobs, 21 oct). El comando que falta:
+   Lo que se hizo el 21 oct: se clono `fradamt/verified-consensus` en `~/verified-consensus`
+   (solo lectura), elan bajo Lean v4.34.1, `lake exe cache get` trajo 8908 archivos de
+   Mathlib, `lake build` cerro en verde con **9972 jobs**, y despues
+   `lake env lean scripts/ReviewAxioms.lean` confirmo que las **24 declaraciones** que
+   componen el resultado dependen SOLO de `propext`, `Classical.choice` y `Quot.sound`.
+   Ni `sorryAx`, ni un `_native`, ni axiomas propios. La salida esta commiteada en
+   `docs/verified-consensus-axiomas.txt`.
 
-   ```bash
-   cd ~/verified-consensus
-   caffeinate -i -s lake env lean scripts/ReviewAxioms.lean > ~/eth-crypto-study/docs/verified-consensus-axiomas.txt 2>&1; echo "exit: $?"
-   ```
+   De paso se vio en el log del build el contraste que la pagina ahora muestra: el testigo
+   del apagon SI arrastra native axioms (`leak_fairness_witness._native.native_decide.ax_1_1`
+   y `ax_1_2`) mientras `outage_witness_core` no — tal como dice su README.
 
-   Hace `#print axioms` sobre 24 declaraciones: `concreteConsensus` y los teoremas
-   internos de los que depende. Lo que hay que confirmar es que no aparezca nada
-   fuera de `propext`, `Classical.choice` y `Quot.sound`. Ya se vio de paso en el
-   build que el testigo del apagon (`Outage.lean`) SI trae native axioms
-   (`leak_fairness_witness._native.native_decide.ax_1_1` y `ax_1_2`), tal como dice
-   su README; lo que hay que verificar es que el teorema de revision no.
+   **`~/verified-consensus/.lake` ya se puede borrar** para recuperar disco (la Mac estaba
+   al 93%). Si alguna vez hace falta rehacerlo: `lake exe cache get && lake build`.
 
-   Cuando ya no haga falta, `~/verified-consensus/.lake` se puede borrar para
-   recuperar el disco (la Mac quedo al 93%).
 2. **El cruce con `decoupled-consensus-apuntes`** (repo aparte,
    `github.com/EdVeralli/decoupled-consensus-apuntes`): ese repo tiene el **paper**
    que `verified-consensus` formaliza, y que su README declara "not yet public".

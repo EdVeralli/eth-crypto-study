@@ -1,0 +1,28 @@
+'DecoupledConsensusModel.Proofs.concreteConsensus' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.reviewedInternal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.legacyConsensus' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.recoveryProducesHealedState' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.finalitySafety' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.voteSafetyOfClients' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.finalizedPrefix' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.nestedOutputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.gstZeroGuarantees' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.boundedSafety' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.voteSafety' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.leakFairness' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.stableSafety' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.liveness' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.asynchronyResilience' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.honestProposalConfirmation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.availableChainGrowth' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.stableRecordGrowth' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.finalizedChainGrowth' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.honestProposalFinalization' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Statements.finalityStartup_pos' depends on axioms: [propext, Classical.choice, Quot.sound]
+'DecoupledConsensusModel.Proofs.HealingSurface.finalityDeadline_eq_recurringFinalityDeadline' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'DecoupledConsensusModel.Proofs.HealingSurface.rawRecoveryAndRecurrence_le_recurringFinalityDeadline' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'DecoupledConsensusModel.Proofs.heightProgress' depends on axioms: [propext, Classical.choice, Quot.sound]

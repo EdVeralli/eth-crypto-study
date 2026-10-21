@@ -287,9 +287,37 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
     <div class="eyebrow">Mundo Lean · de qué depende cada teorema</div>
     <h2>El rigor, y quién lo controla</h2>
     <p>Cero <code>sorry</code> y cero axiomas propios en los 1.047 archivos. <span class="tag m">verificado acá</span>
-    La lista permitida es exactamente la de los tres axiomas estándar de Lean:</p>
+    La lista permitida es exactamente la de los tres axiomas estándar de Lean, y está escrita como variable en el
+    script de verificación:</p>
     <div class="pipe">ALLOWED_AXIOMS=(propext Classical.choice Quot.sound)      # scripts/verify.sh</div>
-    <p>Y no es una promesa escrita en un README: hay un script de <b>seis pasos</b> que lo chequea.</p>
+
+    <div class="box ok">
+      <div class="eyebrow">Lo corrimos nosotros <span class="tag m">verificado acá</span></div>
+      <p>No nos quedamos con la palabra del README. Clonamos el repo, lo compilamos entero
+      (<code>lake build</code>, <b>9.972 jobs</b> en verde, Lean v4.34.1) y corrimos su propio chequeo de axiomas,
+      que hace <code>#print axioms</code> sobre las 24 declaraciones que componen el resultado:</p>
+      <div class="pipe">$ lake env lean scripts/ReviewAxioms.lean
+
+'…Proofs.concreteConsensus'            depends on axioms: [propext, Classical.choice, Quot.sound]
+'…Proofs.reviewedInternal'             depends on axioms: [propext, Classical.choice, Quot.sound]
+'…Proofs.finalitySafety'               depends on axioms: [propext, Classical.choice, Quot.sound]
+'…Proofs.nestedOutputs'                depends on axioms: [propext, Classical.choice, Quot.sound]
+'…Proofs.asynchronyResilience'         depends on axioms: [propext, Classical.choice, Quot.sound]
+'…Proofs.honestProposalFinalization'   depends on axioms: [propext, Classical.choice, Quot.sound]
+'…Proofs.heightProgress'               depends on axioms: [propext, Classical.choice, Quot.sound]
+                              ( … las 24, todas iguales )
+
+exit: 0</div>
+      <p><b>Las 24 dan la misma lista.</b> Ningún <code>sorryAx</code>, ningún axioma con <code>_native</code> en el
+      nombre, ningún axioma propio del proyecto. La salida completa está en
+      <a href="verified-consensus-axiomas.txt">verified-consensus-axiomas.txt</a>, corrida el 21 oct 2026 sobre el
+      commit <code>d379754</code>.</p>
+      <p class="note">Es el mismo ejercicio que hacemos en nuestro repo con
+      <a href="mapa-completo.html">docs/native_axioms.lean</a> — y la comparación es brutal: allá 10 de 492 teoremas
+      arrastran <i>native axioms</i>; acá, de las 24 declaraciones que forman el resultado, ninguna.</p>
+    </div>
+
+    <p>Y el chequeo de axiomas es sólo uno de <b>seis pasos</b> que corre su script de verificación.</p>
     <div class="tw"><table>
       <tr><th>#</th><th>Qué chequea</th><th>Con qué</th></tr>
       <tr><td>a</td><td>que las cinco bibliotecas elaboran y pasan el kernel</td><td><code>lake build</code></td></tr>
@@ -315,10 +343,19 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
     <div class="box key">
       <div class="eyebrow">Sí usan el atajo, pero lo encierran</div>
       <p>Hay <b>cinco <code>native_decide</code></b>, y los cinco están en un solo archivo:
-      <code>DecoupledConsensusWitnesses/Outage.lean</code>. <span class="tag m">verificado acá</span> Por eso ese
-      testigo arrastra un axioma extra, <code>Lean.ofReduceBool</code> — y el README lo declara en vez de taparlo:</p>
+      <code>DecoupledConsensusWitnesses/Outage.lean</code>. <span class="tag m">verificado acá</span> Eso deja un
+      axioma extra en el testigo del apagón, y el README lo declara en vez de taparlo:</p>
       <blockquote>"The outage witness decides five finite checks with <code>native_decide</code>, so it also depends
       on <code>Lean.ofReduceBool</code>. <b>The review theorem does not.</b>"</blockquote>
+      <p>Lo comprobamos de paso en el propio log del <code>lake build</code>, donde los dos lados se ven uno al lado
+      del otro: <span class="tag m">verificado acá</span></p>
+      <div class="pipe">'…Witnesses.Outage.leak_fairness_witness'  depends on axioms: [… ,
+    leak_fairness_witness._native.native_decide.ax_1_1,
+    leak_fairness_witness._native.native_decide.ax_1_2]
+
+'…Witnesses.Outage.outage_witness_core'    depends on axioms: [propext,
+    Classical.choice,
+    Quot.sound]</div>
       <p>Es exactamente el mismo atajo que en <a href="mapa-completo.html">nuestro repo</a>, donde 10 de los 492
       teoremas dependen de <i>native axioms</i>. La diferencia es de disciplina: <b>acá está confinado a un testigo,
       documentado, y fuera del teorema que importa; allá está suelto en teoremas centrales
