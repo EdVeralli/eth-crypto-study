@@ -81,12 +81,32 @@ Hitos de esas dos semanas, por si hace falta rastrear algo:
   correcciones de datos, citas y terminologia (ver el commit
   "revision - 13 correcciones").
 - **18 oct** — quinto repo: `fradamt/verified-consensus`. Esta en el cuadro pero
-  **todavia no tiene pagina HTML propia**.
+  tiene pagina propia desde el 20 oct: `docs/verified-consensus.html`.
 
 ### Pendiente inmediato
 
-1. **`docs/verified-consensus.html`** — la pagina del quinto repo, con el mismo
-   bloque de las tres preguntas que tienen las otras seis.
+1. **`docs/verified-consensus.html`** — ESCRITA el 20 oct, con el bloque de las tres
+   preguntas igual que las otras seis. **Falta una sola cosa**: pegarle la salida real
+   del chequeo de axiomas, para poder ponerle la etiqueta "verificado aca" en vez de
+   citar el README.
+
+   El repo ya esta clonado y compilado en la Mac, en `~/verified-consensus`
+   (Lean v4.34.1, `lake build` en verde, 9972 jobs, 21 oct). El comando que falta:
+
+   ```bash
+   cd ~/verified-consensus
+   caffeinate -i -s lake env lean scripts/ReviewAxioms.lean > ~/eth-crypto-study/docs/verified-consensus-axiomas.txt 2>&1; echo "exit: $?"
+   ```
+
+   Hace `#print axioms` sobre 24 declaraciones: `concreteConsensus` y los teoremas
+   internos de los que depende. Lo que hay que confirmar es que no aparezca nada
+   fuera de `propext`, `Classical.choice` y `Quot.sound`. Ya se vio de paso en el
+   build que el testigo del apagon (`Outage.lean`) SI trae native axioms
+   (`leak_fairness_witness._native.native_decide.ax_1_1` y `ax_1_2`), tal como dice
+   su README; lo que hay que verificar es que el teorema de revision no.
+
+   Cuando ya no haga falta, `~/verified-consensus/.lake` se puede borrar para
+   recuperar el disco (la Mac quedo al 93%).
 2. **El cruce con `decoupled-consensus-apuntes`** (repo aparte,
    `github.com/EdVeralli/decoupled-consensus-apuntes`): ese repo tiene el **paper**
    que `verified-consensus` formaliza, y que su README declara "not yet public".
@@ -143,7 +163,7 @@ cuadro sinoptico en markdown:
 0c. `docs/verified-zkevm.html` — el paraguas de la EF y el puente Rust/Lean (11 oct)
 0d. `docs/gasper-lean4.html` — el consenso (Casper FFG) demostrado, y los tres repos de Nyx (12 oct)
 0e. `docs/repos-comparados.md` — cuadro sinoptico de los 5 repos en un solo lugar (13 oct; 5to repo agregado el 18 oct)
-0f. `fradamt/verified-consensus` — quinto repo, sin pagina HTML propia todavia: solo esta en el cuadro (18 oct)
+0f. `docs/verified-consensus.html` — el quinto repo: decoupled consensus formalizado entero (20 oct)
 1. `docs/mapa-completo.html` — el big picture
 2. `docs/architecture-map.html` — los modulos por dentro y por que spec-first
 3. `docs/fp-paso-a-paso.html` — guia del piso 1 (`Bls/Fp.lean`)
@@ -315,7 +335,7 @@ De infraestructura y de repaso de mapas no queda nada, salvo repasar
 - `docs/verified-zkevm.html` — Verified zkEVM (org de la EF, meta 2027) y la via Rust -> Lean: hax, Aeneas/Charon, ejemplos reales, costo de confianza
 - `docs/gasper-lean4.html` — Casper FFG en Lean (NyxFoundation): justificacion/finalidad, S1/S2, los 3 teoremas, el rigor maximo (solo propext + Quot.sound), y los repos hermanos formal-leanSpec (2 bugs criticos encontrados en la spec) y verity (cliente en devnet con ethlambda y ream)
 
-Las 7 paginas de docs/ llevan el mismo bloque "Donde se usa Lean aca" con tres
+Las 8 paginas de docs/ llevan el mismo bloque "Donde se usa Lean aca" con tres
 preguntas: si se compila, si se traduce codigo entre Lean y otro lenguaje, y si
 hay Lean en
 el entorno de ejecucion. Resumen: solo cryptography-specs tiene Lean compilado

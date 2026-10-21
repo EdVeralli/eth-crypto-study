@@ -57,18 +57,17 @@ un repo distinto de los que leímos.
    Lean **encontró dos bugs críticos** en la spec del consenso nuevo, y
    [`verity`](https://github.com/NyxFoundation/verity), un cliente que corre en
    devnet junto a ethlambda y ream.
-7. **[verified-consensus](docs/repos-comparados.md#fradamtverified-consensus--el-protocolo-nuevo-demostrado-entero)**
-   (todavía sin página propia, está en el cuadro) — analiza
+7. **[verified-consensus](docs/verified-consensus.html)** — analiza
    [`fradamt/verified-consensus`](https://github.com/fradamt/verified-consensus):
    el **protocolo de consenso candidato** (*decoupled consensus*) formalizado entero
-   por Francesco D'Amato. 334.092 líneas de Lean y 8.360 teoremas, pero sólo 6.850
+   por Francesco D'Amato. 334.092 líneas de Lean y 8.384 teoremas, pero sólo 6.897
    líneas que un humano tiene que leer. Es el único de los cinco que **ya trae
    escrito el enunciado** de qué significa que un consenso sea correcto — la pieza
    cara, si alguna vez queremos atar un cliente Rust a teoremas. El paper que
    formaliza es el que estudiamos en
    [`decoupled-consensus-apuntes`](https://github.com/EdVeralli/decoupled-consensus-apuntes).
 
-Las siete páginas responden las mismas tres preguntas en un bloque "Dónde se usa
+Las ocho páginas responden las mismas tres preguntas en un bloque "Dónde se usa
 Lean acá": si el Lean se compila, si se traduce código entre Lean y otro
 lenguaje, y si algo de Lean está en el entorno de ejecución. Sirve para comparar
 un repo con otro de un vistazo.
@@ -272,6 +271,7 @@ Los pasos detallados, incluido cómo pushear desde una máquina nueva, están en
 - [`docs/leaner-stf-spec.html`](docs/leaner-stf-spec.html): el EVM en Lean (`leanerSTFSpec`), los cinco lenguajes que encadena y la regla que prohíbe los native axioms
 - [`docs/verified-zkevm.html`](docs/verified-zkevm.html): el paraguas Verified zkEVM y el puente Rust ↔ Lean (`hax`, Aeneas), con ejemplos reales
 - [`docs/gasper-lean4.html`](docs/gasper-lean4.html): Casper FFG demostrado en Lean, los tres repos de Nyx Foundation y los dos bugs críticos que el Lean encontró en la spec
+- [`docs/verified-consensus.html`](docs/verified-consensus.html): el protocolo de consenso candidato (*decoupled consensus*) formalizado entero, el 2% del repo que lee un humano, los testigos contra el teorema vacío y las tres vías para atarlo a un cliente Rust
 - [`docs/repos-comparados.md`](docs/repos-comparados.md): cuadro sinóptico de los cinco repos en una sola página
 - [`docs/mapa-completo.html`](docs/mapa-completo.html): big picture, spec ejecutable vs teoremas, pisos de estudio
 - [`docs/fp-paso-a-paso.html`](docs/fp-paso-a-paso.html): guía del piso 1, `Bls/Fp.lean` y sus teoremas

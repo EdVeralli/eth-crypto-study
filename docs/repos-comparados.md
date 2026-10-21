@@ -125,7 +125,7 @@ Como gasper-lean4: no hay segundo lenguaje. 1.047 archivos `.lean` y nada más, 
 Cero `@[export]`, ningún ejecutable, nada que se traduzca. Para la pregunta de Pablo, el
 casillero de Rust está vacío.
 
-**Pero por qué importa igual.** Acá hay un modelo del protocolo con 8.360 teoremas, y entre
+**Pero por qué importa igual.** Acá hay un modelo del protocolo con 8.384 teoremas, y entre
 ellos trece garantías agrupadas en un solo enunciado, `Consensus`. Eso es justo la pieza cara:
 lo que normalmente hay que escribir a mano antes de poder demostrar nada. Está escrita, está
 revisada por su autor y tiene **testigos** — corridas concretas que satisfacen cada premisa, para
@@ -186,7 +186,7 @@ Nombres como `leanerSTFSpec` o `leanerVM` aprovechan el doble sentido a propósi
 | **Consenso** | el nuevo (post-cuántico) | — | — | **el actual** (Beacon Chain) | **el candidato nuevo** |
 | **Archivos `.lean`** | 77 | 265 | varía por repo | 65 | **1 047** |
 | **Líneas de Lean** | 19 995 | 41 736 | — | 11 948 | **334 092** |
-| **Teoremas** | 357 a mano (492 con los autogenerados) | 2 318 | — | 359 | **8 360** |
+| **Teoremas** | 357 a mano (492 con los autogenerados) | 2 318 | — | 359 | **8 384** |
 | **Lean / Mathlib** | v4.29.1 | v4.34.0 | varía | v4.31.0 | v4.34.1 |
 | **Licencia** | CC0 | Apache-2.0 o MIT | varias | MIT | CC0 |
 | **Estado al leerlo** | activo (XMSS completado oct 2026) | activo | activo | **quieto desde jun 2026** | activo (publicado 23 sep, último commit 12 oct 2026) |
@@ -498,7 +498,7 @@ todos los clientes están transcribiendo:
   PDF, en el repo de apuntes. Es la única de las cinco formalizaciones que podemos leer contra su
   propia fuente. Ojo: nuestro PDF es del 28 de agosto y llega hasta §7; el `.tex` que formalizaron
   referencia además §8, §9 y §10, así que es una versión posterior.
-- **Página**: todavía no tiene. Leído el 18 oct 2026, commit `d379754`.
+- **Página**: [`verified-consensus.html`](verified-consensus.html). Leído el 18 oct 2026, commit `d379754`.
 
 ---
 

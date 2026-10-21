@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>verified-consensus: el protocolo nuevo, demostrado entero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: documento de lectura en una columna. Mismos colores que el resto de docs/: verde = código que corre, violeta = teoremas, naranja = clave, rojo = hueco o límite. */
+:root{
+  --bg:#f3f6f7; --panel:#ffffff; --fg:#17212b; --muted:#5a6773; --line:#d5dde2; --code-bg:#f7f9fa;
+  --exec:#1f8a6b; --exec-bg:#dcf2ea; --exec-fg:#0b3b2e;
+  --thm:#6a4fd1;  --thm-bg:#e8e3fb;  --thm-fg:#281a5e;
+  --glue:#b8730f; --glue-bg:#fbead2; --glue-fg:#4a2d00;
+  --warn:#c2412d; --warn-bg:#fde3de;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f1519; --panel:#172027; --fg:#e4ebef; --muted:#9aa8b3; --line:#2b3841; --code-bg:#121a20;
+  --exec:#4cc9a0; --exec-bg:#12352b; --exec-fg:#c9f3e4;
+  --thm:#a893ff;  --thm-bg:#2a2350;  --thm-fg:#e3dcff;
+  --glue:#f0a94a; --glue-bg:#3d2a0e; --glue-fg:#fde6c4;
+  --warn:#ff8a73; --warn-bg:#44201a; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0f1519; --panel:#172027; --fg:#e4ebef; --muted:#9aa8b3; --line:#2b3841; --code-bg:#121a20;
+  --exec:#4cc9a0; --exec-bg:#12352b; --exec-fg:#c9f3e4;
+  --thm:#a893ff;  --thm-bg:#2a2350;  --thm-fg:#e3dcff;
+  --glue:#f0a94a; --glue-bg:#3d2a0e; --glue-fg:#fde6c4;
+  --warn:#ff8a73; --warn-bg:#44201a; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.65 var(--f-body);padding:0 16px}
+main{max-width:900px;margin:0 auto;padding-block:40px 72px;display:flex;flex-direction:column;gap:44px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:clamp(30px,5vw,46px);font-weight:800;letter-spacing:-.01em}
+h2{font-size:25px;font-weight:800}
+h3{font-size:17px;font-weight:600}
+p{margin:0;max-width:72ch}
+ul,ol{margin:0;padding-left:20px;max-width:72ch;display:flex;flex-direction:column;gap:5px}
+code{font-family:var(--f-mono);font-size:.85em;background:var(--code-bg);border:1px solid var(--line);padding:0 4px;border-radius:4px}
+a{color:var(--exec)}
+.eyebrow{font:600 12px/1.45 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lede{color:var(--muted);font-size:18px}
+.note{color:var(--muted);font-size:13.5px;line-height:1.7}
+.note .tag{vertical-align:0}
+section{display:flex;flex-direction:column;gap:14px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.box.key{border-left:4px solid var(--glue)} .box.key .eyebrow{color:var(--glue)}
+.box.ok{border-left:4px solid var(--exec)} .box.ok .eyebrow{color:var(--exec)}
+.box.gap{border-left:4px solid var(--warn)} .box.gap .eyebrow{color:var(--warn)}
+.box.thm{border-left:4px solid var(--thm)} .box.thm .eyebrow{color:var(--thm)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.fact{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.fact b{font:800 22px/1.1 var(--f-display)} .fact span{font-size:13px;color:var(--muted)}
+.pipe{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px;font:13.5px/1.7 var(--f-mono);overflow-x:auto;white-space:pre}
+.tag{font:600 10.5px/1 var(--f-mono);letter-spacing:.03em;padding:2px 5px;border-radius:4px;background:var(--code-bg);border:1px solid var(--line);color:var(--muted);white-space:nowrap;vertical-align:1px}
+.tag.m{background:var(--exec-bg);color:var(--exec-fg);border-color:var(--exec)}
+a.tag{text-decoration:none;cursor:pointer}
+a.tag:hover{border-color:var(--muted);color:var(--fg)}
+a.tag.m:hover{border-color:var(--exec-fg)}
+table{border-collapse:collapse;font-size:14px;width:100%}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.tw{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 10px}
+details{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:0 18px}
+details[open]{padding-bottom:16px}
+summary{cursor:pointer;padding:14px 0;font-weight:600;font-family:var(--f-display)}
+details > *:not(summary){margin-top:10px}
+blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);color:var(--muted);font-size:14.5px;max-width:72ch}
+.nav{display:flex;flex-wrap:wrap;gap:10px;font-size:14px}
+.nav a{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;text-decoration:none}
+.sev{font:600 10.5px/1 var(--f-mono);padding:3px 6px;border-radius:4px;background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn);white-space:nowrap}
+.bar{display:flex;height:26px;border-radius:7px;overflow:hidden;border:1px solid var(--line);font:600 11px/26px var(--f-mono);text-align:center}
+.bar .human{background:var(--glue-bg);color:var(--glue-fg);flex:0 0 2.06%}
+.bar .kernel{background:var(--thm-bg);color:var(--thm-fg);flex:1}
+</style>
+</head>
+<body>
+
+<main>
+  <header style="display:flex;flex-direction:column;gap:12px">
+    <div class="eyebrow">fradamt/verified-consensus · commit <code>d379754</code> (12 oct 2026) · leído el 18 oct 2026</div>
+    <h1>verified-consensus: el protocolo nuevo, demostrado entero</h1>
+    <p class="lede">El modelo en Lean 4 del <i>decoupled consensus</i> —el candidato a reemplazar el consenso que
+    corre hoy en Ethereum— y la demostración de sus trece garantías en un solo teorema. Es el repo más grande de
+    los cinco por un orden de magnitud, y el único que trae ya escrito el enunciado de qué significa que un
+    consenso sea correcto. Eso es, justamente, la pieza cara.</p>
+    <p class="note">Etiquetas de origen: <span class="tag m">verificado acá</span> lo comprobamos en un clon de solo
+    lectura; <span class="tag">repo original</span> sale del texto del repo o de su documentación.</p>
+    <nav class="nav">
+      <a href="#lean-uso">Dónde se usa Lean</a>
+      <a href="#que-es">Qué es</a>
+      <a href="#tamano">El 2% que lee un humano</a>
+      <a href="#teorema">El teorema</a>
+      <a href="#testigos">Los testigos</a>
+      <a href="#rigor">El rigor</a>
+      <a href="#falta">Lo que falta</a>
+      <a href="#sirve">Qué nos sirve</a>
+      <a href="#fuentes">Fuentes</a>
+    </nav>
+  </header>
+
+  <section id="lean-uso">
+    <div class="eyebrow">La pregunta de siempre</div>
+    <h2>Dónde se usa Lean acá</h2>
+    <p>Las mismas tres preguntas que en todas las páginas de <code>docs/</code>, para poder comparar un repo con
+    otro de un vistazo.</p>
+    <div class="tw"><table>
+      <tr><th>Pregunta</th><th>Respuesta</th></tr>
+      <tr><td>¿Se compila el Lean?</td>
+          <td><b>Sí, sólo para verificar.</b> <code>lake build</code> elabora las cinco bibliotecas y el kernel
+          revisa todos los teoremas. Su propio README avisa que es <i>"about one hour on a recent laptop"</i>.
+          No se compila para servir a nadie.</td></tr>
+      <tr><td>¿Se traduce código entre Lean y otro lenguaje?</td>
+          <td><b>No, en ningún sentido.</b> No viene de Rust ni genera Rust. Lo único que no es Lean en los 1.047
+          archivos son <code>verify.sh</code> (bash) y <code>check-review-boundary.rb</code> (Ruby, 60 líneas), que
+          son herramientas de auditoría y no participan de ninguna demostración.
+          <span class="tag m">verificado acá</span></td></tr>
+      <tr><td>¿Hay Lean en el entorno de ejecución?</td>
+          <td><b>No.</b> Cero <code>@[export]</code>, ningún <code>lean_exe</code>, ningún <code>def main</code>.
+          <b>Pero el modelo sí computa</b> — ver abajo —, así que a diferencia de <a href="gasper-lean4.html">gasper-lean4</a>
+          la puerta se podría construir. <span class="tag m">verificado acá</span></td></tr>
+    </table></div>
+    <div class="box ok">
+      <div class="eyebrow">El matiz que lo distingue: el modelo es ejecutable de verdad</div>
+      <p>No es una figura retórica del README. <b>27 de los 29 archivos</b> de la biblioteca del modelo llevan
+      instancias <code>Decidable</code>, que es lo que hace que una definición se pueda calcular y no sólo
+      enunciar. Y los testigos corren la máquina de estados posta: <span class="tag m">verificado acá</span></p>
+      <div class="pipe">#eval (NamedRun.stateBefore S (rho 30) 31 0).st.core.h_max
+#eval (NamedRun.stateBefore S (rho 30) 31 0).st.core.T.card
+#eval (events 30).length</div>
+      <p>Eso calcula el estado de un nodo después de 30 rondas y devuelve su altura máxima. Lo que falta para que
+      otro lenguaje lo llame son los <code>@[export]</code>, y nada más. <b>Es la diferencia entre "no lo hicieron"
+      y "no se puede".</b></p>
+    </div>
+  </section>
+
+  <section id="que-es">
+    <div class="eyebrow">Mundo Lean · el protocolo</div>
+    <h2>Qué es: el consenso candidato, no el de hoy</h2>
+    <p>El repo formaliza la <b>Sección 7</b> de un paper llamado <i>"Decoupled consensus"</i>, de
+    <b>Francesco D'Amato</b>: cinco años en EF Research, de los nombres fuertes del roadmap de consenso
+    (single slot finality, PeerDAS, FOCIL), y desde julio de 2026 en Ethlabs, un laboratorio independiente.</p>
+    <div class="box key">
+      <div class="eyebrow">Tenemos el paper, y eso es raro</div>
+      <p>El README dice textual: <i>"Paper: <code>consensus.tex</code> at commit <code>9f5ed717ffac</code>
+      (not yet public)"</i>. Nosotros lo tenemos: el PDF está en
+      <a href="https://github.com/EdVeralli/decoupled-consensus-apuntes">decoupled-consensus-apuntes</a>, el repo
+      de apuntes donde ya estudiamos ese protocolo en ocho clases. <b>Es la única de las cinco formalizaciones que
+      podemos leer contra su propia fuente.</b></p>
+      <p class="note">Ojo con las versiones: nuestro PDF es del 28 de agosto y llega hasta §7. El <code>.tex</code>
+      que formalizaron referencia además §8 (<i>leak identification</i>), §9 y §10, así que es posterior.</p>
+    </div>
+    <p>Para entender el protocolo en sí están los apuntes. Acá alcanza con la idea: una cadena no puede ser siempre
+    disponible y siempre segura a la vez, así que en vez de dos niveles —como el Ethereum de hoy, donde LMD-GHOST
+    da la cabeza que siempre avanza y Casper FFG finaliza por detrás— se ofrecen <b>tres cadenas encajadas</b>, cada
+    una con su garantía:</p>
+    <div class="tw"><table>
+      <tr><th>Cadena</th><th>Quién la construye</th><th>Qué promete</th></tr>
+      <tr><td><b>confirmed</b><br>la disponible</td><td>Goldfish, un fork-choice con <i>view merge</i></td>
+          <td>una propuesta honesta entra en la de todos dentro de <b>6Δ</b>. Rápida, pero todavía reorganizable</td></tr>
+      <tr><td><b>stable</b><br>la capa nueva</td><td>el <i>stabilization gadget</i>, por mayoría relativa en rondas</td>
+          <td>entra en <b>η_SG+1 rondas + 8Δ</b> (o 2 rondas con mayoría fresca). Y lo mejor: <b>sobrevive un apagón
+          entero de la red</b>, cosa que hoy no existe</td></tr>
+      <tr><td><b>finalized</b></td><td>el <i>finality gadget</i></td>
+          <td>irreversible, y con la misma propiedad de Casper FFG: si se finalizan dos cosas incompatibles, se
+          puede señalar a un tercio del peso y castigarlo</td></tr>
+    </table></div>
+    <p>El encaje —finalizado adentro de estable, estable adentro de confirmado, en toda lectura— <b>es él mismo uno
+    de los teoremas</b>. Y ése es el punto que lo separa de <a href="gasper-lean4.html">gasper-lean4</a>: ahí sólo
+    está formalizada la mitad de la finalidad, así que un enunciado que compare las tres capas <i>ni siquiera se
+    puede escribir</i>. Acá las tres están en el mismo paquete.</p>
+  </section>
+
+  <section id="tamano">
+    <div class="eyebrow">Mundo Lean · la escala</div>
+    <h2>334.092 líneas, de las que un humano lee 6.897</h2>
+    <div class="facts">
+      <div class="fact"><b>1 047</b><span>archivos <code>.lean</code></span></div>
+      <div class="fact"><b>334 092</b><span>líneas de Lean</span></div>
+      <div class="fact"><b>8 384</b><span>declaraciones <code>theorem</code>/<code>lemma</code></span></div>
+      <div class="fact"><b>0</b><span><code>sorry</code> y axiomas propios</span></div>
+    </div>
+    <p class="note">Los cuatro repos anteriores juntos no llegan a 74.000 líneas. Este solo es cuatro veces y media
+    todo lo que veníamos mirando. El conteo de teoremas es de declaraciones en el código fuente —el mismo método
+    que usamos en nuestro repo, donde 357 a mano eran 492 contando las autogeneradas.
+    <span class="tag m">verificado acá</span></p>
+
+    <div class="box key">
+      <div class="eyebrow">La idea más valiosa del repo</div>
+      <p>El repo está partido en <b>cinco bibliotecas</b>, y la partición no es cosmética: separa lo que una persona
+      tiene que leer y creer de lo que revisa la máquina.</p>
+      <div class="tw"><table>
+        <tr><th>Biblioteca</th><th>Archivos</th><th>Líneas</th><th>Qué tiene</th><th>¿Hay que confiar?</th></tr>
+        <tr><td><code>Model</code></td><td>29</td><td>5 727</td><td>el protocolo: store, fork-choice, grados, duties, handlers</td><td><b>sí</b> — sólo definiciones</td></tr>
+        <tr><td><code>Statements</code></td><td>12</td><td>1 170</td><td>qué se afirma. Sin imports de demostraciones</td><td><b>sí</b> — sólo definiciones</td></tr>
+        <tr><td><code>Internal</code></td><td>139</td><td>10 243</td><td>vocabulario interno de las demostraciones</td><td>no, lo revisa el kernel</td></tr>
+        <tr><td><code>Proofs</code></td><td>851</td><td>309 574</td><td>las demostraciones</td><td>no, lo revisa el kernel</td></tr>
+        <tr><td><code>Witnesses</code></td><td>8</td><td>6 567</td><td>corridas concretas que activan cada premisa</td><td>no, lo revisa el kernel</td></tr>
+      </table></div>
+      <div class="bar"><div class="human">2%</div><div class="kernel">el 98% restante lo revisa el kernel</div></div>
+      <p><b>6.897 líneas sobre 334.092: el 2,06%.</b> Eso es lo que hay que leer a mano para saber si el teorema
+      dice lo que uno cree que dice. <span class="tag m">verificado acá</span></p>
+    </div>
+
+    <p>Acordate de por qué esto importa tanto: el kernel garantiza que la demostración es correcta,
+    <b>nunca</b> que el enunciado sea el que querías. Ése es el agujero que la verificación formal no cierra. Lo que
+    hicieron acá es <b>acotarlo y aislarlo</b>, para que la revisión humana sea un trabajo posible en vez de uno
+    imposible. Y lo dicen ellos mismos, en la sección de limitaciones:</p>
+    <blockquote>"Only <code>Instantiation.lean</code> ties it to this protocol, so read that file with care:
+    <b>a wrong binding leaves the theorem true and empty</b>."</blockquote>
+  </section>
+
+  <section id="teorema">
+    <div class="eyebrow">Mundo Lean · el resultado</div>
+    <h2>Un solo teorema para trece garantías</h2>
+    <p>Todo el repo apunta a una línea, en <code>DecoupledConsensusProofs/ReviewTheorem.lean</code>:</p>
+    <div class="pipe">theorem concreteConsensus (S : Setup V) : Statements.Instantiation.Consensus S</div>
+    <p><code>Consensus</code> es un paquete con <b>trece campos</b>. No son trece teoremas sueltos que alguien juntó
+    después: se demuestran juntos, y por eso quedan cubiertas las interacciones entre capas, que es justamente donde
+    estos protocolos se rompen.</p>
+    <details>
+      <summary>Ver los trece campos, uno por uno</summary>
+      <div class="tw"><table>
+        <tr><th>Campo</th><th>Qué afirma</th></tr>
+        <tr><td><code>constants</code></td><td>los parámetros de tiempo y las cotas son consistentes</td></tr>
+        <tr><td><code>nested</code></td><td>en toda lectura, finalizado está dentro de estable y estable dentro de confirmado</td></tr>
+        <tr><td><code>certificatesAccountable</code></td><td>dos certificados de finalidad finalizan cosas compatibles, o hay evidencia castigable contra al menos un tercio del peso</td></tr>
+        <tr><td><code>finalizedAccountable</code></td><td>lo mismo, pero para dos lecturas honestas de lo finalizado</td></tr>
+        <tr><td><code>honestNeverSlashed</code></td><td>un validador honesto nunca resulta castigable</td></tr>
+        <tr><td><code>finalizedMonotone</code></td><td>lo finalizado de cada nodo sólo se extiende, nunca retrocede</td></tr>
+        <tr><td><code>finalizedSafe</code></td><td>dos nodos honestos nunca finalizan cosas que se contradigan</td></tr>
+        <tr><td><code>available</code></td><td>confirmado y estable son seguros, y una propuesta honesta entra en todo confirmado dentro de 6Δ y en todo estable dentro de η_SG+1 rondas más 8Δ</td></tr>
+        <tr><td><code>confirmedLive</code></td><td>la cadena confirmada sigue creciendo</td></tr>
+        <tr><td><code>stableLive</code></td><td>la cadena estable sigue creciendo</td></tr>
+        <tr><td><code>stableIncludedFast</code></td><td>con mayoría fresca, una propuesta honesta entra en todo estable en 2 rondas más 8Δ</td></tr>
+        <tr><td><code>finalized</code></td><td>pasado un arranque, una propuesta honesta se finaliza en todos lados antes de su plazo, y lo finalizado sigue creciendo</td></tr>
+        <tr><td><code>stableAsynchronyResilient</code></td><td>un bloque que está en una lectura estable honesta sigue estando del otro lado del apagón</td></tr>
+      </table></div>
+    </details>
+    <div class="box key">
+      <div class="eyebrow">Esto es lo que lo hace valioso para nosotros</div>
+      <p>Acordate de la cuenta de siempre: la traducción automática te da las <b>definiciones</b>; lo caro es
+      <b>decidir qué querés demostrar y escribirlo</b>. Acá ese trabajo ya está hecho. <code>Consensus</code> es,
+      literalmente, la definición escrita de qué significa que un consenso sea correcto — revisada a mano por su
+      autor, con una frontera custodiada por un script y con testigos que prueban que no es vacía.</p>
+      <p><b>De los cinco repos, es el único que trae el enunciado hecho.</b> Los otros cuatro te dan o el código sin
+      el teorema, o la spec sin el puente, o la herramienta de traducción sin nada que demostrar, o media
+      formalización.</p>
+    </div>
+  </section>
+
+  <section id="testigos">
+    <div class="eyebrow">Mundo Lean · la biblioteca que no vimos en ningún otro repo</div>
+    <h2>Los testigos: el antídoto contra el teorema vacío</h2>
+    <p>Un teorema con la forma <i>"si se cumplen estas premisas, entonces vale esta garantía"</i> tiene un modo de
+    fallar que el kernel no detecta: que las premisas <b>no se puedan cumplir nunca</b>. Si son imposibles, el
+    teorema es verdadero y no dice absolutamente nada. Compila, pasa el kernel, y es humo.</p>
+    <p>La biblioteca <code>Witnesses</code> existe para eso. Para cada enunciado público construye
+    <b>una corrida concreta en la que todas sus premisas se cumplen</b>, demostrada en Lean, con al menos un
+    validador bizantino adentro. Su propio índice lo dice:</p>
+    <blockquote>"This library holds, for each statement, one concrete kernel-checked run for which EVERY premise
+    holds, with at least one Byzantine validator, <b>so that the guarantee really applies to something</b>."</blockquote>
+    <div class="tw"><table>
+      <tr><th>Grupo o resultado</th><th>Testigo elegido</th></tr>
+      <tr><td>Salidas encajadas (incondicional)</td><td><code>WeakGenesis.nested_outputs_activated</code></td></tr>
+      <tr><td>Seguridad del voto (incondicional)</td><td><code>WeakGenesis.vote_safety_of_clients_activated</code></td></tr>
+      <tr><td>Equidad del <i>leak</i></td><td><code>Outage.leak_fairness_activated</code></td></tr>
+      <tr><td>Inclusión en lo finalizado</td><td><code>FinalityLiveness.honest_proposal_finalization_activated</code></td></tr>
+      <tr><td>Persistencia a través del apagón</td><td><code>Outage.asynchrony_resilience_activated</code></td></tr>
+      <tr><td>Seguridad del voto tras recuperarse</td><td><code>StrongRecovery.vote_safety_after_recovery_activated</code></td></tr>
+    </table></div>
+    <p class="note">De los grupos listados, ninguno queda sin testigo; <code>HeightProgress</code> es el único que
+    no lleva uno, y el índice aclara que no lo necesita porque es un resultado del lado de las demostraciones.
+    <span class="tag m">verificado acá</span></p>
+    <div class="box gap">
+      <div class="eyebrow">Hasta dónde llega el testigo</div>
+      <p>Los declaran ellos: las corridas de prueba tienen <b>un nodo honesto y un bizantino silencioso</b>. O sea
+      que demuestran que las premisas son satisfacibles, pero <b>no ejercitan equivocación ni tráfico
+      adversario</b>. Es una vacuna contra el teorema vacío, no un test de penetración.</p>
+    </div>
+  </section>
+
+  <section id="rigor">
+    <div class="eyebrow">Mundo Lean · de qué depende cada teorema</div>
+    <h2>El rigor, y quién lo controla</h2>
+    <p>Cero <code>sorry</code> y cero axiomas propios en los 1.047 archivos. <span class="tag m">verificado acá</span>
+    La lista permitida es exactamente la de los tres axiomas estándar de Lean:</p>
+    <div class="pipe">ALLOWED_AXIOMS=(propext Classical.choice Quot.sound)      # scripts/verify.sh</div>
+    <p>Y no es una promesa escrita en un README: hay un script de <b>seis pasos</b> que lo chequea.</p>
+    <div class="tw"><table>
+      <tr><th>#</th><th>Qué chequea</th><th>Con qué</th></tr>
+      <tr><td>a</td><td>que las cinco bibliotecas elaboran y pasan el kernel</td><td><code>lake build</code></td></tr>
+      <tr><td>b</td><td><b>que la frontera de revisión no se ensució</b>: ningún módulo interno, de demostración ni de fixture se coló entre lo que un humano tiene que leer</td><td><code>check-review-boundary.rb</code></td></tr>
+      <tr><td>c</td><td>que no haya una segunda colección de enunciados escondida: todo lo declarado se usa desde el paquete revisado</td><td><code>StatementReachability.lean</code></td></tr>
+      <tr><td>d</td><td>que el paquete tenga exactamente los trece campos esperados, y que no se haya colado uno viejo</td><td><code>ReviewSurfaceShape.lean</code></td></tr>
+      <tr><td>e</td><td><b>que <code>concreteConsensus</code> y todos los teoremas internos de los que depende no usen nada fuera de los tres axiomas</b></td><td><code>ReviewAxioms.lean</code></td></tr>
+      <tr><td>f</td><td>un segundo barrido independiente de <code>sorry</code> y <code>admit</code>, por si el chequeo de axiomas fallara</td><td>grep sobre las cinco bibliotecas</td></tr>
+    </table></div>
+    <div class="box ok">
+      <div class="eyebrow">Tres capas distintas, que conviene no mezclar</div>
+      <div class="tw"><table>
+        <tr><th>Quién</th><th>Qué revisa</th></tr>
+        <tr><td>el kernel de Lean</td><td>que cada paso de cada demostración esté bien</td></tr>
+        <tr><td><code>ReviewAxioms.lean</code></td><td>de qué axiomas se permite depender</td></tr>
+        <tr><td><code>check-review-boundary.rb</code></td><td>qué se permite importar, o sea cuánto tiene que leer un humano</td></tr>
+      </table></div>
+      <p class="note">Las dos últimas no participan de ninguna demostración: si las borrás, los 8.384 teoremas siguen
+      valiendo igual. Lo que perdés es el guardián automático de la disciplina. Es la misma familia que
+      <code>check-decls</code> en <a href="leaner-stf-spec.html">leanerSTFSpec</a> y
+      <code>#mr_audit_axioms</code> en <a href="gasper-lean4.html">gasper-lean4</a>.</p>
+    </div>
+    <div class="box key">
+      <div class="eyebrow">Sí usan el atajo, pero lo encierran</div>
+      <p>Hay <b>cinco <code>native_decide</code></b>, y los cinco están en un solo archivo:
+      <code>DecoupledConsensusWitnesses/Outage.lean</code>. <span class="tag m">verificado acá</span> Por eso ese
+      testigo arrastra un axioma extra, <code>Lean.ofReduceBool</code> — y el README lo declara en vez de taparlo:</p>
+      <blockquote>"The outage witness decides five finite checks with <code>native_decide</code>, so it also depends
+      on <code>Lean.ofReduceBool</code>. <b>The review theorem does not.</b>"</blockquote>
+      <p>Es exactamente el mismo atajo que en <a href="mapa-completo.html">nuestro repo</a>, donde 10 de los 492
+      teoremas dependen de <i>native axioms</i>. La diferencia es de disciplina: <b>acá está confinado a un testigo,
+      documentado, y fuera del teorema que importa; allá está suelto en teoremas centrales
+      (<code>uncompress_compress</code> entre ellos) y no hay nadie que lo controle.</b></p>
+    </div>
+  </section>
+
+  <section id="falta">
+    <div class="eyebrow">Los límites</div>
+    <h2>Lo que falta, y lo declaran ellos</h2>
+    <div class="box gap">
+      <div class="eyebrow"><span class="sev">el hueco grande</span> &nbsp; No hay una sola línea de criptografía</div>
+      <p>Buscamos BLS, SHA, Blake, verificación de firmas en toda la biblioteca del modelo: <b>nada</b>.
+      <span class="tag m">verificado acá</span> "Firmas infalsificables" no es código acá, es una <b>premisa</b>:
+      forma parte de la definición de qué cuenta como ejecución válida, junto con que los mensajes llegan dentro de
+      Δ y que no hay colisiones de hashes.</p>
+      <p>Ésa es la línea exacta entre un modelo y una implementación: <b>el modelo supone la criptografía, un cliente
+      la calcula.</b> Y ahí está el hueco que nos interesa: el teorema dice "si las firmas no se pueden falsificar y
+      los mensajes llegan a tiempo, entonces valen estas trece garantías". Un cliente real tiene que
+      <b>ganarse</b> cada premisa. Que se la gane, no lo demostró nadie.</p>
+    </div>
+    <p>Y las tres que declaran en <code>docs/MODELING_CHOICES.md</code>:</p>
+    <div class="tw"><table>
+      <tr><th>Límite</th><th>Qué significa</th></tr>
+      <tr><td><b>No alcanzaron la cota del paper</b></td>
+          <td>sus premisas de participación son más fuertes (valen en todo instante, no sólo en los muestreos de
+          ronda), y por eso la finalidad les exige <code>K ≥ 5</code> donde el paper dice <code>K ≥ 4</code></td></tr>
+      <tr><td><b>Un solo apagón</b></td>
+          <td>el resultado sobre asincronía cubre una ventana. Una corrida con más de una no está modelada</td></tr>
+      <tr><td><b>Testigos flojos</b></td>
+          <td>un nodo honesto y un bizantino silencioso: no hay equivocación ni tráfico adversario</td></tr>
+    </table></div>
+    <p class="note">Lo de <code>K ≥ 5</code> vale la pena cruzarlo con la clase 7 de
+    <a href="https://github.com/EdVeralli/decoupled-consensus-apuntes">nuestros apuntes</a>, "el problema del ancla":
+    son dos lecturas críticas independientes del mismo protocolo, una leyendo y otra formalizando.</p>
+  </section>
+
+  <section id="sirve">
+    <div class="eyebrow">Para nuestro estudio</div>
+    <h2>Qué nos sirve: la pregunta de Rust</h2>
+    <p>En este repo <b>Rust no aparece</b>. Cero. Para la pregunta de Pablo, el casillero está vacío. Pero eso lo
+    pone en el otro extremo del mismo problema: acá hay una especificación de consenso con 8.384 teoremas, y el
+    cliente que algún día la implemente va a estar escrito en Rust. La pregunta concreta es
+    <b>qué ata el Rust de un cliente a estos teoremas</b>. Hoy, nada.</p>
+    <div class="tw"><table>
+      <tr><th>Vía</th><th>Qué sería acá</th><th>Estado</th></tr>
+      <tr><td><b>Oráculo</b><br><span class="note">lo de leanerSTFSpec</span></td>
+          <td>ponerle <code>@[export]</code>, correrlo al lado del cliente sobre los mismos eventos y comparar
+          salidas</td>
+          <td>nadie lo hizo. <b>Es lo más barato</b> y encuentra discrepancias desde el primer día, aunque no
+          demuestre nada</td></tr>
+      <tr><td><b>Rust → Lean</b><br><span class="note">lo de verified-zkevm</span></td>
+          <td>traducir el consenso del cliente con hax/Aeneas y demostrar que la traducción cumple
+          <code>Consensus</code></td>
+          <td>el enunciado ya existe, que es la mitad cara del trabajo. Pero traducir un cliente entero —con async,
+          traits y dependencias— está muy por encima de lo que esas herramientas manejan hoy</td></tr>
+      <tr><td><b>Refinamiento</b></td>
+          <td>demostrar que el cliente refina el modelo</td>
+          <td>lo correcto, y lo que <b>nadie logró en ningún repo del ecosistema</b>: en leanerSTFSpec ni siquiera
+          está acordado cómo enunciarlo</td></tr>
+    </table></div>
+    <div class="box key">
+      <div class="eyebrow">La frase para Pablo</div>
+      <p>De los cinco repos, <b>éste es el único que trae el enunciado hecho</b>. Lo caro de la verificación formal
+      no es traducir código ni empujar tácticas: es decidir qué querés demostrar y escribirlo con precisión. Acá eso
+      está, revisado y con testigos. Lo que falta es atarlo a un programa real — y en ethlambda ese programa es
+      Rust.</p>
+    </div>
+    <p>Y la advertencia, para no venderlo de más: <b>esto es un modelo, no una implementación.</b> Es la lógica del
+    protocolo escrita de forma que un teorema pueda hablar de ella y una máquina pueda correrla sobre casos chicos.
+    Más que pseudocódigo y menos que un cliente. Que no tenga red ni criptografía no es una carencia: es el diseño.
+    Si le metieran un socket adentro, los teoremas se volverían imposibles.</p>
+  </section>
+
+  <section id="fuentes">
+    <div class="eyebrow">Fuentes</div>
+    <h2>De dónde sale cada cosa</h2>
+    <ol>
+      <li><b>El repo</b>: <a href="https://github.com/fradamt/verified-consensus">fradamt/verified-consensus</a>,
+      clon de solo lectura en el commit <code>d379754</code> (12 oct 2026). Publicado el 23 sep 2026 según su
+      <code>CITATION.cff</code>. Licencia CC0, Lean y Mathlib <code>v4.34.1</code>.</li>
+      <li><b>Los conteos</b> (1.047 archivos, 334.092 líneas, 8.384 declaraciones, 0 <code>sorry</code>, 0 axiomas
+      propios, 5 <code>native_decide</code>, 0 <code>@[export]</code>, 27 de 29 archivos del modelo con
+      <code>Decidable</code>): medidos sobre ese clon. <span class="tag m">verificado acá</span></li>
+      <li><b>Las citas en inglés</b>: del <code>README.md</code> del repo y de
+      <code>DecoupledConsensusWitnesses/Index.lean</code>.</li>
+      <li><b>Los seis pasos de la verificación</b>: de los comentarios de <code>scripts/verify.sh</code>, y la lista
+      de axiomas permitidos de su variable <code>ALLOWED_AXIOMS</code>.</li>
+      <li><b>Los trece campos</b>: del <code>README.md</code>, sección "The review theorem".</li>
+      <li><b>Los límites declarados</b>: del <code>README.md</code>, sección "Scope and limitations", que remite a
+      <code>docs/MODELING_CHOICES.md</code>.</li>
+      <li><b>Quién es el autor</b>: <code>CITATION.cff</code> para el nombre; para su paso por la Ethereum Foundation
+      y la mudanza a Ethlabs en julio de 2026,
+      <a href="https://www.bankless.com/read/news/ethereum-researcher-francesco-damato-departs-ef-for-ethlabs">Bankless</a>.</li>
+      <li><b>El protocolo</b>: el paper <i>"Decoupled consensus"</i> (28 ago 2026), en
+      <a href="https://github.com/EdVeralli/decoupled-consensus-apuntes">decoupled-consensus-apuntes</a>, donde está
+      explicado en ocho clases.</li>
+    </ol>
+    <p class="note">Esta página es parte del estudio del ecosistema Lean 4 de Ethereum. Las otras:
+    <a href="mapa-completo.html">cryptography-specs</a> ·
+    <a href="leaner-stf-spec.html">leanerSTFSpec</a> ·
+    <a href="verified-zkevm.html">Verified zkEVM</a> ·
+    <a href="gasper-lean4.html">gasper-lean4</a> ·
+    <a href="repos-comparados.md">el cuadro comparativo</a>.</p>
+  </section>
+</main>
+
+</body>
+</html>
