@@ -482,8 +482,28 @@ def xor_u32 (a b : Std.U32) :
   <section id="costo">
     <div class="eyebrow">Lo que cuesta</div>
     <h2>Límites reales y el supuesto de confianza</h2>
+
     <div class="box gap">
-      <div class="eyebrow">Qué no digiere la herramienta</div>
+      <div class="eyebrow">El límite más estructural: la biblioteca estándar no está traducida</div>
+      <p>Aeneas no declara en ningún lado que sea "para <code>no_std</code>" — dice que traduce un subconjunto del
+      Rust <b>seguro</b>. Pero en la práctica funciona así, y por un motivo concreto: <b><code>std</code> no está
+      traducida</b>. Para cualquier cosa que venga de la biblioteca estándar, Aeneas tiene una opción
+      (<code>-split-files</code>) que genera archivos plantilla listando las definiciones que faltan, y
+      <b>las modelás a mano</b>.</p>
+      <p>O sea que <code>FunsExternal.lean</code> <b>no es un rincón raro del pipeline: es el mecanismo con el que
+      entra todo lo que no es tu propio código</b>. Cuanta más biblioteca estándar uses, más supuestos escribís vos.</p>
+      <p>Por eso lo que pasa cómodo es código sin <code>std</code> — <code>no_std</code> de hecho, aunque no por
+      decreto. Y encaja con el contexto de este paraguas: los <i>guest programs</i> de un zkVM son
+      <code>no_std</code> por naturaleza.</p>
+      <p><b>Y acá está la consecuencia para ethlambda:</b> un cliente de consenso en Rust es <code>std</code>, más
+      async, más locks. Nada de eso pasa por esta cadena. Lo que sí pasa es un <b>núcleo de cómputo puro y
+      autocontenido</b> — que es exactamente lo que es la criptografía, y por eso
+      <a href="#precedente">los usuarios reales de Aeneas hoy son bibliotecas criptográficas</a> como SymCrypt y
+      ML-KEM, no clientes enteros.</p>
+    </div>
+
+    <div class="box gap">
+      <div class="eyebrow">Qué más no digiere la herramienta</div>
       <ul>
         <li><b>Nada de <code>unsafe</code> ni concurrencia.</b> Sin soporte hoy; esperan levantarlo con trabajo de
         lógica de separación.</li>
