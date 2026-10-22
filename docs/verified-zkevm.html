@@ -143,7 +143,7 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
       mano. Charon tampoco lee el texto del <code>.rs</code> — lee la representación intermedia del compilador
       (MIR), el programa ya desazucarado y con los tipos resueltos — y la baja a LLBC, un formato pensado para
       esto. Aeneas toma LLBC y produce Lean funcional puro: hace desaparecer las referencias mutables y los
-      préstamos, y envuelve todo en una mónada <code>Result</code>, porque una función Rust puede entrar en
+      <i>borrows</i>, y envuelve todo en una mónada <code>Result</code>, porque una función Rust puede entrar en
       pánico o desbordar y en Lean toda función tiene que ser total.</p>
       <p style="margin:8px 0 0"><b>Y lo que no se traduce.</b> Lo que Aeneas no sabe convertir —llamadas al
       sistema, <code>unsafe</code>, intrínsecos— queda declarado en <code>FunsExternal.lean</code> con un modelo
@@ -237,7 +237,12 @@ alexanderlhicks/leanerSTFSpec ────┘  ← cuenta personal</div>
           <td>habría que reimplementar medio compilador para reinterpretar el código fuente — y cualquier
           diferencia con <code>rustc</code> significa demostrar cosas sobre un programa que no es el que corre</td></tr>
       <tr><td><b>Aeneas</b></td><td>Inria</td>
-          <td>es el único que sabe <b>hacer desaparecer los <code>&amp;mut</code></b>, con las <i>funciones hacia atrás</i></td>
+          <td>es el único que sabe <b>hacer desaparecer los <code>&amp;mut</code></b>. Un <i>borrow</i> en Rust es
+          esto: te doy mi valor, lo modificás, y cuando el <i>borrow</i> termina yo lo recupero cambiado. En Lean no
+          existe la mutación, así que Aeneas lo parte en dos funciones: la <b>de ida</b> devuelve lo que la función
+          devolvía, y la <b>de vuelta</b> devuelve cuánto vale lo cedido una vez que el <i>borrow</i> terminó. Un
+          <code>fn tomar(v: &amp;mut Vec&lt;u32&gt;) -&gt; u32</code> pasa a ser "qué número sale" + "cómo queda el
+          vector"</td>
           <td>habría que reescribir el Rust entero en estilo funcional, a mano, antes de traducir</td></tr>
       <tr><td><b>hax</b></td><td>Cryspen</td>
           <td>lo convierte en <b>un subcomando de cargo</b></td>
@@ -259,7 +264,7 @@ alexanderlhicks/leanerSTFSpec ────┘  ← cuenta personal</div>
       <b>sí</b> extrae las dependencias. El problema no es que no las vea — es que
       <b>Aeneas no sabe traducir todo lo que Charon le trae</b>, y ahí es donde aparece la plantilla.
       <b>Aeneas</b> toma ese LLBC y lo traduce a Lean 4. Su README lo define así: <i>"relies on a translation from
-      Rust's MIR"</i> a un lambda-cálculo puro. O sea, tu Rust imperativo con préstamos y mutaciones sale del otro lado
+      Rust's MIR"</i> a un lambda-cálculo puro. O sea, tu Rust imperativo con <i>borrows</i> y mutaciones sale del otro lado
       como funciones puras. <a class="tag" href="#fuentes" title="Sale del texto del repo o de su documentación. Ver Fuentes.">repo original</a></p>
       <div class="pipe"># 1. generar el LLBC desde el crate de Rust
 cd ~/mi-crate-rust
@@ -338,7 +343,7 @@ def xor_u32 (a b : Std.U32) :
     <p>Cuatro cosas para mirar:</p>
     <ol>
       <li><b>La mutación desapareció.</b> El <code>let mut t = …; t &lt;&lt;= i; t</code> se volvió dos pasos
-      funcionales encadenados. Ese es el trabajo central de Aeneas: traducir préstamos y mutaciones a un
+      funcionales encadenados. Ese es el trabajo central de Aeneas: traducir <i>borrows</i> y mutaciones a un
       lambda-cálculo puro.</li>
       <li><b>Todo devuelve <code>Result</code></b>, incluso <code>xor_u32</code>, que no puede fallar. ¿Por qué? Porque
       los enteros de máquina son acotados y la aritmética <b>puede desbordar</b>. Lo que no puede fallar se envuelve con

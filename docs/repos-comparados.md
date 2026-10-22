@@ -349,7 +349,7 @@ sigue siendo el original y nadie lo toca: la traducción se genera al costado, s
 en cada cambio y no se edita a mano. Charon no lee el texto del `.rs` — lee la representación
 intermedia del compilador (MIR), el programa ya desazucarado y con los tipos resueltos — y la baja
 a LLBC. Aeneas convierte eso en Lean funcional puro: hace desaparecer las referencias mutables y
-los préstamos, y envuelve todo en un tipo `Result`, que obliga a contemplar el caso de falla en cada paso,
+los *borrows*, y envuelve todo en un tipo `Result`, que obliga a contemplar el caso de falla en cada paso,
 porque una función Rust puede entrar en pánico o desbordar y en Lean toda función tiene que ser total. Lo que Aeneas no sabe convertir
 —`unsafe`, llamadas al sistema, intrínsecos— queda declarado en `FunsExternal.lean` con un modelo
 escrito a mano: eso no es traducción, es un supuesto, y todo teorema que pase por ahí vale sólo si
