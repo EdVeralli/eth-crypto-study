@@ -225,10 +225,35 @@ alexanderlhicks/leanerSTFSpec ────┘  ← cuenta personal</div>
   <section id="herramientas">
     <div class="eyebrow">Mundos Rust y Lean · las herramientas</div>
     <h2>Las dos vías, que en realidad son una</h2>
+    <p>Son tres piezas y cada una resuelve un problema distinto. Conviene tenerlas separadas antes de ver los
+    comandos, porque es fácil confundirlas:</p>
+    <div class="tw"><table>
+      <tr><th>Pieza</th><th>Quién</th><th>Qué resuelve</th><th>Qué pasaría sin ella</th></tr>
+      <tr><td><b>Charon</b></td><td>proyecto Aeneas</td>
+          <td>leer el crate desde <b>lo que el compilador entendió</b>, no desde el texto</td>
+          <td>habría que parsear Rust por cuenta propia, y traducir lo que el código <i>parece</i> decir</td></tr>
+      <tr><td><b>Aeneas</b></td><td>Inria</td>
+          <td>es el único que sabe <b>hacer desaparecer los <code>&amp;mut</code></b>, con las <i>funciones hacia atrás</i></td>
+          <td>habría que reescribir el Rust entero en estilo funcional, a mano, antes de traducir</td></tr>
+      <tr><td><b>hax</b></td><td>Cryspen</td>
+          <td>lo convierte en <b>un subcomando de cargo</b></td>
+          <td>habría que armar la cadena a mano, crate por crate</td></tr>
+    </table></div>
+    <div class="pipe">tu Rust  →  rustc (MIR)  →  Charon (LLBC)  →  Aeneas  →  Lean
+                                  ↑
+                   cargo hax into lean dispara todo esto</div>
     <div class="box">
       <div class="eyebrow">Vía 1 · Aeneas + Charon (la recomendada)</div>
-      <p>Dos herramientas en cadena. <b>Charon</b> es el front-end: toma el crate, lo compila hasta el <b>MIR</b> (la
-      representación intermedia del compilador de Rust) y lo baja a un formato propio llamado <b>LLBC</b>.
+      <p>Dos herramientas en cadena. <b>Charon</b> es el front-end, y hace más de lo que suena: extrae
+      <b>el crate entero y sus dependencias</b> a un archivo JSON — tipos, funciones, traits, implementaciones de
+      traits y globales — y de los <b>cuerpos</b> de las funciones toma el <b>MIR simplificado</b>, o sea la
+      representación interna del compilador de Rust. Su README lo dice así: <i>"the types, functions and traits of
+      the crate and its dependencies, the <b>simplified MIR bodies</b> of functions, source information for each
+      item"</i>. Ese JSON es el <b>LLBC</b>.
+      <a class="tag" href="#fuentes" title="Sale del texto del repo o de su documentación. Ver Fuentes.">repo original</a></p>
+      <p>Ojo con el matiz, porque cambia cómo se entiende el hueco de <code>FunsExternal</code>: Charon
+      <b>sí</b> extrae las dependencias. El problema no es que no las vea — es que
+      <b>Aeneas no sabe traducir todo lo que Charon le trae</b>, y ahí es donde aparece la plantilla.
       <b>Aeneas</b> toma ese LLBC y lo traduce a Lean 4. Su README lo define así: <i>"relies on a translation from
       Rust's MIR"</i> a un lambda-cálculo puro. O sea, tu Rust imperativo con préstamos y mutaciones sale del otro lado
       como funciones puras. <a class="tag" href="#fuentes" title="Sale del texto del repo o de su documentación. Ver Fuentes.">repo original</a></p>
