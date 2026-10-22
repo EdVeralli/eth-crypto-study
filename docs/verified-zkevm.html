@@ -230,8 +230,12 @@ alexanderlhicks/leanerSTFSpec ────┘  ← cuenta personal</div>
     <div class="tw"><table>
       <tr><th>Pieza</th><th>Quién</th><th>Qué resuelve</th><th>Qué pasaría sin ella</th></tr>
       <tr><td><b>Charon</b></td><td>proyecto Aeneas</td>
-          <td>leer el crate desde <b>lo que el compilador entendió</b>, no desde el texto</td>
-          <td>habría que parsear Rust por cuenta propia, y traducir lo que el código <i>parece</i> decir</td></tr>
+          <td>leer el programa <b>ya interpretado por el compilador</b>: toma el <b>MIR</b> que produce
+          <code>rustc</code>, no el texto del <code>.rs</code>. Para entonces las macros ya se expandieron, los
+          genéricos se instanciaron y los tipos están resueltos — un <code>a + b</code> escrito en el fuente ya es,
+          en el MIR, una llamada concreta a la suma de un tipo concreto</td>
+          <td>habría que reimplementar medio compilador para reinterpretar el código fuente — y cualquier
+          diferencia con <code>rustc</code> significa demostrar cosas sobre un programa que no es el que corre</td></tr>
       <tr><td><b>Aeneas</b></td><td>Inria</td>
           <td>es el único que sabe <b>hacer desaparecer los <code>&amp;mut</code></b>, con las <i>funciones hacia atrás</i></td>
           <td>habría que reescribir el Rust entero en estilo funcional, a mano, antes de traducir</td></tr>
