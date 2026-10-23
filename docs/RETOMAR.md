@@ -111,7 +111,21 @@ Hitos de esas dos semanas, por si hace falta rastrear algo:
    y la diferencia `K >= 4` (paper) vs `K >= 5` (formalizacion). Ojo: nuestro PDF es
    del 28 de agosto y llega a §7; el `.tex` que formalizaron referencia ademas §8,
    §9 y §10, asi que es una version posterior.
-3. Lo de antes, que sigue abierto: la guia paso a paso de `accountable_safety` y la
+3. **El experimento con ethlambda** (22 oct). Ya esta el analisis escrito en
+   `docs/ethlambda-por-donde-empezar.md`: se clono `lambdaclass/ethlambda` de solo
+   lectura y se midio que partes son puras. Hallazgo: **el nucleo de la transicion de
+   estado ya es puro** (0 async, 0 locks, 0 unsafe); la suciedad esta en el actor.
+
+   El candidato propuesto es
+   `crates/blockchain/state_transition/src/justified_slots_ops.rs` — **89 lineas, cuatro
+   funciones**, el bitlist de slots justificados con indice relativo al slot finalizado.
+   Tiene cuatro teoremas listados en ese documento, tres `.expect()` que se vuelven
+   obligaciones de demostracion, y lo unico a modelar a mano es un bitlist.
+
+   **Lo que falta para arrancar**: chequear si la cadena hax/Aeneas se instala en el
+   contenedor de la sesion (para no tocar la Mac) y correr el paso 1, que es traducir
+   ese crate y mirar que queda en `FunsExternal_Template.lean`.
+4. Lo de antes, que sigue abierto: la guia paso a paso de `accountable_safety` y la
    guia del piso 2 (`Bls/G1.lean`).
 
 ---
@@ -330,6 +344,7 @@ De infraestructura y de repaso de mapas no queda nada, salvo repasar
 - `docs/propuesta-foda.html` — la propuesta, como se implementa, FODA y preguntas abiertas investigadas
 - `docs/leaner-stf-spec.html` — leanerSTFSpec: el EVM/STF en Lean, 5 lenguajes encadenados, regla D21 (prohibe native axioms), testing diferencial
 - `docs/verified-zkevm.html` — Verified zkEVM (org de la EF, meta 2027) y la via Rust -> Lean: hax, Aeneas/Charon, ejemplos reales, costo de confianza
+- `docs/ethlambda-por-donde-empezar.md` — que pedazo de ethlambda seria candidato a la via Rust -> Lean: mapa de pureza por crate, el archivo de 89 lineas propuesto, sus cuatro teoremas, y la alternativa del oraculo
 - `docs/gasper-lean4.html` — Casper FFG en Lean (NyxFoundation): justificacion/finalidad, S1/S2, los 3 teoremas, el rigor maximo (solo propext + Quot.sound), y los repos hermanos formal-leanSpec (2 bugs criticos encontrados en la spec) y verity (cliente en devnet con ethlambda y ream)
 
 Las 8 paginas de docs/ llevan el mismo bloque "Donde se usa Lean aca" con tres

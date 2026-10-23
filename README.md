@@ -79,6 +79,12 @@ repite en todos y una lista de qué no confundir con qué. Arranca por la secci�
 que es la que le interesa a Pablo: cómo convive Lean con los otros lenguajes en
 cada repo.
 
+Y la pregunta que sigue —**qué hacemos nosotros con todo esto**— tiene su propio
+documento: **[por dónde empezar a aplicar Rust → Lean en ethlambda](docs/ethlambda-por-donde-empezar.md)**.
+Mide qué partes del cliente son puras (resulta que el núcleo de la transición de
+estado ya lo es), propone un archivo concreto de 89 líneas como primer candidato
+con cuatro teoremas para demostrar, y dice qué costaría y qué no.
+
 El mapa es la vista de arriba y cada guía baja a un archivo. Se estudian de
 abajo hacia arriba, porque cada piso usa al anterior:
 
@@ -272,6 +278,7 @@ Los pasos detallados, incluido cómo pushear desde una máquina nueva, están en
 - [`docs/verified-zkevm.html`](docs/verified-zkevm.html): el paraguas Verified zkEVM y el puente Rust ↔ Lean (`hax`, Aeneas), con ejemplos reales
 - [`docs/gasper-lean4.html`](docs/gasper-lean4.html): Casper FFG demostrado en Lean, los tres repos de Nyx Foundation y los dos bugs críticos que el Lean encontró en la spec
 - [`docs/verified-consensus.html`](docs/verified-consensus.html): el protocolo de consenso candidato (*decoupled consensus*) formalizado entero, el 2% del repo que lee un humano, los testigos contra el teorema vacío y las tres vías para atarlo a un cliente Rust
+- [`docs/ethlambda-por-donde-empezar.md`](docs/ethlambda-por-donde-empezar.md): **qué pedazo de ethlambda sería candidato a la vía Rust → Lean**. El mapa de pureza de los crates, el archivo de 89 líneas que propongo como primer experimento, sus cuatro teoremas, y la alternativa barata del oráculo
 - [`docs/repos-comparados.md`](docs/repos-comparados.md): cuadro sinóptico de los cinco repos en una sola página
 - [`docs/mapa-completo.html`](docs/mapa-completo.html): big picture, spec ejecutable vs teoremas, pisos de estudio
 - [`docs/fp-paso-a-paso.html`](docs/fp-paso-a-paso.html): guía del piso 1, `Bls/Fp.lean` y sus teoremas
