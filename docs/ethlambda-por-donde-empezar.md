@@ -11,16 +11,35 @@ Todo lo que sigue está medido sobre un clon de solo lectura de
 
 ## 1. El límite, para no perder tiempo
 
-La vía Rust → Lean (Charon + Aeneas, disparada por `cargo hax into lean`) **no traduce la
-biblioteca estándar**. Todo lo que venga de `std` hay que modelarlo a mano, y `unsafe` y
-concurrencia directamente no están soportados. El detalle está en
-[`verified-zkevm.html`](verified-zkevm.html).
+> **Esta sección se corrigió el 23 de octubre**, después de instalar la cadena y correrla
+> sobre este código. Decía que el obstáculo era la biblioteca estándar. **No lo es.** El
+> log completo está en la [sección 7](#7-el-experimento-lo-que-pas%C3%B3-de-verdad).
+
+La vía Rust → Lean (Charon + Aeneas, disparada por `cargo hax into lean`) tiene **dos
+límites**, y ninguno de los dos es `std`:
+
+**Primero, el cierre de dependencias.** El filtro `-i` de hax **no llega a Charon ni a
+Aeneas**: ellos procesan el crate entero *y todo lo que importa*. Un solo `dyn` en una
+dependencia transitiva dispara *"Dynamic trait types are not supported yet"*, detrás viene
+un *"Mixed declaration groups are not supported yet"*, y de ahí cientos de errores en
+cascada **sin que se escriba un solo archivo**. Apuntar a un módulo adentro de un crate
+grande no sirve: el objetivo tiene que **ser su propio crate**.
+
+**Segundo, los closures de iterador sobre colecciones prestadas.** Un `max_by_key` sobre
+una colección por referencia hace fallar a Aeneas con *"Can't end abstraction N as it is
+set as non-endable"* — su maquinaria de *borrows* dándose por vencida. La firma sale
+completa y el cuerpo sale como `sorry`.
+
+**Lo que sí pasa, aunque use `std`:** `for i in 0..n`, indexación, aritmética con
+`checked_*`, el operador `?`. `HashMap`, `Vec` y `Option` se traducen solos; Aeneas trae
+sus propios modelos. En las dos pruebas que corrimos, la plantilla de cosas a modelar a
+mano salió **vacía**.
 
 Consecuencia directa: **un cliente de consenso entero no pasa.** ethlambda son 145.508
-líneas de Rust con actores, tokio, libp2p y RocksDB. Buscar "traducir ethlambda" es
-buscar un no.
+líneas de Rust con actores, tokio, libp2p y RocksDB — pero el motivo es el `dyn`, el async
+y los locks, no `std`. Buscar "traducir ethlambda" es buscar un no.
 
-Lo que sí pasa es un **núcleo de cómputo puro y autocontenido**. Así que la pregunta
+Lo que sí pasa es un **núcleo de cómputo puro, en su propio crate**. Así que la pregunta
 útil es: ¿dónde está ese núcleo?
 
 ---
@@ -75,8 +94,9 @@ funciones son `is_slot_justified`, `set_justified`, `extend_to_slot` y `shift_wi
   producción.
 - **Lo que hay que modelar a mano es una sola cosa**: `JustifiedSlots`, que es un bitlist
   de SSZ. Se modela como una lista de booleanos y listo. Es el escenario ideal — lo que
-  entra como supuesto es chico y obviamente correcto, no un `HashMap` con orden de
-  iteración indefinido.
+  entra como supuesto es chico y obviamente correcto.
+- **Y ya lo probamos: traduce.** 19 definiciones, cero `sorry`, cero errores, plantilla
+  vacía. Es el único de los tres candidatos que pasó. Detalle en la sección 7.
 - **Hay tres `.expect()`** en esas 89 líneas. En Lean cada uno se convierte en una
   obligación de demostración: hay que probar que el índice está adentro.
 
@@ -114,25 +134,34 @@ spec — justo el caso donde un teorema de equivalencia tiene sentido.
 - **A favor**: es **el archivo donde vive uno de los dos bugs críticos** que el Lean de
   `formal-leanSpec` encontró: *"la cabeza no es función pura del store"* — dos nodos
   honestos con los mismos bloques en distinto orden eligiendo cabezas distintas.
-- **En contra**: usa `HashMap`, que es `std`. Habría que modelarlo, **y el orden de
-  iteración de un `HashMap` es precisamente donde vive ese bug**. Eso lo hace más caro y,
-  a la vez, más interesante.
+- **En contra, y esto lo medimos**: no traduce. El `HashMap` no es el problema —se traduce
+  solo, y aparece tal cual como `std.collections.hash.map.HashMap` en la firma generada—
+  pero **el `max_by_key` sí**: Aeneas falla con *"Can't end abstraction"* en esa línea
+  exacta. La firma sale completa y el cuerpo sale `sorry`.
 
 > **Observación al leer el código, sin demostrar:** acá parece que lo resolvieron bien. El
 > desempate es `max_by_key(|root| (peso, *root))`, y como los roots son únicos no hay
 > empates posibles, así que el máximo no depende del orden. **Convertir esa observación en
 > demostración sería el teorema.**
+>
+> Con una ironía que vale anotar: **ese mismo `max_by_key` es el que rompe la traducción
+> automática.** La línea donde vive la pregunta interesante es la línea que Aeneas no sabe
+> pasar. Para demostrarlo habría que reescribirla como un loop con índices — y entonces lo
+> demostrado sería sobre la reescritura, no sobre el código que corre.
 
 ---
 
 ## 5. El plan de una semana
 
-1. **Instalar la cadena** y traducir el crate con `cargo hax into lean`.
-2. **Mirar qué quedó en la plantilla** (`FunsExternal_Template.lean`): eso dice el costo
-   real antes de escribir un solo teorema.
-3. **Modelar a mano lo que falte** — para `justified_slots_ops` debería ser sólo el
-   bitlist.
-4. **Enunciar y demostrar** los teoremas 1 a 4.
+1. ~~**Instalar la cadena**~~ **Hecho.** Está en
+   [`tooling/hax-lean/`](../tooling/hax-lean/README.md), con Dockerfile, porque en Mac
+   Intel no hay binarios.
+2. ~~**Traducir y mirar la plantilla**~~ **Hecho.** La plantilla sale vacía: no hay nada
+   que modelar a mano. 19 definiciones, cero `sorry`.
+3. **Confirmar que lo generado tipa** — correr `lake build` sobre el proyecto Lean que
+   salió. Esto es lo único que todavía no verificamos.
+4. **Enunciar y demostrar** los teoremas 1 a 4. Acá empieza el trabajo de verdad, y es
+   todo a mano: la traducción da las definiciones, no los enunciados.
 
 **Si sale**, tenés una propiedad demostrada sobre código de producción. **Si no sale**, en
 una semana sabés exactamente dónde se traba y por qué — que para Pablo también es un
@@ -150,6 +179,47 @@ No demuestra nada —comparar salidas prueba que coincidieron *en los casos que 
 no en todos— pero cuesta muchísimo menos y encuentra discrepancias desde el primer día.
 Para eso sirve que el modelo de [`verified-consensus`](verified-consensus.html) **sea
 computable**: lo único que le falta para poder llamarse desde afuera son los `@[export]`.
+
+---
+
+## 7. El experimento: lo que pasó de verdad
+
+Instalamos la cadena y la corrimos. `cargo-hax 0.4.2`, `charon nightly-2026.09.02`,
+`aeneas build-183e4f0`, sobre Ubuntu 24.04 x86_64, el 23 de octubre de 2026. Tres intentos,
+en orden de ambición:
+
+| Intento | Qué apuntamos | Resultado |
+|---|---|---|
+| 1 | `state_transition` entero | **nada.** Un `dyn Error` en `ethlambda-storage` (dependencia) → *"Dynamic trait types are not supported yet"* → *"Mixed declaration groups"* → 413 errores internos, cero archivos escritos |
+| 2 | `fork_choice` (crate propio, 1 dep) | **a medias.** Escribió `Funs.lean` y `Types.lean`. Firmas completas, `HashMap` incluido. Pero el `max_by_key` de `lib.rs:48` → *"Can't end abstraction 5 as it is set as non-endable"*. Cuerpos en `sorry` |
+| 3 | `justified_slots_ops.rs` en crate propio | **limpio.** 19 definiciones, **cero `sorry`, cero errores**, plantilla de modelado vacía |
+
+El crate del intento 3 quedó guardado: está en
+[`tooling/hax-lean/ejemplo-jsops/`](../tooling/hax-lean/ejemplo-jsops/), con el archivo
+original de ethlambda copiado tal cual (atribución MIT en el encabezado) y sustitutos
+locales para `JustifiedSlots` y `Error`, para que el crate se sostenga solo.
+
+**Lo que el intento 3 nos enseñó sobre la forma del Lean generado.** Los `for` de Rust no
+salen como loops: salen como **definiciones aparte que devuelven un `ControlFlow`**, una
+por loop, nombradas `<funcion>_loop`. Y todo viene envuelto en `RustM`, que es el `Result`
+de Aeneas con otro nombre: cada paso contempla el caso de falla, porque en Lean toda
+función tiene que ser total y una función Rust puede entrar en pánico. Así se ve una de las
+19, con el `checked_sub` y el `?` traducidos:
+
+```lean
+def relative_index (target_slot : Std.U64) (finalized_slot : Std.U64) :
+  RustM (core.option.Option Std.Usize) := do
+  let o ← core.num.U64.checked_sub target_slot finalized_slot
+  let cf ← core.option.Option.Insts.CoreOpsTry_traitTry.branch o
+  match cf with
+  | ControlFlow.Continue val => ...
+  | ControlFlow.Break residual => ...
+```
+
+**Y la moraleja que más caro habría salido no aprender:** con la regla vieja —"el obstáculo
+es `std`"— habríamos descartado `justified_slots_ops` por usar `Vec`, que es el único de los
+tres que anduvo. La regla útil no es sobre qué biblioteca usás, es sobre **qué hacés con las
+referencias**.
 
 ---
 

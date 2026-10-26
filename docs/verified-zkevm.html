@@ -518,22 +518,51 @@ def xor_u32 (a b : Std.U32) :
     <h2>Límites reales y el supuesto de confianza</h2>
 
     <div class="box gap">
-      <div class="eyebrow">El límite más estructural: la biblioteca estándar no está traducida</div>
-      <p>Aeneas no declara en ningún lado que sea "para <code>no_std</code>" — dice que traduce un subconjunto del
-      Rust <b>seguro</b>. Pero en la práctica funciona así, y por un motivo concreto: <b><code>std</code> no está
-      traducida</b>. Para cualquier cosa que venga de la biblioteca estándar, Aeneas tiene una opción
-      (<code>-split-files</code>) que genera archivos plantilla listando las definiciones que faltan, y
-      <b>las modelás a mano</b>.</p>
-      <p>O sea que <code>FunsExternal.lean</code> <b>no es un rincón raro del pipeline: es el mecanismo con el que
-      entra todo lo que no es tu propio código</b>. Cuanta más biblioteca estándar uses, más supuestos escribís vos.</p>
-      <p>Por eso lo que pasa cómodo es código sin <code>std</code> — <code>no_std</code> de hecho, aunque no por
-      decreto. Y encaja con el contexto de este paraguas: los <i>guest programs</i> de un zkVM son
-      <code>no_std</code> por naturaleza.</p>
-      <p><b>Y acá está la consecuencia para ethlambda:</b> un cliente de consenso en Rust es <code>std</code>, más
-      async, más locks. Nada de eso pasa por esta cadena. Lo que sí pasa es un <b>núcleo de cómputo puro y
-      autocontenido</b> — que es exactamente lo que es la criptografía, y por eso
-      <a href="#precedente">los usuarios reales de Aeneas hoy son bibliotecas criptográficas</a> como SymCrypt y
-      ML-KEM, no clientes enteros.</p>
+      <div class="eyebrow">Dónde está el límite de verdad <span class="tag m">verificado acá</span></div>
+      <p>Esto lo probamos nosotros, no lo leímos: instalamos la cadena y la corrimos sobre código real.
+      (<code>cargo-hax 0.4.2</code>, <code>charon nightly-2026.09.02</code>, <code>aeneas build-183e4f0</code>,
+      sobre Ubuntu 24.04 x86_64, el 23 oct 2026.)</p>
+      <p><b>La biblioteca estándar no es el muro.</b> Es lo que uno supondría leyendo la documentación, y es lo que
+      esta página decía antes. Pero <code>HashMap</code>, <code>Vec</code>, <code>Option</code> y los rangos
+      <b>se traducen solos</b>: Aeneas trae sus propios modelos, y en nuestras dos pruebas la plantilla de cosas a
+      modelar a mano salió <b>vacía</b>. En la firma generada aparece, tal cual,
+      <code>std.collections.hash.map.HashMap</code>.</p>
+      <p><b>El muro es otro: los closures de iterador sobre colecciones prestadas.</b> Un
+      <code>max_by_key</code> sobre una colección por referencia hace fallar a Aeneas con:</p>
+      <div class="pipe">[Error] Can't end abstraction 5 as it is set as non-endable
+Source: 'src/lib.rs', lines 48:24-48:45     ← el max_by_key</div>
+      <p>Es su maquinaria de <i>borrows</i> —las funciones hacia atrás, justo su aporte principal— dándose por
+      vencida. El resultado es característico: <b>la firma sale completa y el cuerpo sale como
+      <code>sorry</code></b>.</p>
+      <p><b>Y hay un segundo límite, más traicionero: el cierre de dependencias.</b> El filtro <code>-i</code> de
+      hax <b>no llega a Charon ni a Aeneas</b> — ellos procesan el crate entero y sus dependencias. Un solo
+      <code>dyn</code> en una dependencia dispara <i>"Dynamic trait types are not supported yet"</i>, detrás viene
+      un <i>"Mixed declaration groups are not supported yet"</i>, y de ahí <b>cientos de errores internos en
+      cascada sin que se escriba un solo archivo</b>. Nos pasó apuntando a un módulo dentro de un crate que
+      dependía de uno con un <code>dyn Error</code>: 413 errores y cero salida.</p>
+      <div class="box ok" style="margin:4px 0 0">
+        <div class="eyebrow">La regla práctica, entonces</div>
+        <p>El objetivo tiene que cumplir <b>dos</b> condiciones, y la primera no es sobre tu código sino sobre sus
+        vecinos:</p>
+        <ol>
+          <li><b>Ser su propio crate</b>, con un cierre de dependencias sin <code>dyn</code>, sin
+          <code>unsafe</code> y sin concurrencia.</li>
+          <li><b>No repartir referencias hacia adentro de una colección</b> y seguir usándolas en un closure o un
+          iterador. Loops con <code>for i in 0..n</code>, indexación, aritmética con <code>checked_*</code> y el
+          operador <code>?</code> pasan sin problema — <b>aunque usen <code>std</code></b>.</li>
+        </ol>
+        <p>Probado sobre un archivo real de un cliente de consenso (89 líneas), puesto en un crate propio:
+        <b>19 definiciones, cero <code>sorry</code>, cero errores, plantilla vacía.</b> Los <code>for</code> salieron
+        como definiciones de loop aparte que devuelven un <code>ControlFlow</code>.</p>
+      </div>
+      <p class="note">El <code>FunsExternal.lean</code> sigue siendo el mecanismo por donde entra lo que
+      verdaderamente no se puede traducir, y cada modelo que escribís ahí sigue siendo un supuesto de tus
+      demostraciones. Lo que cambia es el tamaño del agujero: es mucho más chico de lo que creíamos.</p>
+      <p><b>La consecuencia para ethlambda</b> no cambia, pero el motivo sí: un cliente de consenso no pasa, y no es
+      por usar <code>std</code> — es por el <code>dyn</code>, el async, los locks y los closures sobre colecciones.
+      Lo que sí pasa es un núcleo de cómputo con loops simples, en su propio crate. El análisis de qué pedazo
+      concreto está en
+      <a href="ethlambda-por-donde-empezar.md">por dónde empezar a aplicarlo en ethlambda</a>.</p>
     </div>
 
     <div class="box gap">

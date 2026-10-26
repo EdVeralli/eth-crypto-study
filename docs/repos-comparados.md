@@ -58,13 +58,17 @@ declarar explícitamente que eso no pasa. Toda la basura que el programador barr
 sale a la luz ahí, y hay que hacerse cargo una por una. (Si no se puede demostrar la precondición,
 acabás de encontrar un bug.) Y después todavía falta escribir la demostración, paso por paso.
 
-A eso hay que sumarle lo que ni siquiera se traduce, que es mucho más de lo que parece: además de
-`unsafe`, concurrencia e intrínsecos, **la biblioteca estándar de Rust no está traducida**. Para
-cualquier cosa que venga de `std`, Aeneas genera plantillas con las definiciones que faltan y las
-modelás a mano, en `FunsExternal.lean`. O sea que ese archivo no es un rincón del pipeline: es el
-mecanismo con el que entra **todo lo que no es tu propio código**, y cada modelo que escribís ahí es
-un supuesto más. Por eso lo que pasa cómodo por esta cadena es código sin `std` —`no_std` de hecho,
-aunque no por decreto—, y por eso un cliente de consenso, que es `std` más async más locks, no pasa.
+A eso hay que sumarle lo que ni siquiera se traduce. Acá conviene ser preciso, porque **esto lo
+probamos corriendo la cadena** (23 oct 2026) y no salió lo que esperábamos. `unsafe`, concurrencia,
+intrínsecos y `dyn` efectivamente no pasan. Pero **la biblioteca estándar no es el obstáculo**:
+`HashMap`, `Vec` y `Option` se traducen solos —Aeneas trae sus propios modelos— y en nuestras dos
+pruebas la plantilla de cosas a modelar a mano salió **vacía**. El obstáculo real son **los closures
+de iterador sobre colecciones prestadas**: ahí la maquinaria de *borrows* de Aeneas se da por
+vencida, la firma sale completa y el cuerpo sale como `sorry`. Y hay un segundo obstáculo, menos
+obvio: el filtro `-i` de hax no llega a Charon ni a Aeneas, así que **se procesa el crate entero y
+sus dependencias** — un solo `dyn` en una dependencia tira abajo toda la extracción. Por eso un
+cliente de consenso no pasa: no por usar `std`, sino por el `dyn`, el async y los locks. El detalle
+medido está en [`verified-zkevm.html`](verified-zkevm.html).
 
 **De las tres piezas que hacen falta —definiciones, enunciados, demostraciones— la traducción
 automática cubre una.**
@@ -353,8 +357,8 @@ los *borrows*, y envuelve todo en un tipo `Result`, que obliga a contemplar el c
 porque una función Rust puede entrar en pánico o desbordar y en Lean toda función tiene que ser total. Lo que Aeneas no sabe convertir
 —`unsafe`, llamadas al sistema, intrínsecos— queda declarado en `FunsExternal.lean` con un modelo
 escrito a mano: eso no es traducción, es un supuesto, y todo teorema que pase por ahí vale sólo si
-ese modelo describe bien lo que hace el Rust. Ojo con el tamaño de eso: **la biblioteca estándar
-tampoco está traducida**, así que todo lo que venga de `std` entra por esa puerta. Y **Lean → Rust
+ese modelo describe bien lo que hace el Rust. Ojo: ese agujero es más chico de lo que parece —las
+colecciones de `std` se traducen solas— pero todo lo que caiga ahí es un supuesto. Y **Lean → Rust
 no existe**: Lean compila a C, no tiene backend Rust.
 
 **Lean en el entorno de ejecución: sólo en `cryptography-specs`, y a medias.** Los 33 `@[export]`
