@@ -151,21 +151,98 @@ spec — justo el caso donde un teorema de equivalencia tiene sentido.
 
 ---
 
-## 5. El plan de una semana
+## 5. Las cinco opciones, y cuál conviene
 
-1. ~~**Instalar la cadena de herramientas**~~ **Hecho.** Está en
-   [`tooling/hax-lean/`](../tooling/hax-lean/README.md), con Dockerfile, porque en Mac
-   Intel no hay binarios.
-2. ~~**Traducir y mirar la plantilla**~~ **Hecho.** La plantilla sale vacía: no hay nada
-   que modelar a mano. 19 definiciones, cero `sorry`.
-3. **Confirmar que lo generado tipa** — correr `lake build` sobre el proyecto Lean que
-   salió. Esto es lo único que todavía no verificamos.
-4. **Enunciar y demostrar** los teoremas 1 a 4. Acá empieza el trabajo de verdad, y es
-   todo a mano: la traducción da las definiciones, no los enunciados.
+Lo de abajo reemplaza el plan que había acá antes, que quedó viejo: los tres primeros
+pasos ya están hechos (entorno instalado, traducción corriendo, `lake build` en verde).
+La pregunta ahora es a qué apuntar.
 
-**Si sale**, tenés una propiedad demostrada sobre código de producción. **Si no sale**, en
-una semana sabés exactamente dónde se traba y por qué — que para Pablo también es un
-resultado, y bastante mejor que una opinión.
+### La medición que decide
+
+El obstáculo de los closures sobre colecciones prestadas **no está repartido por `lib.rs`:
+está concentrado en una función.** Medido función por función, sobre las 654 líneas de
+código del archivo (los tests arrancan en la 655):
+
+| Función | Líneas | Iteradores | Toca `State`/SSZ |
+|---|---|---|---|
+| `process_attestations` | 181 | **15** | sí |
+| `try_finalize` | 60 | **1** | sí |
+| `serialize_justifications` | 41 | **5** | sí |
+| `process_block_header` | 102 | 0 | sí |
+| `is_valid_vote` | 49 | 0 | sí |
+| `state_transition` | 40 | 0 | sí |
+| `attestation_data_matches_chain` | 39 | 0 | sí |
+| `process_slots` | 19 | 0 | sí |
+| `process_block` | 10 | 0 | sí |
+| `slot_is_justifiable_after` | 26 | 0 | **no** |
+| `is_proposer` | 6 | 0 | **no** |
+| `current_proposer` | 7 | 0 | **no** |
+
+Ocho de las doce no tienen un solo iterador. Y tres no tocan ni `State` ni SSZ, o sea que
+no arrastran nada.
+
+### Las opciones
+
+**A. El crate entero.** Probado, muerto: 413 errores, cero archivos escritos. El
+`dyn Error` de `ethlambda-storage` más 47.000 líneas de Beacon Chain que no queremos.
+Descartada por evidencia, no por opinión.
+
+**B. Sacar `lib.rs` a un crate propio, con los tipos reales.** Te saca de encima storage y
+el módulo beacon de un saque, porque `lib.rs` no los importa — sus únicos `use` son
+`std::collections`, `ethlambda_types` y `tracing`. Pero arrastra `ethlambda-types`:
+**16.022 líneas con 9 dependencias**, con los derives de SSZ y el merkleizador adentro. Es
+apostar a que ese cierre pasa. Y aun ganando la apuesta, `process_attestations` sale en
+`sorry`.
+
+**C. Sacar `lib.rs` con tipos sustitutos escritos a mano.** El mismo movimiento que con
+`JustifiedSlots`, pero en grande: escribir a mano `State`, `Block`, `AttestationData`,
+`Checkpoint`, `H256`, y `hash_tree_root` como función opaca. Trabajo acotado pero real,
+varios días. Traducirían ocho de las doce funciones. El costo conceptual: los teoremas
+hablarían de *nuestro* `State`, no del de ellos — la lógica y la aritmética siguen siendo
+suyas, la estructura de datos no.
+
+**D. La isla aritmética.** Las tres funciones que no tocan `State` ni SSZ
+(`slot_is_justifiable_after`, `current_proposer`, `is_proposer`) más
+`justified_slots_ops.rs`, que ya sabemos que anda. Cero tipos que sustituir, cero
+dependencias que arrastrar.
+
+**E. Reescribir `process_attestations` con loops de índice.** No. Demostrarías propiedades
+de tu reescritura, y no hay forma de conectarla con el original, porque el original no
+traduce. El teorema sería verdadero y mudo. Es la misma trampa que el `max_by_key` del
+fork choice, y vale anotarla para no caer.
+
+### La recomendación: la D, y no como premio consuelo
+
+Mirá qué es `slot_is_justifiable_after`, que decide qué slots se pueden justificar:
+
+```rust
+delta <= 5                                   // los primeros 5 siempre
+|| delta.isqrt().pow(2) == delta             // distancias cuadrado perfecto
+|| (4*delta + 1) es cuadrado perfecto impar  // pronics: n(n+1)
+```
+
+El comentario del código **afirma una identidad matemática** —que `4·n(n+1)+1 = (2n+1)²`—
+y la usa para detectar pronics sin factorizar. Eso es un teorema de verdad, chico y no
+trivial, con dos lugares donde puede haber un bug: el `checked_mul(4)`, que puede desbordar
+con slots grandes, y el comportamiento de `isqrt` en los bordes. Es el perfil exacto que
+buscábamos: algo que un humano no verifica leyendo y una máquina sí.
+
+Y encaja con lo que ya tenemos. `justified_slots_ops` lleva la cuenta de qué slots **están**
+justificados; `slot_is_justifiable_after` dice cuáles **pueden** estarlo. Juntas son la
+aritmética completa de la justificación, que es el corazón del protocolo. No es un rincón
+arbitrario del cliente: es la parte que los apuntes explican.
+
+### Y la C queda anotada, con una condición
+
+Antes de empezar la C, **medir si `ethlambda-types` pasa el cierre de dependencias**. Son
+veinte minutos: crate de juguete que importe `ethlambda_types` y nada más, `cargo hax into
+lean`, mirar si escribe archivos. Si pasa, la B es más barata que la C y hay que ir por la
+B. Si no pasa, el error dice qué dependencia la trabó y recién ahí se decide si vale
+sustituirla a mano.
+
+**Si sale la D**, tenés una propiedad demostrada sobre código de producción. **Si no sale**,
+sabés exactamente dónde se traba y por qué — que para Pablo también es un resultado, y
+mejor que una opinión.
 
 ---
 
