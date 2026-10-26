@@ -192,16 +192,40 @@ en orden de ambición:
 |---|---|---|
 | 1 | `state_transition` entero | **nada.** Un `dyn Error` en `ethlambda-storage` (dependencia) → *"Dynamic trait types are not supported yet"* → *"Mixed declaration groups"* → 413 errores internos, cero archivos escritos |
 | 2 | `fork_choice` (crate propio, 1 dep) | **a medias.** Escribió `Funs.lean` y `Types.lean`. Firmas completas, `HashMap` incluido. Pero el `max_by_key` de `lib.rs:48` → *"Can't end abstraction 5 as it is set as non-endable"*. Cuerpos en `sorry` |
-| 3 | `justified_slots_ops.rs` en crate propio | **limpio.** 19 definiciones, **cero `sorry`, cero errores**, plantilla de modelado vacía |
+| 3 | `justified_slots_ops.rs` en crate propio | **limpio.** 19 definiciones, **cero `sorry`, cero errores**, plantilla de modelado vacía — y **`lake build` pasa**: 1737 jobs, sin un solo error de tipos |
 
 El crate del intento 3 quedó guardado: está en
 [`tooling/hax-lean/ejemplo-jsops/`](../tooling/hax-lean/ejemplo-jsops/), con el archivo
 original de ethlambda copiado tal cual (atribución MIT en el encabezado) y sustitutos
 locales para `JustifiedSlots` y `Error`, para que el crate se sostenga solo.
 
-**Lo que el intento 3 nos enseñó sobre la forma del Lean generado.** Los `for` de Rust no
-salen como loops: salen como **definiciones aparte que devuelven un `ControlFlow`**, una
-por loop, nombradas `<funcion>_loop`. Y todo viene envuelto en `RustM`, que es el `Result`
+### Qué son esas 19 definiciones, sin inflar el número
+
+Conviene desarmarlo, porque la cifra grande se presta a vender más de lo que hay:
+
+| De dónde sale | Cuántas |
+|---|---|
+| El tipo sustituto `JustifiedSlots` que escribimos nosotros para que el crate se sostenga solo | **8** |
+| El closure de `relative_index` | **2** |
+| **Código real de ethlambda** | **9** |
+
+O sea: **nueve definiciones de ellos**, no diecinueve. Las otras diez son andamiaje nuestro
+y maquinaria de Aeneas.
+
+### Y una corrección a la regla del límite
+
+**El closure de `relative_index` se tradujo perfecto.** Es el de un `.map()` sobre un
+`Option` de números, que no presta nada. Así que la regla fina no es *"los closures no
+pasan"* sino **"los closures que se quedan con una referencia hacia adentro de una
+colección no pasan"**. Esa es exactamente la diferencia entre ese `.map()` inofensivo y el
+`max_by_key` del fork choice.
+
+**Lo que el intento 3 nos enseñó sobre la forma del Lean generado.** Cada `for` de Rust no
+sale como un loop: sale como **tres definiciones** — `<funcion>_loop.body`,
+`<funcion>_loop` y `<funcion>`. El cuerpo, el loop y quien lo llama. Eso importa para los
+teoremas 1 y 3 del cuadro de arriba: demostrar algo sobre `extend_to_slot` va a ser
+demostrar primero un invariante sobre `extend_to_slot_loop.body` y después subir por
+inducción. Es más trabajo del que sugiere la tabla. Todo viene envuelto en `RustM`, que es el `Result`
 de Aeneas con otro nombre: cada paso contempla el caso de falla, porque en Lean toda
 función tiene que ser total y una función Rust puede entrar en pánico. Así se ve una de las
 19, con el `checked_sub` y el `?` traducidos:
@@ -215,6 +239,26 @@ def relative_index (target_slot : Std.U64) (finalized_slot : Std.U64) :
   | ControlFlow.Continue val => ...
   | ControlFlow.Break residual => ...
 ```
+
+### El build, que es la mitad que faltaba
+
+Generar Lean sin `sorry` y que Lean lo acepte son dos cosas distintas. `lake build` cerró
+con **1737 jobs y cero errores**, con `Jsops.Extraction.Funs` entre ellos. Tres cosas para
+quien lo repita:
+
+- **Mathlib es dependencia** del proyecto que arma Aeneas, con todo su séquito (`aesop`,
+  `batteries`, `proofwidgets`). Pero no hay que compilarla: lake se baja los artefactos ya
+  compilados solo (*"Using cache (Azure)"*, 8542 archivos). Son unos **7,7 GB** que caen en
+  `proofs/lean/.lake` — borrables apenas terminás.
+- **`Jsops/Verification/ProofObligations.lean` viene vacío.** Es un placeholder con un
+  comentario; hax lo crea una vez y no lo vuelve a tocar. No hay obligaciones automáticas
+  derivadas de los `.expect()`: ese archivo es donde **vos** escribís los enunciados. Es la
+  confirmación más literal de lo que dice el cuadro comparativo — la traducción da
+  definiciones, los teoremas los pone un humano.
+- **Las dos plantillas tienen 27 y 25 líneas, y son todas preámbulo** (imports, `open`s,
+  opciones de linter). Cero declaraciones. Entre los imports está `CoreModels`: justamente
+  la librería con los modelos que Aeneas trae de las colecciones de `std`, que es *por qué*
+  la plantilla queda en blanco.
 
 **Y la moraleja que más caro habría salido no aprender:** con la regla vieja —"el obstáculo
 es `std`"— habríamos descartado `justified_slots_ops` por usar `Vec`, que es el único de los

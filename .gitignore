@@ -22,3 +22,8 @@ build/
 
 # Local de Claude Code / restos
 .claude/settings.local.json
+
+# Salida de la cadena hax/Aeneas y del build de Rust (regenerable, pesa GB)
+tooling/hax-lean/*/proofs/
+tooling/hax-lean/*/target/
+tooling/hax-lean/*/Cargo.lock

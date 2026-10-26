@@ -552,8 +552,15 @@ Source: 'src/lib.rs', lines 48:24-48:45     ← el max_by_key</div>
           operador <code>?</code> pasan sin problema — <b>aunque usen <code>std</code></b>.</li>
         </ol>
         <p>Probado sobre un archivo real de un cliente de consenso (89 líneas), puesto en un crate propio:
-        <b>19 definiciones, cero <code>sorry</code>, cero errores, plantilla vacía.</b> Los <code>for</code> salieron
-        como definiciones de loop aparte que devuelven un <code>ControlFlow</code>.</p>
+        <b>19 definiciones, cero <code>sorry</code>, cero errores, plantilla vacía — y <code>lake build</code>
+        pasa</b> (1737 jobs). Que se genere sin <code>sorry</code> y que Lean lo acepte son dos cosas distintas;
+        acá tenemos las dos. De esas 19, <b>nueve son código del cliente</b>: el resto es el tipo sustituto que
+        escribimos para que el crate se sostuviera solo. Cada <code>for</code> sale como <b>tres</b> definiciones
+        —<code>_loop.body</code>, <code>_loop</code> y la función— así que demostrar sobre un loop es demostrar un
+        invariante del cuerpo y subir por inducción.</p>
+        <p class="note">Matiz sobre el punto 2, que el experimento afinó: <b>no es que los closures no pasen</b>.
+        Un <code>.map()</code> sobre un <code>Option</code> de números se tradujo sin problema. Lo que no pasa es
+        el closure que <b>se queda con una referencia hacia adentro de una colección</b>.</p>
       </div>
       <p class="note">El <code>FunsExternal.lean</code> sigue siendo el mecanismo por donde entra lo que
       verdaderamente no se puede traducir, y cada modelo que escribís ahí sigue siendo un supuesto de tus

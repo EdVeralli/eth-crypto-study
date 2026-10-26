@@ -52,9 +52,17 @@ Adentro:
 ```bash
 cargo hax into lean          # traduce; deja el proyecto Lean en proofs/lean
 cd proofs/lean
-lake exe cache get           # Mathlib ya compilada
 lake build                   # tipa lo generado
 ```
+
+El proyecto que arma Aeneas **depende de Mathlib**, pero no hace falta compilarla ni
+pedirla: lake se baja los artefactos ya compilados por su cuenta (*"Using cache (Azure)"*,
+8542 archivos). Son unos **7,7 GB** que caen en `proofs/lean/.lake` y que conviene borrar
+cuando terminás — el bind mount los escribe en tu disco, no en un volumen de Docker.
+
+Dos avisos de la primera corrida: no uses `| tail`, porque te esconde todo el avance hasta
+que termina; y si querés ver que progresa, miralo desde otra terminal con
+`docker exec <id> du -sh /work/proofs/lean/.lake`.
 
 ## Lo que aprendimos probándolo (23 oct 2026)
 
@@ -75,24 +83,40 @@ nightly que Charon pide, traduce, y arma un proyecto Lean completo con su
    escriba un solo archivo.
 
 2. **El obstáculo no es `std`.** `HashMap` se traduce solo; Aeneas trae sus
-   propios modelos de las colecciones, y la plantilla de cosas a modelar a mano
-   puede salir vacía. Lo que no pasa son **los closures de iterador sobre
-   colecciones prestadas**: un `max_by_key` sobre una colección por referencia
-   hace fallar a Aeneas con *"Can't end abstraction N as it is set as
+   propios modelos de las colecciones (la librería `CoreModels`, que aparece
+   entre los imports), y la plantilla de cosas a modelar a mano puede salir
+   vacía. Lo que no pasa son **los closures que se quedan con una referencia
+   hacia adentro de una colección**: un `max_by_key` sobre una colección por
+   referencia hace fallar a Aeneas con *"Can't end abstraction N as it is set as
    non-endable"*, que es su maquinaria de *borrows* dándose por vencida. El
-   cuerpo de la función sale como `sorry` y la firma sale bien.
+   cuerpo de la función sale como `sorry` y la firma sale bien. Ojo con la
+   formulación: **no es que los closures no pasen** — un `.map()` sobre un
+   `Option` de números se traduce sin problema. Es el borrow lo que molesta, no
+   el closure.
 
 **Lo que sí pasa limpio:** código con `for i in 0..n`, indexación, aritmética
 con `checked_*` y el operador `?`. Probado sobre un archivo real de ethlambda
 (`justified_slots_ops.rs`, 89 líneas) puesto en un crate propio: **19
-definiciones, cero `sorry`, cero errores, y nada que modelar a mano.**
+definiciones, cero `sorry`, cero errores, nada que modelar a mano, y `lake build`
+en verde** (1737 jobs). Ese crate está acá al lado, en
+[`ejemplo-jsops/`](ejemplo-jsops/), para que puedas repetirlo.
+
+Dos detalles de forma que conviene saber antes de abrir el Lean generado:
+
+- De esas 19 definiciones, **nueve son el código de ethlambda**; ocho son el tipo
+  sustituto que escribimos para que el crate se sostenga solo, y dos son la
+  maquinaria del closure.
+- Cada `for` sale como **tres** definiciones: `<f>_loop.body`, `<f>_loop` y `<f>`.
+  Demostrar algo sobre un loop va a ser demostrar un invariante del cuerpo y
+  subir por inducción.
+- `Verification/ProofObligations.lean` **viene vacío**: es un placeholder que hax
+  crea una vez y no vuelve a tocar. No hay obligaciones automáticas derivadas de
+  los `.expect()` — ese archivo es donde escribís vos.
 
 El análisis completo de qué parte de ethlambda es candidata está en
 [`docs/ethlambda-por-donde-empezar.md`](../../docs/ethlambda-por-donde-empezar.md).
 
 ## Estado de este Dockerfile
 
-Cada paso de acá se corrió a mano sobre Ubuntu 24.04 x86_64 y funcionó. **Lo que
-no está probado es la construcción de la imagen en sí**, porque el contenedor
-donde se armó no tiene daemon de Docker. Si algún paso falla al construir,
-probablemente sea una dependencia de `apt` que falte, no la cadena.
+**Probado de punta a punta el 26 de octubre de 2026** en una MacBook Pro Intel:
+la imagen construye, el contenedor traduce y el `lake build` cierra en verde.
