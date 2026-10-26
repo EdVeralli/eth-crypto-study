@@ -11,12 +11,12 @@ Todo lo que sigue está medido sobre un clon de solo lectura de
 
 ## 1. El límite, para no perder tiempo
 
-> **Esta sección se corrigió el 23 de octubre**, después de instalar la cadena y correrla
+> **Esta sección se corrigió el 23 de octubre**, después de instalar la cadena de herramientas y correrla
 > sobre este código. Decía que el obstáculo era la biblioteca estándar. **No lo es.** El
 > log completo está en la [sección 7](#7-el-experimento-lo-que-pas%C3%B3-de-verdad).
 
-La vía Rust → Lean (Charon + Aeneas, disparada por `cargo hax into lean`) tiene **dos
-límites**, y ninguno de los dos es `std`:
+La cadena de herramientas Rust → Lean (Charon + Aeneas, disparada por
+`cargo hax into lean`) tiene **dos límites**, y ninguno de los dos es `std`:
 
 **Primero, el cierre de dependencias.** El filtro `-i` de hax **no llega a Charon ni a
 Aeneas**: ellos procesan el crate entero *y todo lo que importa*. Un solo `dyn` en una
@@ -153,7 +153,7 @@ spec — justo el caso donde un teorema de equivalencia tiene sentido.
 
 ## 5. El plan de una semana
 
-1. ~~**Instalar la cadena**~~ **Hecho.** Está en
+1. ~~**Instalar la cadena de herramientas**~~ **Hecho.** Está en
    [`tooling/hax-lean/`](../tooling/hax-lean/README.md), con Dockerfile, porque en Mac
    Intel no hay binarios.
 2. ~~**Traducir y mirar la plantilla**~~ **Hecho.** La plantilla sale vacía: no hay nada
@@ -184,7 +184,7 @@ computable**: lo único que le falta para poder llamarse desde afuera son los `@
 
 ## 7. El experimento: lo que pasó de verdad
 
-Instalamos la cadena y la corrimos. `cargo-hax 0.4.2`, `charon nightly-2026.09.02`,
+Instalamos la cadena de herramientas y la corrimos. `cargo-hax 0.4.2`, `charon nightly-2026.09.02`,
 `aeneas build-183e4f0`, sobre Ubuntu 24.04 x86_64, el 23 de octubre de 2026. Tres intentos,
 en orden de ambición:
 

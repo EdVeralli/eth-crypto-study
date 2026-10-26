@@ -1,4 +1,4 @@
-# Entorno Docker para la cadena Rust → Lean
+# Entorno Docker para la cadena de herramientas Rust → Lean
 
 Traducir Rust a Lean con **hax + Charon + Aeneas**, desde una Mac.
 
@@ -69,7 +69,7 @@ que termina; y si querés ver que progresa, miralo desde otra terminal con
 Esto se verificó sobre Ubuntu 24.04 x86_64, con `cargo-hax 0.4.2`,
 `charon nightly-2026.09.02` y `aeneas build-183e4f0`.
 
-**Lo que anda.** La cadena entera: hax se baja Charon y Aeneas solo, instala la
+**Lo que anda.** La cadena de herramientas entera: hax se baja Charon y Aeneas solo, instala la
 nightly que Charon pide, traduce, y arma un proyecto Lean completo con su
 `lakefile.toml` y su `lean-toolchain`.
 

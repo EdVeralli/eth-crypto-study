@@ -48,6 +48,14 @@ caffeinate -i -s .venv/bin/python -m pytest -q   # suite completa, ~3 h
 
 Leer esos cuatro antes de proponer el próximo paso.
 
+## Vocabulario
+
+- **"cadena" sola está prohibida.** La palabra tiene dos sentidos en este repo y se
+  confunden: la **cadena de herramientas** (`rustc → Charon → Aeneas → Lean`) y la
+  **cadena de bloques**. Escribir siempre cuál de las dos — "la cadena de herramientas",
+  "la cadena de bloques" o el nombre propio ("la Beacon Chain"). "Encadenadas" para
+  describir herramientas una atrás de otra está bien.
+
 ## Contexto del proyecto
 
 Estudio de las especificaciones de criptografía de Ethereum escritas en Lean 4

@@ -122,7 +122,7 @@ Hitos de esas dos semanas, por si hace falta rastrear algo:
    Tiene cuatro teoremas listados en ese documento, tres `.expect()` que se vuelven
    obligaciones de demostracion, y lo unico a modelar a mano es un bitlist.
 
-   **Lo que falta para arrancar**: chequear si la cadena hax/Aeneas se instala en el
+   **Lo que falta para arrancar**: chequear si la cadena de herramientas hax/Aeneas se instala en el
    contenedor de la sesion (para no tocar la Mac) y correr el paso 1, que es traducir
    ese crate y mirar que queda en `FunsExternal_Template.lean`.
 4. Lo de antes, que sigue abierto: la guia paso a paso de `accountable_safety` y la

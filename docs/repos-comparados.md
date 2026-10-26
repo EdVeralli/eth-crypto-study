@@ -59,7 +59,7 @@ sale a la luz ahí, y hay que hacerse cargo una por una. (Si no se puede demostr
 acabás de encontrar un bug.) Y después todavía falta escribir la demostración, paso por paso.
 
 A eso hay que sumarle lo que ni siquiera se traduce. Acá conviene ser preciso, porque **esto lo
-probamos corriendo la cadena** (23 oct 2026) y no salió lo que esperábamos. `unsafe`, concurrencia,
+probamos corriendo la cadena de herramientas** (23 oct 2026) y no salió lo que esperábamos. `unsafe`, concurrencia,
 intrínsecos y `dyn` efectivamente no pasan. Pero **la biblioteca estándar no es el obstáculo**:
 `HashMap`, `Vec` y `Option` se traducen solos —Aeneas trae sus propios modelos— y en nuestras dos
 pruebas la plantilla de cosas a modelar a mano salió **vacía**. El obstáculo real son **los closures

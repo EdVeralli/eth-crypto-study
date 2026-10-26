@@ -246,14 +246,14 @@ alexanderlhicks/leanerSTFSpec ────┘  ← cuenta personal</div>
           <td>habría que reescribir el Rust entero en estilo funcional, a mano, antes de traducir</td></tr>
       <tr><td><b>hax</b></td><td>Cryspen</td>
           <td>lo convierte en <b>un subcomando de cargo</b></td>
-          <td>habría que armar la cadena a mano, crate por crate</td></tr>
+          <td>habría que armar la cadena de herramientas a mano, crate por crate</td></tr>
     </table></div>
     <div class="pipe">tu Rust  →  rustc (MIR)  →  Charon (LLBC)  →  Aeneas  →  Lean
                                   ↑
                    cargo hax into lean dispara todo esto</div>
     <div class="box">
       <div class="eyebrow">Vía 1 · Aeneas + Charon (la recomendada)</div>
-      <p>Dos herramientas en cadena. <b>Charon</b> es el front-end, y hace más de lo que suena: extrae
+      <p>Dos herramientas encadenadas. <b>Charon</b> es el front-end, y hace más de lo que suena: extrae
       <b>el crate entero y sus dependencias</b> a un archivo JSON — tipos, funciones, traits, implementaciones de
       traits y globales — y de los <b>cuerpos</b> de las funciones toma el <b>MIR simplificado</b>, o sea la
       representación interna del compilador de Rust. Su README lo dice así: <i>"the types, functions and traits of
@@ -519,7 +519,7 @@ def xor_u32 (a b : Std.U32) :
 
     <div class="box gap">
       <div class="eyebrow">Dónde está el límite de verdad <span class="tag m">verificado acá</span></div>
-      <p>Esto lo probamos nosotros, no lo leímos: instalamos la cadena y la corrimos sobre código real.
+      <p>Esto lo probamos nosotros, no lo leímos: instalamos la cadena de herramientas y la corrimos sobre código real.
       (<code>cargo-hax 0.4.2</code>, <code>charon nightly-2026.09.02</code>, <code>aeneas build-183e4f0</code>,
       sobre Ubuntu 24.04 x86_64, el 23 oct 2026.)</p>
       <p><b>La biblioteca estándar no es el muro.</b> Es lo que uno supondría leyendo la documentación, y es lo que
@@ -592,7 +592,7 @@ Source: 'src/lib.rs', lines 48:24-48:45     ← el max_by_key</div>
     </div>
     <div class="box gap">
       <div class="eyebrow">El supuesto de confianza, que es lo más importante</div>
-      <p>Tu demostración vale <b>sobre la traducción</b>, no sobre tu Rust. Entre los dos hay una cadena:
+      <p>Tu demostración vale <b>sobre la traducción</b>, no sobre tu Rust. Entre los dos hay una cadena de herramientas:
       <code>rustc</code> produce el MIR, Charon lo baja a LLBC, Aeneas lo sube a Lean. <b>Si alguna etapa traduce mal,
       demostraste una propiedad preciosa sobre un programa que no es el tuyo.</b> Y lo que corre en producción no pasa
       por ahí: tu Rust lo compila <code>rustc</code> por el camino normal.</p>
