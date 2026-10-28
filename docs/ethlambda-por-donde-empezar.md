@@ -232,13 +232,29 @@ justificados; `slot_is_justifiable_after` dice cuáles **pueden** estarlo. Junta
 aritmética completa de la justificación, que es el corazón del protocolo. No es un rincón
 arbitrario del cliente: es la parte que los apuntes explican.
 
-### Y la C queda anotada, con una condición
+### La medición que decidía entre B y C: hecha, y da que sí
 
-Antes de empezar la C, **medir si `ethlambda-types` pasa el cierre de dependencias**. Son
-veinte minutos: crate de juguete que importe `ethlambda_types` y nada más, `cargo hax into
-lean`, mirar si escribe archivos. Si pasa, la B es más barata que la C y hay que ir por la
-B. Si no pasa, el error dice qué dependencia la trabó y recién ahí se decide si vale
-sustituirla a mano.
+La condición para elegir entre B y C era saber si `ethlambda-types` pasa el cierre de
+dependencias. **Medido el 26 de octubre: pasa.**
+
+El crate de prueba está en [`tooling/hax-lean/prueba-types/`](../tooling/hax-lean/prueba-types/):
+cuatro funciones que no hacen nada útil, cuyo único trabajo es tocar `State` y `Block` para
+obligar a la extracción a traerlos. `cargo hax into lean` corrió **sin un solo error** y
+escribió los catorce archivos.
+
+Y entra con todo su equipaje: `sha2`, `sha2-asm` (sí, con ensamblador), `serde`, y las tres
+bibliotecas de SSZ (`libssz`, `libssz-merkle`, `libssz-types`) más `ethlambda-ssz-tree`.
+La predicción razonable era que `sha2` lo iba a trabar. No lo trabó.
+
+> ⚠️ **Lo que todavía no verificamos**: que los cuerpos no salgan en `sorry` y que `State`
+> tenga sus diez campos de verdad. Que la extracción corra sin errores y que lo extraído
+> sirva son dos cosas distintas — la misma distinción que nos ordenó el experimento
+> anterior. Es un chequeo de cinco minutos sobre `Types.lean` y `Funs.lean`.
+
+Con la salvedad de arriba: **la B deja de ser una apuesta a ciegas**. El refactor de
+empaquetado —sacar la STF de lean a su propio crate, sin `ethlambda-storage` ni la Beacon
+Chain— apunta a algo que sabemos que la herramienta puede digerir. La C queda como plan de
+contingencia, no como camino principal.
 
 **Si sale la D**, tenés una propiedad demostrada sobre código de producción. **Si no sale**,
 sabés exactamente dónde se traba y por qué — que para Pablo también es un resultado, y

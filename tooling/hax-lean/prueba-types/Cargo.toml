@@ -1,0 +1,10 @@
+[package]
+name = "prueba-types"
+version = "0.1.0"
+edition = "2021"
+
+# Una sola dependencia, a proposito: queremos medir si la cadena de
+# herramientas puede con ethlambda-types y su cierre de dependencias.
+# Se engancha por git para no tener que clonar el repo entero.
+[dependencies]
+ethlambda-types = { git = "https://github.com/lambdaclass/ethlambda", package = "ethlambda-types" }
