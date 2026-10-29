@@ -551,6 +551,14 @@ Source: 'src/lib.rs', lines 48:24-48:45     ← el max_by_key</div>
           iterador. Loops con <code>for i in 0..n</code>, indexación, aritmética con <code>checked_*</code> y el
           operador <code>?</code> pasan sin problema — <b>aunque usen <code>std</code></b>.</li>
         </ol>
+        <p class="note"><b>Corregido el 28 oct, y es la tercera vez sobre lo mismo.</b> Lo de arriba —que
+        <code>std</code> no es el muro— se apoyaba en ver <code>HashMap</code> traducido en una firma. Al llevar
+        una STF entera hasta <code>lake build</code> apareció <code>Unknown identifier
+        std.collections.hash.map.HashMap</code>, y lo mismo con <code>isqrt</code>, <code>mem::take</code>,
+        <code>repeat_n</code> y <code>Vec::extend</code>. <b>Aeneas nombra lo que necesita de <code>core</code> sin
+        chistar y escribe los archivos; los nombres que no existen recién aparecen al compilar.</b> Trae modelos a
+        mano de una parte de <code>core</code> y <code>alloc</code> en su librería <code>CoreModels</code>; lo que
+        cae afuera lo modelás vos. La única prueba de que algo está cubierto es que el proyecto Lean compile.</p>
         <p>Probado sobre un archivo real de un cliente de consenso (89 líneas), puesto en un crate propio:
         <b>19 definiciones, cero <code>sorry</code>, cero errores, plantilla vacía — y <code>lake build</code>
         pasa</b> (1737 jobs). Que se genere sin <code>sorry</code> y que Lean lo acepte son dos cosas distintas;

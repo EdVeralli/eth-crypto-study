@@ -1,0 +1,193 @@
+# mini-stf — la STF de ethlambda en un crate solo
+
+Crate armado para pasar la transición de estado de ethlambda por la cadena de
+herramientas Rust → Lean (`hax` + Charon + Aeneas).
+
+## Por qué existe
+
+Charon compila el crate **y todas sus dependencias**, pero Aeneas sólo **emite
+definiciones del crate local**. Los tipos que vienen de una dependencia salen
+nombrados y sin definir, y el Lean generado no tipa. Lo medimos: un crate de
+prueba que importaba `ethlambda-types` generó `Funs.lean` con firmas que
+mencionan `ethlambda_types.state.State`, y un `Types.lean` con el namespace
+vacío.
+
+Para que `State` y `Block` existan del otro lado tienen que estar **adentro del
+crate que se extrae**. De ahí este crate.
+
+## Qué hay adentro
+
+| módulo | de dónde sale | líneas |
+|---|---|---|
+| `stf` | **copia** de `state_transition/src/lib.rs`, sólo cambian los `use` | 646 |
+| `justified_slots_ops` | **copia**, sólo cambian los `use` | 91 |
+| `tipos` | definiciones de `ethlambda-types`, sin los derives | ~250 |
+| `ssz` | **nuestro**: sustitutos de `SszList` y `SszBitlist` | ~130 |
+| `stubs` | **nuestro**: `tracing` y `metrics` sin efecto | ~50 |
+
+Lo copiado viene de [lambdaclass/ethlambda](https://github.com/lambdaclass/ethlambda)
+(MIT): `crates/blockchain/state_transition/src/{lib,justified_slots_ops}.rs` y
+`crates/common/types/src/{primitives,checkpoint,state,block,attestation}.rs`.
+
+## Qué se cambió, exactamente
+
+El cuerpo de `stf.rs` es **idéntico al original**. Lo único que cambia:
+
+1. Las líneas `use`: los tipos vienen de `crate::tipos` en vez de
+   `ethlambda_types`, y `tracing`/`metrics` de `crate::stubs`.
+2. Se quitó `pub mod beacon;` — otra cadena de bloques, 47.160 líneas, no es
+   la STF de lean.
+3. Se quitaron los tests (líneas 655 en adelante del original).
+
+Los stubs de logging existen justamente para no tocar el cuerpo: si en vez de
+eso borráramos los `info!`, el código dejaría de ser el de ellos.
+
+## Lo que se pierde, y hay que tenerlo presente
+
+**Los contenedores SSZ son nuestros.** `SszList` y `SszBitlist` son envoltorios
+de `Vec` con el mismo API. El flujo de control y la aritmética de la STF siguen
+siendo de ethlambda; la representación de las listas, no. Cualquier teorema
+hablará de la lógica de ellos sobre nuestros contenedores.
+
+**`hash_tree_root()` es un stub que devuelve siempre `H256::ZERO`.** Alcanza
+para traducir, porque la STF llama a la función y compara resultados sin mirar
+adentro. Pero **cualquier teorema que dependa de que dos raíces distintas sean
+distintas es falso con este stub**. Para demostrar algo así hay que reemplazarlo
+en el Lean generado por una declaración opaca y agregar la inyectividad como
+hipótesis.
+
+**Las advertencias de compilación son esperadas.** Seis variables sin usar: la
+STF las calcula sólo para los mensajes de log, y los stubs descartan sus
+argumentos.
+
+## Correrlo
+
+```bash
+cd tooling/hax-lean
+docker run --platform linux/amd64 -it \
+  -v "$PWD/mini-stf:/work" \
+  -v hax-cargo:/root/.cargo/registry \
+  -v hax-cache:/root/.cache/hax \
+  -v hax-elan:/root/.elan \
+  hax-lean bash
+```
+
+Adentro, y **los cuatro `--opaque` son imprescindibles** (por qué, más abajo):
+
+```bash
+cd /work
+cargo hax into lean \
+  --charon-args="--opaque 'mini_stf::stf::process_attestations' \
+                 --opaque 'mini_stf::stf::serialize_justifications' \
+                 --opaque '{impl core::fmt::Debug for _}' \
+                 --opaque '{impl core::fmt::Display for _}'"
+cd proofs/lean && lake build
+```
+
+## Los cuatro `--opaque`, y por qué cada uno
+
+Sin ellos Aeneas sale con código 2 y **no escribe un solo archivo**. Cada uno se
+descubrió corriendo y leyendo el error; ninguno era predecible desde el código.
+
+| Patrón | Qué pasaba sin él |
+|---|---|
+| `process_attestations` | *"Early returns inside of loops are not supported yet"*. Son exactamente **dos** `return` adentro de un `for`, en las líneas 348 y 359. |
+| `serialize_justifications` | Su `.iter().flat_map(...)` obliga a traducir el `Iterator` de los slices de `std`, y ahí Aeneas falla con un problema de lifetimes en `find` — **adentro de `core`, no de nuestro código**. Eso dispara un error interno con stack trace de OCaml y mata la corrida entera. |
+| `{impl core::fmt::Debug for _}` | `[Error] Unreachable` en cada `#[derive(Debug)]`. No alcanza con sacar el derive: `.expect()` lo exige. |
+| `{impl core::fmt::Display for _}` | Lo mismo con los `write!` de `Display`. |
+
+El patrón que vale la pena recordar: **dos de los cuatro bloqueos estaban en
+código nuestro o de la biblioteca estándar, no en la STF.** Cuando Aeneas no
+puede con la firma de algo transversal —como el iterador de slices— no deja un
+`sorry` en una función: no emite nada.
+
+## Resultado: el MVP cerrado
+
+**La STF de ethlambda existe en Lean y Lean la acepta.** `lake build` cierra en
+verde, 1736 jobs, cero errores.
+
+**Diez de las doce funciones traducidas, cero `sorry`:**
+
+```
+def stf.state_transition        def stf.is_valid_vote
+def stf.process_slots           def stf.attestation_data_matches_chain
+def stf.process_block           def stf.slot_is_justifiable_after
+def stf.process_block_header    def stf.is_proposer
+def stf.current_proposer        def stf.try_finalize*
+```
+
+(\* `try_finalize` tradujo, pero despues la volvimos opaca: usa un `HashMap` y
+modelar `get` y `retain` quedo para otro dia. Cuenta como nueve, no diez.)
+
+Mas `justified_slots_ops` entero. Y los tipos salieron como estructuras de
+verdad: `structure tipos.State`, `tipos.Block`, `tipos.Checkpoint`,
+`tipos.AttestationData`, `ssz.SszList`, `ssz.SszBitlist`, `inductive stf.Error`.
+
+## Lo que hubo que hacer, en orden
+
+Seis vueltas, y **cada obstaculo solo se descubrio corriendo**. Ninguno era
+predecible leyendo el codigo.
+
+| # | Sintoma | Causa | Arreglo |
+|---|---|---|---|
+| 1 | 413 errores, cero archivos | un `dyn Error` en `ethlambda-storage` | el mini crate |
+| 2 | *"Early returns inside of loops"* | 2 `return` adentro de un `for` | `--opaque process_attestations` |
+| 3 | error interno de Aeneas, cero archivos | `Iter::find` **dentro de `core`** | `--opaque serialize_justifications` |
+| 4 | `[Error] Unreachable` en cada derive | `Debug` / `Display` | `--opaque '{impl core::fmt::… for _}'` |
+| 5 | `Unknown identifier HashMap`, `isqrt`, `mem::take`… | **`CoreModels` no cubre todo `core`/`std`** | modelos a mano en `Assumptions/` |
+| 6 | `repeat_n`, `Vec::extend`, `Option::copied` | lo mismo | reescribir dos lineas |
+
+## Los supuestos, que es donde hay que mirar
+
+24 axiomas. **La mayoria es ruido**, pero no todos:
+
+- **17 son `fmt`** — como se imprime un `H256`. Ningun teorema los va a tocar.
+- **3 son las funciones opacas**: `process_attestations`, `serialize_justifications`,
+  `try_finalize`. Agujeros reales, elegidos a conciencia.
+- **5 son funciones de `core` sin modelo**: `isqrt`, `mem::take`, `bool::then`,
+  y el `Ord` y el `Hash` de `[T; N]`.
+
+⚠️ **`isqrt` es el que mas duele.** Es un axioma, y es justo lo que usa
+`slot_is_justifiable_after` para detectar cuadrados perfectos — el teorema mas
+lindo que habiamos identificado (la identidad de los numeros pronic). Esta
+bloqueado hasta reemplazarlo por una definicion real sobre `Nat.sqrt`. Es el
+primer supuesto que conviene cerrar.
+
+Para ver de cuales depende cada funcion:
+`cp supuestos/RevisarAxiomas.lean proofs/lean/ && cd proofs/lean && lake env lean RevisarAxiomas.lean`
+
+## Que cambio del codigo de ethlambda
+
+El cuerpo de `stf.rs` es el original **salvo una linea**, en `process_slots`:
+
+```rust
+// original
+historical_block_hashes.extend(std::iter::repeat_n(H256::ZERO, num_empty_slots));
+// aca
+for _ in 0..num_empty_slots { historical_block_hashes.push(H256::ZERO); }
+```
+
+`repeat_n` y `Vec::extend` no estan en `CoreModels`. El loop hace lo mismo, pero
+queda anotado: es un cambio, no una copia.
+
+## La carpeta `supuestos/`
+
+`proofs/` se regenera y pesa GB, asi que esta en el `.gitignore`. Pero
+`Assumptions/TypesExternal.lean` y `Assumptions/FunsExternal.lean` **los
+escribimos a mano** y hax no los pisa. Las copias viven en `supuestos/`; despues
+de un `proofs/` nuevo hay que volver a ponerlas:
+
+```bash
+cp supuestos/TypesExternal.lean supuestos/FunsExternal.lean proofs/lean/MiniStf/Assumptions/
+```
+
+## Lo que sigue
+
+1. **Reemplazar `isqrt`** por una definicion sobre `Nat.sqrt`, para desbloquear
+   el teorema de `slot_is_justifiable_after`.
+2. **Escribir el primer teorema** en `Verification/ProofObligations.lean`, que
+   hax crea vacio a proposito.
+3. **Recuperar las tres opacas**: reescribir sus iteradores con indices y los
+   `return` de adentro del loop como variable mas `break`. Son unas 230 de las
+   654 lineas, y eso **si** toca el cuerpo de ellos. Antes conviene traerse los
+   437 renglones de tests del original y correrlos contra la version reescrita.

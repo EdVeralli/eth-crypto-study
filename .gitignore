@@ -27,3 +27,6 @@ build/
 tooling/hax-lean/*/proofs/
 tooling/hax-lean/*/target/
 tooling/hax-lean/*/Cargo.lock
+
+# Logs de corridas de la cadena de herramientas
+tooling/hax-lean/*/*.log

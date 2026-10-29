@@ -360,6 +360,81 @@ referencias**.
 
 ---
 
+## 8. El MVP, cerrado el 28 de octubre
+
+**La STF de ethlambda existe en Lean y Lean la acepta.** `lake build` en verde,
+1736 jobs, cero errores. El crate está en
+[`tooling/hax-lean/mini-stf/`](../tooling/hax-lean/mini-stf/README.md), con el
+detalle completo.
+
+Nueve de las doce funciones traducidas con cero `sorry`, entre ellas
+`state_transition`, `process_slots`, `process_block`, `process_block_header`,
+`is_valid_vote` y `slot_is_justifiable_after`. Y los tipos salieron como
+estructuras de verdad: `structure tipos.State`, `tipos.Block`,
+`tipos.Checkpoint`.
+
+### Cómo se llegó, que es lo que importa para la próxima
+
+La opción que terminó funcionando no era ninguna de las cinco de la sección 5.
+Fue **la C** —tipos escritos a mano— pero con un ingrediente que no teníamos:
+`--charon-args="--opaque ..."`. Con eso se le dice a la herramienta que no mire
+el cuerpo de una función y emita sólo su firma, lo que permite dejar afuera las
+tres funciones problemáticas **sin tocar el código de las otras nueve**.
+
+Seis vueltas, y **ningún obstáculo era predecible leyendo el código**. Cada uno
+apareció al correr:
+
+| # | Síntoma | Causa |
+|---|---|---|
+| 1 | 413 errores, cero archivos | un `dyn Error` en `ethlambda-storage` |
+| 2 | *"Early returns inside of loops"* | **dos** `return` adentro de un `for` |
+| 3 | error interno de Aeneas, cero archivos | `Iter::find`, **dentro de `core`** |
+| 4 | `[Error] Unreachable` en cada derive | `Debug` y `Display` |
+| 5 | `Unknown identifier HashMap`, `isqrt`, `mem::take` | **`CoreModels` no cubre todo `core`/`std`** |
+| 6 | `repeat_n`, `Vec::extend`, `Option::copied` | lo mismo |
+
+### La corrección que más vale, y es la tercera sobre el mismo tema
+
+Veníamos escribiendo que *"la biblioteca estándar no es el muro"*, porque
+`HashMap` aparecía traducido en las firmas. **Eso estaba mal, y el error era de
+método**: la extracción saliendo limpia no dice nada sobre si `std` está
+cubierto. Aeneas nombra lo que necesita de `core` sin chistar y escribe los
+archivos; los nombres que no existen recién aparecen en `lake build`:
+
+```
+error: Unknown identifier `std.collections.hash.map.HashMap`
+error: Unknown identifier `core.num.U64.isqrt`
+```
+
+**La única prueba de que algo está cubierto es que el proyecto Lean compile.**
+Dos veces esta semana dimos por bueno un resultado sin llegar hasta ahí.
+
+La formulación correcta, entonces: Aeneas trae modelos escritos a mano de una
+parte de `core` y `alloc` en su librería `CoreModels`. Lo que cae fuera de esa
+parte hay que modelarlo uno — y no hay forma de saber qué falta sin compilar.
+
+### Los supuestos, con nombre y apellido
+
+24 axiomas, de los cuales **17 son `fmt`** y no los va a tocar ningún teorema.
+Los que importan son tres funciones opacas (`process_attestations`,
+`serialize_justifications`, `try_finalize`) y cinco funciones de `core` sin
+modelo.
+
+⚠️ Entre esas cinco está **`isqrt`**, que es exactamente lo que usa
+`slot_is_justifiable_after` para detectar cuadrados perfectos. O sea que **el
+teorema que esta misma nota recomendaba como primer objetivo está bloqueado**
+hasta reemplazar ese axioma por una definición sobre `Nat.sqrt`. Es el primer
+supuesto a cerrar.
+
+### Y una línea de ethlambda que sí cambiamos
+
+En `process_slots`, `historical_block_hashes.extend(std::iter::repeat_n(...))`
+pasó a ser un `for` con `push`. `repeat_n` y `Vec::extend` no están en
+`CoreModels`. Es el único cambio al cuerpo del código de ellos, y queda anotado
+como cambio, no como copia.
+
+---
+
 *Medido el 22 de octubre de 2026 sobre `lambdaclass/ethlambda` en el commit `22d1a72`,
 clon de solo lectura. Los conteos de `async`/`unsafe`/locks son sobre `src/` de cada
 crate, con `grep`; el `unsafe` que aparece en `state_transition` es una palabra dentro de
