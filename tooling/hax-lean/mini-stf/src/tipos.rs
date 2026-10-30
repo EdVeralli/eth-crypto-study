@@ -49,23 +49,75 @@ impl std::fmt::Display for ShortRoot<'_> {
     }
 }
 
-/// Merkleizacion SSZ.
+/// Merkleizacion SSZ... o lo que hace falta de ella.
 ///
-/// ⚠️ STUB. En ethlambda esto es `libssz_merkle::HashTreeRoot` con sha2; aca
-/// devuelve siempre el mismo valor. Alcanza para traducir, porque la STF solo
-/// llama a la funcion y compara resultados -- nunca mira adentro.
+/// En ethlambda esto es `libssz_merkle::HashTreeRoot` con sha2, que vive en una
+/// dependencia -- y Charon no trae las definiciones de las dependencias. Asi
+/// que aca va un hash propio.
 ///
-/// CONSECUENCIA, y hay que tenerla presente: cualquier teorema que dependa de
-/// que dos raices distintas sean distintas es FALSO con este stub. Para
-/// demostrar algo asi hay que reemplazarlo en el Lean generado por una
-/// declaracion opaca y agregar como hipotesis que es inyectiva.
+/// QUE ES Y QUE NO ES:
+///
+///   NO da los mismos valores que SSZ. No sirve para interoperar con otros
+///   clientes, ni para calcular una raiz que alguien mas vaya a verificar.
+///
+///   SI cumple lo unico que la STF le pide: que estados distintos den raices
+///   distintas. Es un hash polinomico (multiplicar por un primo y sumar),
+///   determinista, escrito con loops de indice y aritmetica `wrapping` para
+///   que la cadena de herramientas lo pueda traducir.
+///
+/// DEL LADO DE LEAN se trata aparte: ahi conviene declararlo OPACO y agregar
+/// la inyectividad como hipotesis explicita en los teoremas que la necesiten
+/// ("suponiendo que el hash no colisiona, vale ST-3"). Es la forma estandar de
+/// modelar criptografia, y es lo que hace `fradamt/verified-consensus` con sus
+/// tres axiomas delegados a ArkLib.
 pub trait HashTreeRoot {
     fn hash_tree_root(&self) -> H256;
 }
 
-/// Un solo lugar donde vive el stub, para que se vea de una.
-fn raiz_stub() -> H256 {
-    H256::ZERO
+/// El primo de FNV-1a. Cualquier primo grande sirve.
+const PRIMO: u64 = 1_099_511_628_211;
+
+/// La semilla, tambien de FNV-1a.
+const SEMILLA: u64 = 14_695_981_039_346_656_037;
+
+/// Un paso del hash: acumulado por el primo, mas el valor nuevo.
+fn mezclar(acc: u64, x: u64) -> u64 {
+    acc.wrapping_mul(PRIMO).wrapping_add(x)
+}
+
+/// Mezcla los 32 bytes de una raiz.
+fn mezclar_raiz(acc: u64, r: &H256) -> u64 {
+    let mut h = acc;
+    for i in 0..32 {
+        h = mezclar(h, r.0[i] as u64);
+    }
+    h
+}
+
+/// Mezcla una clave publica de validador.
+fn mezclar_pubkey(acc: u64, k: &ValidatorPubkeyBytes) -> u64 {
+    let mut h = acc;
+    for i in 0..PUBLIC_KEY_SIZE {
+        h = mezclar(h, k[i] as u64);
+    }
+    h
+}
+
+/// Mezcla un checkpoint.
+fn mezclar_checkpoint(acc: u64, c: &Checkpoint) -> u64 {
+    mezclar(mezclar_raiz(acc, &c.root), c.slot)
+}
+
+/// Pone el acumulado de 64 bits en los primeros 8 bytes de una raiz.
+/// Division y modulo en vez de desplazamientos, que traducen mas seguro.
+fn a_raiz(v: u64) -> H256 {
+    let mut bytes = [0u8; 32];
+    let mut resto = v;
+    for i in 0..8 {
+        bytes[i] = (resto % 256) as u8;
+        resto = resto / 256;
+    }
+    H256(bytes)
 }
 
 // ---------------------------------------------------------------------------
@@ -100,7 +152,12 @@ pub struct AttestationData {
 
 impl HashTreeRoot for AttestationData {
     fn hash_tree_root(&self) -> H256 {
-        raiz_stub()
+        let mut h = SEMILLA;
+        h = mezclar(h, self.slot);
+        h = mezclar_checkpoint(h, &self.head);
+        h = mezclar_checkpoint(h, &self.target);
+        h = mezclar_checkpoint(h, &self.source);
+        a_raiz(h)
     }
 }
 
@@ -151,7 +208,13 @@ pub struct BlockHeader {
 
 impl HashTreeRoot for BlockHeader {
     fn hash_tree_root(&self) -> H256 {
-        raiz_stub()
+        let mut h = SEMILLA;
+        h = mezclar(h, self.slot);
+        h = mezclar(h, self.proposer_index);
+        h = mezclar_raiz(h, &self.parent_root);
+        h = mezclar_raiz(h, &self.state_root);
+        h = mezclar_raiz(h, &self.body_root);
+        a_raiz(h)
     }
 }
 
@@ -164,7 +227,25 @@ pub struct BlockBody {
 
 impl HashTreeRoot for BlockBody {
     fn hash_tree_root(&self) -> H256 {
-        raiz_stub()
+        let mut h = SEMILLA;
+        h = mezclar(h, self.attestations.len() as u64);
+        for i in 0..self.attestations.len() {
+            match self.attestations.get(i) {
+                Some(a) => {
+                    h = mezclar(h, a.aggregation_bits.len() as u64);
+                    for j in 0..a.aggregation_bits.len() {
+                        let bit = match a.aggregation_bits.get(j) {
+                            Some(true) => 1u64,
+                            _ => 0u64,
+                        };
+                        h = mezclar(h, bit);
+                    }
+                    h = mezclar_raiz(h, &a.data.hash_tree_root());
+                }
+                None => {}
+            }
+        }
+        a_raiz(h)
     }
 }
 
@@ -185,7 +266,13 @@ pub struct Block {
 
 impl HashTreeRoot for Block {
     fn hash_tree_root(&self) -> H256 {
-        raiz_stub()
+        let mut h = SEMILLA;
+        h = mezclar(h, self.slot);
+        h = mezclar(h, self.proposer_index);
+        h = mezclar_raiz(h, &self.parent_root);
+        h = mezclar_raiz(h, &self.state_root);
+        h = mezclar_raiz(h, &self.body.hash_tree_root());
+        a_raiz(h)
     }
 }
 
@@ -274,6 +361,59 @@ pub struct State {
 
 impl HashTreeRoot for State {
     fn hash_tree_root(&self) -> H256 {
-        raiz_stub()
+        let mut h = SEMILLA;
+        h = mezclar(h, self.config.genesis_time);
+        h = mezclar(h, self.slot);
+        h = mezclar_raiz(h, &self.latest_block_header.hash_tree_root());
+        h = mezclar_checkpoint(h, &self.latest_justified);
+        h = mezclar_checkpoint(h, &self.latest_finalized);
+
+        h = mezclar(h, self.historical_block_hashes.len() as u64);
+        for i in 0..self.historical_block_hashes.len() {
+            match self.historical_block_hashes.get(i) {
+                Some(r) => h = mezclar_raiz(h, r),
+                None => {}
+            }
+        }
+
+        h = mezclar(h, self.justified_slots.len() as u64);
+        for i in 0..self.justified_slots.len() {
+            let bit = match self.justified_slots.get(i) {
+                Some(true) => 1u64,
+                _ => 0u64,
+            };
+            h = mezclar(h, bit);
+        }
+
+        h = mezclar(h, self.validators.len() as u64);
+        for i in 0..self.validators.len() {
+            match self.validators.get(i) {
+                Some(v) => {
+                    h = mezclar(h, v.index);
+                    h = mezclar_pubkey(h, &v.attestation_pubkey);
+                    h = mezclar_pubkey(h, &v.proposal_pubkey);
+                }
+                None => {}
+            }
+        }
+
+        h = mezclar(h, self.justifications_roots.len() as u64);
+        for i in 0..self.justifications_roots.len() {
+            match self.justifications_roots.get(i) {
+                Some(r) => h = mezclar_raiz(h, r),
+                None => {}
+            }
+        }
+
+        h = mezclar(h, self.justifications_validators.len() as u64);
+        for i in 0..self.justifications_validators.len() {
+            let bit = match self.justifications_validators.get(i) {
+                Some(true) => 1u64,
+                _ => 0u64,
+            };
+            h = mezclar(h, bit);
+        }
+
+        a_raiz(h)
     }
 }

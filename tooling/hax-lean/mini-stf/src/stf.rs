@@ -650,3 +650,456 @@ pub fn slot_is_justifiable_after(slot: u64, finalized_slot: u64) -> bool {
             .is_some_and(|val| val.isqrt().pow(2) == val && val % 2 == 1)
 }
 
+
+// ---------------------------------------------------------------------------
+// Los tests del original, copiados tal cual de
+// lambdaclass/ethlambda, crates/blockchain/state_transition/src/lib.rs (MIT).
+//
+// Son la red de seguridad de la reescritura: si pasan antes y despues de
+// convertir los iteradores en loops de indice, tenemos evidencia de que el
+// comportamiento se preservo. No es una demostracion de equivalencia, pero es
+// mucho mejor que una promesa.
+//
+// Lo unico cambiado son los `use`.
+//
+// OJO: `hash_tree_root` en este crate es un stub que devuelve H256::ZERO, asi
+// que los tests que comparan raices pueden pasar o fallar por el motivo
+// equivocado. Ver README.
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod tests {
+    use super::*;
+    // CAMBIADO: los tipos y la lista vienen de este crate.
+    use crate::ssz::SszList;
+    use crate::tipos::{
+        AggregatedAttestation, AggregationBits, AttestationData, BlockBody, Checkpoint, H256,
+        HashTreeRoot as _, JustifiedSlots, State, StateConfig, Validator,
+    };
+
+    fn make_validators(n: usize) -> Vec<Validator> {
+        (0..n)
+            .map(|i| Validator {
+                attestation_pubkey: [i as u8; 32],
+                proposal_pubkey: [i as u8; 32],
+                index: i as u64,
+            })
+            .collect()
+    }
+
+    fn make_bits(set: &[usize], len: usize) -> AggregationBits {
+        let mut b = AggregationBits::with_length(len).unwrap();
+        for &i in set {
+            b.set(i, true).unwrap();
+        }
+        b
+    }
+
+    fn make_attestation(
+        att_slot: u64,
+        src: (u64, H256),
+        tgt: (u64, H256),
+        head: (u64, H256),
+        bits_set: &[usize],
+        bits_len: usize,
+    ) -> AggregatedAttestation {
+        AggregatedAttestation {
+            aggregation_bits: make_bits(bits_set, bits_len),
+            data: AttestationData {
+                slot: att_slot,
+                source: Checkpoint {
+                    slot: src.0,
+                    root: src.1,
+                },
+                target: Checkpoint {
+                    slot: tgt.0,
+                    root: tgt.1,
+                },
+                head: Checkpoint {
+                    slot: head.0,
+                    root: head.1,
+                },
+            },
+        }
+    }
+
+    /// leanSpec #833: `attestation_data_matches_chain` must reject a vote whose
+    /// head sits off the canonical chain, even when source and target are both
+    /// canonical. Justification is keyed on `target.root`, so accepting a
+    /// canonical FFG vote paired with a sibling LMD head would decouple the two.
+    #[test]
+    fn matches_chain_rejects_off_canonical_head() {
+        let r1 = H256([1u8; 32]);
+        let r2 = H256([2u8; 32]);
+        let sibling = H256([0x99u8; 32]);
+
+        // Canonical chain: slot 0 genesis (ZERO is fine for source here only if
+        // non-zero; use explicit roots), slot 1 -> r1, slot 2 -> r2.
+        let g = H256([7u8; 32]);
+        let hashes: Vec<H256> = vec![g, r1, r2];
+
+        // source=(0,g), target=(1,r1) both canonical; head=(2, sibling) is not.
+        let off_head = AttestationData {
+            slot: 2,
+            source: Checkpoint { slot: 0, root: g },
+            target: Checkpoint { slot: 1, root: r1 },
+            head: Checkpoint {
+                slot: 2,
+                root: sibling,
+            },
+        };
+        assert!(
+            !attestation_data_matches_chain(&hashes, &off_head),
+            "off-canonical head must be rejected"
+        );
+
+        // Control: the same vote with the canonical head=(2, r2) is accepted.
+        let canonical_head = AttestationData {
+            head: Checkpoint { slot: 2, root: r2 },
+            ..off_head
+        };
+        assert!(
+            attestation_data_matches_chain(&hashes, &canonical_head),
+            "fully canonical vote must be accepted"
+        );
+
+        // A zero-hash head is also rejected up front.
+        let zero_head = AttestationData {
+            head: Checkpoint {
+                slot: 2,
+                root: H256::ZERO,
+            },
+            ..off_head
+        };
+        assert!(
+            !attestation_data_matches_chain(&hashes, &zero_head),
+            "zero-hash head must be rejected"
+        );
+
+        // A head slot beyond the chain view is rejected.
+        let out_of_range_head = AttestationData {
+            head: Checkpoint { slot: 99, root: r2 },
+            ..off_head
+        };
+        assert!(
+            !attestation_data_matches_chain(&hashes, &out_of_range_head),
+            "out-of-range head slot must be rejected"
+        );
+    }
+
+    /// Regression: `process_attestations` must not let `state.latest_justified`
+    /// regress within a single block when attestations appear in body order
+    /// whose target slots are not monotonically increasing.
+    ///
+    /// Observed on devnet at canonical slot 27984: a block carried three
+    /// supermajority attestations targeting slots 27978, 27981, and 27974 (in
+    /// that order). Each reached the supermajority threshold and the
+    /// unconditional `state.latest_justified = target` assignment caused the
+    /// post-state to end at `latest_justified.slot = 27974`. Because the
+    /// store had already latched `latest_justified = 27978` from importing a
+    /// fork block, every subsequent proposal failed
+    /// `JustifiedDivergenceNotClosed` and the chain froze.
+    ///
+    /// Compressed setup: finalized=0, source=3 (justified), targets in body
+    /// order 4 / 9 / 6 — all justifiable from finalized=0 (Δ=4 ≤ 5, Δ=9=3²,
+    /// Δ=6=2·3). With 4 validators, three votes is supermajority, so each
+    /// attestation crosses the threshold.
+    #[test]
+    fn latest_justified_does_not_regress_within_block() {
+        const NUM_VALIDATORS: usize = 4;
+        let r3 = H256([3u8; 32]);
+        let r4 = H256([4u8; 32]);
+        let r6 = H256([6u8; 32]);
+        let r9 = H256([9u8; 32]);
+
+        // historical_block_hashes indexed by slot. Genesis at slot 0 is ZERO
+        // (matches the default finalized checkpoint), then we place the
+        // canonical roots at slots 3 / 4 / 6 / 9. Other slots are empty and
+        // are not referenced by any attestation in the test.
+        let mut hashes: Vec<H256> = vec![H256::ZERO; 10];
+        hashes[3] = r3;
+        hashes[4] = r4;
+        hashes[6] = r6;
+        hashes[9] = r9;
+
+        let validators = make_validators(NUM_VALIDATORS);
+        let mut justified_slots = JustifiedSlots::new();
+        justified_slots_ops::extend_to_slot(&mut justified_slots, 0, 9);
+        // Mark slot 3 as justified so source=(3, r3) passes is_valid_vote.
+        justified_slots_ops::set_justified(&mut justified_slots, 0, 3);
+
+        let mut state = State {
+            config: StateConfig { genesis_time: 0 },
+            slot: 10,
+            latest_block_header: BlockHeader {
+                slot: 9,
+                proposer_index: 0,
+                parent_root: H256::ZERO,
+                state_root: H256::ZERO,
+                body_root: BlockBody::default().hash_tree_root(),
+            },
+            latest_justified: Checkpoint { slot: 3, root: r3 },
+            latest_finalized: Checkpoint {
+                slot: 0,
+                root: H256::ZERO,
+            },
+            historical_block_hashes: SszList::try_from(hashes).unwrap(),
+            justified_slots,
+            validators: SszList::try_from(validators).unwrap(),
+            justifications_roots: Default::default(),
+            justifications_validators: JustificationValidators::new(),
+        };
+
+        // Three supermajority attestations (3 of 4 validators each), all from
+        // source=(3, r3), in body order targeting slots 4 → 9 → 6.
+        let atts: Vec<AggregatedAttestation> = vec![
+            make_attestation(3, (3, r3), (4, r4), (4, r4), &[0, 1, 3], NUM_VALIDATORS),
+            make_attestation(3, (3, r3), (9, r9), (9, r9), &[0, 1, 2], NUM_VALIDATORS),
+            make_attestation(3, (3, r3), (6, r6), (6, r6), &[0, 2, 3], NUM_VALIDATORS),
+        ];
+        let atts: AggregatedAttestations = atts.try_into().unwrap();
+
+        process_attestations(&mut state, &atts).expect("process_attestations should succeed");
+
+        // After processing, the chain's view of "latest justified" must be the
+        // highest justified target (slot 9), not the last-processed one
+        // (slot 6). Pre-fix this assertion fails with slot=6.
+        assert_eq!(
+            state.latest_justified.slot,
+            9,
+            "latest_justified regressed: got slot={}, root={}; expected slot=9",
+            state.latest_justified.slot,
+            ShortRoot(&state.latest_justified.root.0)
+        );
+        assert_eq!(state.latest_justified.root, r9);
+    }
+
+    /// Regression (leanSpec #802): a supermajority attestation whose source sits
+    /// at or behind the finalized boundary may justify a newer target, but must
+    /// never advance (rewind) finalization below that boundary.
+    ///
+    /// Setup: finalized = justified = slot 4. A supermajority votes from a stale
+    /// source at slot 1 to a fresh target at slot 6 (Δ=2 is pronic, so the target
+    /// is justifiable). The target should become justified while the finalized
+    /// checkpoint stays pinned at slot 4.
+    #[test]
+    fn stale_finalized_source_justifies_without_rewinding_finalization() {
+        const NUM_VALIDATORS: usize = 4;
+        let r1 = H256([1u8; 32]);
+        let r4 = H256([4u8; 32]);
+        let r6 = H256([6u8; 32]);
+
+        let mut hashes: Vec<H256> = vec![H256::ZERO; 7];
+        hashes[1] = r1;
+        hashes[4] = r4;
+        hashes[6] = r6;
+
+        let validators = make_validators(NUM_VALIDATORS);
+        // Window is relative to finalized=4; cover up to slot 6 (slots 5 and 6).
+        let mut justified_slots = JustifiedSlots::new();
+        justified_slots_ops::extend_to_slot(&mut justified_slots, 4, 6);
+
+        let mut state = State {
+            config: StateConfig { genesis_time: 0 },
+            slot: 7,
+            latest_block_header: BlockHeader {
+                slot: 6,
+                proposer_index: 0,
+                parent_root: H256::ZERO,
+                state_root: H256::ZERO,
+                body_root: BlockBody::default().hash_tree_root(),
+            },
+            latest_justified: Checkpoint { slot: 4, root: r4 },
+            latest_finalized: Checkpoint { slot: 4, root: r4 },
+            historical_block_hashes: SszList::try_from(hashes).unwrap(),
+            justified_slots,
+            validators: SszList::try_from(validators).unwrap(),
+            justifications_roots: Default::default(),
+            justifications_validators: JustificationValidators::new(),
+        };
+
+        // Supermajority (3 of 4) attesting from the stale source (slot 1) to the
+        // fresh target (slot 6). Source slot 1 <= finalized 4, so it is implicitly
+        // justified and passes is_valid_vote.
+        let atts: Vec<AggregatedAttestation> = vec![make_attestation(
+            7,
+            (1, r1),
+            (6, r6),
+            (6, r6),
+            &[0, 1, 2],
+            NUM_VALIDATORS,
+        )];
+        let atts: AggregatedAttestations = atts.try_into().unwrap();
+
+        process_attestations(&mut state, &atts).expect("process_attestations should succeed");
+
+        // The target is justified.
+        assert_eq!(state.latest_justified.slot, 6);
+        assert_eq!(state.latest_justified.root, r6);
+        // Finalization stays pinned at the boundary: the stale source must not
+        // rewind or re-finalize.
+        assert_eq!(state.latest_finalized.slot, 4);
+        assert_eq!(state.latest_finalized.root, r4);
+    }
+
+    /// leanSpec #1178: a `State` whose flat justification vote list is not
+    /// tracked-root count × validator count is rejected with a typed error rather
+    /// than silently producing short vote segments. Reachable via a malformed
+    /// checkpoint-sync anchor, whose SSZ decoding cannot enforce this cross-field
+    /// invariant.
+    #[test]
+    fn process_attestations_rejects_justification_votes_length_mismatch() {
+        const NUM_VALIDATORS: usize = 4;
+        let r1 = H256([1u8; 32]);
+
+        let mut state = State {
+            config: StateConfig { genesis_time: 0 },
+            slot: 2,
+            latest_block_header: BlockHeader {
+                slot: 1,
+                proposer_index: 0,
+                parent_root: H256::ZERO,
+                state_root: H256::ZERO,
+                body_root: BlockBody::default().hash_tree_root(),
+            },
+            latest_justified: Checkpoint {
+                slot: 0,
+                root: H256::ZERO,
+            },
+            latest_finalized: Checkpoint {
+                slot: 0,
+                root: H256::ZERO,
+            },
+            historical_block_hashes: SszList::try_from(vec![H256::ZERO, r1]).unwrap(),
+            justified_slots: JustifiedSlots::new(),
+            validators: SszList::try_from(make_validators(NUM_VALIDATORS)).unwrap(),
+            // One tracked root, but a vote list of the wrong width (3, not 1 * 4).
+            justifications_roots: SszList::try_from(vec![r1]).unwrap(),
+            justifications_validators: JustificationValidators::with_length(3).unwrap(),
+        };
+
+        let atts: AggregatedAttestations = Vec::<AggregatedAttestation>::new().try_into().unwrap();
+        let err = process_attestations(&mut state, &atts).unwrap_err();
+        assert!(
+            matches!(
+                err,
+                Error::JustificationVotesLengthMismatch {
+                    expected: 4,
+                    actual: 3
+                }
+            ),
+            "expected JustificationVotesLengthMismatch {{ expected: 4, actual: 3 }}, got {err:?}"
+        );
+    }
+
+    /// A vote whose target is already justified must be SKIPPED, not rejected:
+    /// `is_valid_vote` returns `Ok(false)` and the loop does `continue`, so the
+    /// block carrying it still applies cleanly.
+    ///
+    /// The block builder relies on this. It deliberately packs such votes,
+    /// because they carry no justification value but still move LMD-GHOST
+    /// (`insert_signed_block` records every attestation a block carries as a
+    /// fork-choice vote, whatever this function decides). If the transition
+    /// ever started erroring here instead, every proposer packing a settled
+    /// target would produce blocks the network rejects.
+    #[test]
+    fn process_attestations_skips_an_already_justified_target_without_rejecting_the_block() {
+        const NUM_VALIDATORS: usize = 4;
+        let r1 = H256([1u8; 32]);
+        let r2 = H256([2u8; 32]);
+
+        let mut justified_slots = JustifiedSlots::new();
+        justified_slots_ops::extend_to_slot(&mut justified_slots, 0, 1);
+        justified_slots_ops::set_justified(&mut justified_slots, 0, 1);
+
+        let mut state = State {
+            config: StateConfig { genesis_time: 0 },
+            slot: 3,
+            latest_block_header: BlockHeader {
+                slot: 2,
+                proposer_index: 0,
+                parent_root: r1,
+                state_root: H256::ZERO,
+                body_root: BlockBody::default().hash_tree_root(),
+            },
+            latest_justified: Checkpoint { slot: 1, root: r1 },
+            latest_finalized: Checkpoint {
+                slot: 0,
+                root: H256::ZERO,
+            },
+            historical_block_hashes: SszList::try_from(vec![H256::ZERO, r1, r2]).unwrap(),
+            justified_slots,
+            validators: SszList::try_from(make_validators(NUM_VALIDATORS)).unwrap(),
+            justifications_roots: SszList::try_from(vec![]).unwrap(),
+            justifications_validators: JustificationValidators::new(),
+        };
+
+        // Target slot 1 is already justified above; source is genesis.
+        let vote = AggregatedAttestation {
+            aggregation_bits: make_bits(&[0, 1, 2], NUM_VALIDATORS),
+            data: AttestationData {
+                slot: 2,
+                head: Checkpoint { slot: 1, root: r1 },
+                target: Checkpoint { slot: 1, root: r1 },
+                source: Checkpoint {
+                    slot: 0,
+                    root: H256::ZERO,
+                },
+            },
+        };
+
+        let before = state.latest_justified;
+        let atts: AggregatedAttestations = vec![vote].try_into().unwrap();
+
+        process_attestations(&mut state, &atts)
+            .expect("an already-justified target is skipped, not an error");
+
+        assert_eq!(
+            state.latest_justified, before,
+            "the skipped vote must not move justification"
+        );
+        assert!(
+            state.justifications_roots.is_empty(),
+            "the skipped vote must not open a tally for a settled target"
+        );
+    }
+
+    /// leanSpec #1178: `process_attestations` on a state with no validators is
+    /// rejected with a typed error. Belt-and-suspenders: the header stage already
+    /// rejects an empty registry first in the normal flow, but the flat-vote
+    /// unpack relies on a non-zero segment width directly.
+    #[test]
+    fn process_attestations_rejects_empty_validator_registry() {
+        let mut state = State {
+            config: StateConfig { genesis_time: 0 },
+            slot: 1,
+            latest_block_header: BlockHeader {
+                slot: 0,
+                proposer_index: 0,
+                parent_root: H256::ZERO,
+                state_root: H256::ZERO,
+                body_root: BlockBody::default().hash_tree_root(),
+            },
+            latest_justified: Checkpoint {
+                slot: 0,
+                root: H256::ZERO,
+            },
+            latest_finalized: Checkpoint {
+                slot: 0,
+                root: H256::ZERO,
+            },
+            historical_block_hashes: SszList::try_from(vec![H256::ZERO]).unwrap(),
+            justified_slots: JustifiedSlots::new(),
+            validators: SszList::try_from(make_validators(0)).unwrap(),
+            justifications_roots: Default::default(),
+            justifications_validators: JustificationValidators::new(),
+        };
+
+        let atts: AggregatedAttestations = Vec::<AggregatedAttestation>::new().try_into().unwrap();
+        let err = process_attestations(&mut state, &atts).unwrap_err();
+        assert!(
+            matches!(err, Error::NoValidators),
+            "expected NoValidators, got {err:?}"
+        );
+    }
+}
+

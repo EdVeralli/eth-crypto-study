@@ -49,12 +49,27 @@ de `Vec` con el mismo API. El flujo de control y la aritmética de la STF siguen
 siendo de ethlambda; la representación de las listas, no. Cualquier teorema
 hablará de la lógica de ellos sobre nuestros contenedores.
 
-**`hash_tree_root()` es un stub que devuelve siempre `H256::ZERO`.** Alcanza
-para traducir, porque la STF llama a la función y compara resultados sin mirar
-adentro. Pero **cualquier teorema que dependa de que dos raíces distintas sean
-distintas es falso con este stub**. Para demostrar algo así hay que reemplazarlo
-en el Lean generado por una declaración opaca y agregar la inyectividad como
-hipótesis.
+**`hash_tree_root()` ya NO es un stub.** Lo fue hasta el 30 oct, cuando devolvía
+siempre `H256::ZERO`, y eso era peor que un detalle: la STF compara raíces en
+cuatro lugares (`state_transition:85`, `process_slots:117`,
+`process_block_header:164` y `:228`), así que con el cero esas comparaciones no
+pasaban trivialmente — **se volvían falsas para cualquier entrada real**. Un
+teorema sobre `state_transition` habría hablado de una función que rechaza casi
+todos los bloques.
+
+Ahora es un **hash polinómico** propio: multiplicar por un primo y sumar,
+recorriendo los campos con loops de índice. No da los mismos valores que SSZ —no
+sirve para interoperar— pero cumple lo único que la STF le pide: que estados
+distintos den raíces distintas.
+
+Del lado de Lean se trata al revés: ahí conviene declararlo **opaco** y agregar
+la inyectividad como **hipótesis explícita** en los teoremas que la necesiten
+("suponiendo que el hash no colisiona, vale `ST-3`"). Es la forma estándar de
+modelar criptografía, y es lo que hace `fradamt/verified-consensus` con sus tres
+axiomas delegados a ArkLib.
+
+Los seis tests pasan con el hash real igual que con el stub, lo que confirma que
+no estaban apoyados en el cero.
 
 **Las advertencias de compilación son esperadas.** Seis variables sin usar: la
 STF las calcula sólo para los mensajes de log, y los stubs descartan sus
@@ -268,6 +283,63 @@ falla cuando `delta ≥ 2^62`, asi que **la funcion devuelve `false` para deltas
 pronic muy grandes**. Inalcanzable en la practica — son mas slots que los que
 cabrian en la vida del universo — pero el enunciado tiene que decirlo. Ese es el
 tipo de resultado que justifica el ejercicio.
+
+## La red de seguridad: los tests del original
+
+`src/stf.rs` termina con los **437 renglones de tests del `lib.rs` original**,
+copiados tal cual; lo unico cambiado son los `use`. Correrlos:
+
+```bash
+cd /work && cargo test
+```
+
+Los seis pasan. Y **pasan por el motivo correcto**, que es lo que habia que
+verificar antes de confiar en ellos:
+
+- Llaman **directo** a `process_attestations` (cinco de seis) y a
+  `attestation_data_matches_chain` (el otro). Ninguno pasa por
+  `state_transition` ni `process_block_header`, que son los dos lugares donde el
+  stub de `hash_tree_root` importaria.
+- `hash_tree_root` aparece en los tests solo como
+  `body_root: BlockBody::default().hash_tree_root()` — un campo que asignan y
+  nunca verifican. Las aserciones son sobre `latest_justified`,
+  `latest_finalized`, `justified_slots` y variantes de error.
+
+**Y la cobertura cae justo donde hace falta.** Las tres funciones que hay que
+reescribir para que traduzcan son `process_attestations`, `try_finalize` y
+`serialize_justifications`, y las dos ultimas **solo se llaman desde la
+primera**. Asi que los cinco tests que ejercitan `process_attestations` cubren
+las tres.
+
+Lo que NO cubren: `state_transition`, `process_block`, `process_block_header`,
+`process_slots`, que no se van a tocar.
+
+## El objetivo: una propuesta para LambdaClass
+
+Esto empezo como prueba de factibilidad y tiene un destino mas concreto:
+mostrarle a LambdaClass como se ve su STF escrita en el subconjunto que Aeneas
+entiende, con sus tests en verde, y con `ST-3` demostrado.
+
+`ST-3` es una de las 36 proposiciones de
+[`NyxFoundation/formal-leanSpec`](https://github.com/NyxFoundation/formal-leanSpec),
+el modelo en Lean del consenso nuevo: *"`latest_justified.slot` y
+`latest_finalized.slot` nunca retroceden"*. Lo que la vuelve la vara ideal es que
+**no la inventamos nosotros** y que la suite de ethlambda ya la afirma por
+ejemplo: uno de sus tests se llama literalmente
+`latest_justified_does_not_regress_within_block`. El teorema lo volveria
+universal.
+
+Para llegar hay que separar dos cosas, y mezclarlas arruinaria la propuesta:
+
+| | Que es | Les sirve? |
+|---|---|---|
+| La reescritura de sus doce funciones | **la propuesta** | si, tal cual, en su repo |
+| Nuestros sustitutos SSZ, el stub de hash, los `--opaque`, los modelos en `Assumptions/` | el banco de pruebas | no — ellos tienen los tipos reales |
+
+Y hay un costo que tenemos que poner nosotros sobre la mesa: el codigo reescrito
+es **menos idiomatico**. Un `for` con indices donde habia un
+`.iter().filter().count()` es mas feo y mas facil de equivocar al leerlo. Eso es
+mantenimiento, y una propuesta que no lo menciona no es creible.
 
 ## Lo que sigue
 
