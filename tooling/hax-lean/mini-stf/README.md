@@ -207,6 +207,68 @@ de un `proofs/` nuevo hay que volver a ponerlas:
 cp supuestos/TypesExternal.lean supuestos/FunsExternal.lean proofs/lean/MiniStf/Assumptions/
 ```
 
+## El primer teorema, demostrado el 30 oct
+
+En [`teoremas/ProofObligations.lean`](teoremas/ProofObligations.lean). Correrlo:
+
+```bash
+cp teoremas/ProofObligations.lean proofs/lean/MiniStf/Verification/
+cd proofs/lean && lake env lean MiniStf/Verification/ProofObligations.lean
+```
+
+### Que dice
+
+El comentario del codigo de ethlambda, en `slot_is_justifiable_after`, afirma esto:
+
+```rust
+// Pronic numbers have the form n(n+1): 2, 6, 12, 20, 30, 42, 56, ...
+// Mathematical insight: For pronic delta = n(n+1), we have:
+//   4*delta + 1 = 4n(n+1) + 1 = (2n+1)^2
+// Check: 4*delta+1 is an odd perfect square
+```
+
+O sea que detecta pronics preguntando si `4·delta + 1` es un cuadrado perfecto,
+en vez de factorizar. **Eso ahora esta demostrado:**
+
+```lean
+theorem pronic_iff_cuadrado (n : ℕ) :
+    (∃ m, m * m = 4 * n + 1) ↔ (∃ k, n = k * (k + 1))
+```
+
+Y los dos teoremas dependen **solo de los tres axiomas estandar de Lean**
+(`propext`, `Classical.choice`, `Quot.sound`). Ni native axioms ni agujeros
+nuestros.
+
+### Lo que encontro: un chequeo que sobra
+
+El codigo pregunta **dos** cosas sobre `m = 4·delta + 1`: que sea cuadrado
+perfecto **y** que sea impar (`m % 2 == 1`). La segunda **nunca puede fallar**
+si la primera pasa: `4·delta + 1` es impar siempre, asi que su raiz tambien.
+
+```lean
+theorem chequeo_de_paridad_redundante (n m : ℕ) (h : m * m = 4 * n + 1) :
+    m % 2 = 1
+```
+
+No es un bug — el resultado es correcto — pero es una condicion que siempre se
+cumple. Aparecio al escribir el enunciado, que es para lo que sirve esto.
+
+### Lo que todavia NO esta demostrado, y hay que ser claro
+
+Los dos teoremas son sobre `ℕ`: demuestran **el contenido matematico del
+comentario**, no una propiedad de la funcion generada. Falta el puente:
+
+```lean
+theorem slot_is_justifiable_after_correcta (slot fin : Std.U64) :
+    stf.slot_is_justifiable_after slot fin = ok true ↔ ...
+```
+
+Ese es mas trabajo, y ahi va a aparecer lo interesante: `checked_mul delta 4`
+falla cuando `delta ≥ 2^62`, asi que **la funcion devuelve `false` para deltas
+pronic muy grandes**. Inalcanzable en la practica — son mas slots que los que
+cabrian en la vida del universo — pero el enunciado tiene que decirlo. Ese es el
+tipo de resultado que justifica el ejercicio.
+
 ## Lo que sigue
 
 1. **Reemplazar `isqrt`** por una definicion sobre `Nat.sqrt`, para desbloquear

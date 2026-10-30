@@ -471,6 +471,60 @@ como cambio, no como copia.
 
 ---
 
+## 9. El primer teorema, 30 de octubre
+
+Dos cosas pasaron después de la auditoría de la sección 8.
+
+**`isqrt` dejó de ser un axioma.** Se reemplazó por una definición sobre
+`Nat.sqrt`, que ya está en el núcleo de Lean con sus lemas demostrados en
+Mathlib. La cota que pedía el constructor —que la raíz entre en 64 bits— sale de
+`Nat.sqrt_le_self`. Con eso, **`slot_is_justifiable_after` e `is_valid_vote`
+pasaron a depender sólo de los tres axiomas estándar**, y las funciones limpias
+son cinco en vez de tres.
+
+El supuesto no desapareció, cambió de forma: seguimos creyendo que el
+`u64::isqrt` de Rust calcula lo mismo que `Nat.sqrt`. La documentación de Rust
+dice "raíz cuadrada entera truncada", que es exactamente eso. Antes era un
+agujero mudo; ahora es una afirmación escrita, con su cita al lado.
+
+**Y con eso se pudo escribir el primer teorema.** El comentario del código de
+ethlambda afirma que detectar números pronic preguntando si `4·delta + 1` es un
+cuadrado perfecto es correcto. Eso ahora está demostrado:
+
+```lean
+theorem pronic_iff_cuadrado (n : ℕ) :
+    (∃ m, m * m = 4 * n + 1) ↔ (∃ k, n = k * (k + 1))
+```
+
+Y depende **sólo de `propext`, `Classical.choice` y `Quot.sound`**. Ni native
+axioms ni agujeros nuestros.
+
+### Lo que encontró: un chequeo que sobra
+
+El código pregunta dos cosas sobre `m = 4·delta + 1`: que sea cuadrado perfecto
+**y** que sea impar. La segunda nunca puede fallar si la primera pasa, porque
+`4·delta + 1` es impar siempre y entonces su raíz también. Está demostrado en
+`chequeo_de_paridad_redundante`.
+
+No es un bug, el resultado es correcto. Pero es una condición que siempre se
+cumple, y **apareció al escribir el enunciado** — que es exactamente para lo que
+sirve este ejercicio. Un humano leyendo el código ve dos chequeos y asume que
+los dos hacen algo.
+
+### Lo que todavía no está demostrado
+
+Los dos teoremas son sobre `ℕ`: demuestran **el contenido matemático del
+comentario**, no una propiedad de la función generada. Falta el puente que diga
+qué devuelve `slot_is_justifiable_after` para cada entrada.
+
+Y ahí va a aparecer algo que ya se ve leyendo el Lean generado: `checked_mul
+delta 4` falla cuando `delta ≥ 2^62`, así que la función devuelve `false` para
+deltas pronic muy grandes. Inalcanzable en la práctica, pero el enunciado tiene
+que decirlo — y una condición de borde que nadie había escrito es justo el tipo
+de resultado que justifica todo esto.
+
+---
+
 *Medido el 22 de octubre de 2026 sobre `lambdaclass/ethlambda` en el commit `22d1a72`,
 clon de solo lectura. Los conteos de `async`/`unsafe`/locks son sobre `src/` de cada
 crate, con `grep`; el `unsafe` que aparece en `state_transition` es una palabra dentro de

@@ -205,13 +205,24 @@ end core.mem
 
 namespace core.num.U64
 
-/-- `u64::isqrt()`: raiz cuadrada entera.
+/-- `u64::isqrt()`: raiz cuadrada entera truncada.
 
-    ATENCION: esto es un axioma, no una definicion. `slot_is_justifiable_after`
-    lo usa para detectar cuadrados perfectos, asi que cualquier teorema sobre
-    esa funcion es vacio hasta que esto se reemplace por una definicion real
-    sobre `Nat.sqrt`. Es el primer supuesto que hay que cerrar. -/
-axiom isqrt : Std.U64 -> RustM Std.U64
+    Era un axioma; desde el 30 oct 2026 es una definicion sobre `Nat.sqrt`.
+    La diferencia importa: de un axioma no se sabe NADA, ni siquiera que
+    devuelve lo mismo para el mismo argumento, asi que todo teorema sobre
+    `slot_is_justifiable_after` era imposible, no dificil.
+
+    La cota sale sola: `Nat.sqrt n <= n`, y si `x` entra en 64 bits su raiz
+    tambien.
+
+    EL SUPUESTO QUE QUEDA, y ahora es explicito y chequeable: que el
+    `u64::isqrt` de Rust calcula lo mismo que `Nat.sqrt` de Lean. La
+    documentacion de Rust dice "raiz cuadrada entera truncada", que es
+    exactamente `Nat.sqrt`. Eso lo estamos creyendo, no demostrando -- pero
+    ahora se sabe que se esta creyendo. -/
+def isqrt (x : Std.U64) : RustM Std.U64 :=
+  ok (Aeneas.Std.U64.ofNatCore (Nat.sqrt x.val)
+        (Nat.lt_of_le_of_lt (Nat.sqrt_le_self x.val) x.hBounds))
 
 end core.num.U64
 
