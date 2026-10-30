@@ -226,6 +226,32 @@ Entonces la pregunta útil es: ¿qué axiomas se permiten, y hay **alguien que l
 | **gasper-lean4** | **`propext` y `Quot.sound`. Nada más.** | **un programa, cada vez que se compila** |
 | **verified-consensus** | `propext`, `Quot.sound`, `Classical.choice`. Cero axiomas propios, cero `sorry` | **un script de seis pasos** (`verify.sh`), que además chequea que la frontera de revisión no se ensucie |
 
+### El quinto caso, que no es un repo: la herramienta los mete sola
+
+Los cuatro de arriba son decisiones humanas — alguien escribió `native_decide` y alguien
+decidió si eso se controla o no. Pero al pasar la transición de estado de ethlambda por la
+cadena de herramientas Rust → Lean (ver
+[`ethlambda-por-donde-empezar.md`](ethlambda-por-donde-empezar.md)) apareció un caso
+distinto: **nadie pidió el atajo y está ahí igual.**
+
+```
+mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+mini_stf.stf.process_block_header._native.decide.ax_3
+mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+```
+
+Cuatro *native axioms* en código que nadie escribió a mano: lo generó Aeneas, y los metió
+probablemente al despachar condiciones de borde sobre las constantes grandes del estado
+(`262144` y parecidas). Cuatro de las trece funciones los arrastran.
+
+Esto vale la pena anotarlo porque **cambia dónde hay que mirar**. En los cuatro repos el
+*native axiom* es rastreable hasta una línea que un humano escribió; acá no hay tal línea.
+Si alguien le aplicara a esto la regla D21 de `leanerSTFSpec` —que prohíbe los native
+axioms— cuatro funciones quedarían descalificadas sin que nadie hubiera hecho nada mal. La
+salida completa está en
+[`tooling/hax-lean/mini-stf/axiomas.txt`](../tooling/hax-lean/mini-stf/axiomas.txt).
+
 Qué quiere decir cada caso:
 
 - **`cryptography-specs`: nadie.** No hay una regla escrita que diga qué axiomas se

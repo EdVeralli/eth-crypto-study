@@ -426,6 +426,42 @@ teorema que esta misma nota recomendaba como primer objetivo está bloqueado**
 hasta reemplazar ese axioma por una definición sobre `Nat.sqrt`. Es el primer
 supuesto a cerrar.
 
+### La auditoría de axiomas, hecha el 30 de octubre
+
+`#print axioms` sobre cada función. Salida completa en
+[`tooling/hax-lean/mini-stf/axiomas.txt`](../tooling/hax-lean/mini-stf/axiomas.txt).
+
+**Tres funciones salen con los tres axiomas estándar de Lean y nada más.** Están
+demostrablemente limpias, y son las mejores candidatas para el primer teorema:
+
+```
+mini_stf.stf.process_slots
+mini_stf.stf.attestation_data_matches_chain
+mini_stf.justified_slots_ops.is_slot_justified
+```
+
+**`isqrt` bloquea exactamente dos**: `slot_is_justifiable_after` y `is_valid_vote`. Y hay
+que ser preciso con qué significa: un axioma sin definición es una función de la que no se
+sabe *nada*, ni siquiera que es determinista sobre un mismo argumento. El teorema de los
+números pronic que recomendaba la sección 5 no es difícil de demostrar — es **imposible**
+hasta reemplazar ese axioma por una definición sobre `Nat.sqrt`.
+
+**Y apareció lo que no esperábamos: cuatro `_native.decide.ax_*`.** Son *native axioms*,
+donde el resultado lo calcula el compilador de Lean y el kernel no revisa nada. Nadie los
+pidió: los metió Aeneas solo. Es un caso distinto de los cuatro repos del cuadro, donde el
+atajo siempre es rastreable hasta una línea que escribió un humano. Está desarrollado en
+[`repos-comparados.md`](repos-comparados.md), sección "El quinto caso".
+
+La base de confianza, entonces:
+
+| Categoría | Qué hay | Gravedad |
+|---|---|---|
+| Estándar de Lean | `propext`, `Classical.choice`, `Quot.sound` | ninguna |
+| Agujero elegido | `stf.process_attestations` | conocida |
+| `core` sin modelo | `isqrt`, `mem.take`, `bool.then` | **`isqrt` bloquea** |
+| Formateo | `FueraDeCapacidad…fmt` | ruido |
+| **Nativos** | 4 × `_native.decide.ax_*` | **el kernel no los verificó** |
+
 ### Y una línea de ethlambda que sí cambiamos
 
 En `process_slots`, `historical_block_hashes.extend(std::iter::repeat_n(...))`

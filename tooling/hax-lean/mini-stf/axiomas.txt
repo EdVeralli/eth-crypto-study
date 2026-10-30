@@ -1,0 +1,56 @@
+Salida de `lake env lean RevisarAxiomas.lean` sobre mini-stf.
+Corrida el 30 de octubre de 2026, adentro del contenedor hax-lean.
+Reproducir: cp supuestos/RevisarAxiomas.lean proofs/lean/ && cd proofs/lean && lake env lean RevisarAxiomas.lean
+
+'mini_stf.stf.state_transition' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound,
+ stf.process_attestations,
+ core.mem.take,
+ core.bool.Bool.then,
+ ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt,
+ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1,
+ mini_stf.stf.process_block_header._native.decide.ax_3,
+ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3]
+'mini_stf.stf.process_slots' depends on axioms: [propext, Classical.choice, Quot.sound]
+'mini_stf.stf.process_block' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound,
+ stf.process_attestations,
+ core.mem.take,
+ core.bool.Bool.then,
+ ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt,
+ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1,
+ mini_stf.stf.process_block_header._native.decide.ax_3,
+ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3]
+'mini_stf.stf.process_block_header' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound,
+ core.mem.take,
+ core.bool.Bool.then,
+ ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt,
+ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1,
+ mini_stf.stf.process_block_header._native.decide.ax_3,
+ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3]
+'mini_stf.stf.is_valid_vote' depends on axioms: [propext, Classical.choice, Quot.sound, core.num.U64.isqrt]
+'mini_stf.stf.slot_is_justifiable_after' depends on axioms: [propext, Classical.choice, Quot.sound, core.num.U64.isqrt]
+'mini_stf.stf.attestation_data_matches_chain' depends on axioms: [propext, Classical.choice, Quot.sound]
+'mini_stf.stf.is_proposer' depends on axioms: [propext, Classical.choice, Quot.sound, core.bool.Bool.then]
+'mini_stf.stf.current_proposer' depends on axioms: [propext, Classical.choice, Quot.sound, core.bool.Bool.then]
+'mini_stf.justified_slots_ops.is_slot_justified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'mini_stf.justified_slots_ops.set_justified' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound,
+ ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt,
+ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1]
+'mini_stf.justified_slots_ops.extend_to_slot' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound,
+ ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt,
+ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1,
+ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3]
+'mini_stf.justified_slots_ops.shift_window' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound,
+ ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt,
+ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1]

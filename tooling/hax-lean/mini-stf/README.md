@@ -153,8 +153,34 @@ lindo que habiamos identificado (la identidad de los numeros pronic). Esta
 bloqueado hasta reemplazarlo por una definicion real sobre `Nat.sqrt`. Es el
 primer supuesto que conviene cerrar.
 
-Para ver de cuales depende cada funcion:
-`cp supuestos/RevisarAxiomas.lean proofs/lean/ && cd proofs/lean && lake env lean RevisarAxiomas.lean`
+### La auditoria, corrida el 30 oct
+
+Salida completa en [`axiomas.txt`](axiomas.txt). Reproducir:
+
+```bash
+cp supuestos/RevisarAxiomas.lean proofs/lean/
+cd proofs/lean && lake env lean RevisarAxiomas.lean
+```
+
+**Tres funciones salen limpias** — los tres estandar de Lean y nada mas:
+`stf.process_slots`, `stf.attestation_data_matches_chain`,
+`justified_slots_ops.is_slot_justified`.
+
+**`isqrt` bloquea dos**: `slot_is_justifiable_after` y `is_valid_vote`. Un axioma
+sin definicion es una funcion de la que no se sabe nada, asi que el teorema de
+los pronic no es dificil: es imposible hasta reemplazarlo.
+
+**Y cuatro `_native.decide.ax_*`**, que nadie pidio. Son native axioms —el
+resultado lo calcula el compilador de Lean, el kernel no revisa— y los metio
+Aeneas solo, probablemente al despachar condiciones de borde sobre las
+constantes grandes del estado. Los arrastran `extend_to_slot`, `set_justified`,
+`process_block_header` y, por transitividad, `state_transition` y
+`process_block`.
+
+Eso ultimo es un hallazgo que va mas alla de este crate: en los cuatro repos del
+cuadro comparativo el native axiom siempre es rastreable hasta una linea que
+escribio una persona. Aca no hay tal linea. Esta anotado en
+`docs/repos-comparados.md`, seccion "El quinto caso".
 
 ## Que cambio del codigo de ethlambda
 
