@@ -1,13 +1,18 @@
-use std::collections::{HashMap, HashSet};
+// CAMBIADO: ya no hace falta `HashSet` -- el conteo de datos distintos va con
+// dos loops. `HashMap` se queda: `root_to_slot` lo sigue usando, y solo con
+// `get` e `insert`, que no llevan closures.
+use std::collections::HashMap;
 
 // CAMBIADO: los tipos vienen de este crate en vez de `ethlambda_types`.
 use crate::tipos::{
-    AggregatedAttestations, AttestationData, Block, BlockHeader, Checkpoint, H256,
-    HashTreeRoot as _, JustificationValidators, ShortRoot, State, HISTORICAL_ROOTS_LIMIT,
-    MAX_ATTESTATIONS_DATA,
+    AggregatedAttestations, AggregationBits, AttestationData, Block, BlockHeader, Checkpoint,
+    H256, HashTreeRoot as _, JustificationRoots, JustificationValidators, ShortRoot, State,
+    HISTORICAL_ROOTS_LIMIT, MAX_ATTESTATIONS_DATA,
 };
 // CAMBIADO: `tracing` y `metrics` son stubs sin efecto, definidos en este crate.
 use crate::stubs::{info_stub as info, warn_stub as warn};
+// CAMBIADO: `justifications` dejo de ser un HashMap. Ver src/mapa.rs.
+use crate::mapa::MapaVotos;
 use crate::{justified_slots_ops, stubs::metrics};
 
 // QUITADO: `pub mod beacon;` (otra cadena de bloques, 47.160 lineas, no es la STF
@@ -252,6 +257,245 @@ pub fn is_proposer(validator_index: u64, slot: u64, num_validators: u64) -> bool
     current_proposer(slot, num_validators) == Some(validator_index)
 }
 
+// ---------------------------------------------------------------------------
+// Helpers de la reescritura. NO ESTAN EN EL ORIGINAL.
+//
+// Cada uno existe por una de dos razones:
+//
+//   1. Reemplaza un iterador con closure, que Aeneas no traduce.
+//   2. Saca un loop que estaba adentro de otro. Un loop anidado falla con
+//      "Could not match the contexts"; el mismo loop en una funcion aparte,
+//      llamada desde el loop de afuera, traduce sin problema.
+//
+// Ninguno cambia el comportamiento. Los seis tests del original son la prueba.
+// ---------------------------------------------------------------------------
+
+/// Lecturas POR COPIA de las colecciones.
+///
+/// Existen por una regla que costo encontrar: ligar una referencia sacada de
+/// una coleccion (un `Some(a)` de un `.get()`) adentro de un loop que ademas
+/// muta otra coleccion hace fallar a Aeneas con "Internal error". Cada cosa
+/// por separado pasa; las dos juntas no. Sacando la lectura a una funcion, la
+/// referencia ya no se liga adentro del loop.
+fn dato_en(atts: &AggregatedAttestations, i: usize) -> AttestationData {
+    match atts.get(i) {
+        Some(a) => a.data,
+        None => AttestationData::default(),
+    }
+}
+
+fn bits_largo_en(atts: &AggregatedAttestations, i: usize) -> usize {
+    match atts.get(i) {
+        Some(a) => a.aggregation_bits.len(),
+        None => 0,
+    }
+}
+
+fn bits_en_uno_en(atts: &AggregatedAttestations, i: usize) -> usize {
+    match atts.get(i) {
+        Some(a) => a.aggregation_bits.count_ones(),
+        None => 0,
+    }
+}
+
+fn bit_en(atts: &AggregatedAttestations, i: usize, j: usize) -> bool {
+    match atts.get(i) {
+        Some(a) => a.aggregation_bits.get(j) == Some(true),
+        None => false,
+    }
+}
+
+fn raiz_justificacion_en(roots: &JustificationRoots, i: usize) -> H256 {
+    match roots.get(i) {
+        Some(r) => *r,
+        None => H256::ZERO,
+    }
+}
+
+fn hash_historico_en(state: &State, slot: usize) -> Option<H256> {
+    match state.historical_block_hashes.get(slot) {
+        Some(r) => Some(*r),
+        None => None,
+    }
+}
+
+fn slot_de_raiz(m: &HashMap<H256, u64>, root: &H256) -> Option<u64> {
+    match m.get(root) {
+        Some(s) => Some(*s),
+        None => None,
+    }
+}
+
+fn raiz_de_lista(v: &Vec<H256>, i: usize) -> H256 {
+    match v.get(i) {
+        Some(x) => *x,
+        None => H256::ZERO,
+    }
+}
+
+/// `true` si el dato de la attestation `i` ya aparecio antes.
+///
+/// Reemplaza al `HashSet` del original. El loop vive aca y no en
+/// `contar_datos_distintos` para no anidar.
+fn dato_repetido_antes(attestations: &AggregatedAttestations, i: usize) -> bool {
+    let actual = match attestations.get(i) {
+        Some(a) => a.data,
+        None => return false,
+    };
+    let mut repetido = false;
+    for j in 0..i {
+        match attestations.get(j) {
+            Some(b) => {
+                if b.data == actual {
+                    repetido = true;
+                }
+            }
+            None => {}
+        }
+    }
+    repetido
+}
+
+/// Cuantos datos de attestation distintos trae el bloque.
+fn contar_datos_distintos(attestations: &AggregatedAttestations) -> usize {
+    let mut n = 0;
+    for i in 0..attestations.len() {
+        if !dato_repetido_antes(attestations, i) {
+            n += 1;
+        }
+    }
+    n
+}
+
+/// Reemplaza a `.iter().any(|root| root == &H256::ZERO)`.
+fn hay_raiz_cero(roots: &JustificationRoots) -> bool {
+    let mut hay = false;
+    for i in 0..roots.len() {
+        if raiz_justificacion_en(roots, i) == H256::ZERO {
+            hay = true;
+        }
+    }
+    hay
+}
+
+/// `n` votos en false. Reemplaza a `std::iter::repeat_n(false, n).collect()`.
+fn votos_vacios(n: usize) -> Vec<bool> {
+    let mut v: Vec<bool> = Vec::new();
+    for _ in 0..n {
+        v.push(false);
+    }
+    v
+}
+
+/// El segmento de votos de la raiz `i` dentro de la lista plana del estado.
+fn votos_del_segmento(state: &State, i: usize, validator_count: usize) -> Vec<bool> {
+    let mut v: Vec<bool> = Vec::new();
+    for j in (i * validator_count)..((i + 1) * validator_count) {
+        v.push(state.justifications_validators.get(j) == Some(true));
+    }
+    v
+}
+
+/// Desarma la lista plana del estado en el mapa de votos.
+fn construir_mapa_de_votos(state: &State, validator_count: usize) -> MapaVotos {
+    let mut m = MapaVotos::nuevo();
+    for i in 0..state.justifications_roots.len() {
+        let r = raiz_justificacion_en(&state.justifications_roots, i);
+        m.poner_si_falta(r, votos_del_segmento(state, i, validator_count));
+    }
+    m
+}
+
+/// Mapea cada raiz a su slot mas reciente.
+///
+/// Sigue siendo un `HashMap`: se construye con hasta HISTORICAL_ROOTS_LIMIT
+/// entradas y solo se consulta con `get`, nunca se recorre. El
+/// `entry().and_modify().or_insert()` del original era un closure y quedo como
+/// `get` mas `insert`.
+fn construir_root_to_slot(state: &State) -> HashMap<H256, u64> {
+    let mut m: HashMap<H256, u64> = HashMap::new();
+    for slot in (state.latest_finalized.slot + 1)..state.historical_block_hashes.len() as u64 {
+        match hash_historico_en(state, slot as usize) {
+            Some(root) => {
+                let nuevo = match slot_de_raiz(&m, &root) {
+                    Some(x) => {
+                        if x > slot {
+                            x
+                        } else {
+                            slot
+                        }
+                    }
+                    None => slot,
+                };
+                m.insert(root, nuevo);
+            }
+            None => {}
+        }
+    }
+    m
+}
+
+/// El primer bit en true a partir de `desde`. Reemplaza al `.find()`.
+fn primer_bit_fuera_de_rango(
+    atts: &AggregatedAttestations,
+    idx: usize,
+    desde: usize,
+) -> Option<usize> {
+    let largo = bits_largo_en(atts, idx);
+    let mut encontrado: Option<usize> = None;
+    for i in desde..largo {
+        if encontrado.is_none() && bit_en(atts, idx, i) {
+            encontrado = Some(i);
+        }
+    }
+    encontrado
+}
+
+/// Marca en el mapa que cada validador de la agregacion voto.
+/// Reemplaza a `votes.iter_mut().enumerate().take(...)`.
+fn marcar_votos(mapa: &mut MapaVotos, p: usize, atts: &AggregatedAttestations, idx: usize) {
+    let largo = bits_largo_en(atts, idx);
+    for validator_id in 0..largo {
+        if bit_en(atts, idx, validator_id) {
+            mapa.votar(p, validator_id);
+        }
+    }
+}
+
+/// Reemplaza a `(desde..hasta).any(|slot| slot_is_justifiable_after(...))`.
+fn hay_slot_justificable(desde: u64, hasta: u64, finalized: u64) -> bool {
+    let mut hay = false;
+    for slot in desde..hasta {
+        if slot_is_justifiable_after(slot, finalized) {
+            hay = true;
+        }
+    }
+    hay
+}
+
+/// Vuelca los votos de una raiz en la lista plana, a partir de `base`.
+/// Reemplaza al `flat_map().enumerate().filter().for_each()`.
+fn volcar_votos(
+    destino: &mut JustificationValidators,
+    origen: &MapaVotos,
+    root: H256,
+    base: usize,
+) {
+    match origen.posicion(&root) {
+        Some(p) => {
+            let n = origen.largo_votos(p);
+            for k in 0..n {
+                if origen.voto(p, k) {
+                    destino
+                        .set(base + k, true)
+                        .expect("we just updated the capacity");
+                }
+            }
+        }
+        None => {}
+    }
+}
+
 /// Apply attestations and update justification/finalization
 /// according to the Lean Consensus 3SF-mini rules.
 fn process_attestations(
@@ -262,37 +506,26 @@ fn process_attestations(
 
     // Cap the distinct attestation data a block may carry (leanSpec #536).
     //
-    // Each distinct data allocates a tally sized to the validator set below, so the
-    // distinct count, not the attestation count, is what drives the work here. Split
-    // aggregates over one data share their tally and count once.
-    //
-    // `on_block` re-checks this before signature verification so a crafted block is
-    // rejected cheaply, but the bound belongs to the transition: this is the only
-    // entry point block production and fixture replay share with block import.
-    let distinct_attestation_data: HashSet<&AttestationData> =
-        attestations.iter().map(|att| &att.data).collect();
-    if distinct_attestation_data.len() > MAX_ATTESTATIONS_DATA {
+    // CAMBIADO: el original usaba un `HashSet<&AttestationData>` construido con
+    // `.iter().map().collect()`. Mismo resultado, contado con dos loops.
+    let distintos = contar_datos_distintos(attestations);
+    if distintos > MAX_ATTESTATIONS_DATA {
         return Err(Error::TooManyAttestationData {
-            count: distinct_attestation_data.len(),
+            count: distintos,
             max: MAX_ATTESTATIONS_DATA,
         });
     }
 
-    // Validate the justification bookkeeping before unpacking the flat vote list
-    // (leanSpec #1178). A `State` decoded from untrusted bytes (e.g. checkpoint
-    // sync) can satisfy SSZ yet still violate these cross-field invariants; without
-    // these guards the unpack below would silently produce short vote segments.
     let validator_count = state.validators.len();
 
     // An empty registry leaves no segment width, so the flat layout cannot be
-    // recovered. The header stage already rejects this first, but the unpack
-    // below relies on it directly.
+    // recovered.
     if validator_count == 0 {
         return Err(Error::NoValidators);
     }
 
     // The flat vote list must hold exactly one full validator segment per tracked
-    // root; a mismatched length means the segments no longer line up with the roots.
+    // root (leanSpec #1178).
     let expected_vote_count = state.justifications_roots.len() * validator_count;
     let actual_vote_count = state.justifications_validators.len();
     if actual_vote_count != expected_vote_count {
@@ -302,114 +535,113 @@ fn process_attestations(
         });
     }
 
-    // The zero hash marks a skipped slot, never a real block, so it cannot track
-    // votes (spec state.py L389).
-    if state
-        .justifications_roots
-        .iter()
-        .any(|root| root == &H256::ZERO)
-    {
+    // The zero hash marks a skipped slot, never a real block (spec state.py L389).
+    // CAMBIADO: era `.iter().any(...)`.
+    if hay_raiz_cero(&state.justifications_roots) {
         return Err(Error::ZeroHashInJustificationRoots);
     }
 
     let mut attestations_processed: u64 = 0;
-    let mut justifications: HashMap<H256, Vec<bool>> = state
-        .justifications_roots
-        .iter()
-        .enumerate()
-        .map(|(i, root)| {
-            let votes = (i * validator_count..(i + 1) * validator_count)
-                .map(|j| state.justifications_validators.get(j) == Some(true))
-                .collect::<Vec<bool>>();
-            (*root, votes)
-        })
-        .collect();
+    // CAMBIADO: `justifications` es un MapaVotos, no un HashMap. Ver src/mapa.rs.
+    let mut justifications = construir_mapa_de_votos(state, validator_count);
+    let root_to_slot = construir_root_to_slot(state);
 
-    // Map roots to their latest slot for pruning.
+    // CAMBIADO: el `for attestation in attestations` va por indice, y los dos
+    // `return` que estaban adentro del loop son ahora una variable de resultado
+    // mas `break`. Aeneas falla con "Early returns inside of loops are not
+    // supported yet". El `continue` se puede dejar.
+    // CAMBIADO. En el original esto es `for attestation in attestations` con
+    // dos `return` y un `continue` adentro. Aca va por indice y, sobre todo,
+    // con UNA SOLA SALIDA: nada de `break` ni `continue`, todo guardado por
+    // banderas.
     //
-    // Votes for zero hash are ignored, so we only need the most recent slot
-    // where a root appears to decide whether it is still unfinalized.
-    let mut root_to_slot: HashMap<H256, u64> = HashMap::new();
-    for slot in (state.latest_finalized.slot + 1)..state.historical_block_hashes.len() as u64 {
-        if let Some(root) = state.historical_block_hashes.get(slot as usize) {
-            root_to_slot
-                .entry(*root)
-                .and_modify(|x| *x = (*x).max(slot))
-                .or_insert(slot);
-        }
-    }
+    // Por que. Aeneas no soporta "early returns inside of loops", asi que los
+    // `return` tenian que irse igual. Pero convertirlos en `break` tampoco
+    // alcanzo: un loop con cuatro salidas distintas (el final mas tres breaks)
+    // lo hace fallar con "Could not match the contexts" -- no logra unificar
+    // el estado de todas las ramas. Con una sola salida, todas las vueltas
+    // tienen la misma forma.
+    //
+    // El comportamiento es el mismo: una vez que `fallo` tiene algo, las
+    // vueltas que quedan no hacen nada, igual que si hubiera cortado.
+    let mut fallo: Option<Error> = None;
+    for idx in 0..attestations.len() {
+        if fallo.is_none() {
+            let datos = dato_en(attestations, idx);
+            let bits_en_uno = bits_en_uno_en(attestations, idx);
+            let source = datos.source;
+            let target = datos.target;
 
-    for attestation in attestations {
-        let attestation_data = &attestation.data;
-        let source = attestation_data.source;
-        let target = attestation_data.target;
+            let valido = match is_valid_vote(state, &datos) {
+                Ok(v) => v,
+                Err(e) => {
+                    fallo = Some(e);
+                    false
+                }
+            };
 
-        if !is_valid_vote(state, attestation_data)? {
-            continue;
-        }
-
-        // The spec asserts that an aggregated attestation references at least
-        // one validator; the failed assert invalidates the whole block.
-        if attestation.aggregation_bits.count_ones() == 0 {
-            return Err(Error::EmptyAggregationBits);
-        }
-
-        // The spec indexes the per-root vote list with each participant index,
-        // so a set bit beyond the validator set crashes it (IndexError) and
-        // invalidates the whole block; Zeam and Lantern also reject such
-        // blocks. The spec has no bitlist length check: oversized
-        // aggregation_bits whose set bits are all in range process normally.
-        let oob_bit = (validator_count..attestation.aggregation_bits.len())
-            .find(|&i| attestation.aggregation_bits.get(i) == Some(true));
-        if let Some(index) = oob_bit {
-            return Err(Error::AggregationBitsOutOfBounds {
-                index,
-                validator_count,
-            });
-        }
-
-        // Record the vote
-        attestations_processed += 1;
-        let votes = justifications
-            .entry(target.root)
-            .or_insert_with(|| std::iter::repeat_n(false, validator_count).collect());
-
-        // Mark that each validator in this aggregation has voted for the target.
-        for (validator_id, voted) in votes
-            .iter_mut()
-            .enumerate()
-            .take(attestation.aggregation_bits.len())
-        {
-            if attestation.aggregation_bits.get(validator_id) == Some(true) {
-                *voted = true;
+            // The spec asserts that an aggregated attestation references at
+            // least one validator; the failed assert invalidates the whole
+            // block.
+            if fallo.is_none() && valido && bits_en_uno == 0 {
+                fallo = Some(Error::EmptyAggregationBits);
             }
-        }
 
-        // Check whether the vote count crosses the supermajority threshold
-        let vote_count = votes.iter().filter(|voted| **voted).count();
-        if 3 * vote_count >= 2 * validator_count {
-            // If the slot is higher, update the latest justified
-            state.latest_justified =
-                std::cmp::max_by_key(state.latest_justified, target, |c| c.slot);
-            justified_slots_ops::set_justified(
-                &mut state.justified_slots,
-                state.latest_finalized.slot,
-                target.slot,
-            );
+            // A set bit beyond the validator set crashes the spec (IndexError)
+            // and invalidates the whole block.
+            if fallo.is_none() && valido {
+                match primer_bit_fuera_de_rango(attestations, idx, validator_count) {
+                    Some(index) => {
+                        fallo = Some(Error::AggregationBitsOutOfBounds {
+                            index,
+                            validator_count,
+                        });
+                    }
+                    None => {}
+                }
+            }
 
-            let justified_slot = target.slot;
-            let threshold = (2 * validator_count).div_ceil(3);
-            info!(
-                justified_slot,
-                justified_root = %ShortRoot(&target.root.0),
-                vote_count,
-                threshold,
-                "Checkpoint justified"
-            );
+            if fallo.is_none() && valido {
+                // Record the vote
+                attestations_processed += 1;
+                let p =
+                    justifications.poner_si_falta(target.root, votos_vacios(validator_count));
 
-            justifications.remove(&target.root);
+                // Mark that each validator in this aggregation has voted.
+                marcar_votos(&mut justifications, p, attestations, idx);
 
-            try_finalize(state, source, target, &mut justifications, &root_to_slot);
+                // Check whether the vote count crosses the supermajority
+                // threshold
+                let vote_count = justifications.cuenta_votos(p);
+                if 3 * vote_count >= 2 * validator_count {
+                    // If the slot is higher, update the latest justified.
+                    // CAMBIADO: era `std::cmp::max_by_key(a, b, |c| c.slot)`,
+                    // que ante empate se queda con el SEGUNDO -- de ahi el `>=`.
+                    if target.slot >= state.latest_justified.slot {
+                        state.latest_justified = target;
+                    }
+                    justified_slots_ops::set_justified(
+                        &mut state.justified_slots,
+                        state.latest_finalized.slot,
+                        target.slot,
+                    );
+
+                    let justified_slot = target.slot;
+                    let threshold = (2 * validator_count).div_ceil(3);
+                    info!(
+                        justified_slot,
+                        justified_root = %ShortRoot(&target.root.0),
+                        vote_count,
+                        threshold,
+                        "Checkpoint justified"
+                    );
+
+                    // CAMBIADO: era `justifications.remove(&target.root)`.
+                    justifications = justifications.sin(&target.root);
+
+                    try_finalize(state, source, target, &mut justifications, &root_to_slot);
+                }
+            }
         }
     }
 
@@ -488,7 +720,7 @@ fn try_finalize(
     state: &mut State,
     source: Checkpoint,
     target: Checkpoint,
-    justifications: &mut HashMap<H256, Vec<bool>>,
+    justifications: &mut MapaVotos,
     root_to_slot: &HashMap<H256, u64>,
 ) {
     // A stale or boundary source is already finalized; advancing from it would
@@ -498,9 +730,8 @@ fn try_finalize(
     }
 
     // Consider whether finalization can advance.
-    if ((source.slot + 1)..target.slot)
-        .any(|slot| slot_is_justifiable_after(slot, state.latest_finalized.slot))
-    {
+    // CAMBIADO: era `((source.slot + 1)..target.slot).any(...)`.
+    if hay_slot_justificable(source.slot + 1, target.slot, state.latest_finalized.slot) {
         metrics::inc_finalizations("error");
         return;
     }
@@ -527,17 +758,27 @@ fn try_finalize(
     // Prune justifications whose roots are at or below the finalized slot.
     // The spec asserts all roots must be in root_to_slot (state.py L560).
     // A missing root means its slot <= finalized_slot, so prune it.
-    justifications.retain(|root, _| match root_to_slot.get(root) {
-        Some(&slot) => slot > state.latest_finalized.slot,
-        None => {
-            warn!(
-                root = %ShortRoot(&root.0),
-                finalized_slot = state.latest_finalized.slot,
-                "Justification root missing from root_to_slot, pruning"
-            );
-            false
-        }
-    });
+    //
+    // CAMBIADO: era `justifications.retain(|root, _| ...)`, un closure sobre un
+    // HashMap. Ahora se decide afuera cuales quedan y despues se filtra.
+    let mut conservar: Vec<bool> = Vec::new();
+    for i in 0..justifications.largo() {
+        let root = justifications.clave(i);
+        let queda = match slot_de_raiz(root_to_slot, &root) {
+            Some(slot) => slot > state.latest_finalized.slot,
+            None => {
+                warn!(
+                    root = %ShortRoot(&root.0),
+                    finalized_slot = state.latest_finalized.slot,
+                    "Justification root missing from root_to_slot, pruning"
+                );
+                false
+            }
+        };
+        conservar.push(queda);
+    }
+    let filtrado = justifications.filtrado(&conservar);
+    *justifications = filtrado;
 }
 
 /// Convert the in-memory vote HashMap back into SSZ-compatible state fields.
@@ -546,28 +787,27 @@ fn try_finalize(
 /// into `state.justifications_roots` and `state.justifications_validators`.
 fn serialize_justifications(
     state: &mut State,
-    justifications: HashMap<H256, Vec<bool>>,
+    justifications: MapaVotos,
     validator_count: usize,
 ) {
     // Sorting ensures that every node produces identical state representation.
-    let justification_roots = {
-        let mut roots: Vec<H256> = justifications.keys().cloned().collect();
-        roots.sort();
-        roots
-    };
+    // CAMBIADO: era `justifications.keys().cloned().collect()` mas `.sort()`.
+    // El orden lo hace `claves_ordenadas`, con insercion escrita a mano.
+    let justification_roots = justifications.claves_ordenadas();
+
     let mut justifications_validators =
         JustificationValidators::with_length(justification_roots.len() * validator_count)
             .expect("maximum validator justifications reached");
-    justification_roots
-        .iter()
-        .flat_map(|root| justifications[root].iter())
-        .enumerate()
-        .filter(|(_, voted)| **voted)
-        .for_each(|(i, _)| {
-            justifications_validators
-                .set(i, true)
-                .expect("we just updated the capacity");
-        });
+
+    // CAMBIADO: era `.iter().flat_map(...).enumerate().filter(...).for_each(...)`.
+    // El loop interno vive en `volcar_votos` para no anidar.
+    let mut base = 0usize;
+    for i in 0..justification_roots.len() {
+        let root = raiz_de_lista(&justification_roots, i);
+        volcar_votos(&mut justifications_validators, &justifications, root, base);
+        base += validator_count;
+    }
+
     state.justifications_roots = justification_roots
         .try_into()
         .expect("justifications_roots limit exceeded");

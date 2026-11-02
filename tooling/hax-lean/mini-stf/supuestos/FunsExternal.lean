@@ -242,3 +242,60 @@ axiom hash {T H : Type} {N : Std.Usize}
   Array T N -> H -> RustM H
 
 end core.Array.Insts.CoreHashHash
+
+-- ---------------------------------------------------------------------------
+-- Las tres operaciones de `HashMap` que usa `root_to_slot`.
+--
+-- `root_to_slot` sigue siendo un `HashMap` a proposito: se construye con hasta
+-- HISTORICAL_ROOTS_LIMIT entradas y solo se consulta con `get`, nunca se
+-- recorre. Cambiarlo por una lista de pares lo volveria cuadratico.
+--
+-- Quedan como AXIOMAS. Para `ST-3` no molesta: esa propiedad habla de
+-- `latest_justified` y `latest_finalized`, y `root_to_slot` solo interviene en
+-- la poda de `justifications`. Si alguna vez hace falta razonar sobre el mapa,
+-- hay que reemplazarlos por definiciones sobre la lista de pares que ya
+-- declaramos en TypesExternal.
+-- ---------------------------------------------------------------------------
+
+-- `core.hash.BuildHasher` tampoco esta en CoreModels: de `core.hash` solo
+-- estan `Hash` y `Hasher`. Alcanza con que el tipo exista -- es un argumento
+-- de instancia que nadie mira.
+namespace core.hash
+
+axiom BuildHasher (S : Type) : Type
+
+end core.hash
+
+namespace core.borrow
+
+axiom Borrow (Q K : Type) : Type
+
+axiom Borrow.Blanket (T : Type) : Borrow T T
+
+end core.borrow
+
+namespace std.hash.random
+
+axiom RandomState.Insts.CoreHashBuildHasherDefaultHasher :
+  core.hash.BuildHasher RandomState
+
+end std.hash.random
+
+namespace std.collections.hash.map
+
+axiom HashMapKVRandomStateGlobal.new (K V : Type) :
+  RustM (HashMap K V std.hash.random.RandomState alloc.alloc.Global)
+
+axiom HashMap.get {K V S A Q : Type}
+  (instEqK : core.cmp.Eq K) (instHashK : core.hash.Hash K)
+  (instBH : core.hash.BuildHasher S)
+  (instBorrow : core.borrow.Borrow Q K)
+  (instHashQ : core.hash.Hash Q) (instEqQ : core.cmp.Eq Q) :
+  HashMap K V S A -> Q -> RustM (core.option.Option V)
+
+axiom HashMap.insert {K V S A : Type}
+  (instEqK : core.cmp.Eq K) (instHashK : core.hash.Hash K)
+  (instBH : core.hash.BuildHasher S) :
+  HashMap K V S A -> K -> V -> RustM ((core.option.Option V) × HashMap K V S A)
+
+end std.collections.hash.map

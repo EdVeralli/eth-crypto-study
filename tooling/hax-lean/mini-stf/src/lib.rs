@@ -15,6 +15,7 @@
 //! | `justified_slots_ops`   | COPIA de ethlambda, solo cambian los `use`   |
 //! | `tipos`                 | definiciones de ethlambda, sin los derives   |
 //! | `ssz`                   | NUESTRO: sustitutos de los contenedores SSZ  |
+//! | `mapa`                  | NUESTRO: el mapa de votos como lista de pares|
 //! | `stubs`                 | NUESTRO: tracing y metrics sin efecto        |
 //!
 //! Lo copiado viene de lambdaclass/ethlambda (MIT):
@@ -25,6 +26,7 @@
 //! Ver README.md por lo que se pierde al sustituir.
 
 pub mod justified_slots_ops;
+pub mod mapa;
 pub mod ssz;
 pub mod stf;
 pub mod stubs;
