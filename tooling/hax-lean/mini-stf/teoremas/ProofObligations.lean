@@ -7,7 +7,10 @@
    Copia de trabajo: este archivo vive en `teoremas/` del crate (que si se
    commitea) y se copia a `proofs/lean/MiniStf/Verification/` (que no).
 -/
-import MiniStf
+-- Importa la extraccion, NO el modulo raiz `MiniStf`: ese importa a
+-- `Verification`, asi que `import MiniStf` aca es un ciclo
+-- ("bad import 'MiniStf'").
+import MiniStf.Extraction
 
 /- ===========================================================================
    Teorema 1: la regla de los numeros pronic

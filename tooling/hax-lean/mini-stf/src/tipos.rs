@@ -103,6 +103,24 @@ fn mezclar_pubkey(acc: u64, k: &ValidatorPubkeyBytes) -> u64 {
     h
 }
 
+/// Mezcla los bits de participacion de un voto agregado.
+///
+/// Esta en funcion aparte A PROPOSITO: un loop adentro de otro hace fallar a
+/// Aeneas con "Could not match the contexts". Un loop que llama a una funcion
+/// que adentro tiene otro loop, en cambio, traduce sin problema -- es lo que
+/// hace `State::hash_tree_root` con `mezclar_raiz`.
+fn mezclar_bits(acc: u64, bits: &AggregationBits) -> u64 {
+    let mut h = acc;
+    for j in 0..bits.len() {
+        let bit = match bits.get(j) {
+            Some(true) => 1u64,
+            _ => 0u64,
+        };
+        h = mezclar(h, bit);
+    }
+    h
+}
+
 /// Mezcla un checkpoint.
 fn mezclar_checkpoint(acc: u64, c: &Checkpoint) -> u64 {
     mezclar(mezclar_raiz(acc, &c.root), c.slot)
@@ -230,20 +248,14 @@ impl HashTreeRoot for BlockBody {
         let mut h = SEMILLA;
         h = mezclar(h, self.attestations.len() as u64);
         for i in 0..self.attestations.len() {
-            match self.attestations.get(i) {
+            h = match self.attestations.get(i) {
                 Some(a) => {
-                    h = mezclar(h, a.aggregation_bits.len() as u64);
-                    for j in 0..a.aggregation_bits.len() {
-                        let bit = match a.aggregation_bits.get(j) {
-                            Some(true) => 1u64,
-                            _ => 0u64,
-                        };
-                        h = mezclar(h, bit);
-                    }
-                    h = mezclar_raiz(h, &a.data.hash_tree_root());
+                    let h1 = mezclar(h, a.aggregation_bits.len() as u64);
+                    let h2 = mezclar_bits(h1, &a.aggregation_bits);
+                    mezclar_raiz(h2, &a.data.hash_tree_root())
                 }
-                None => {}
-            }
+                None => h,
+            };
         }
         a_raiz(h)
     }

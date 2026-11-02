@@ -152,6 +152,26 @@ predecible leyendo el codigo.
 | 5 | `Unknown identifier HashMap`, `isqrt`, `mem::take`… | **`CoreModels` no cubre todo `core`/`std`** | modelos a mano en `Assumptions/` |
 | 6 | `repeat_n`, `Vec::extend`, `Option::copied` | lo mismo | reescribir dos lineas |
 
+## Dos reglas mas, aprendidas el 2 nov
+
+**Un loop adentro de otro: no. Un loop que llama a una funcion con otro loop
+adentro: si.** Son lo mismo computacionalmente, pero Aeneas convierte cada loop
+en definiciones aparte y no logra unificar los contextos cuando estan anidados
+en el mismo cuerpo:
+
+```
+[Error] Could not match the contexts
+Source: 'src/tipos.rs', lines 244:31-246:33
+```
+
+El arreglo es sacar el loop interno a una funcion propia. Lo verifico
+`State::hash_tree_root`, que tiene cinco loops y llama a `mezclar_raiz` —que
+adentro tiene otro— y traduce sin problema.
+
+**`Verification/ProofObligations.lean` importa `MiniStf.Extraction`, no
+`MiniStf`.** El modulo raiz importa `Verification`, asi que importarlo desde ahi
+es un ciclo (`bad import 'MiniStf'`). El encabezado que escribe hax ya lo dice.
+
 ## Los supuestos, que es donde hay que mirar
 
 24 axiomas. **La mayoria es ruido**, pero no todos:
