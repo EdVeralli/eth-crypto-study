@@ -11,7 +11,7 @@
 //!
 //! | modulo                  | de donde sale                                |
 //! |-------------------------|----------------------------------------------|
-//! | `stf`                   | COPIA de ethlambda, solo cambian los `use`   |
+//! | `stf`                   | de ethlambda; 8 de 12 funciones sin tocar    |
 //! | `justified_slots_ops`   | COPIA de ethlambda, solo cambian los `use`   |
 //! | `tipos`                 | definiciones de ethlambda, sin los derives   |
 //! | `ssz`                   | NUESTRO: sustitutos de los contenedores SSZ  |
@@ -22,6 +22,24 @@
 //!   crates/blockchain/state_transition/src/lib.rs
 //!   crates/blockchain/state_transition/src/justified_slots_ops.rs
 //!   crates/common/types/src/{primitives,checkpoint,state,block,attestation}.rs
+//!
+//! CUANTO SE TOCO DEL CODIGO DE ELLOS, medido contra el original
+//! (commit 6168a0e, ignorando comentarios):
+//!
+//!   IDENTICAS, 8 de 12:  state_transition, process_slots, process_block,
+//!                        is_valid_vote, attestation_data_matches_chain,
+//!                        slot_is_justifiable_after, is_proposer,
+//!                        current_proposer
+//!
+//!   CAMBIADAS, 4:        process_block_header       3 lineas
+//!                        try_finalize              ~18 lineas
+//!                        serialize_justifications  ~23 lineas
+//!                        process_attestations      ~87 lineas
+//!
+//!   Mas 19 funciones auxiliares nuevas, que son nuestras.
+//!
+//! O sea que el pedido concreto es tocar cuatro funciones, unas 130 lineas de
+//! logica. El resto queda tal cual.
 //!
 //! Ver README.md por lo que se pierde al sustituir.
 

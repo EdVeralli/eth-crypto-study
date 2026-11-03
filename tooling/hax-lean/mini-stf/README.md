@@ -1,5 +1,11 @@
 # mini-stf — la STF de ethlambda en un crate solo
 
+> **Para LambdaClass hay otro documento: [`PROPOSAL.md`](PROPOSAL.md), en
+> inglés.** Ese es el entregable — qué es suyo y qué es nuestro, qué cambió en
+> cada función, qué cuesta y cómo correrlo. Este README es nuestra bitácora:
+> tiene el camino, los errores y las reglas que fuimos encontrando.
+
+
 Crate armado para pasar la transición de estado de ethlambda por la cadena de
 herramientas Rust → Lean (`hax` + Charon + Aeneas).
 
