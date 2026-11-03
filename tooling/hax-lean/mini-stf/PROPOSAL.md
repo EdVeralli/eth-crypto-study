@@ -131,26 +131,31 @@ it rather than letting you find it.
 `.iter().filter().count()` is uglier and easier to get wrong when reading. That
 is a maintenance cost, and it is the honest price of the whole exercise.
 
-## What this crate does NOT solve
+## Folding this into your tree
 
-**Your crate still will not translate as it stands.** `state_transition`
-depends on `ethlambda-storage`, and a single `dyn Error` in that dependency
-aborts the extraction: 413 errors, zero files written. Charon compiles the
-crate *and all its dependencies*, but Aeneas only emits definitions for the
-local crate — so you inherit a dependency's failures without inheriting its
-definitions.
+This crate works as delivered: clone it, run the three commands, and you have
+the STF in Lean. Nothing here is pending on our side.
 
-So there are two asks, not one, and the second is the harder:
+What is a decision on yours is whether to fold it into `ethlambda` itself, and
+there is exactly one thing in the way. It is not code:
 
-1. The code changes above.
-2. **Split the lean STF into its own crate**, free of `dyn`, with the types it
-   needs inside it. That is packaging, not behaviour — but it is architecture.
+`state_transition` depends on `ethlambda-storage`, and a single `dyn Error` in
+that dependency aborts the extraction — 413 errors, zero files written. Charon
+compiles the crate *and all its dependencies*, but Aeneas only emits
+definitions for the local crate, so you inherit a dependency's failures without
+inheriting its definitions. The lean STF has to sit in a crate whose dependency
+closure is free of `dyn`.
 
-The second is why `src/tipos.rs` exists. For `State` and `Block` to exist on
-the Lean side they must live in the crate being extracted; otherwise the
-generated Lean names them and never defines them, and the project does not
-typecheck. We verified that separately with a four-function crate that did
-nothing but touch `State` and `Block`.
+The same mechanism is why `src/tipos.rs` exists. For `State` and `Block` to
+exist on the Lean side they must live in the crate being extracted; otherwise
+the generated Lean names them and never defines them, and the project does not
+typecheck. We verified that separately, with a four-function crate that did
+nothing but touch `State` and `Block`: the extraction ran clean and
+`Types.lean` came out with an empty namespace.
+
+Both are packaging, not behaviour — moving files between crates, with the code
+unchanged. How you want to do that in your layout is yours to decide, and it is
+the one thing we could not do from outside your repo.
 
 ## What you get
 
