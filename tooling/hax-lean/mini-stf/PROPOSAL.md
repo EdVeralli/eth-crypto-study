@@ -178,6 +178,44 @@ Writing it also surfaced something: the parity check beside it (`m % 2 == 1`)
 **can never fail**. `4·delta + 1` is always odd, so its root is too. Not a bug,
 but a condition that does nothing.
 
+### Half of ST-3, proved
+
+`ST-3` from
+[`NyxFoundation/formal-leanSpec`](https://github.com/NyxFoundation/formal-leanSpec)
+says *`latest_justified.slot` and `latest_finalized.slot` never go backwards*.
+The finality half of it is now proved about your `try_finalize`:
+
+```lean
+theorem try_finalize_no_retrocede
+    (state state' : tipos.State) (source target : tipos.Checkpoint) ... :
+    stf.try_finalize state source target j rts = ok (state', j') →
+    state.latest_finalized.slot ≤ state'.latest_finalized.slot
+```
+
+The proof is short because your guard is the property:
+
+```rust
+if source.slot <= state.latest_finalized.slot { return; }
+...
+state.latest_finalized = source;
+```
+
+Its trust base is twelve axioms: Lean's three, three type declarations that
+only exist so signatures typecheck, three `std` operations with no model
+(`HashMap::get` and the `Hash` of `[T; N]`), one formatting stub — and **three
+of the native axioms described below**. None of the opaque declarations are
+load-bearing here; the property comes from the guard, not from anything the
+map or the hash does.
+
+The remaining half — `latest_justified` — lives inside the loop in
+`process_attestations` and needs induction over it. That one is not done.
+
+### Why this statement and not another
+
+The statement is not ours, and your own suite already asserts it by example, in
+`latest_justified_does_not_regress_within_block`. The theorem makes it
+universal: not for the cases you tested, for every input.
+
 The target beyond that is `ST-3` from
 [`NyxFoundation/formal-leanSpec`](https://github.com/NyxFoundation/formal-leanSpec) —
 *`latest_justified.slot` and `latest_finalized.slot` never go backwards*. Two

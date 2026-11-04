@@ -12,6 +12,13 @@
 -- ("bad import 'MiniStf'").
 import MiniStf.Extraction
 
+-- Los mismos `open` que traen los archivos generados. Sin ellos no resuelven
+-- `ok`, `Std.U64` ni `alloc.alloc.Global`.
+open CoreModels Aeneas
+open Aeneas.Std hiding namespace core alloc
+open RustM ControlFlow Error
+open Std.Do
+
 /- ===========================================================================
    Teorema 1: la regla de los numeros pronic
 
@@ -76,3 +83,88 @@ example : 4 * 56 + 1 = 15 * 15 := by norm_num
 
 #print axioms pronic_iff_cuadrado
 #print axioms chequeo_de_paridad_redundante
+
+/- ===========================================================================
+   Herramienta: abrir un bind
+
+   El codigo que genera Aeneas es una cadena de binds de `RustM`, que es un
+   inductivo con `ok`, `fail` y `div`. Para razonar sobre el hay que ir
+   abriendolos: si la secuencia entera termino en `ok`, el primer paso tambien.
+   Los casos `fail` y `div` se descartan solos, porque no son `ok`.
+
+   Esto se usa en todos los teoremas sobre funciones generadas, asi que vale
+   tenerlo una vez.
+   =========================================================================== -/
+
+theorem bind_da_ok {α β : Type} {x : RustM α} {k : α → RustM β} {y : β}
+    (h : (x >>= k) = ok y) : ∃ a, x = ok a ∧ k a = ok y := by
+  cases x with
+  | ok a => exact ⟨a, rfl, h⟩
+  | fail e => simp at h
+  | div => simp at h
+
+/- ===========================================================================
+   Teorema 2: la mitad de ST-3 que vive en `try_finalize`
+
+   `ST-3` es una de las 36 proposiciones de NyxFoundation/formal-leanSpec:
+
+       latest_justified.slot y latest_finalized.slot nunca retroceden
+
+   Lo que la hace la vara correcta es que NO la inventamos nosotros, y que la
+   suite de ethlambda ya la afirma por ejemplo, en el test
+   `latest_justified_does_not_regress_within_block`.
+
+   Tiene dos mitades. Esta es la de la finalidad, que vive en `try_finalize` y
+   que el codigo casi regala:
+
+       if source.slot <= state.latest_finalized.slot { return; }
+       ...
+       state.latest_finalized = source;
+
+   La guarda de arriba ES la propiedad: si el source no avanza, no se toca
+   nada; y si se llega a la asignacion, es porque avanza.
+   =========================================================================== -/
+
+open mini_stf in
+theorem try_finalize_no_retrocede
+    (state state' : tipos.State) (source target : tipos.Checkpoint)
+    (j j' : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global)
+    (h : stf.try_finalize state source target j rts = ok (state', j')) :
+    state.latest_finalized.slot ≤ state'.latest_finalized.slot := by
+  unfold stf.try_finalize at h
+  split at h
+  · -- Rama 1: el source no avanza, se devuelve el estado sin tocar.
+    simp_all
+  · -- Ramas 2 y 3. Antes del `if` hay dos binds que hay que abrir.
+    obtain ⟨i, hadd, h⟩ := bind_da_ok h
+    obtain ⟨b, hb, h⟩ := bind_da_ok h
+    split at h
+    · -- Rama 2: hay un slot justificable en el medio, tampoco se toca.
+      simp [stubs.metrics.inc_finalizations] at h
+      simp_all
+    · -- Rama 3: se asigna `latest_finalized := source`. Quedan ocho binds
+      -- entre el `if` y el `ok` final; ninguno toca `latest_finalized`, pero
+      -- hay que atravesarlos para llegar a la igualdad.
+      simp [stubs.metrics.inc_finalizations] at h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      -- Ahora `h` es `ok (<estado nuevo>, _) = ok (state', _)`. Se abre el
+      -- constructor y el par para quedarse con la igualdad de estados.
+      simp only [RustM.ok.injEq, Prod.mk.injEq] at h
+      obtain ⟨hst, -⟩ := h
+      subst hst
+      -- El estado devuelto tiene `latest_finalized := source`, y la guarda de
+      -- la rama 1 dice que `source.slot` es mayor. Listo.
+      simp_all
+      omega
+
+#print axioms bind_da_ok
+#print axioms try_finalize_no_retrocede
