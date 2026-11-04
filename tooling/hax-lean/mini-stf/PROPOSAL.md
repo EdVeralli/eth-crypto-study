@@ -234,12 +234,41 @@ of the native axioms described below**. None of the opaque declarations are
 load-bearing here; the property comes from the guard, not from anything the
 map or the hash does.
 
-The remaining half — `latest_justified` — lives inside the loop in
-`process_attestations` and needs induction over it. That one is not done, but
-the error-propagation fix above unblocked it: the loop now returns its error
-flag, so its accumulator and its result have the same type, which is what
-`Hax.loop_range_spec_unsigned` requires. Before the fix they differed and the
-lemma did not apply.
+A companion theorem is proved alongside it, and the other half needs it:
+
+```lean
+theorem try_finalize_no_toca_justified
+    (state state' : tipos.State) (source target : tipos.Checkpoint) ... :
+    stf.try_finalize state source target j rts = ok (state', j') →
+    state'.latest_justified = state.latest_justified
+```
+
+`try_finalize` is called from inside the loop that moves `latest_justified`, so
+proving that field never regresses there requires knowing this one leaves it
+alone.
+
+### The other half of ST-3: where it stands
+
+`latest_justified` moves inside the loop in `process_attestations`, so that half
+needs induction over the loop. It is not proved yet, but it is no longer a
+question of feasibility, and the error-propagation fix above is what unblocked
+it: the loop now returns its error flag, so its accumulator and its result have
+the same type — which is exactly what `Hax.loop_range_spec_unsigned` requires.
+Before the fix they differed and the lemma did not apply at all.
+
+What is measured so far: the lemma unifies with the loop as Aeneas generates it;
+its first two obligations (`0 ≤ n`, and the invariant at entry) discharge in one
+tactic each; and `hax_mvcgen` closes every goal of the third except one — the
+branch where the loop continues.
+
+And stating it as a Hoare triple rather than an equation surfaced something
+worth passing on. The lemma demands the loop body **never fails**, and the body
+does `attestations_processed += 1` on a `u64`. The increment is safe, but only
+because the counter rises at most once per iteration and the loop runs at most
+`attestations.len()` times — so the proof cannot talk about justification alone.
+The invariant has to carry the counter's bound as well. The property that makes
+your loop safe is not just the guard on the assignment; it is also that the
+counter cannot run away. The equational form never asks.
 
 ### Why this statement and not another
 

@@ -166,5 +166,96 @@ theorem try_finalize_no_retrocede
       simp_all
       omega
 
+/- ===========================================================================
+   Teorema 3: `try_finalize` no toca `latest_justified`
+
+   Companero del anterior, y la pieza que necesita la segunda mitad de ST-3.
+   `try_finalize` se llama adentro del loop de `process_attestations`, que es
+   donde se mueve `latest_justified`. Para demostrar que ese campo no retrocede
+   en el loop hay que saber que `try_finalize` no lo toca.
+
+   El cuerpo generado arma el estado nuevo con
+   `latest_justified := state.latest_justified`, asi que sale con la misma
+   estructura que el teorema 2.
+   =========================================================================== -/
+
+open mini_stf in
+theorem try_finalize_no_toca_justified
+    (state state' : tipos.State) (source target : tipos.Checkpoint)
+    (j j' : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global)
+    (h : stf.try_finalize state source target j rts = ok (state', j')) :
+    state'.latest_justified = state.latest_justified := by
+  unfold stf.try_finalize at h
+  split at h
+  · simp_all
+  · obtain ⟨_, _, h⟩ := bind_da_ok h
+    obtain ⟨_, _, h⟩ := bind_da_ok h
+    split at h
+    · simp [stubs.metrics.inc_finalizations] at h
+      simp_all
+    · simp [stubs.metrics.inc_finalizations] at h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      simp only [RustM.ok.injEq, Prod.mk.injEq] at h
+      obtain ⟨hst, -⟩ := h
+      subst hst
+      simp_all
+
+/- ===========================================================================
+   ST-3 mitad 2: donde quedo, 4 nov
+
+   Falta la otra mitad: que `latest_justified.slot` tampoco retroceda en el
+   loop de `process_attestations`. El intento esta en
+   `teoremas/ST3-en-progreso.lean`, que NO es parte de la biblioteca.
+
+   Lo que ya esta medido:
+
+   - `Hax.loop_range_spec_unsigned` UNIFICA con el loop generado tal como sale
+     de Aeneas. Eso recien quedo posible hoy: hasta el arreglo del `match
+     fallo`, el loop descartaba la bandera, el acumulador era una tupla de
+     cuatro y el resultado de tres, y el lema exige el mismo tipo en los dos
+     lados.
+   - Sus tres obligaciones: `h_le` sale con `scalar_tac`, `h_init` con `simp`,
+     y `h_step` es la que queda.
+   - `hax_mvcgen` sobre `h_step` cierra todo menos un objetivo, `vc1.h_lt`, que
+     es la rama donde el loop sigue. Y se planta ahi: deja el cuerpo entero
+     envuelto en un `wp`. El motivo es la forma del objetivo, no la dificultad
+     -- `goalNeedsMvcgen` reconoce una terna, un `entails` con `wp`, o un
+     `.down` con `PredTrans.apply`; lo que queda es un `.down` con `WP.wp` y
+     sin `PredTrans.apply`, asi que la tactica cree que ya termino.
+   - Insistir con `mvcgen` a mano avanza un paso y vuelve a plantarse en
+     `core.option.Option.is_none`, que no se puede decidir mientras la bandera
+     sea una variable. Son cuatro `is_none` encadenados.
+
+   Y lo que hay que cambiar, que aparecio al mirarlo con la lente de ternas:
+
+   **El invariante es demasiado debil.** Habla solo del slot justificado, y no
+   alcanza, porque el cuerpo hace
+
+       let attestations_processed1 <- acc.2.1 + 1#u64
+
+   y `loop_range_spec_unsigned` exige que el cuerpo NO FALLE NUNCA. Ese `+1`
+   puede desbordar. La cota existe -- el contador arranca en 0 y sube como
+   maximo uno por vuelta, asi que `attestations_processed <= i`, y con `i < n`
+   de la rama `h_lt` queda estrictamente menor que el maximo -- pero hay que
+   meterla EN el invariante:
+
+       inv i acc = (s0.latest_justified.slot <= acc.1.latest_justified.slot
+                    /\ acc.2.1.val <= i.val)
+
+   Es el segundo desborde que aparece en el dia, y los dos por la misma razon:
+   la terna de Hoare exige que el programa no falle y la forma ecuacional no.
+   El otro es `source.slot + 1` en `try_finalize`.
+   =========================================================================== -/
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
+#print axioms try_finalize_no_toca_justified
