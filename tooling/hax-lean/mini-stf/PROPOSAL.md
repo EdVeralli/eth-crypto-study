@@ -45,13 +45,14 @@ cargo hax into lean \
 cd proofs/lean && lake build
 ```
 
-And the tests — yours, unchanged except for the `use` lines:
+And the tests — your six, unchanged except for the `use` lines, plus two we
+added:
 
 ```bash
 cargo test
 ```
 
-Six pass.
+Eight pass.
 
 ## What is yours and what is ours
 
@@ -59,7 +60,7 @@ Six pass.
 |---|---|
 | `src/stf.rs` | **yours** — `state_transition/src/lib.rs`, 8 of 12 functions untouched |
 | `src/justified_slots_ops.rs` | **yours** — unchanged except the `use` lines |
-| the test module at the end of `stf.rs` | **yours** — unchanged except the `use` lines |
+| the test module at the end of `stf.rs` | **yours** — unchanged except the `use` lines, plus two tests we added |
 | `src/tipos.rs` | **your type definitions**, with the serialization derives removed |
 | `src/ssz.rs` | ours — stand-ins for `SszList` and `SszBitlist` |
 | `src/mapa.rs` | ours — an association list replacing one `HashMap` |
@@ -82,12 +83,38 @@ Measured against `35c074b`, ignoring comments:
 | `process_block_header` | 3 lines |
 | `try_finalize` | ~18 lines |
 | `serialize_justifications` | ~23 lines |
-| `process_attestations` | ~87 lines |
+| `process_attestations` | ~91 lines |
 
 Plus nineteen new helper functions, which are ours.
 
-Your six tests pass before and after every one of these changes. That is not a
-proof of equivalence, but it is the evidence we have, and it is yours.
+Your six tests pass before and after every one of these changes. That is the
+evidence we have, and it is yours — but it is weaker than it looks, and we found
+out the hard way.
+
+`process_attestations` has three error exits inside its loop: the `?` on
+`is_valid_vote`, `EmptyAggregationBits`, and `AggregationBitsOutOfBounds`. Aeneas
+rejects early returns inside loops, so ours collects the error in a flag. The
+first version of that rewrite **set the flag and never read it**: it returned
+`Ok(())` on a block your code rejects, and it called `serialize_justifications`,
+which your code never reaches when it cuts. Two divergences.
+
+All six of your tests passed anyway. The two that check errors
+(`rejects_justification_votes_length_mismatch`,
+`rejects_empty_validator_registry`) cover the exits **before** the loop; none
+cover the three inside it. So we added two tests that do:
+
+| Test | What it forces |
+|---|---|
+| `process_attestations_rejects_empty_aggregation_bits` | the valid vote from your regression test, with no bit set → `EmptyAggregationBits` |
+| `process_attestations_rejects_an_out_of_range_bit` | bits of length 6 with index 5 set over 4 validators → `AggregationBitsOutOfBounds { index: 5, validator_count: 4 }` |
+
+Both were verified against the bug: with the fix removed, your six pass and these
+two fail. A test that does not fail when the defect is present proves nothing.
+
+The lesson generalizes past this crate. Where a rewrite replaces control flow
+with data flow — a `return` with a flag — the tests that would catch a mistake
+are exactly the ones a suite built around the original control flow tends not to
+have.
 
 ### The rules behind each change
 
@@ -208,7 +235,11 @@ load-bearing here; the property comes from the guard, not from anything the
 map or the hash does.
 
 The remaining half — `latest_justified` — lives inside the loop in
-`process_attestations` and needs induction over it. That one is not done.
+`process_attestations` and needs induction over it. That one is not done, but
+the error-propagation fix above unblocked it: the loop now returns its error
+flag, so its accumulator and its result have the same type, which is what
+`Hax.loop_range_spec_unsigned` requires. Before the fix they differed and the
+lemma did not apply.
 
 ### Why this statement and not another
 
@@ -245,3 +276,24 @@ arithmetic facts the kernel did not verify". This is worth reporting upstream.
 `State` changes, someone has to sync it. The way out is the architectural ask
 above: types and STF in one crate, so the verified code *is* the production
 code.
+
+We checked whether the toolchain offers a way around the copy, and it does not.
+hax's manual documents `--charon-args="--start-from <function>"`, which extracts
+a function *"along with all its dependencies"*. That holds for the call graph,
+not for types. On a one-function crate that uses `State` from `ethlambda-types`,
+the function came out translated and the type did not — and
+`TypesExternal_Template.lean` came out empty, so the toolchain does not even ask
+for it as an external type. The dangling name surfaces at `lake build`, not at
+extraction. Charon compiles the crate and all its dependencies; Aeneas emits
+definitions **only for the local crate**, and `--start-from` changes the first
+filter, not the second. So the copy is not a shortcut we took: it is the only
+route the toolchain leaves.
+
+**`source.slot + 1` can overflow, and it is reachable in principle.** Stating
+the `try_finalize` theorem as a Hoare triple rather than an equation surfaced
+this: with `source.slot = u64::MAX`, the increment feeding
+`slot_is_justifiable_after` panics in a debug build. The equational form hides
+it, because it assumes the call returned `ok`. No slot will realistically get
+there, and the guard above requires `source.slot > state.latest_finalized.slot`,
+so it is not a live bug — but it is an unstated precondition, and you may prefer
+a `checked_add` or a saturating form.

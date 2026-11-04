@@ -93,19 +93,29 @@ docker run --platform linux/amd64 -it \
   hax-lean bash
 ```
 
-Adentro, y **los cuatro `--opaque` son imprescindibles** (por qué, más abajo):
+Adentro, un solo comando:
 
 ```bash
-cd /work
-cargo hax into lean \
-  --charon-args="--opaque 'mini_stf::stf::process_attestations' \
-                 --opaque 'mini_stf::stf::serialize_justifications' \
-                 --opaque '{impl core::fmt::Debug for _}' \
-                 --opaque '{impl core::fmt::Display for _}'"
-cd proofs/lean && lake build
+cd /work && bash regenerar.sh
 ```
 
-## Los cuatro `--opaque`, y por qué cada uno
+El script hace las tres cosas en orden: extrae, **vuelve a copiar lo escrito a
+mano** (una extracción fallida borra los archivos de `Assumptions/`) y compila.
+La extracción que corre adentro es:
+
+```bash
+cargo hax into lean \
+  --charon-args="--opaque '{impl core::fmt::Debug for _}' \
+                 --opaque '{impl core::fmt::Display for _}'"
+```
+
+⚠️ **Dos `--opaque`, no cuatro.** Hasta el 2 de noviembre hacían falta cuatro:
+también `process_attestations` y `serialize_justifications`. Las dos se
+reescribieron y hoy traducen con cuerpo completo. La sección de abajo cuenta los
+cuatro porque es la historia de cómo se descubrieron, pero el comando de arriba
+es el que vale.
+
+## Los `--opaque`: los cuatro del principio, y por qué cada uno
 
 Sin ellos Aeneas sale con código 2 y **no escribe un solo archivo**. Cada uno se
 descubrió corriendo y leyendo el error; ninguno era predecible desde el código.
@@ -367,13 +377,113 @@ es **menos idiomatico**. Un `for` con indices donde habia un
 `.iter().filter().count()` es mas feo y mas facil de equivocar al leerlo. Eso es
 mantenimiento, y una propuesta que no lo menciona no es creible.
 
+## El bug del 4 nov: el error que no salía
+
+Lo encontramos de rebote. Pablo mandó
+[el manual de hax para Lean](https://hax.cryspen.com/manual/lean/quick_start/),
+que trae soporte para invariantes de loop. Para escribir el invariante de
+`process_attestations` había que leer con lupa cómo quedó ese loop traducido, y
+leyéndolo apareció esto.
+
+**Qué estaba mal.** El original corta con `return Err(...)` en tres lugares de
+adentro del loop: el `?` de `is_valid_vote`, `EmptyAggregationBits` y
+`AggregationBitsOutOfBounds`. Acá los `return` tuvieron que irse —Aeneas no los
+soporta adentro de un loop— y se reemplazaron por una bandera, `fallo`. La
+bandera se llenaba, hacía que las vueltas siguientes no trabajaran… **y después
+nadie la miraba**. La función devolvía `Ok(())` con un bloque inválido, y encima
+llamaba a `serialize_justifications`, que el original nunca alcanza al cortar.
+Dos divergencias, no una.
+
+**El arreglo**, al final de `process_attestations` y antes de serializar:
+
+```rust
+match fallo {
+    Some(e) => return Err(e),
+    None => {}
+}
+```
+
+El `return` queda **afuera** del loop, así que no choca con la regla de Aeneas.
+
+**Por qué los seis tests no lo vieron.** Los dos que chequean errores
+(`rejects_justification_votes_length_mismatch` y
+`rejects_empty_validator_registry`) prueban los errores de **antes** del loop,
+que siempre estuvieron bien. Ninguno de los seis toca los tres de adentro. El
+agujero estaba justo donde no mirábamos, y eso matiza algo que veníamos
+diciendo: los tests verdes prueban que la reescritura preserva el comportamiento
+**en los casos que cubren**, no en general.
+
+**Los dos tests nuevos**, que no están en la suite de ethlambda:
+
+| Test | Qué fuerza |
+|---|---|
+| `process_attestations_rejects_empty_aggregation_bits` | el mismo voto válido del test de regresión, sin un solo bit prendido → `EmptyAggregationBits` |
+| `process_attestations_rejects_an_out_of_range_bit` | bits de largo 6 con el índice 5 prendido sobre 4 validadores → `AggregationBitsOutOfBounds { index: 5, validator_count: 4 }` |
+
+Y se verificaron con un control, que es la parte que importa: **sacando el
+arreglo, los seis de ethlambda pasan y los dos nuevos fallan.** Un test que no
+falla cuando el bug está no prueba nada.
+
+**Un efecto lateral que destrabó un teorema.** Antes, el loop generado
+descartaba `fallo` al terminar: el acumulador era una tupla de cuatro y el
+resultado de tres. Esa diferencia impedía aplicar `Hax.loop_range_spec_unsigned`,
+que exige el mismo tipo en los dos lados. Con el arreglo, `fallo` tiene que
+salir del loop y los dos tipos se igualan:
+
+```
+ControlFlow (Range × State × U64 × MapaVotos × Option Error)
+            (        State × U64 × MapaVotos × Option Error)
+```
+
+O sea que arreglar el bug habilitó la mitad de `ST-3` que nos faltaba.
+
+## Tres cosas que aprendimos del manual que mandó Pablo
+
+**1. `--charon-args="--start-from <función>"` no trae los tipos de una
+dependencia.** El manual dice que extrae la función *"along with all its
+dependencies"*, y es cierto de la cadena de llamadas, no de los tipos. Probado
+sobre `prueba-types`, un crate de una sola función que usa `State` de
+`ethlambda-types`: la función salió traducida, el tipo no, y
+`TypesExternal_Template.lean` quedó vacío —ni siquiera lo pide como externo—, así
+que el `Unknown identifier` aparece recién en `lake build`.
+
+**Conclusión: `src/tipos.rs` no sobra.** Charon compila el crate y todas sus
+dependencias, pero Aeneas emite definiciones **sólo del crate local**, y
+`--start-from` cambia el primer filtro, no el segundo. Antes copiábamos los tipos
+por decisión nuestra; ahora es con la alternativa descartada por medición.
+
+**2. El soporte de invariantes de loop es una táctica de Lean, no una anotación
+de Rust.** `for_loop_with_invariant` reemplaza el `loop` que genera Aeneas por
+`Hax.forLoopWithInvariant` y el invariante se escribe del lado de la
+demostración. Pide un `for` sobre un rango de enteros **sin early returns
+adentro** — que es exactamente la forma a la que nos obligó Aeneas. No hay que
+tocar el Rust.
+
+**3. El idioma de hax son ternas de Hoare, y pregunta más que una ecuación.**
+`try_finalize_no_retrocede` está enunciado como `h : try_finalize ... = ok (...)`,
+o sea **asumiendo que no falló**. La terna `⦃ pre ⦄ prog ⦃ post ⦄` no deja
+asumirlo, y al enunciarlo así salta una obligación que la forma ecuacional
+esconde:
+
+```
+a : UScalar.max UScalarTy.U64 < ↑source.slot + ↑1#u64
+⊢ (ExceptConds.false.1 { down := Error.panic }).down
+```
+
+**`source.slot + 1` puede desbordar.** Con `source.slot = u64::MAX`,
+`try_finalize` entra en pánico. El teorema que tenemos sigue siendo correcto —no
+afirma nada sobre el caso de falla—, pero la propiedad más fuerte no se cumple
+sin una precondición.
+
 ## Lo que sigue
 
-1. **Reemplazar `isqrt`** por una definicion sobre `Nat.sqrt`, para desbloquear
-   el teorema de `slot_is_justifiable_after`.
-2. **Escribir el primer teorema** en `Verification/ProofObligations.lean`, que
-   hax crea vacio a proposito.
-3. **Recuperar las tres opacas**: reescribir sus iteradores con indices y los
-   `return` de adentro del loop como variable mas `break`. Son unas 230 de las
-   654 lineas, y eso **si** toca el cuerpo de ellos. Antes conviene traerse los
-   437 renglones de tests del original y correrlos contra la version reescrita.
+1. **Demostrar la segunda mitad de `ST-3`**: que `latest_justified.slot` tampoco
+   retrocede en el loop de `process_attestations`, con
+   `Hax.loop_range_spec_unsigned` y el invariante sobre el acumulador. Recién
+   quedó habilitado.
+2. **Reescribir `try_finalize_no_retrocede` como terna** y marcarlo `@[spec]`,
+   para que el teorema del loop lo pueda usar por composición. Y decidir qué
+   hacer con el desborde: precondición, o postcondición que tolere la falla.
+3. **Reportarle a Cryspen** los dos hallazgos de herramienta: que los nueve
+   axiomas nativos vienen de su propia biblioteca de tácticas, y que
+   `--start-from` no trae los tipos de una dependencia.

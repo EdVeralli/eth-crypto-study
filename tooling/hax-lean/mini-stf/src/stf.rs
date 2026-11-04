@@ -645,6 +645,19 @@ fn process_attestations(
         }
     }
 
+    // El original corta con `return Err(...)` adentro del loop, en tres
+    // lugares: el `?` de `is_valid_vote`, `EmptyAggregationBits` y
+    // `AggregationBitsOutOfBounds`. Aca no se puede: Aeneas rechaza los
+    // early returns adentro de un loop, asi que el error se junta en
+    // `fallo` y se propaga recien aca.
+    //
+    // Tiene que ser ANTES de `serialize_justifications`: el original, al
+    // cortar adentro del loop, nunca llega a serializar.
+    match fallo {
+        Some(e) => return Err(e),
+        None => {}
+    }
+
     serialize_justifications(state, justifications, validator_count);
     metrics::inc_attestations_processed(attestations_processed);
     Ok(())
@@ -1341,5 +1354,131 @@ mod tests {
             "expected NoValidators, got {err:?}"
         );
     }
-}
+    /// NUEVO: no esta en la suite de ethlambda. `process_attestations` tiene
+    /// que RECHAZAR el bloque cuando una attestation por lo demas valida no
+    /// referencia a ningun validador.
+    ///
+    /// Por que lo agregamos. El original corta con `return Err(...)` adentro
+    /// del loop, en tres lugares. Aca el loop tiene UNA SOLA SALIDA (Aeneas
+    /// no soporta early returns adentro de loops) y el error se junta en la
+    /// bandera `fallo`. La primera version de esa reescritura guardaba la
+    /// bandera y no la miraba nunca: devolvia `Ok(())` con un bloque
+    /// invalido, y encima serializaba, cosa que el original no hace al cortar.
+    ///
+    /// Los seis tests que trajimos de ethlambda no cubren este camino: los dos
+    /// que chequean errores prueban los de ANTES del loop. Por eso el agujero
+    /// paso desapercibido. Este test lo cierra.
+    #[test]
+    fn process_attestations_rejects_empty_aggregation_bits() {
+        const NUM_VALIDATORS: usize = 4;
+        let r3 = H256([3u8; 32]);
+        let r4 = H256([4u8; 32]);
 
+        let mut hashes: Vec<H256> = vec![H256::ZERO; 10];
+        hashes[3] = r3;
+        hashes[4] = r4;
+
+        let mut justified_slots = JustifiedSlots::new();
+        justified_slots_ops::extend_to_slot(&mut justified_slots, 0, 9);
+        // Slot 3 justificado para que source=(3, r3) pase is_valid_vote.
+        justified_slots_ops::set_justified(&mut justified_slots, 0, 3);
+
+        let mut state = State {
+            config: StateConfig { genesis_time: 0 },
+            slot: 10,
+            latest_block_header: BlockHeader {
+                slot: 9,
+                proposer_index: 0,
+                parent_root: H256::ZERO,
+                state_root: H256::ZERO,
+                body_root: BlockBody::default().hash_tree_root(),
+            },
+            latest_justified: Checkpoint { slot: 3, root: r3 },
+            latest_finalized: Checkpoint {
+                slot: 0,
+                root: H256::ZERO,
+            },
+            historical_block_hashes: SszList::try_from(hashes).unwrap(),
+            justified_slots,
+            validators: SszList::try_from(make_validators(NUM_VALIDATORS)).unwrap(),
+            justifications_roots: Default::default(),
+            justifications_validators: JustificationValidators::new(),
+        };
+
+        // El mismo voto valido del test de regresion, pero sin un solo bit.
+        let atts: Vec<AggregatedAttestation> =
+            vec![make_attestation(3, (3, r3), (4, r4), (4, r4), &[], NUM_VALIDATORS)];
+        let atts: AggregatedAttestations = atts.try_into().unwrap();
+
+        let before = state.latest_justified;
+        let err = process_attestations(&mut state, &atts).unwrap_err();
+        assert!(
+            matches!(err, Error::EmptyAggregationBits),
+            "expected EmptyAggregationBits, got {err:?}"
+        );
+        assert_eq!(
+            state.latest_justified, before,
+            "un bloque rechazado no puede mover la justificacion"
+        );
+    }
+
+    /// NUEVO: no esta en la suite de ethlambda. El otro error que vivia adentro
+    /// del loop: un bit prendido mas alla del conjunto de validadores.
+    ///
+    /// Los bits van de largo 6 con los indices 0, 1 y 5 prendidos, sobre 4
+    /// validadores. El 5 esta fuera de rango. Los otros dos alcanzan para que
+    /// NO sea el caso de EmptyAggregationBits, asi que el test distingue los
+    /// dos errores en vez de confundirlos.
+    #[test]
+    fn process_attestations_rejects_an_out_of_range_bit() {
+        const NUM_VALIDATORS: usize = 4;
+        let r3 = H256([3u8; 32]);
+        let r4 = H256([4u8; 32]);
+
+        let mut hashes: Vec<H256> = vec![H256::ZERO; 10];
+        hashes[3] = r3;
+        hashes[4] = r4;
+
+        let mut justified_slots = JustifiedSlots::new();
+        justified_slots_ops::extend_to_slot(&mut justified_slots, 0, 9);
+        justified_slots_ops::set_justified(&mut justified_slots, 0, 3);
+
+        let mut state = State {
+            config: StateConfig { genesis_time: 0 },
+            slot: 10,
+            latest_block_header: BlockHeader {
+                slot: 9,
+                proposer_index: 0,
+                parent_root: H256::ZERO,
+                state_root: H256::ZERO,
+                body_root: BlockBody::default().hash_tree_root(),
+            },
+            latest_justified: Checkpoint { slot: 3, root: r3 },
+            latest_finalized: Checkpoint {
+                slot: 0,
+                root: H256::ZERO,
+            },
+            historical_block_hashes: SszList::try_from(hashes).unwrap(),
+            justified_slots,
+            validators: SszList::try_from(make_validators(NUM_VALIDATORS)).unwrap(),
+            justifications_roots: Default::default(),
+            justifications_validators: JustificationValidators::new(),
+        };
+
+        let atts: Vec<AggregatedAttestation> =
+            vec![make_attestation(3, (3, r3), (4, r4), (4, r4), &[0, 1, 5], 6)];
+        let atts: AggregatedAttestations = atts.try_into().unwrap();
+
+        let err = process_attestations(&mut state, &atts).unwrap_err();
+        assert!(
+            matches!(
+                err,
+                Error::AggregationBitsOutOfBounds {
+                    index: 5,
+                    validator_count: 4
+                }
+            ),
+            "expected AggregationBitsOutOfBounds {{ index: 5, validator_count: 4 }}, got {err:?}"
+        );
+    }
+}
