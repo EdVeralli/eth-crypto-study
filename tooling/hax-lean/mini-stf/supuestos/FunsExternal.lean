@@ -23,6 +23,29 @@ set_option maxHeartbeats 1000000
 set_option maxRecDepth 2048
 open mini_stf
 
+/- ⚠️ ACA NO VAN AXIOMAS DE FUNCIONES QUE SE EXTRAEN.
+
+   Hasta el 5 nov este archivo tenia dos axiomas muertos,
+   `stf.process_attestations` y `stf.serialize_justifications`, de cuando esas
+   dos funciones eran `--opaque`. Se reescribieron y hoy traducen con cuerpo
+   completo, pero los axiomas quedaron, con las firmas viejas (`HashMap` donde
+   hoy va `mapa.MapaVotos`).
+
+   Y no chocaban con las definiciones generadas, que es lo peligroso: este
+   archivo NO abre `namespace mini_stf`, asi que declara `stf.foo` a secas
+   mientras el generado declara `mini_stf.stf.foo`. Son dos nombres distintos.
+   Al escribir `stf.foo` con `open mini_stf`, gana el axioma.
+
+   O sea que se puede escribir un teorema contra el axioma en vez de contra el
+   codigo, y compila. No prueba nada y parece que si. Lo unico que lo delata es
+   `#print axioms`.
+
+   Es un riesgo del flujo y no un descuido: hax siembra este archivo UNA vez y
+   despues no lo vuelve a mirar, asi que cuando una funcion deja de ser opaca
+   su axioma se queda. Al sacar un `--opaque`, sacar tambien su axioma de aca,
+   y revisar `#print axioms` de los teoremas.
+-/
+
 /-- [mini_stf::ssz::{impl core::fmt::Debug for mini_stf::ssz::FueraDeCapacidad}::fmt]:
     Source: 'src/ssz.rs', lines 15:9-15:14
     Visibility: public -/
@@ -62,21 +85,6 @@ axiom stf.Error.Insts.CoreFmtDisplay.fmt
   :
   stf.Error → core.fmt.Formatter → RustM ((core.result.Result Unit
     core.fmt.Error) × core.fmt.Formatter)
-
-/-- [mini_stf::stf::process_attestations]:
-    Source: 'src/stf.rs', lines 251:0-413:1 -/
-axiom stf.process_attestations
-  :
-  tipos.State → ssz.SszList tipos.AggregatedAttestation 4096#usize → RustM
-    ((core.result.Result Unit stf.Error) × tipos.State)
-
-/-- [mini_stf::stf::serialize_justifications]:
-    Source: 'src/stf.rs', lines 541:0-569:1 -/
-axiom stf.serialize_justifications
-  :
-  tipos.State → std.collections.hash.map.HashMap tipos.H256 (alloc.vec.Vec
-    Bool) std.hash.random.RandomState alloc.alloc.Global → Std.Usize →
-    RustM tipos.State
 
 /-- [mini_stf::tipos::{impl core::fmt::Debug for mini_stf::tipos::H256}::fmt]:
     Source: 'src/tipos.rs', lines 23:9-23:14

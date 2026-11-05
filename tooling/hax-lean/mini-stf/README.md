@@ -475,15 +475,97 @@ a : UScalar.max UScalarTy.U64 < ↑source.slot + ↑1#u64
 afirma nada sobre el caso de falla—, pero la propiedad más fuerte no se cumple
 sin una precondición.
 
+## ST-3 cerrada, 5 nov
+
+Las dos mitades demostradas, las dos sobre el codigo de ethlambda:
+
+| Teorema | Sobre | Dice |
+|---|---|---|
+| `try_finalize_no_retrocede` | `try_finalize` | el slot **finalizado** no retrocede |
+| `try_finalize_no_toca_justified` | `try_finalize` | no toca el slot justificado |
+| `ST3.process_attestations_loop_no_retrocede` | el loop | el slot **justificado** no retrocede en una vuelta |
+| `ST3.process_attestations_no_retrocede` | **la funcion entera** | el slot justificado no retrocede |
+
+El cuarto es el que cierra: habla de `process_attestations`, la funcion que
+ethlambda llama, no de una parte. Base de axiomas: veinte -- tres estandar de
+Lean, seis nativos de la biblioteca de tacticas de Aeneas, y once declaraciones
+y modelos de `std` que solo existen para que las firmas chequeen.
+
+### El lema del loop tenia que ser el de Aeneas, no el de hax
+
+`Hax.loop_range_spec_unsigned` enuncia la obligacion del paso con `⇓`, que
+exige que el cuerpo **no falle nunca**. Eso convierte "el slot justificado no
+retrocede" en un teorema mucho mas grande: ausencia de panico en las doce
+funciones que el cuerpo llama, seis con loops propios.
+
+`Aeneas.Std.loop_spec` toma una postcondicion completa, con ramas de falla y
+divergencia. Eligiendo `PostCond.mayThrow`:
+
+- las obligaciones de falla y divergencia se descargan solas;
+- el desborde de `attestations_processed + 1` deja de importar, asi que se cae
+  la necesidad del invariante reforzado que habiamos anotado el 4 nov;
+- tolerando la divergencia, el `∨ PostCond.div P` se satisface por la derecha
+  y **no hace falta medida de terminacion**.
+
+Y el enunciado que queda es condicional al exito, que es la forma correcta y no
+una version debilitada: la propiedad habla de la transicion de estado, y si la
+transicion falla el bloque se rechaza y no hay estado nuevo del que afirmar
+nada.
+
+### Los dos puentes
+
+Es la pieza mas reutilizable del dia:
+
+```lean
+triple_mayThrow_of : (∀ v, x = ok v → P v) → ⦃True⦄ x ⦃mayThrow (⌜P ·⌝)⦄
+of_triple_mayThrow : ⦃True⦄ x ⦃mayThrow (⌜P ·⌝)⦄ → x = ok v → P v
+```
+
+`triple_mayThrow_of` es el dual de `bind_da_ok`: convierte cualquier teorema que
+ya tengamos **como ecuacion** en el lema `@[spec]` que `mvcgen` sabe usar. El
+otro vuelve. Con los dos se demuestra del lado que conviene y se enuncia del
+lado que se lee.
+
+De ahi que `try_finalize_spec` y `serialize_spec` salgan en una linea de los
+teoremas ecuacionales, sin rehacer nada.
+
+### Lo que NO se pudo: la funcion entera como ecuacion
+
+El primer intento del teorema 5 fue peleando los binds, como en los teoremas 2
+y 3. No sale: el `let` que desarma la tupla que devuelve el loop es un `match`
+sobre el par, `split` no lo atraviesa, y ni `simp only []` ni `dsimp only` lo
+reducen. Con `mvcgen` si, porque maneja sola los cuatro `if` del preambulo y el
+`match` de la bandera.
+
+### ⚠️ Un axioma muerto pisando una definicion real
+
+`Assumptions/FunsExternal.lean` todavia declaraba `axiom
+stf.process_attestations` y `axiom stf.serialize_justifications`, de cuando las
+dos eran `--opaque`, con las firmas viejas (`HashMap` donde hoy va
+`mapa.MapaVotos`).
+
+Y no chocaban con las definiciones generadas, que es lo peligroso: ese archivo
+**no abre `namespace mini_stf`**, asi que declara `stf.foo` mientras el generado
+declara `mini_stf.stf.foo`. Dos nombres distintos. Con `open mini_stf`, el
+ambiguo `stf.foo` resuelve al axioma.
+
+O sea que **se puede escribir un teorema contra el axioma en vez de contra el
+codigo, y compila.** No prueba nada y parece que si. Lo unico que lo delata es
+`#print axioms`.
+
+Los nuestros estaban limpios y los dos axiomas ya se sacaron. Pero el riesgo es
+estructural y no un descuido: hax siembra ese archivo **una sola vez** y despues
+no lo vuelve a mirar, asi que cuando una funcion deja de ser opaca su axioma se
+queda ahi. **Al sacar un `--opaque`, sacar tambien su axioma.**
+
 ## Lo que sigue
 
-1. **Demostrar la segunda mitad de `ST-3`**: que `latest_justified.slot` tampoco
-   retrocede en el loop de `process_attestations`, con
-   `Hax.loop_range_spec_unsigned` y el invariante sobre el acumulador. Recién
-   quedó habilitado.
-2. **Reescribir `try_finalize_no_retrocede` como terna** y marcarlo `@[spec]`,
-   para que el teorema del loop lo pueda usar por composición. Y decidir qué
-   hacer con el desborde: precondición, o postcondición que tolere la falla.
-3. **Reportarle a Cryspen** los dos hallazgos de herramienta: que los nueve
-   axiomas nativos vienen de su propia biblioteca de tácticas, y que
-   `--start-from` no trae los tipos de una dependencia.
+1. **Reportarle a Cryspen** los tres hallazgos de herramienta: que los axiomas
+   nativos vienen de su propia biblioteca de tacticas, que `--start-from` no
+   trae los tipos de una dependencia, y que un axioma de `Assumptions/` puede
+   pisar una definicion generada sin que nada avise.
+2. **Elegir la proxima proposicion** de las treinta y seis de
+   `formal-leanSpec`. Con los dos puentes y el idioma de `loop_spec` andando, la
+   proxima deberia costar bastante menos que esta.
+3. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
+   no, los puentes los hacen usables como estan.

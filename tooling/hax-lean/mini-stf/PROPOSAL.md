@@ -9,6 +9,10 @@ It is not a fork and not a rewrite. **Eight of the twelve functions are
 byte-identical to yours.** The rest of this document says exactly what the
 other four needed, why, and what it costs.
 
+On top of that, **`ST-3` from the spec formalization is proved** — both halves,
+about your code: the one your own regression test asserts by example after the
+devnet freeze at slot 27984.
+
 Everything here was measured by running the toolchain, not inferred from
 documentation. Where a claim has a number, the number came from a run.
 
@@ -205,7 +209,7 @@ Writing it also surfaced something: the parity check beside it (`m % 2 == 1`)
 **can never fail**. `4·delta + 1` is always odd, so its root is too. Not a bug,
 but a condition that does nothing.
 
-### Half of ST-3, proved
+### ST-3, the finality half
 
 `ST-3` from
 [`NyxFoundation/formal-leanSpec`](https://github.com/NyxFoundation/formal-leanSpec)
@@ -247,42 +251,85 @@ theorem try_finalize_no_toca_justified
 proving that field never regresses there requires knowing this one leaves it
 alone.
 
-### The other half of ST-3: where it stands
+### The other half of ST-3, proved
 
-`latest_justified` moves inside the loop in `process_attestations`, so that half
-needs induction over the loop. It is not proved yet, but it is no longer a
-question of feasibility, and the error-propagation fix above is what unblocked
-it: the loop now returns its error flag, so its accumulator and its result have
-the same type — which is exactly what `Hax.loop_range_spec_unsigned` requires.
-Before the fix they differed and the lemma did not apply at all.
+`latest_justified` moves inside the loop in `process_attestations`, so that
+half needed induction over the loop. It is now proved, and not just about the
+loop — about the function you call:
 
-What is measured so far: the lemma unifies with the loop as Aeneas generates it;
-its first two obligations (`0 ≤ n`, and the invariant at entry) discharge in one
-tactic each; and `hax_mvcgen` closes every goal of the third except one — the
-branch where the loop continues.
+```lean
+theorem ST3.process_attestations_no_retrocede
+    (state state' : tipos.State) (atts : ...) (res : ...) :
+    stf.process_attestations state atts = ok (res, state') →
+    state.latest_justified.slot ≤ state'.latest_justified.slot
+```
 
-And stating it as a Hoare triple rather than an equation surfaced something
-worth passing on. The lemma demands the loop body **never fails**, and the body
-does `attestations_processed += 1` on a `u64`. The increment is safe, but only
-because the counter rises at most once per iteration and the loop runs at most
-`attestations.len()` times — so the proof cannot talk about justification alone.
-The invariant has to carry the counter's bound as well. The property that makes
-your loop safe is not just the guard on the assignment; it is also that the
-counter cannot run away. The equational form never asks.
+**So ST-3 is complete.** Both halves, both about your code: the finality half
+on `try_finalize`, the justification half on `process_attestations`.
+
+This is the one your own test asserts by example
+(`latest_justified_does_not_regress_within_block`), and its comment says why it
+exists: on devnet at slot 27984, a block carried three supermajority
+attestations targeting slots 27978, 27981 and 27974 in that order, the
+unconditional assignment kept the last one, and the chain froze. The test
+covers that scenario. The theorem covers every input.
+
+Three notes on how it was done, because each one cost a day and none of it is
+in any documentation.
+
+**The loop lemma had to be Aeneas's, not hax's.** `Hax.loop_range_spec_unsigned`
+states its step obligation with `⇓`, which demands the body **never fail**.
+That turns "the slot does not go backwards" into a far larger theorem: absence
+of panic in all twelve functions the body calls, six of which contain loops of
+their own. `Aeneas.Std.loop_spec` takes a full postcondition with failure and
+divergence branches; choosing `PostCond.mayThrow` discharges those obligations
+for free, makes the `attestations_processed + 1` overflow irrelevant, and —
+because divergence is tolerated — removes the need for a termination measure.
+
+The resulting statement is conditional on success, and that is the right shape,
+not a weakened one. The property is about a state transition; if the transition
+fails the block is rejected and there is no new state to say anything about. It
+matches the shape of the `try_finalize` theorem above.
+
+**Two bridges, and they are the reusable part.**
+
+```lean
+triple_mayThrow_of : (∀ v, x = ok v → P v) → ⦃True⦄ x ⦃mayThrow (⌜P ·⌝)⦄
+of_triple_mayThrow : ⦃True⦄ x ⦃mayThrow (⌜P ·⌝)⦄ → x = ok v → P v
+```
+
+With both, a property can be proved on whichever side is tractable and stated
+on whichever side reads. Thirteen `@[spec]` lemmas feed the loop proof and ten
+more feed the function proof; all but two are content-free, because the
+invariant concerns `latest_justified` and those functions never touch it.
+
+**A dead axiom was shadowing a real definition.** `Assumptions/FunsExternal.lean`
+still declared `axiom stf.process_attestations` and
+`axiom stf.serialize_justifications` from when both were `--opaque`, with the
+old signatures. They did not clash with the generated definitions because that
+file declares `stf.foo` while the generated code declares `mini_stf.stf.foo` —
+two different names. Under `open mini_stf` the ambiguous `stf.foo` resolved to
+the axiom. A theorem written that way compiles, proves nothing, and looks
+right; only `#print axioms` shows it. Ours were clean, and both axioms are now
+removed. The hazard is structural rather than careless: hax seeds that file once
+and never revisits it, so dropping an `--opaque` leaves its axiom behind. Worth
+knowing before you write your own.
+
+Its trust base is twenty axioms: Lean's three, six native ones (see below),
+`HashMap`'s `get`/`insert`/`new` and the `Hash`/`Ord`/`Borrow` declarations that
+only exist so signatures typecheck, and one formatting stub. Neither dead axiom
+appears, which is how you can tell the theorem is about the generated code.
 
 ### Why this statement and not another
 
-The statement is not ours, and your own suite already asserts it by example, in
-`latest_justified_does_not_regress_within_block`. The theorem makes it
-universal: not for the cases you tested, for every input.
+Neither half was chosen because it looked provable. `ST-3` is one of the
+thirty-six propositions in
+[`NyxFoundation/formal-leanSpec`](https://github.com/NyxFoundation/formal-leanSpec),
+so the statement predates our work on it — which matters, because picking your
+own properties makes the exercise circular.
 
-The target beyond that is `ST-3` from
-[`NyxFoundation/formal-leanSpec`](https://github.com/NyxFoundation/formal-leanSpec) —
-*`latest_justified.slot` and `latest_finalized.slot` never go backwards*. Two
-things make it the right one: the statement is not ours, and your own suite
-already asserts it by example, in
-`latest_justified_does_not_regress_within_block`. The theorem would make it
-universal.
+And it is not academic. Your suite already asserts it by example, in a test
+written after the chain froze. The theorem covers the inputs the test does not.
 
 ## Honest limits
 
