@@ -300,48 +300,11 @@ attestations targeting slots 27978, 27981 and 27974 in that order, the
 unconditional assignment kept the last one, and the chain froze. The test
 covers that scenario. The theorem covers every input.
 
-Three notes on how it was done, because each one cost a day and none of it is
-in any documentation.
+How it was done — which tactic, which loop lemma, and the two hazards we hit —
+is in **Proving on the output** below, because it applies to anything you prove
+on this code, not just to this theorem.
 
-**The loop lemma had to be Aeneas's, not hax's.** `Hax.loop_range_spec_unsigned`
-states its step obligation with `⇓`, which demands the body **never fail**.
-That turns "the slot does not go backwards" into a far larger theorem: absence
-of panic in all twelve functions the body calls, six of which contain loops of
-their own. `Aeneas.Std.loop_spec` takes a full postcondition with failure and
-divergence branches; choosing `PostCond.mayThrow` discharges those obligations
-for free, makes the `attestations_processed + 1` overflow irrelevant, and —
-because divergence is tolerated — removes the need for a termination measure.
-
-The resulting statement is conditional on success, and that is the right shape,
-not a weakened one. The property is about a state transition; if the transition
-fails the block is rejected and there is no new state to say anything about. It
-matches the shape of the `try_finalize` theorem above.
-
-**Two bridges, and they are the reusable part.**
-
-```lean
-triple_mayThrow_of : (∀ v, x = ok v → P v) → ⦃True⦄ x ⦃mayThrow (⌜P ·⌝)⦄
-of_triple_mayThrow : ⦃True⦄ x ⦃mayThrow (⌜P ·⌝)⦄ → x = ok v → P v
-```
-
-With both, a property can be proved on whichever side is tractable and stated
-on whichever side reads. Thirteen `@[spec]` lemmas feed the loop proof and ten
-more feed the function proof; all but two are content-free, because the
-invariant concerns `latest_justified` and those functions never touch it.
-
-**A dead axiom was shadowing a real definition.** `Assumptions/FunsExternal.lean`
-still declared `axiom stf.process_attestations` and
-`axiom stf.serialize_justifications` from when both were `--opaque`, with the
-old signatures. They did not clash with the generated definitions because that
-file declares `stf.foo` while the generated code declares `mini_stf.stf.foo` —
-two different names. Under `open mini_stf` the ambiguous `stf.foo` resolved to
-the axiom. A theorem written that way compiles, proves nothing, and looks
-right; only `#print axioms` shows it. Ours were clean, and both axioms are now
-removed. The hazard is structural rather than careless: hax seeds that file once
-and never revisits it, so dropping an `--opaque` leaves its axiom behind. Worth
-knowing before you write your own.
-
-Its trust base is twenty axioms: Lean's three, six native ones (see below),
+The justification theorem's trust base is twenty axioms: Lean's three, six native ones (see below),
 `HashMap`'s `get`/`insert`/`new` and the `Hash`/`Ord`/`Borrow` declarations that
 only exist so signatures typecheck, and one formatting stub. Neither dead axiom
 appears, which is how you can tell the theorem is about the generated code.
@@ -358,6 +321,86 @@ circular.
 
 And it is not academic. Your suite already asserts it by example, in a test
 written after the chain froze. The theorem covers the inputs the test does not.
+
+## Proving on the output
+
+These theorems were not written by hand against raw equations. There is a
+proving workflow for hax-generated Lean, it lands in your `.lake` as soon as you
+build, and most of what we needed came from it — documented at
+[hax.cryspen.com/manual/lean/](https://hax.cryspen.com/manual/lean/). What
+follows is what each piece did here, because two of the choices are
+counter-intuitive and cost a day each.
+
+| Piece | Where from | What it did here |
+|---|---|---|
+| `hax_mvcgen` | hax | the workhorse. Splits a program into verification conditions — over 250 for the attestation loop — and steps through every call that has a `@[spec]` lemma. |
+| Hoare triples and `@[spec]` lemmas | hax, over `Std.Do` | the idiom: one lemma per function, and the tactic names the one that is missing. |
+| `Aeneas.Std.loop_spec` | **Aeneas, not hax** | loop induction. This is the one to use. |
+| `Hax.loop_range_spec_unsigned` | hax | tried, rejected — below. |
+| `--charon-args="--start-from f"` | hax | tried, rejected: it extracts the call graph, not a dependency's type definitions. |
+| `triple_mayThrow_of`, `of_triple_mayThrow` | ours | bridges between an equation and a triple. |
+| `bind_da_ok` | ours | opens one `RustM` bind, for proofs done equationally. |
+
+**Prefer Aeneas's loop lemma over hax's.** `Hax.loop_range_spec_unsigned` states
+its step obligation with `⇓`, which demands the body **never fail**. On
+`process_attestations` that turns "the justified slot does not go backwards"
+into a far larger theorem: absence of panic in all twelve functions the body
+calls, six of which contain loops of their own. `Aeneas.Std.loop_spec` takes a
+full postcondition, with failure and divergence branches. Choosing
+`PostCond.mayThrow` discharges those for free, makes the
+`attestations_processed + 1` overflow irrelevant, and — because divergence is
+tolerated — removes the need for a termination measure entirely.
+
+The statement that comes out is conditional on success, and that is the right
+shape rather than a weakened one: the property is about a state transition, and
+if the transition fails the block is rejected and there is no new state to say
+anything about.
+
+**The two bridges are the reusable part.**
+
+```lean
+triple_mayThrow_of : (∀ v, x = ok v → P v) → ⦃True⦄ x ⦃mayThrow (⌜P ·⌝)⦄
+of_triple_mayThrow : ⦃True⦄ x ⦃mayThrow (⌜P ·⌝)⦄ → x = ok v → P v
+```
+
+`triple_mayThrow_of` is the dual of `bind_da_ok`: it turns any theorem you
+already have **as an equation** into the `@[spec]` lemma the tactic consumes, so
+a result proved the hard way stays usable without being redone. The other
+direction brings a triple back to an equation, which is how the final statements
+above are phrased. Of the twenty-three `@[spec]` lemmas feeding the two proofs,
+all but two are content-free: the invariant concerns `latest_justified`, and
+those functions never touch it.
+
+**`hax_mvcgen` stops silently, and that is the trap.** It decides whether more
+work remains from the *shape* of the goal: `goalNeedsMvcgen` recognizes a
+`Triple`, an `entails` carrying a `wp`, or a `.down` carrying a
+`PredTrans.apply`. A `.down` carrying a bare `WP.wp` matches none of the three,
+so the tactic treats the goal as a finished verification condition and reports
+success — leaving the entire function body wrapped in one `wp`. It does not say
+a spec is missing, because it never tried. If a goal comes back with a `wp` in
+it, the next call is yours to make, not the tactic's.
+
+**A dead axiom can shadow a real definition, and nothing warns you.**
+`Assumptions/FunsExternal.lean` still declared `axiom stf.process_attestations`
+and `axiom stf.serialize_justifications` from when both were `--opaque`, with
+their old signatures. They did not clash with the generated definitions,
+because that file declares `stf.foo` while the generated code declares
+`mini_stf.stf.foo` — two different names. Under `open mini_stf`, the ambiguous
+`stf.foo` resolves to the axiom. A theorem written that way **compiles, proves
+nothing, and looks right**; only `#print axioms` reveals it. Ours were clean and
+both axioms are now gone.
+
+The hazard is structural rather than careless: hax seeds that file once and
+never revisits it, so dropping an `--opaque` leaves its axiom behind forever.
+When you remove an `--opaque`, remove its axiom too, and read `#print axioms` on
+anything you prove.
+
+Two concrete gotchas in the same family. `core.option.Option.is_none` needs its
+own `@[spec]` lemma — it is `let b ← is_some self; ok (b = false)`, and without
+the lemma the tactic cannot get past it; the attestation loop chains four of
+them. And the iterator spec is stated for the literal form
+`{ start := i, «end» := e }`, so a `Range` arriving as a variable has to be
+destructured first or `mvcgen` will not take the first step.
 
 ## Honest limits
 
