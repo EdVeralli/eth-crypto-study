@@ -356,7 +356,7 @@ Esto empezo como prueba de factibilidad y tiene un destino mas concreto:
 mostrarle a LambdaClass como se ve su STF escrita en el subconjunto que Aeneas
 entiende, con sus tests en verde, y con `ST-3` demostrado.
 
-`ST-3` es una de las 36 proposiciones de
+`ST-3` es una de las 35 proposiciones de
 [`NyxFoundation/formal-leanSpec`](https://github.com/NyxFoundation/formal-leanSpec),
 el modelo en Lean del consenso nuevo: *"`latest_justified.slot` y
 `latest_finalized.slot` nunca retroceden"*. Lo que la vuelve la vara ideal es que
@@ -475,9 +475,28 @@ a : UScalar.max UScalarTy.U64 < ↑source.slot + ↑1#u64
 afirma nada sobre el caso de falla—, pero la propiedad más fuerte no se cumple
 sin una precondición.
 
-## ST-3 cerrada, 5 nov
+## Las dos mitades de ST-3, 5 nov
 
-Las dos mitades demostradas, las dos sobre el codigo de ethlambda:
+⚠️ **Ojo con como se dice.** `ST-3` en el catalogo esta enunciada sobre
+`State.transition` -- la transicion de un bloque entera -- y acota los dos
+slots de checkpoint a la vez. Lo que hay aca es cada mitad sobre el componente
+donde ese campo se mueve: la justificacion en `process_attestations`, la
+finalidad en `try_finalize`. **Eso no es la proposicion del catalogo**, y el
+5 nov lo dijimos mal en la primera version de esta seccion.
+
+Falta subir las dos a `state_transition`: que `process_slots` no toque los
+checkpoints, que `process_block_header` no los baje, y que la mitad de
+finalidad suba por el mismo loop. Y una trampa que el catalogo ya avisa: el
+anclaje de genesis del primer bloque fuerza los checkpoints a slot 0, lo que
+hace FALSO el enunciado desnudo para estados adversarios -- de ahi la hipotesis
+`AnchorWF` que ellos cargan. Un lift que la ignore no cierra.
+
+Y el conteo: son **35** proposiciones, no 36 (eso lo veniamos diciendo mal),
+de las cuales **7 son de transicion de estado** y las otras 28 de partes que la
+mini-STF no contiene: fork choice vive en el `Store`, SSZ es serializacion,
+red, storage y sync no estan.
+
+Dicho eso, lo demostrado:
 
 | Teorema | Sobre | Dice |
 |---|---|---|
@@ -486,8 +505,9 @@ Las dos mitades demostradas, las dos sobre el codigo de ethlambda:
 | `ST3.process_attestations_loop_no_retrocede` | el loop | el slot **justificado** no retrocede en una vuelta |
 | `ST3.process_attestations_no_retrocede` | **la funcion entera** | el slot justificado no retrocede |
 
-El cuarto es el que cierra: habla de `process_attestations`, la funcion que
-ethlambda llama, no de una parte. Base de axiomas: veinte -- tres estandar de
+El cuarto es el que mas pesa: habla de `process_attestations`, la funcion que
+ethlambda llama, y no de una parte de ella. No cierra ST-3 -- para eso falta el
+lift de arriba -- pero cubre el modo de falla que si les ocurrio. Base de axiomas: veinte -- tres estandar de
 Lean, seis nativos de la biblioteca de tacticas de Aeneas, y once declaraciones
 y modelos de `std` que solo existen para que las firmas chequeen.
 
@@ -564,8 +584,19 @@ queda ahi. **Al sacar un `--opaque`, sacar tambien su axioma.**
    nativos vienen de su propia biblioteca de tacticas, que `--start-from` no
    trae los tipos de una dependencia, y que un axioma de `Assumptions/` puede
    pisar una definicion generada sin que nada avise.
-2. **Elegir la proxima proposicion** de las treinta y seis de
-   `formal-leanSpec`. Con los dos puentes y el idioma de `loop_spec` andando, la
-   proxima deberia costar bastante menos que esta.
+2. **Subir las dos mitades a `state_transition`**, que convierte lo que hay en
+   ST-3 de verdad. Es el paso corto, y el que va a destapar la trampa del
+   anclaje de genesis.
+
+   Despues, de las 7 de transicion de estado hay dos al alcance: **ST-6** (la
+   finalizacion es irreversible), que el catalogo dice que es *"the
+   `latestFinalized` half of ST-3"* -- o sea nuestro teorema 2 subido -- y
+   **ST-7** (el reemplazo de checkpoint es estrictamente hacia adelante, sin
+   cambio de raiz en el mismo slot). Esa ultima vale por si sola: ethlambda usa
+   `max_by_key`, que ante empate devuelve el SEGUNDO argumento, o sea que cambia
+   la raiz dejando el slot igual -- justo lo que ST-7 prohibe. Puede que no sea
+   alcanzable porque `is_valid_vote` chequea por slot y rechazaria el voto
+   antes, pero entonces estaria a salvo por otro motivo que el de la
+   especificacion, y eso es lo que un teorema aclara.
 3. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

@@ -9,9 +9,11 @@ It is not a fork and not a rewrite. **Eight of the twelve functions are
 byte-identical to yours.** The rest of this document says exactly what the
 other four needed, why, and what it costs.
 
-On top of that, **`ST-3` from the spec formalization is proved** — both halves,
-about your code: the one your own regression test asserts by example after the
-devnet freeze at slot 27984.
+The theorems in it are there for the second half of that claim: that what comes
+out the other end is **usable**, not a dead artifact. They are not a coverage
+claim against any catalog. What they do cover is the property your own
+regression test asserts by example after the devnet freeze at slot 27984 —
+proved for every input, on the function where it froze.
 
 Everything here was measured by running the toolchain, not inferred from
 documentation. Where a claim has a number, the number came from a run.
@@ -190,7 +192,17 @@ the one thing we could not do from outside your repo.
 
 ## What you get
 
-The first theorem is already proved, in `teoremas/ProofObligations.lean`. Your
+Four theorems, in `teoremas/ProofObligations.lean`. They were not picked for
+count — each one demonstrates a different thing the generated Lean supports:
+
+| Theorem | What it demonstrates |
+|---|---|
+| the pronic identity | reasoning about the protocol's arithmetic |
+| `try_finalize` (two) | branches, record updates, functions that pass through `HashMap` axioms |
+| the attestation loop | **induction over a loop** — the part everyone assumes is out of reach on generated code |
+| `process_attestations` | composition: a whole function, with early exits and a `match` |
+
+The first one is the smallest. Your
 comment in `slot_is_justifiable_after` asserts an identity:
 
 ```rust
@@ -209,7 +221,7 @@ Writing it also surfaced something: the parity check beside it (`m % 2 == 1`)
 **can never fail**. `4·delta + 1` is always odd, so its root is too. Not a bug,
 but a condition that does nothing.
 
-### ST-3, the finality half
+### Finality does not roll back, on `try_finalize`
 
 `ST-3` from
 [`NyxFoundation/formal-leanSpec`](https://github.com/NyxFoundation/formal-leanSpec)
@@ -251,11 +263,10 @@ theorem try_finalize_no_toca_justified
 proving that field never regresses there requires knowing this one leaves it
 alone.
 
-### The other half of ST-3, proved
+### Justification does not roll back, on `process_attestations`
 
-`latest_justified` moves inside the loop in `process_attestations`, so that
-half needed induction over the loop. It is now proved, and not just about the
-loop — about the function you call:
+`latest_justified` moves inside the loop, so this one needed induction over the
+loop. It is proved, and not only about the loop — about the function you call:
 
 ```lean
 theorem ST3.process_attestations_no_retrocede
@@ -264,10 +275,25 @@ theorem ST3.process_attestations_no_retrocede
     state.latest_justified.slot ≤ state'.latest_justified.slot
 ```
 
-**So ST-3 is complete.** Both halves, both about your code: the finality half
-on `try_finalize`, the justification half on `process_attestations`.
+**What this is, stated exactly.** `ST-3` in
+[`NyxFoundation/formal-leanSpec`](https://github.com/NyxFoundation/formal-leanSpec)
+is stated over `State.transition` — the whole one-block transition — and bounds
+both checkpoint slots at once. What is proved here is each of its two halves
+over the component where that field actually moves: justification over
+`process_attestations`, finality over `try_finalize`. That is not the catalog
+proposition, and we are not claiming it is.
 
-This is the one your own test asserts by example
+Lifting both to `state_transition` is the remaining step, and it is mostly
+mechanical with the two bridges below: `process_slots` has to leave the
+checkpoints alone, `process_block_header` must not lower them, and the finality
+half has to come up through the same loop. One caveat is already visible in the
+catalog and worth passing on: the first block's genesis anchoring force-assigns
+slot-0 checkpoints, which makes the bare statement **false** for adversarial
+states — the formalization carries an extra `AnchorWF` hypothesis for exactly
+that. A lift that ignores it will not close.
+
+What the two halves do cover is the failure you actually hit. This is the
+property your own test asserts by example
 (`latest_justified_does_not_regress_within_block`), and its comment says why it
 exists: on devnet at slot 27984, a block carried three supermajority
 attestations targeting slots 27978, 27981 and 27974 in that order, the
@@ -322,11 +348,13 @@ appears, which is how you can tell the theorem is about the generated code.
 
 ### Why this statement and not another
 
-Neither half was chosen because it looked provable. `ST-3` is one of the
-thirty-six propositions in
-[`NyxFoundation/formal-leanSpec`](https://github.com/NyxFoundation/formal-leanSpec),
-so the statement predates our work on it — which matters, because picking your
-own properties makes the exercise circular.
+Neither half was chosen because it looked provable. `ST-3` is one of
+thirty-five propositions in
+[`NyxFoundation/formal-leanSpec`](https://github.com/NyxFoundation/formal-leanSpec)
+— seven of which are about the state transition, the rest about fork choice,
+SSZ, the validator, networking, storage and sync. The statement predates our
+work on it, which matters: picking your own properties makes the exercise
+circular.
 
 And it is not academic. Your suite already asserts it by example, in a test
 written after the chain froze. The theorem covers the inputs the test does not.
