@@ -149,6 +149,7 @@ Everything, with line counts as shipped.
 | `axiomas.txt` | 112 | ours — the `#print axioms` output, so the trust base can be read without building. |
 | `README.md` | 604 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
+| `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
 The two files marked **required** are not optional extras; see **Run it**.
 
