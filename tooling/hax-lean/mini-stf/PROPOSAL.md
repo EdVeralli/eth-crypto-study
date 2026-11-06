@@ -42,7 +42,73 @@ If that is no longer `35c074b`, the diff below is stale and has to be redone.
 
 Toolchain: `cargo-hax 0.4.2`, `charon nightly-2026.09.02`, `aeneas build-183e4f0`.
 
+### Where it is, and how to diff it
+
+The crate lives at `tooling/hax-lean/mini-stf/` in
+[`EdVeralli/eth-crypto-study`](https://github.com/EdVeralli/eth-crypto-study).
+The file to compare is `src/stf.rs`; yours is
+`crates/blockchain/state_transition/src/lib.rs` at `35c074b`.
+
+```bash
+diff -u ethlambda/crates/blockchain/state_transition/src/lib.rs \
+        mini-stf/src/stf.rs
+```
+
+Three kinds of difference come out of that, and only the third is behavioural:
+
+1. the `use` block — our types come from this crate instead of yours;
+2. nineteen helper functions that are new and ours;
+3. the four functions in the table below.
+
+Comments differ too, ours included, since each change carries a note saying why
+it is there. So to check the "eight of twelve unchanged" claim specifically,
+strip comments and blank lines first — crudely, but enough to eyeball:
+
+```bash
+plain() { sed 's://.*::' "$1" | grep -v '^[[:space:]]*$'; }
+diff -u <(plain ethlambda/.../lib.rs) <(plain mini-stf/src/stf.rs)
+```
+
+That is a blunt instrument — it would also cut a `//` inside a string literal,
+though there are none in either file. It is for reading, not for CI.
+
+Please do this before trusting any number here. Every figure in this document
+came from a run, but a diff you performed yourself is worth more than a figure
+we are asserting.
+
 ## Run it
+
+You need `cargo-hax 0.4.2`, `charon nightly-2026.09.02`,
+`aeneas build-183e4f0` and `elan`. We ran everything on x86-64 Linux; on Intel
+macOS the toolchain is unsupported, so we used a `linux/amd64` container.
+
+One command, from the crate root:
+
+```bash
+bash regenerar.sh
+```
+
+It does three things in order, and **the middle one is not optional**:
+
+1. extract — `cargo hax into lean` with the two flags below;
+2. **restore the hand-written Lean**;
+3. `lake build`.
+
+Step 2 is there because `proofs/` is generated output and is not in version
+control, while the Lean we wrote by hand is. On a fresh checkout hax seeds
+`Assumptions/` from its own templates — skeletons, not our models of
+`HashMap::get`, `U64::isqrt`, `mem::take` and the rest — so a bare
+`cargo hax into lean && lake build` **fails** with unknown identifiers. The same
+thing happens after any failed extraction, which clears those files. The copies
+that matter are tracked:
+
+```
+supuestos/TypesExternal.lean    →  proofs/lean/MiniStf/Assumptions/
+supuestos/FunsExternal.lean     →  proofs/lean/MiniStf/Assumptions/
+teoremas/ProofObligations.lean  →  proofs/lean/MiniStf/Verification/
+```
+
+The extraction itself, if you want to run it by hand:
 
 ```bash
 cargo hax into lean \
@@ -50,6 +116,15 @@ cargo hax into lean \
                  --opaque '{impl core::fmt::Display for _}'"
 cd proofs/lean && lake build
 ```
+
+Both `--opaque` are required. Without them every `#[derive(Debug)]` fails with
+`[Error] Unreachable`, and removing the derive is not a way out: `.expect()`
+needs it. The first `lake build` also compiles Aeneas, `CoreModels` and the hax
+tactic library, which takes a while; later ones do not.
+
+What a successful run looks like: `Build completed successfully (1742 jobs)`,
+no `sorry`, and the twelve functions present as `def`s in
+`proofs/lean/MiniStf/Extraction/Funs.lean`.
 
 And the tests — your six, unchanged except for the `use` lines, plus two we
 added:
@@ -62,36 +137,53 @@ Eight pass.
 
 ## What is yours and what is ours
 
-| File | Origin |
-|---|---|
-| `src/stf.rs` | **yours** — `state_transition/src/lib.rs`, 8 of 12 functions untouched |
-| `src/justified_slots_ops.rs` | **yours** — unchanged except the `use` lines |
-| the test module at the end of `stf.rs` | **yours** — unchanged except the `use` lines, plus two tests we added |
-| `src/tipos.rs` | **your type definitions**, with the serialization derives removed |
-| `src/ssz.rs` | ours — stand-ins for `SszList` and `SszBitlist` |
-| `src/mapa.rs` | ours — an association list replacing one `HashMap` |
-| `src/stubs.rs` | ours — no-op `tracing` and metrics |
+Everything in the crate, nothing held back. Line counts are the files as
+shipped.
+
+| File | Lines | Origin |
+|---|---|---|
+| `src/stf.rs` | 1484 | **yours** — `state_transition/src/lib.rs`. Eight of twelve functions unchanged, four rewritten, nineteen helpers of ours, and your 437-line test module with two tests added. |
+| `src/justified_slots_ops.rs` | 90 | **yours** — unchanged except the `use` lines. |
+| `src/tipos.rs` | 431 | **your type definitions**, with the serialization derives removed, plus our stand-in `hash_tree_root`. |
+| `src/ssz.rs` | 154 | ours — stand-ins for `SszList` and `SszBitlist`. |
+| `src/mapa.rs` | 245 | ours — an association list replacing one `HashMap`. |
+| `src/stubs.rs` | 49 | ours — no-op `tracing` and metrics. |
+| `src/lib.rs` | 51 | ours — module wiring. |
+| `Cargo.toml` | 10 | ours. |
+| `regenerar.sh` | 36 | ours — extract, restore, build. |
+| `supuestos/TypesExternal.lean` | 49 | **ours, and required** — models of `HashMap` and `RandomState`. |
+| `supuestos/FunsExternal.lean` | 309 | **ours, and required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
+| `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the trust base of each theorem. |
+| `teoremas/ProofObligations.lean` | 686 | ours — the theorems. |
+| `axiomas.txt` | 56 | ours — the raw `#print axioms` output, so the trust base can be read without building. |
+| `README.md` | 602 | ours — the working log: every obstacle in the order we hit it, including the ones that turned out to be our own mistakes. |
+
+The two Lean files marked **required** are not optional extras: `proofs/` is
+generated and not in version control, so without them a fresh extraction does
+not build. See **Run it**.
 
 ## What changed in your code
 
-Measured against `35c074b`, ignoring comments:
+Counted on the twelve functions with comments and blank lines removed;
+*removed* and *added* come from a per-function unified diff against `35c074b`.
 
-| Function | Changed |
-|---|---|
-| `state_transition` | — |
-| `process_slots` | — |
-| `process_block` | — |
-| `is_valid_vote` | — |
-| `attestation_data_matches_chain` | — |
-| `slot_is_justifiable_after` | — |
-| `is_proposer` | — |
-| `current_proposer` | — |
-| `process_block_header` | 3 lines |
-| `try_finalize` | ~18 lines |
-| `serialize_justifications` | ~23 lines |
-| `process_attestations` | ~91 lines |
+| Function | Yours | Ours | Removed | Added |
+|---|---|---|---|---|
+| `state_transition` | 13 | 13 | — | — |
+| `process_slots` | 16 | 16 | — | — |
+| `process_block` | 6 | 6 | — | — |
+| `is_valid_vote` | 28 | 28 | — | — |
+| `attestation_data_matches_chain` | 23 | 23 | — | — |
+| `slot_is_justifiable_after` | 11 | 11 | — | — |
+| `is_proposer` | 3 | 3 | — | — |
+| `current_proposer` | 3 | 3 | — | — |
+| `process_block_header` | 68 | 70 | 1 | 3 |
+| `try_finalize` | 43 | 48 | 15 | 20 |
+| `serialize_justifications` | 28 | 20 | 16 | 8 |
+| `process_attestations` | 110 | 96 | 79 | 65 |
+| **total** | **352** | **337** | **111** | **96** |
 
-Plus nineteen new helper functions, which are ours.
+Plus nineteen helper functions that are ours, 179 lines in all.
 
 Your six tests pass before and after every one of these changes. That is the
 evidence we have, and it is yours — but it is weaker than it looks, and we found
