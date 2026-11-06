@@ -1,56 +1,112 @@
-Salida de `lake env lean RevisarAxiomas.lean` sobre mini-stf.
-Corrida el 30 de octubre de 2026, adentro del contenedor hax-lean.
-Reproducir: cp supuestos/RevisarAxiomas.lean proofs/lean/ && cd proofs/lean && lake env lean RevisarAxiomas.lean
+BASE DE AXIOMAS DE CADA TEOREMA
 
-'mini_stf.stf.state_transition' depends on axioms: [propext,
- Classical.choice,
- Quot.sound,
- stf.process_attestations,
- core.mem.take,
- core.bool.Bool.then,
- ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt,
- mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1,
- mini_stf.stf.process_block_header._native.decide.ax_3,
- mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3]
-'mini_stf.stf.process_slots' depends on axioms: [propext, Classical.choice, Quot.sound]
-'mini_stf.stf.process_block' depends on axioms: [propext,
- Classical.choice,
- Quot.sound,
- stf.process_attestations,
- core.mem.take,
- core.bool.Bool.then,
- ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt,
- mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1,
- mini_stf.stf.process_block_header._native.decide.ax_3,
- mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3]
-'mini_stf.stf.process_block_header' depends on axioms: [propext,
- Classical.choice,
- Quot.sound,
- core.mem.take,
- core.bool.Bool.then,
- ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt,
- mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1,
- mini_stf.stf.process_block_header._native.decide.ax_3,
- mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3]
-'mini_stf.stf.is_valid_vote' depends on axioms: [propext, Classical.choice, Quot.sound, core.num.U64.isqrt]
-'mini_stf.stf.slot_is_justifiable_after' depends on axioms: [propext, Classical.choice, Quot.sound, core.num.U64.isqrt]
-'mini_stf.stf.attestation_data_matches_chain' depends on axioms: [propext, Classical.choice, Quot.sound]
-'mini_stf.stf.is_proposer' depends on axioms: [propext, Classical.choice, Quot.sound, core.bool.Bool.then]
-'mini_stf.stf.current_proposer' depends on axioms: [propext, Classical.choice, Quot.sound, core.bool.Bool.then]
-'mini_stf.justified_slots_ops.is_slot_justified' depends on axioms: [propext, Classical.choice, Quot.sound]
-'mini_stf.justified_slots_ops.set_justified' depends on axioms: [propext,
- Classical.choice,
- Quot.sound,
- ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt,
- mini_stf.justified_slots_ops.set_justified._native.decide.ax_1]
-'mini_stf.justified_slots_ops.extend_to_slot' depends on axioms: [propext,
- Classical.choice,
- Quot.sound,
- ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt,
- mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1,
- mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3]
-'mini_stf.justified_slots_ops.shift_window' depends on axioms: [propext,
- Classical.choice,
- Quot.sound,
- ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt,
- mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1]
+Salida de los `#print axioms` de teoremas/ProofObligations.lean, generada
+por `lake build` el 6 nov 2026. Se entrega para que la base de confianza se
+pueda leer sin tener que compilar.
+
+Tres categorias:
+
+  ESTANDAR   los tres de Lean (propext, Classical.choice, Quot.sound). Los
+             usa cualquier demostracion clasica; no dicen nada sobre este
+             codigo.
+  NATIVOS    `_native.decide.ax_*`: el nucleo NO los chequeo, los computo el
+             compilador. No salen de nuestro codigo ni del de ethlambda:
+             salen de la biblioteca de tacticas de Aeneas
+             (Tactic/Simproc/BvSimprocs.lean, Tactic/Step/StepArraySpec.lean),
+             descargando cotas de arrays y escalares. No hay flag para
+             apagarlos.
+  MODELOS    declaraciones que existen solo para que las firmas chequeen, y
+             modelos escritos a mano de operaciones de core/std que CoreModels
+             no cubre.
+
+========================================================================
+
+pronic_iff_cuadrado
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+chequeo_de_paridad_redundante
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+bind_da_ok
+  TOTAL 1 = 1 estandar + 0 nativos + 0 modelos
+
+try_finalize_no_retrocede
+  TOTAL 13 = 3 estandar + 3 nativos + 7 modelos
+  modelos:
+    - core.borrow.Borrow
+    - core.hash.BuildHasher
+    - core.borrow.Borrow.Blanket
+    - core.Array.Insts.CoreHashHash.hash
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+    - std.collections.hash.map.HashMap.get
+    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.stf.try_finalize._native.decide.ax_1
+    ~ mini_stf.stf.try_finalize._native.decide.ax_2
+
+try_finalize_no_toca_justified
+  TOTAL 13 = 3 estandar + 3 nativos + 7 modelos
+  modelos:
+    - core.borrow.Borrow
+    - core.hash.BuildHasher
+    - core.borrow.Borrow.Blanket
+    - core.Array.Insts.CoreHashHash.hash
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+    - std.collections.hash.map.HashMap.get
+    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.stf.try_finalize._native.decide.ax_1
+    ~ mini_stf.stf.try_finalize._native.decide.ax_2
+
+ST3.process_attestations_loop_no_retrocede
+  TOTAL 14 = 3 estandar + 4 nativos + 7 modelos
+  modelos:
+    - core.borrow.Borrow
+    - core.hash.BuildHasher
+    - core.borrow.Borrow.Blanket
+    - core.Array.Insts.CoreHashHash.hash
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+    - std.collections.hash.map.HashMap.get
+    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+    ~ mini_stf.stf.try_finalize._native.decide.ax_1
+    ~ mini_stf.stf.try_finalize._native.decide.ax_2
+
+ST3.process_attestations_no_retrocede
+  TOTAL 20 = 3 estandar + 7 nativos + 10 modelos
+  modelos:
+    - core.borrow.Borrow
+    - core.hash.BuildHasher
+    - core.borrow.Borrow.Blanket
+    - core.Array.Insts.CoreCmpOrd.cmp
+    - core.Array.Insts.CoreHashHash.hash
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+    - std.collections.hash.map.HashMap.get
+    - std.collections.hash.map.HashMap.insert
+    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
+    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
+    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
+    ~ mini_stf.stf.try_finalize._native.decide.ax_1
+    ~ mini_stf.stf.try_finalize._native.decide.ax_2
+    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+
+========================================================================
+
+NATIVOS DISTINTOS EN TODO EL BUILD: 7
+
+  mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+  mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+  mini_stf.stf.serialize_justifications._native.decide.ax_1
+  mini_stf.stf.serialize_justifications._native.decide.ax_2
+  mini_stf.stf.try_finalize._native.decide.ax_1
+  mini_stf.stf.try_finalize._native.decide.ax_2
+  mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+

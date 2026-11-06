@@ -6,8 +6,9 @@ Lean project that typechecks, with all twelve functions translated and no
 `sorry`.
 
 It is not a fork and not a rewrite. **Eight of the twelve functions are
-byte-identical to yours.** The rest of this document says exactly what the
-other four needed, why, and what it costs.
+identical to yours, comments aside** — the comments differ, because each change
+we did make carries a note saying why. The rest of this document says exactly
+what the other four needed, why, and what it costs.
 
 The theorems in it are there for the second half of that claim: that what comes
 out the other end is **usable**, not a dead artifact. They are not a coverage
@@ -28,17 +29,21 @@ whatever `main` happens to be:
 |---|---|---|
 | `state_transition/src/lib.rs` | `35c074b` *(feat: add Beacon Chain support, #661)* | 2026-10-20 |
 
-Verified unchanged through `6168a0e` (2026-11-03), which is where the line
-counts below were measured. The repository moves — there are commits from
-2 and 3 Nov — but not in this file.
+Checked again on 6 Nov 2026: the file on `main` is byte-identical to the one at
+`35c074b`. We compared contents rather than tracking commits, because that is
+what the numbers below actually depend on — the repository moves, this file has
+not.
 
-To re-check before acting on any number here:
+The same check, so you do not have to take our word for it:
 
 ```bash
-git log --oneline -1 -- crates/blockchain/state_transition/src/lib.rs
+P=crates/blockchain/state_transition/src/lib.rs
+curl -sS https://raw.githubusercontent.com/lambdaclass/ethlambda/35c074b/$P | sha256sum
+curl -sS https://raw.githubusercontent.com/lambdaclass/ethlambda/main/$P | sha256sum
 ```
 
-If that is no longer `35c074b`, the diff below is stale and has to be redone.
+If those two hashes differ, every figure below is stale and the diff has to be
+redone.
 
 Toolchain: `cargo-hax 0.4.2`, `charon nightly-2026.09.02`, `aeneas build-183e4f0`.
 
@@ -142,7 +147,7 @@ shipped.
 
 | File | Lines | Origin |
 |---|---|---|
-| `src/stf.rs` | 1484 | **yours** — `state_transition/src/lib.rs`. Eight of twelve functions unchanged, four rewritten, nineteen helpers of ours, and your 437-line test module with two tests added. |
+| `src/stf.rs` | 1484 | **yours** — `state_transition/src/lib.rs`. Eight of twelve functions unchanged, four rewritten, nineteen helpers of ours, and your test module — 437 lines, unchanged except the `use` lines — with two tests of ours appended. |
 | `src/justified_slots_ops.rs` | 90 | **yours** — unchanged except the `use` lines. |
 | `src/tipos.rs` | 431 | **your type definitions**, with the serialization derives removed, plus our stand-in `hash_tree_root`. |
 | `src/ssz.rs` | 154 | ours — stand-ins for `SszList` and `SszBitlist`. |
@@ -258,7 +263,7 @@ is a maintenance cost, and it is the honest price of the whole exercise.
 
 ## Folding this into your tree
 
-This crate works as delivered: clone it, run the three commands, and you have
+This crate works as delivered: clone it, run `bash regenerar.sh`, and you have
 the STF in Lean. Nothing here is pending on our side.
 
 What is a decision on yours is whether to fold it into `ethlambda` itself, and
@@ -284,8 +289,10 @@ the one thing we could not do from outside your repo.
 
 ## What you get
 
-Four theorems, in `teoremas/ProofObligations.lean`. They were not picked for
-count — each one demonstrates a different thing the generated Lean supports:
+`teoremas/ProofObligations.lean` holds seven named results: four about your
+code, two about the arithmetic in it, and one reusable tool. They were not
+picked for count — each group demonstrates a different thing the generated Lean
+supports:
 
 | Theorem | What it demonstrates |
 |---|---|
@@ -294,8 +301,8 @@ count — each one demonstrates a different thing the generated Lean supports:
 | the attestation loop | **induction over a loop** — the part everyone assumes is out of reach on generated code |
 | `process_attestations` | composition: a whole function, with early exits and a `match` |
 
-The first one is the smallest. Your
-comment in `slot_is_justifiable_after` asserts an identity:
+The arithmetic one is the smallest. Your comment in
+`slot_is_justifiable_after` asserts an identity:
 
 ```rust
 // Mathematical insight: For pronic delta = n(n+1), we have:
@@ -335,12 +342,16 @@ if source.slot <= state.latest_finalized.slot { return; }
 state.latest_finalized = source;
 ```
 
-Its trust base is twelve axioms: Lean's three, three type declarations that
-only exist so signatures typecheck, three `std` operations with no model
-(`HashMap::get` and the `Hash` of `[T; N]`), one formatting stub — and **three
-of the native axioms described below**. None of the opaque declarations are
-load-bearing here; the property comes from the guard, not from anything the
-map or the hash does.
+Its trust base is thirteen axioms: Lean's three; seven declarations and models
+that exist only so signatures typecheck (`core.borrow.Borrow` and its blanket
+instance, `core.hash.BuildHasher`, the `Hash` of `[T; N]`, one `Debug::fmt`
+stub, `HashMap::get`, and `RandomState`'s `BuildHasher` instance); and **three
+of the native axioms described below**. None of them is load-bearing here: the
+property comes from the guard, not from anything the map or the hash does.
+
+That is also the whole trust base of the **translated definition** of
+`try_finalize` — the same thirteen, item for item, before any theorem exists.
+Proving this one added nothing to it.
 
 A companion theorem is proved alongside it, and the other half needs it:
 
@@ -396,10 +407,15 @@ How it was done — which tactic, which loop lemma, and the two hazards we hit �
 is in **Proving on the output** below, because it applies to anything you prove
 on this code, not just to this theorem.
 
-The justification theorem's trust base is twenty axioms: Lean's three, six native ones (see below),
-`HashMap`'s `get`/`insert`/`new` and the `Hash`/`Ord`/`Borrow` declarations that
-only exist so signatures typecheck, and one formatting stub. Neither dead axiom
-appears, which is how you can tell the theorem is about the generated code.
+The justification theorem's trust base is twenty axioms: Lean's three; **seven
+native ones** (see below); `HashMap`'s `get`, `insert` and `new`; the `Borrow`,
+`BuildHasher`, `Ord` and `Hash` declarations that exist only so signatures
+typecheck; and one `Debug::fmt` stub. The loop theorem underneath it carries
+fourteen, and the two `try_finalize` theorems thirteen each.
+
+Neither of the dead axioms described below appears in any of them, which is how
+you can tell these theorems are about the generated code and not about an empty
+declaration.
 
 ### Why this statement and not another
 
@@ -502,14 +518,83 @@ is all the STF asks of it, but it is not interoperable. On the Lean side the
 right treatment is to declare it opaque and carry injectivity as an explicit
 hypothesis.
 
-**Nine native axioms, and nobody chose them.** The trust base of the generated
-definitions includes nine `_native.decide.ax_*` axioms — facts the Lean kernel
-did not check, computed by the compiler instead. They do not come from your
-code or ours: they come from Aeneas's own tactic library
-(`Tactic/Simproc/BvSimprocs.lean`, `Tactic/Step/StepArraySpec.lean`), discharging
-array and scalar bounds. There is no flag to turn them off. Any theorem about
-these functions inherits them, so the honest phrasing is "proved, modulo nine
-arithmetic facts the kernel did not verify". This is worth reporting upstream.
+**Seven native axioms, and they belong to the translation, not to the proofs.**
+The build emits seven distinct `_native.decide.ax_*` axioms — facts the Lean
+kernel did not check, computed by the compiler instead:
+
+```
+justified_slots_ops.extend_to_slot._native.decide.ax_1
+justified_slots_ops.set_justified._native.decide.ax_1
+stf.serialize_justifications._native.decide.ax_1
+stf.serialize_justifications._native.decide.ax_2
+stf.try_finalize._native.decide.ax_1
+stf.try_finalize._native.decide.ax_2
+stf.volcar_votos_loop.body._native.decide.ax_1
+```
+
+The names are misleading: they are prefixed with *your* functions because that
+is where each one appeared, not because anyone decided to put it there.
+Defining a function in Lean can require proofs — a scalar literal carries a
+proof that it fits its type, indexing carries a proof that the index is in
+range — and Aeneas generates those obligations as it translates, then discharges
+the bound-related ones with `native_decide`, which evaluates with the compiler
+instead of the kernel. Its tactic library is where that choice is made
+(`Tactic/Simproc/BvSimprocs.lean`, `Tactic/Step/StepArraySpec.lean`), and no
+flag turns it off.
+
+So these arrive with the **translated definitions**, before any theorem exists.
+Measured rather than argued:
+
+```
+#print axioms mini_stf.stf.try_finalize   -- a `def`, no theorem involved
+```
+
+returns the same thirteen axioms as our `try_finalize` theorem, item for item.
+**Our theorems add none.** Translate ethlambda's STF with this toolchain and
+prove nothing at all, and you already have them; proving on top of the output
+does not widen the trust base by a single entry.
+
+Each theorem carries only those on its path. The two arithmetic ones carry
+none — Lean's three standard axioms and nothing else. The `try_finalize` pair
+carries three, the loop theorem four, the `process_attestations` theorem all
+seven. The honest phrasing for the largest is "proved, modulo seven arithmetic
+facts the kernel did not verify", and the per-theorem breakdown, with the
+categories separated, is in `axiomas.txt`.
+
+What we did not trace is which concrete obligation each of the seven discharges.
+We know where they come from and that they live in the definitions; we did not
+open each one to name the fact it stands for.
+
+**Twenty-eight declarations of ours, and they assert nothing.** Our
+`supuestos/FunsExternal.lean` declares twenty-eight axioms that are signatures
+and no more — `HashMap`'s `get`, `insert` and `new`, the `Borrow` and
+`BuildHasher` trait types, the `cmp` and `hash` of `[T; N]`, `mem::take`,
+`bool::then`, and seventeen `Debug::fmt` stubs. They exist so the generated Lean
+**compiles**. `try_finalize` calls `root_to_slot.get(…)`, Aeneas names
+`HashMap::get` in the output, `CoreModels` has no model for it, and without the
+declaration the module dies with `Unknown identifier` — nothing in the project
+builds.
+
+This is a gap of a different and milder kind than the native axioms. An axiom
+that states nothing yields nothing: you cannot derive a falsehood from it
+because you cannot derive anything at all. What it costs is reach — any property
+that depends on how the map behaves is out of bounds. Writing models *with*
+content would buy those properties at the price of asserting things that could
+be wrong, and we declined that trade; it is the same call as leaving
+`hash_tree_root` opaque.
+
+The one real assertion we make is `U64::isqrt`, modeled as `Nat.sqrt`. Both are
+the floor of the square root, so we believe it, but it is our claim and not
+something the toolchain checked. `HashMap` also gets a representation in
+`TypesExternal.lean` — a list of pairs — but `get` and `insert` stay opaque over
+it, so no behaviour is asserted.
+
+None of the twenty-eight carries weight in the theorems above: the properties
+come from the guards and the assignments, not from anything the map, the hash or
+the formatter does. That is a claim about the proofs, read off them. `#print
+axioms` tells you what a theorem depends on, not whether it leans on that
+dependency's behaviour, and that distinction is ours to argue rather than the
+tool's to measure.
 
 **The vendored types drift.** `src/tipos.rs` is a copy of your definitions. If
 `State` changes, someone has to sync it. The way out is the architectural ask

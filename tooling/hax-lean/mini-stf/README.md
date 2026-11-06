@@ -580,11 +580,13 @@ queda ahi. **Al sacar un `--opaque`, sacar tambien su axioma.**
 
 ## Lo que sigue
 
-1. **Reportarle a Cryspen** los tres hallazgos de herramienta: que los axiomas
-   nativos vienen de su propia biblioteca de tacticas, que `--start-from` no
-   trae los tipos de una dependencia, y que un axioma de `Assumptions/` puede
-   pisar una definicion generada sin que nada avise.
-2. **Subir las dos mitades a `state_transition`**, que convierte lo que hay en
+Los tres hallazgos de herramienta -- que los axiomas nativos vienen de la
+biblioteca de tacticas de Aeneas, que `--start-from` no trae los tipos de una
+dependencia, y que un axioma de `Assumptions/` puede pisar una definicion
+generada sin que nada avise -- quedan anotados aca y en el PROPOSAL, pero **no
+vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
+
+1. **Subir las dos mitades a `state_transition`**, que convierte lo que hay en
    ST-3 de verdad. Es el paso corto, y el que va a destapar la trampa del
    anclaje de genesis.
 
@@ -598,5 +600,5 @@ queda ahi. **Al sacar un `--opaque`, sacar tambien su axioma.**
    alcanzable porque `is_valid_vote` chequea por slot y rechazaria el voto
    antes, pero entonces estaria a salvo por otro motivo que el de la
    especificacion, y eso es lo que un teorema aclara.
-3. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
+2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.
