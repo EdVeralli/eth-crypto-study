@@ -146,8 +146,9 @@ Everything, with line counts as shipped.
 | `supuestos/FunsExternal.lean` | 309 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the trust base of each theorem. |
 | `teoremas/ProofObligations.lean` | 686 | ours — the theorems. |
-| `axiomas.txt` | 56 | ours — the `#print axioms` output, so the trust base can be read without building. |
-| `README.md` | 602 | ours — the working log: every obstacle in the order we hit it. |
+| `axiomas.txt` | 112 | ours — the `#print axioms` output, so the trust base can be read without building. |
+| `README.md` | 604 | ours — the working log: every obstacle in the order we hit it. |
+| `PROPOSAL.md` | — | ours — this document. |
 
 The two files marked **required** are not optional extras; see **Run it**.
 
