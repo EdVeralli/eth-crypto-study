@@ -23,10 +23,16 @@ build/
 # Local de Claude Code / restos
 .claude/settings.local.json
 
-# Salida de la cadena hax/Aeneas y del build de Rust (regenerable, pesa GB)
+# Salida de la cadena hax/Aeneas y del build de Rust.
+#
+# proofs/ son 124.386 archivos: Mathlib, Aeneas y hax bajados por lake, varios
+# GB de codigo de otros proyectos. Se regenera con `bash regenerar.sh`, y lo
+# verificamos moviendolo de lado y rearmandolo desde cero el 5 nov 2026.
 tooling/hax-lean/*/proofs/
 tooling/hax-lean/*/target/
-tooling/hax-lean/*/Cargo.lock
 
-# Logs de corridas de la cadena de herramientas
-tooling/hax-lean/*/*.log
+# Los Cargo.lock SI van versionados, desde el 11 nov 2026. Fijan las versiones
+# de las dependencias del crate, que es la misma preocupacion por la que el
+# Dockerfile fija cargo-hax en 0.4.2: sin ellos, un `cargo build` de dentro de
+# unos meses puede resolver otras versiones y los numeros del PROPOSAL dejan de
+# valer. Estaban ignorados por error de criterio.

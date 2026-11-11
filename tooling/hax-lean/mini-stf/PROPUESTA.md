@@ -76,7 +76,38 @@ no para CI.
 
 ## Cómo correrlo
 
-Un comando, desde la raíz del crate:
+### El entorno
+
+La cadena de herramientas no tiene build para macOS Intel, así que la corrimos
+en un contenedor. El `Dockerfile` está un nivel arriba de este crate, en
+`tooling/hax-lean/`, y fija `cargo-hax` en **0.4.2** — la versión contra la que
+se midió cada número de este documento.
+
+Ese pin importa más de lo que parece: `0.5.0` ya está publicada, así que un
+build sin versión fija hoy la instalaría y no reproduciría este entorno. Las
+versiones de Charon y de Aeneas se desprenden de la de hax, que las baja sola;
+la de Lean la fija el `lean-toolchain` de cada proyecto, que sí está en control
+de versiones.
+
+```bash
+cd tooling/hax-lean
+docker build --platform linux/amd64 -t hax-lean .
+docker run --platform linux/amd64 -it \
+  -v "$PWD/mini-stf:/work" \
+  -v hax-cargo:/root/.cargo/registry \
+  -v hax-cache:/root/.cache/hax \
+  -v hax-elan:/root/.elan \
+  hax-lean bash
+```
+
+El primer build tarda: compila `cargo-hax` y después precalienta Charon, Aeneas
+y la nightly de Rust que Charon pide — varios GB en total. Los volúmenes con
+nombre hacen que las corridas siguientes no bajen nada. Si ya tienen las tres
+herramientas en esas versiones, saltéenlo y vayan derecho al comando de abajo.
+
+### Un comando
+
+Desde la raíz del crate:
 
 ```bash
 bash regenerar.sh
@@ -145,12 +176,14 @@ Todo, con las líneas tal como se entrega.
 | `src/stubs.rs` | 49 | nuestro — `tracing` y métricas que no hacen nada. |
 | `src/lib.rs` | 51 | nuestro — cableado de módulos. |
 | `Cargo.toml` | 10 | nuestro. |
+| `Cargo.lock` | 65 | nuestro, y versionado a propósito — fija las versiones de las dependencias, la misma preocupación que el pin de `cargo-hax` en el Dockerfile. |
 | `regenerar.sh` | 36 | nuestro — extraer, restaurar, compilar. |
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 309 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime la base de confianza de cada teorema. |
 | `teoremas/ProofObligations.lean` | 686 | nuestro — los teoremas. |
 | `axiomas.txt` | 112 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
+| `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
 | `README.md` | 604 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |

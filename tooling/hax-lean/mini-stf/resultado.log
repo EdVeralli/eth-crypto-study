@@ -1,0 +1,96 @@
+     Running charon
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.27
+   Compiling thiserror v2.0.21
+   Compiling syn v3.0.9
+   Compiling thiserror-impl v2.0.21
+   Compiling mini-stf v0.1.0 (/work)
+warning: unused import: `ShortRoot`
+ --> src/stf.rs:6:49
+  |
+6 |     HashTreeRoot as _, JustificationValidators, ShortRoot, State, HISTORICAL_ROOTS_LIMIT,
+  |                                                 ^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `finalized_slot`
+   --> src/stf.rs:506:9
+    |
+506 |     let finalized_slot = source.slot;
+    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_finalized_slot`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `previous_finalized`
+   --> src/stf.rs:507:9
+    |
+507 |     let previous_finalized = old_finalized_slot;
+    |         ^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_previous_finalized`
+
+warning: unused variable: `justified_slot`
+   --> src/stf.rs:508:9
+    |
+508 |     let justified_slot = state.latest_justified.slot;
+    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_justified_slot`
+
+warning: unused variable: `justified_slot`
+   --> src/stf.rs:394:17
+    |
+394 |             let justified_slot = target.slot;
+    |                 ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_justified_slot`
+
+warning: unused variable: `threshold`
+   --> src/stf.rs:395:17
+    |
+395 |             let threshold = (2 * validator_count).div_ceil(3);
+    |                 ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_threshold`
+
+error: Type error after transformations:
+       Mismatched trait clause:
+       expected: TraitClause0_1: (Enumerate<I>: Iterator<&'a T>)
+            got: impl_Iterator_for_Enumerate<I, Clause0_Item>[TraitClause0]: Iterator<Enumerate<I>, (usize, Clause0_Item)>
+       Visitor stack:
+         charon_lib::ast::items::item_ids::FunDeclRef
+         charon_lib::ast::type_level::Binder<charon_lib::ast::items::item_ids::FunDeclRef>
+         charon_lib::ids::index_map::IndexMap<charon_lib::ast::items::trait_decl::TraitMethodId, charon_lib::ast::type_level::Binder<charon_lib::ast::items::item_ids::FunDeclRef>>
+         charon_lib::ast::items::trait_impl::TraitImpl
+       Binding stack (depth 2):
+         0: <'a, T, Clause1_Item, TraitClause0: (missing(@TypeBound(1, 0)): @TraitDecl0), TraitClause1: (@Adt49<missing(@TypeBound(2, 0))>: @TraitDecl8<missing(@TypeBound(1, 1))>), TypeOutlives0: missing(@TypeBound(1, 0)): missing('_Bound(1, 0)), TypeConstraint0: @TraitImpl135<missing(@TypeBound(2, 0)), missing(@TypeBound(2, 1))>[missing(TraitClauseBound(2, 0))]::@AssocType0 = &missing('_Bound(1, 0)) missing(@TypeBound(1, 0))>
+         1: <I, Clause0_Item, TraitClause0: (missing(@TypeBound(1, 0)): @TraitDecl8<missing(@TypeBound(1, 1))>)>
+ --> /rustc/library/core/src/iter/adapters/enumerate.rs:62:1
+
+error: Type error after transformations:
+       Mismatched trait clause:
+       expected: TraitClause0_1: (IterMut<'a, T>: Iterator<&'a T>)
+            got: impl_Iterator_for_IterMut<'a, T>: Iterator<IterMut<'a, T>, &'a mut T>
+       Visitor stack:
+         charon_lib::ast::items::item_ids::FunDeclRef
+         charon_lib::ast::type_level::Binder<charon_lib::ast::items::item_ids::FunDeclRef>
+         charon_lib::ids::index_map::IndexMap<charon_lib::ast::items::trait_decl::TraitMethodId, charon_lib::ast::type_level::Binder<charon_lib::ast::items::item_ids::FunDeclRef>>
+         charon_lib::ast::items::trait_impl::TraitImpl
+       Binding stack (depth 2):
+         0: <'a, T, Clause1_Item, TraitClause0: (missing(@TypeBound(1, 0)): @TraitDecl0), TraitClause1: (@Adt56<missing('_Bound(2, 0)), missing(@TypeBound(2, 0))>: @TraitDecl8<missing(@TypeBound(1, 1))>), TypeOutlives0: missing(@TypeBound(1, 0)): missing('_Bound(1, 0)), TypeConstraint0: @TraitImpl140<missing('_Bound(2, 0)), missing(@TypeBound(2, 0))>::@AssocType0 = &missing('_Bound(1, 0)) missing(@TypeBound(1, 0))>
+         1: <'a, T, TypeOutlives0: missing(@TypeBound(1, 0)): missing('_Bound(1, 0))>
+ --> /rustc/library/core/src/slice/iter/macros.rs:153:9
+
+warning: The extraction generated 2 warnings
+warning: `mini-stf` (lib) generated 6 warnings (run `cargo fix --lib -p mini-stf` to apply 6 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.45s
+     Running aeneas on /work/proofs/lean/llbc/mini_stf.llbc
+      aeneas > [[92mInfo[39m ] Imported: /work/proofs/lean/llbc/mini_stf.llbc
+      aeneas > [[91mError[39m] Early returns inside of loops are not supported yet
+      aeneas > Source: 'src/stf.rs', lines 251:0-413:1
+      aeneas > [[91mError[39m] Ignoring the body of 'mini_stf::stf::process_attestations' because of previous error
+      aeneas > Source: 'src/stf.rs', lines 251:0-413:1
+      aeneas > [[91mError[39m] Unimplemented: found an occurrence of a lifetime constraint relating
+      aeneas >          a higher-ranked lifetime to a free lifetime.
+      aeneas > Source: '/rustc/library/core/src/slice/iter/macros.rs', lines 338:12-341:46
+      aeneas > [[93mWarn[39m ] Could not translate the function signature of 'core::slice::iter::{impl core::iter::traits::iterator::Iterator<&'a T> for core::slice::iter::Iter<'a, T>}::find because of previous error
+      aeneas > Name pattern: 'core::slice::iter::{core::iter::traits::iterator::Iterator<core::slice::iter::Iter<'a, @T>, &'a @T>}::find'
+      aeneas > ... (24 more lines, full output in /work/proofs/lean/aeneas-error.log)
+[1m[94minfo[0m: [1mhax: wrote file ./proofs/lean/lakefile.toml[0m
+[1m[94minfo[0m: [1mhax: wrote file ./proofs/lean/lean-toolchain[0m
+[1m[94minfo[0m: [1mhax: wrote file ./proofs/lean/.gitignore[0m
+[1m[94minfo[0m: [1mhax: wrote file ./proofs/lean/MiniStf/Verification/ProofObligations.lean[0m
+[1m[91merror[0m: [1mhax: aeneas exited with non-zero code 2[0m

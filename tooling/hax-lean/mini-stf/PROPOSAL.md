@@ -72,7 +72,38 @@ though there are none in either file. It is for reading, not for CI.
 
 ## Run it
 
-One command, from the crate root:
+### The environment
+
+The toolchain has no macOS-Intel build, so we ran it in a container. The
+`Dockerfile` sits one level up from this crate, at `tooling/hax-lean/`, and it
+pins `cargo-hax` to **0.4.2** — the version every number in this document was
+measured against.
+
+That pin matters more than it looks: `0.5.0` is already published, so an
+unpinned build today would install it and would not reproduce this environment.
+Charon's and Aeneas's versions follow from the hax version, which downloads them
+itself; Lean's is fixed by each project's `lean-toolchain`, which is in version
+control.
+
+```bash
+cd tooling/hax-lean
+docker build --platform linux/amd64 -t hax-lean .
+docker run --platform linux/amd64 -it \
+  -v "$PWD/mini-stf:/work" \
+  -v hax-cargo:/root/.cargo/registry \
+  -v hax-cache:/root/.cache/hax \
+  -v hax-elan:/root/.elan \
+  hax-lean bash
+```
+
+The first build takes a while: it compiles `cargo-hax`, then pre-warms Charon,
+Aeneas and the Rust nightly Charon asks for — several GB in all. The named
+volumes mean later runs download nothing. If you already have the three tools at
+those versions, skip this and go straight to the command below.
+
+### One command
+
+From the crate root:
 
 ```bash
 bash regenerar.sh
@@ -141,12 +172,14 @@ Everything, with line counts as shipped.
 | `src/stubs.rs` | 49 | ours — no-op `tracing` and metrics. |
 | `src/lib.rs` | 51 | ours — module wiring. |
 | `Cargo.toml` | 10 | ours. |
+| `Cargo.lock` | 65 | ours, and versioned on purpose — it pins the dependency versions, the same concern as the `cargo-hax` pin in the Dockerfile. |
 | `regenerar.sh` | 36 | ours — extract, restore, build. |
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 309 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the trust base of each theorem. |
 | `teoremas/ProofObligations.lean` | 686 | ours — the theorems. |
 | `axiomas.txt` | 112 | ours — the `#print axioms` output, so the trust base can be read without building. |
+| `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
 | `README.md` | 604 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |

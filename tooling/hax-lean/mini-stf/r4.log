@@ -1,0 +1,59 @@
+     Running charon
+   Compiling mini-stf v0.1.0 (/work)
+warning: unused import: `ShortRoot`
+ --> src/stf.rs:6:49
+  |
+6 |     HashTreeRoot as _, JustificationValidators, ShortRoot, State, HISTORICAL_ROOTS_LIMIT,
+  |                                                 ^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `finalized_slot`
+   --> src/stf.rs:506:9
+    |
+506 |     let finalized_slot = source.slot;
+    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_finalized_slot`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `previous_finalized`
+   --> src/stf.rs:507:9
+    |
+507 |     let previous_finalized = old_finalized_slot;
+    |         ^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_previous_finalized`
+
+warning: unused variable: `justified_slot`
+   --> src/stf.rs:508:9
+    |
+508 |     let justified_slot = state.latest_justified.slot;
+    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_justified_slot`
+
+warning: unused variable: `justified_slot`
+   --> src/stf.rs:394:17
+    |
+394 |             let justified_slot = target.slot;
+    |                 ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_justified_slot`
+
+warning: unused variable: `threshold`
+   --> src/stf.rs:395:17
+    |
+395 |             let threshold = (2 * validator_count).div_ceil(3);
+    |                 ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_threshold`
+
+warning: `mini-stf` (lib) generated 6 warnings (run `cargo fix --lib -p mini-stf` to apply 6 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.19s
+     Running aeneas on /work/proofs/lean/llbc/mini_stf.llbc
+[1m[94minfo[0m: [1mhax: wrote file ./proofs/lean/MiniStf/Assumptions/FunsExternal.lean[0m
+[1m[94minfo[0m: [1mhax: wrote file ./proofs/lean/MiniStf/Assumptions/TypesExternal.lean[0m
+[1m[94minfo[0m: [1mhax: wrote file ./proofs/lean/MiniStf/Extraction.lean[0m
+[1m[94minfo[0m: [1mhax: wrote file ./proofs/lean/MiniStf/Extraction/Funs.lean[0m
+[1m[94minfo[0m: [1mhax: wrote file ./proofs/lean/MiniStf/Extraction/FunsExternal_Template.lean[0m
+[1m[94minfo[0m: [1mhax: wrote file ./proofs/lean/MiniStf/Extraction/TypesExternal.lean[0m
+[1m[94minfo[0m: [1mhax: wrote file ./proofs/lean/MiniStf/Extraction/FunsExternal.lean[0m
+[1m[94minfo[0m: [1mhax: unchanged file ./proofs/lean/MiniStf/Extraction/Types.lean[0m
+[1m[94minfo[0m: [1mhax: wrote file ./proofs/lean/MiniStf/Extraction/TypesExternal_Template.lean[0m
+[1m[94minfo[0m: [1mhax: unchanged file ./proofs/lean/lakefile.toml[0m
+[1m[94minfo[0m: [1mhax: unchanged file ./proofs/lean/lean-toolchain[0m
+[1m[94minfo[0m: [1mhax: unchanged file ./proofs/lean/.gitignore[0m
+[1m[94minfo[0m: [1mhax: unchanged file ./proofs/lean/MiniStf/Verification/ProofObligations.lean[0m
+[1m[94minfo[0m: [1mhax: wrote file ./proofs/lean/MiniStf.lean[0m

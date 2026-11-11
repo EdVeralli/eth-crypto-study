@@ -22,7 +22,20 @@ ENV PATH=/root/.cargo/bin:$PATH
 # hax. Para el backend Lean no hace falta ningun otro componente: desde la
 # version 0.4.0 corre Charon + Aeneas en vez del motor propio de hax, y los
 # descarga solo. Compilarlo tarda unos 5 minutos, una sola vez.
-RUN cargo install --locked cargo-hax
+#
+# LA VERSION VA FIJA, Y ES IMPORTANTE. Hasta el 11 nov 2026 esta linea decia
+# `cargo install --locked cargo-hax` sin version, o sea la ultima. Todo lo que
+# medimos y documentamos esta contra 0.4.2: los dos --opaque que hacen falta,
+# los nombres que genera, los siete axiomas nativos, los 1742 jobs del build.
+# Y 0.5.0 ya esta publicada, asi que sin fijar la version una imagen
+# reconstruida HOY ya no reproduce el entorno. Las versiones de Charon y de
+# Aeneas vienen determinadas por la de hax, que las baja sola: con 0.4.2 son
+# charon nightly-2026.09.02 y aeneas build-183e4f0. La de Lean la fija el
+# `lean-toolchain` de cada proyecto, que si esta versionado.
+#
+# Para subir de version: cambiala aca, volve a correr `regenerar.sh`, y
+# re-medi todo antes de tocar la documentacion.
+RUN cargo install --locked cargo-hax@0.4.2
 
 # elan, para compilar el proyecto Lean que sale de la traduccion.
 RUN curl https://elan.lean-lang.org/elan-init.sh -sSf | sh -s -- -y --no-modify-path
