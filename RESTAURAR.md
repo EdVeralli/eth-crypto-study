@@ -162,12 +162,24 @@ cargo test
 ```bash
 cd /work/proofs/lean && lake build
 ```
-→ **`Build completed successfully (1742 jobs)`**, sin ningún `sorry`
+→ **`Build completed successfully (1742 jobs)`**, sin ningún `sorry`. Al
+rearmar el 12 nov 2026 dio 1743: un job de más no es problema, lo que importa
+es que termine en verde.
 
 ```bash
-grep -c "^def stf\." /work/proofs/lean/MiniStf/Extraction/Funs.lean
+for f in state_transition process_slots process_block process_block_header \
+         current_proposer is_proposer process_attestations is_valid_vote \
+         try_finalize serialize_justifications attestation_data_matches_chain \
+         slot_is_justifiable_after; do
+  grep -qE "^def stf\.$f( |$)" /work/proofs/lean/MiniStf/Extraction/Funs.lean \
+    && echo "ok    $f" || echo "FALTA $f"
+done
 ```
-→ las doce funciones de la STF traducidas
+→ **12 `ok`**, las doce funciones de la STF de ethlambda traducidas
+
+No uses `grep -c "^def stf\."` para esto: cuenta todos los `def` (cuerpos de
+loops, closures, instancias de `Debug`/`Display` y las diecinueve funciones
+auxiliares nuestras) y da 66, no 12.
 
 Si el `lake build` imprime las bases de axiomas, compará contra
 `mini-stf/axiomas.txt`: siete nativos distintos, y 13 / 13 / 14 / 20 por
