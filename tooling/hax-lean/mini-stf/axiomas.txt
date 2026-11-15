@@ -1,7 +1,7 @@
 BASE DE AXIOMAS DE CADA TEOREMA
 
 Salida de los `#print axioms` de teoremas/ProofObligations.lean, generada
-por `lake build` el 6 nov 2026. Se entrega para que la base de confianza se
+por `lake build` el 15 nov 2026. Se entrega para que la base de confianza se
 pueda leer sin tener que compilar.
 
 Tres categorias:
@@ -98,26 +98,109 @@ ST3.process_attestations_no_retrocede
     ~ mini_stf.stf.try_finalize._native.decide.ax_2
     ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
 
+ST3.process_slots_no_toca_checkpoints
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+ST3F.process_attestations_fin_no_retrocede
+  TOTAL 20 = 3 estandar + 7 nativos + 10 modelos
+  modelos:
+    - core.borrow.Borrow
+    - core.hash.BuildHasher
+    - core.borrow.Borrow.Blanket
+    - core.Array.Insts.CoreCmpOrd.cmp
+    - core.Array.Insts.CoreHashHash.hash
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+    - std.collections.hash.map.HashMap.get
+    - std.collections.hash.map.HashMap.insert
+    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
+    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
+    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
+    ~ mini_stf.stf.try_finalize._native.decide.ax_1
+    ~ mini_stf.stf.try_finalize._native.decide.ax_2
+    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+
+ST3H.process_block_header_no_mueve_slots
+  TOTAL 9 = 3 estandar + 3 nativos + 3 modelos
+  modelos:
+    - core.mem.take
+    - core.bool.Bool.then
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+    ~ mini_stf.stf.process_block_header._native.decide.ax_3
+
+ST3T.process_block_no_retrocede
+  TOTAL 24 = 3 estandar + 9 nativos + 12 modelos
+  modelos:
+    - core.borrow.Borrow
+    - core.hash.BuildHasher
+    - core.mem.take
+    - core.bool.Bool.then
+    - core.borrow.Borrow.Blanket
+    - core.Array.Insts.CoreCmpOrd.cmp
+    - core.Array.Insts.CoreHashHash.hash
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+    - std.collections.hash.map.HashMap.get
+    - std.collections.hash.map.HashMap.insert
+    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
+    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+    ~ mini_stf.stf.process_block_header._native.decide.ax_3
+    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
+    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
+    ~ mini_stf.stf.try_finalize._native.decide.ax_1
+    ~ mini_stf.stf.try_finalize._native.decide.ax_2
+    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+
+ST3.state_transition_no_retrocede
+  TOTAL 24 = 3 estandar + 9 nativos + 12 modelos
+  modelos:
+    - core.borrow.Borrow
+    - core.hash.BuildHasher
+    - core.mem.take
+    - core.bool.Bool.then
+    - core.borrow.Borrow.Blanket
+    - core.Array.Insts.CoreCmpOrd.cmp
+    - core.Array.Insts.CoreHashHash.hash
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+    - std.collections.hash.map.HashMap.get
+    - std.collections.hash.map.HashMap.insert
+    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
+    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+    ~ mini_stf.stf.process_block_header._native.decide.ax_3
+    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
+    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
+    ~ mini_stf.stf.try_finalize._native.decide.ax_1
+    ~ mini_stf.stf.try_finalize._native.decide.ax_2
+    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+
 ========================================================================
 
-NATIVOS DISTINTOS QUE LLEGAN A LOS TEOREMAS: 7
+NATIVOS DISTINTOS EN TODO EL BUILD: 9
 
   mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+  mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
   mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+  mini_stf.stf.process_block_header._native.decide.ax_3
   mini_stf.stf.serialize_justifications._native.decide.ax_1
   mini_stf.stf.serialize_justifications._native.decide.ax_2
   mini_stf.stf.try_finalize._native.decide.ax_1
   mini_stf.stf.try_finalize._native.decide.ax_2
   mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
 
-========================================================================
-
-NATIVOS DISTINTOS EN LAS DOCE FUNCIONES DE LA STF: 9
-
-Medido el 15 nov 2026 con supuestos/RevisarAxiomas.lean, que imprime los
-axiomas de cada funcion traducida, sin teorema de por medio. Son los siete
-de arriba mas dos que ningun teorema toca, y que arrastran
-`process_block_header`, `process_block` y `state_transition`:
-
-  mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-  mini_stf.stf.process_block_header._native.decide.ax_3
+Los nueve llegan a `ST3.state_transition_no_retrocede`, que depende de
+exactamente los mismos 24 axiomas que el `def` de `state_transition` sin
+teorema de por medio (se ve con supuestos/RevisarAxiomas.lean). Los
+teoremas sobre componentes dependen de menos.

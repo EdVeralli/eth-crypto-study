@@ -11,9 +11,10 @@ dice exactamente qué necesitó cada una y por qué.
 
 Trae además teoremas, porque una traducción que chequea es sólo la mitad de la
 pregunta — la otra mitad es si se puede demostrar algo sobre lo que sale. No son
-un reclamo de cobertura contra ningún catálogo. Lo que sí cubren es la propiedad
-que un test de ustedes afirma por ejemplo después del congelamiento del devnet
-en el slot 27984.
+un reclamo de cobertura contra ningún catálogo. Lo que sí cubren es una de sus
+proposiciones, de punta a punta: ningún slot de checkpoint retrocede a lo largo
+de la transición de un bloque — la propiedad que un test de ustedes afirma por
+ejemplo después del congelamiento del devnet en el slot 27984.
 
 Cada número de acá salió de una corrida.
 
@@ -187,10 +188,10 @@ Todo, con las líneas tal como se entrega.
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 309 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 698 | nuestro — los teoremas. |
-| `axiomas.txt` | 123 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
+| `teoremas/ProofObligations.lean` | 1174 | nuestro — los teoremas. |
+| `axiomas.txt` | 206 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 645 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 656 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -282,7 +283,7 @@ estos dos fallan.
 
 ## Qué recibe
 
-`teoremas/ProofObligations.lean` tiene siete resultados con nombre:
+`teoremas/ProofObligations.lean` tiene doce resultados con nombre:
 
 | Resultado | Qué es |
 |---|---|
@@ -292,11 +293,17 @@ estos dos fallan.
 | `try_finalize_no_toca_justified` | `try_finalize` no toca `latest_justified` |
 | `ST3.process_attestations_loop_no_retrocede` | la justificación no retrocede, sobre el loop de attestations entero |
 | `ST3.process_attestations_no_retrocede` | lo mismo, sobre la función entera |
+| `ST3F.process_attestations_fin_no_retrocede` | la finalidad tampoco retrocede, sobre `process_attestations` entera |
+| `ST3.process_slots_no_toca_checkpoints` | `process_slots` no toca ninguno de los dos checkpoints |
+| `ST3H.process_block_header_no_mueve_slots` | `process_block_header` conserva los dos slots de checkpoint, anclaje de génesis incluido |
+| `ST3T.process_block_no_retrocede` | ningún slot retrocede a lo largo de `process_block` |
+| `ST3.state_transition_no_retrocede` | **ningún slot retrocede a lo largo de `state_transition`** — la transición de un bloque entera |
 | `bind_da_ok` | una herramienta: abre un bind de `RustM` |
 
 No se eligieron por cantidad. Entre todos cubren aritmética, ramificación y
-actualización de registros, inducción sobre un loop, y composición a lo largo de
-una función entera con salidas tempranas y un `match`.
+actualización de registros, inducción sobre un loop, composición a lo largo de
+una función entera con salidas tempranas y un `match`, y composición de cinco
+funciones hasta el punto de entrada.
 
 ### La aritmética
 
@@ -384,27 +391,71 @@ asignación sin guarda se quedó con la última, y la cadena de bloques se conge
 El test cubre ese escenario; el teorema cubre toda entrada con la que la
 función devuelve algo, acepte el bloque o lo rechace.
 
+### La transición entera
+
+Las dos mitades de arriba hablan cada una del componente donde se mueve un
+campo. Tres lemas más las suben a la función que ustedes llaman por bloque:
+
+- `process_slots` no toca ninguno de los dos checkpoints;
+- `process_block_header` conserva los dos **slots** de checkpoint;
+- la finalidad, demostrada arriba para `try_finalize` suelta, llevada a través
+  del loop de attestations y del resto de `process_attestations`.
+
+Compuestos a través de `process_block`, dan:
+
+```lean
+theorem ST3.state_transition_no_retrocede
+    (state state' : tipos.State) (block : tipos.Block) (res : ...) :
+    stf.state_transition state block = ok (res, state') →
+    state.latest_justified.slot ≤ state'.latest_justified.slot ∧
+    state.latest_finalized.slot ≤ state'.latest_finalized.slot
+```
+
+Vale el mismo condicional: el `ok` es el de `RustM`, así que los bloques
+rechazados están cubiertos y los pánicos no.
+
+El lema del header es el que traía una trampa. En el primer bloque después del
+génesis el código de ustedes ancla los checkpoints:
+
+```rust
+state.latest_justified.root = parent_root;
+state.latest_finalized.root = parent_root;
+```
+
+Escribe la **raíz** y deja el slot como está, así que el enunciado sobre los
+slots vale para cualquier estado, sin hipótesis de estado bien formado. Lo que
+no vale es la igualdad del checkpoint entero, y Lean lo dice: como control
+enunciamos esa versión falsa y le corrimos el mismo script de demostración, y se
+detiene con exactamente la rama del anclaje abierta —
+`{ root := r, slot := state.latest_justified.slot } = state.latest_justified`.
+
 ### Qué es esto contra el catálogo, dicho exacto
 
 `ST-3` en
 [`NyxFoundation/formal-leanSpec`](https://github.com/NyxFoundation/formal-leanSpec)
 está enunciada sobre `State.transition` — la transición de un bloque entera — y
-acota los dos slots de checkpoint a la vez. Lo que está demostrado acá es cada
-una de sus dos mitades sobre el componente donde ese campo efectivamente se
-mueve: la justificación sobre `process_attestations`, la finalidad sobre
-`try_finalize`. **Eso no es la proposición del catálogo, y no estamos afirmando
-que lo sea.**
+acota los dos slots de checkpoint a la vez (`State.checkpoint_monotone`).
+`ST3.state_transition_no_retrocede` es ese enunciado, sobre el
+`state_transition` de ustedes tal como lo traduce la cadena de herramientas. Dos
+diferencias, para que nadie lea más de lo que hay:
 
-Subir las dos a `state_transition` es el paso que la convertiría en eso, y
-necesita tres lemas que no escribimos: que `process_slots` no toque los
-checkpoints, que `process_block_header` no los baje, y la mitad de finalidad
-subida por el loop de attestations. Hay un reparo que el catálogo ya avisa y
-vale pasarlo: el anclaje de génesis del primer bloque fuerza los checkpoints a
-slot 0, lo que hace **falso** el enunciado desnudo para estados adversarios, y
-la formalización carga una hipótesis extra `AnchorWF` justamente por eso. Un
-lift que la ignore no cierra.
+**Habla de otro programa.** El catálogo demuestra la proposición sobre su propio
+modelo en Lean de la especificación. Esto la demuestra sobre el Rust de este
+crate, con los sustitutos que se listan en **Límites honestos**. Misma
+proposición, otro objeto: no es una demostración del teorema del catálogo, y el
+del catálogo no es una demostración sobre el código de ustedes.
 
-Ninguna de las dos mitades se eligió porque pareciera demostrable. `ST-3` es una
+**No necesita `AnchorWF`.** El teorema del catálogo carga una hipótesis extra,
+`AnchorWF s` — si el último header está en el slot 0, los dos checkpoints están
+en el slot 0 — porque en su modelo el anclaje de génesis fuerza los checkpoints
+a slot 0, lo que hace falso el enunciado desnudo para estados adversarios. El de
+ustedes asigna sólo las raíces, así que la hipótesis no hace falta. En los
+estados alcanzables desde el génesis los dos coinciden, porque ahí los slots ya
+son 0; en estados arbitrarios el código de ustedes y ese modelo se comportan
+distinto, y eso vale saberlo sea cual sea el comportamiento buscado. Chequeado
+contra `formal-leanSpec` en `ba72845`.
+
+La propiedad no se eligió porque pareciera demostrable. `ST-3` es una
 de treinta y cinco proposiciones de ese catálogo — siete sobre la transición de
 estado, el resto sobre fork choice, SSZ, el validador, red, storage y sync. El
 enunciado es anterior a nuestro trabajo sobre él, y eso importa: elegir las
@@ -420,7 +471,10 @@ propias propiedades vuelve el ejercicio circular.
 | `bind_da_ok` | 1 | 1 | — | — |
 | los dos de `try_finalize` | 13 | 3 | 3 | 7 |
 | el del loop | 14 | 3 | 4 | 7 |
-| `process_attestations` | 20 | 3 | 7 | 10 |
+| `process_attestations`, justificación y finalidad | 20 | 3 | 7 | 10 |
+| `process_slots` | 3 | 3 | — | — |
+| `process_block_header` | 9 | 3 | 3 | 3 |
+| `process_block`, `state_transition` | 24 | 3 | 9 | 12 |
 
 Tres categorías, con tres pesos distintos.
 
@@ -428,10 +482,9 @@ Tres categorías, con tres pesos distintos.
 de cualquier demostración clásica y no dicen nada sobre este código.
 
 **Los nativos** son los `_native.decide.ax_*`: hechos que el núcleo de Lean no
-chequeó, computados por el compilador. Siete distintos llegan a los teoremas
-de arriba, y las doce funciones cargan nueve entre todas: `state_transition` y
-`process_block` suman `process_block_header._native.decide.ax_3` y
-`extend_to_slot_loop.body._native.decide.ax_3`, que ningún teorema de acá toca.
+chequeó, computados por el compilador. Aparecen nueve distintos en las doce
+funciones. El teorema sobre la transición entera depende de los nueve; los
+resultados sobre componentes dependen de menos, como muestra la tabla.
 No son nuestros ni de ustedes. Definir una función en Lean puede exigir
 demostraciones —un literal escalar carga la prueba de que entra en su tipo,
 indexar carga la de que el índice está en rango— y Aeneas genera esas
@@ -530,6 +583,15 @@ puede mover `latest_justified`. Los cuatro con contenido son `is_none_spec`,
 `try_finalize_spec`, `serialize_spec` y el propio teorema del loop, reusado como
 lema para la función entera.
 
+Subir todo a `state_transition` reusó esa maquinaria y costó poco. La mitad de
+la finalidad es la demostración de la justificación otra vez, con otro
+invariante y otro lema para `try_finalize` — los dos no pueden estar activos a
+la vez, porque la táctica elige un solo lema por llamada. `process_block_header`
+llevó catorce lemas triviales más, uno por cada llamada que ni recibe ni
+devuelve el estado, y con ellos `hax_mvcgen` cerró solo todas las condiciones de
+verificación. `process_block` y `state_transition` cierran igual, a partir de
+los lemas de lo que llaman.
+
 **`hax_mvcgen` se detiene en silencio.** Decide si queda trabajo por la *forma*
 del objetivo: `goalNeedsMvcgen` reconoce un `Triple`, un `entails` que lleva un
 `wp`, o un `.down` que lleva un `PredTrans.apply`. Un `.down` que lleva un
@@ -625,5 +687,5 @@ saturante.
 
 **La base de confianza no está vacía**, y lo que hay en ella está detallado en
 **La base de confianza**, arriba: nueve axiomas nativos que vienen con la
-traducción —siete de los cuales llegan a los teoremas—, veintiocho declaraciones nuestras que no afirman nada, y una
+traducción, veintiocho declaraciones nuestras que no afirman nada, y una
 afirmación de modelado que sí hacemos.

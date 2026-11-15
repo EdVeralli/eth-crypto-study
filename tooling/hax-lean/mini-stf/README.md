@@ -631,6 +631,17 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    ST-3 de verdad. Es el paso corto, y el que va a destapar la trampa del
    anclaje de genesis.
 
+   > Nota del 15 nov 2026: **hecho.** `ST3.state_transition_no_retrocede`
+   > esta demostrado, sin `sorry`. Hicieron falta tres lemas (`process_slots`
+   > no toca los checkpoints, `process_block_header` conserva los slots, y la
+   > finalidad a traves del loop) y la composicion por `process_block`. La
+   > trampa del anclaje no mordio: ethlambda escribe solo la RAIZ de los
+   > checkpoints, no el slot, asi que no hace falta la hipotesis `AnchorWF`
+   > que si carga el catalogo. Como control se enuncio la version falsa
+   > (igualdad del checkpoint entero) y el mismo script se detiene justo en
+   > la rama del anclaje. Esta contado en PROPUESTA.md, "La transicion
+   > entera".
+
    Despues, de las 7 de transicion de estado hay dos al alcance: **ST-6** (la
    finalizacion es irreversible), que el catalogo dice que es *"the
    `latestFinalized` half of ST-3"* -- o sea nuestro teorema 2 subido -- y
