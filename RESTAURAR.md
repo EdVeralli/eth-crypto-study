@@ -1,6 +1,7 @@
 # Restaurar el entorno después de formatear
 
 Escrito el 11 nov 2026, antes de formatear la MacBook Pro (Intel).
+Actualizado el 15 nov 2026 con lo que pasó al restaurar.
 
 Esta guía está en el repo a propósito: después de formatear la vas a poder leer
 en `github.com/EdVeralli/eth-crypto-study` desde cualquier navegador, antes de
@@ -20,6 +21,10 @@ cp ~/.ssh/id_rsa ~/.ssh/id_rsa.pub ~/.ssh/config /Volumes/TU_PENDRIVE/
   respaldás, generás una nueva (paso 3) y hay que darla de alta en GitHub.
 - **`config`** — las cuatro líneas del puerto 443. No están versionadas en
   ninguna parte y encontrarlas cuesta media hora.
+
+Nota del 15 nov 2026: al final la llave `id_rsa` no se restauró. El 12 nov se
+generó una nueva, `~/.ssh/id_ed25519` (sin passphrase), y se dio de alta en
+GitHub. Y el `config` del 443 tampoco hizo falta ese día (ver el paso 3).
 
 Y confirmá que los dos repos estén limpios y pusheados:
 
@@ -45,6 +50,11 @@ disco, respaldalo aparte.
 Y nada más. Rust, Lean, hax, Charon y Aeneas **no se instalan en la Mac**: van
 todos adentro de la imagen de Docker. Por eso el entorno es reproducible.
 
+Aclaración del 15 nov 2026: eso vale para la cadena de herramientas de
+`mini-stf`. El repo **raíz** (`lake build`, `.venv`, `docs/bls_smoke.py`,
+`pytest`) sí necesita Lean y un Python >= 3.10 instalados en la Mac. Cómo se
+hizo está en el paso 8.
+
 ---
 
 ## 3. SSH contra GitHub
@@ -66,8 +76,11 @@ ssh-keygen -t ed25519 -C "edveralli@gmail.com"
 cat ~/.ssh/id_ed25519.pub        # esto es lo que se pega en GitHub
 ```
 
-**Y en los dos casos, el archivo de configuración.** Sin esto el push no
-funciona, porque el puerto 22 está bloqueado en tu red:
+**El archivo de configuración, sólo si la red bloquea el puerto 22.** En la red
+de antes el 22 estaba bloqueado y sin esto el push no funcionaba. El 12 nov
+2026 el 22 anduvo, así que este bloque no se agregó: `~/.ssh/config` apunta a
+`github.com` por el puerto normal. Si `ssh -T` falla con
+`port 22: Connection refused`, el arreglo es éste:
 
 ```bash
 cat > ~/.ssh/config <<'EOF'
@@ -86,6 +99,10 @@ ssh -T git@github.com
 ```
 
 Tiene que responder `Hi EdVeralli! You've successfully authenticated`.
+
+Lo que pasó el 12 nov 2026: la `id_rsa` no se restauró, se generó una
+`id_ed25519` nueva sin passphrase, se registró en GitHub y `ssh -T` respondió
+bien por el puerto 22.
 
 ---
 
@@ -162,9 +179,10 @@ cargo test
 ```bash
 cd /work/proofs/lean && lake build
 ```
-→ **`Build completed successfully (1742 jobs)`**, sin ningún `sorry`. Al
-rearmar el 12 nov 2026 dio 1743: un job de más no es problema, lo que importa
-es que termine en verde.
+→ **`Build completed successfully (1742 jobs)`**, sin ningún `sorry`. El primer
+build sobre un clon limpio da 1743 (pasó al rearmar el 12 nov 2026) y los
+siguientes 1742: un job de más la primera vez no es problema, lo que importa es
+que termine en verde.
 
 ```bash
 for f in state_transition process_slots process_block process_block_header \
@@ -187,7 +205,53 @@ teorema.
 
 ---
 
-## 8. Trampas que ya nos comimos
+## 8. Reconstruir el repo raíz (Lean y Python)
+
+Esto no pasa por Docker. Es lo que hace falta para `lake build`, el `.venv`,
+`docs/bls_smoke.py` y la suite de vectores del repo raíz. Se hizo el 12 nov 2026.
+
+**Lean.** Instalar `elan` con el instalador oficial de `elan.lean-lang.org`.
+Queda en `~/.elan`, y `~/.elan/bin` **no está en el `PATH` por defecto**:
+
+```bash
+export PATH="$HOME/.elan/bin:$PATH"
+cd ~/eth-crypto-study
+lake exe cache get
+lake build
+```
+→ **`Build completed successfully (3444 jobs)`**. El `lake exe cache get` baja
+Mathlib ya compilado; sin eso son horas.
+
+**Python.** El `python3` del sistema es 3.9.6 y el repo pide >= 3.10, así que
+no sirve. Se instaló `uv` (queda en `~/.local/bin`, que tampoco está en el
+`PATH` por defecto) y con él Python 3.12.16:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+cd ~/eth-crypto-study
+uv venv --python 3.12 .venv
+uv pip install --python .venv "pytest==9.0.3" "ruamel.yaml==0.19.1" "py_ecc==8.0.0" "setuptools>=68" wheel
+PATH="$HOME/.elan/bin:$PATH" uv pip install --python .venv --no-build-isolation -e .
+.venv/bin/python docs/bls_smoke.py
+```
+→ **`ALL CHECKS PASSED`**. El tercer comando compila el binding y llama a
+`lake`, por eso lleva `~/.elan/bin` en el `PATH`.
+
+**La suite completa** (364 vectores, ~3 h):
+
+```bash
+caffeinate -i -s .venv/bin/python -m pytest -q
+```
+
+⚠️ **`caffeinate -s` sólo mantiene despierta la Mac enchufada a la corriente.**
+Con batería se duerme igual y la suite queda parada. Ya pasó: la suite se
+largó el 12 nov, se frenó porque la Mac se durmió con batería, y un reinicio
+el 15 nov la cortó sin que hubiera terminado. Al 15 nov 2026 la suite completa
+**no se volvió a correr entera** en la Mac formateada.
+
+---
+
+## 9. Trampas que ya nos comimos
 
 Para no volver a descubrirlas:
 
@@ -200,10 +264,15 @@ Para no volver a descubrirlas:
   el `build`.
 - **Una extracción fallida borra los archivos de `Assumptions/`.** Por eso
   `regenerar.sh` los vuelve a copiar siempre.
+- **`caffeinate -s` no alcanza con batería.** Sólo impide que la Mac duerma
+  mientras está enchufada. La suite de ~3 h hay que correrla enchufada y con la
+  tapa abierta (ver el paso 8).
+- **`lake` y `uv` no están en el `PATH`.** Viven en `~/.elan/bin` y
+  `~/.local/bin`; en una terminal nueva hay que exportarlos o no se encuentran.
 
 ---
 
-## 9. Dónde quedó el trabajo
+## 10. Dónde quedó el trabajo
 
 **El paquete para LambdaClass está terminado** y vive en
 `tooling/hax-lean/mini-stf/`. El punto de entrada es `PROPUESTA.md`

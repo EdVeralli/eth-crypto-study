@@ -100,7 +100,7 @@ ST3.process_attestations_no_retrocede
 
 ========================================================================
 
-NATIVOS DISTINTOS EN TODO EL BUILD: 7
+NATIVOS DISTINTOS QUE LLEGAN A LOS TEOREMAS: 7
 
   mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
   mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
@@ -110,3 +110,14 @@ NATIVOS DISTINTOS EN TODO EL BUILD: 7
   mini_stf.stf.try_finalize._native.decide.ax_2
   mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
 
+========================================================================
+
+NATIVOS DISTINTOS EN LAS DOCE FUNCIONES DE LA STF: 9
+
+Medido el 15 nov 2026 con supuestos/RevisarAxiomas.lean, que imprime los
+axiomas de cada funcion traducida, sin teorema de por medio. Son los siete
+de arriba mas dos que ningun teorema toca, y que arrastran
+`process_block_header`, `process_block` y `state_transition`:
+
+  mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+  mini_stf.stf.process_block_header._native.decide.ax_3

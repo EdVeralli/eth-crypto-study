@@ -12,7 +12,7 @@ vistazo.
 
 ## 0. Lo más importante: cómo convive Lean con los otros lenguajes
 
-Los cuatro repos usan Lean de cuatro maneras **distintas**, y ésa es la comparación que más
+Los cinco repos usan Lean de cinco maneras **distintas**, y ésa es la comparación que más
 sirve. Resumidas:
 
 | Repo | Lenguajes en juego | La jugada |
@@ -32,7 +32,7 @@ escritas a mano la envuelven en una extensión de Python (`_native.so`, 8,8 MB);
 (14 funciones y 19 constantes) les dan nombre del lado de afuera. Python hace `import` y ejecuta Lean sin
 enterarse. Así corrimos los 364 vectores de prueba.
 
-**Lo que hay que destacar:** es el único de los cuatro donde *el código demostrado y el código
+**Lo que hay que destacar:** es el único de los cinco donde *el código demostrado y el código
 que corre son el mismo objeto*. Y, en el mismo repo, el único donde 10 teoremas se apoyan en
 **native axioms** — el atajo en que el kernel no revisa un paso y deja que lo calcule el
 compilador. La ventaja más grande y el relajo de rigor más grande, juntos.
@@ -69,6 +69,12 @@ obvio: el filtro `-i` de hax no llega a Charon ni a Aeneas, así que **se proces
 sus dependencias** — un solo `dyn` en una dependencia tira abajo toda la extracción. Por eso un
 cliente de consenso no pasa: no por usar `std`, sino por el `dyn`, el async y los locks. El detalle
 medido está en [`verified-zkevm.html`](verified-zkevm.html).
+
+> **Nota del 15 nov 2026.** Lo de la biblioteca estándar estaba mal y se corrigió el 28 de
+> octubre: `HashMap` y los iteradores **no** se traducen solos. Aparecen nombrados en las firmas,
+> pero no tienen modelo y `lake build` falla con `Unknown identifier`. La corrección está en
+> [`ethlambda-por-donde-empezar.md`](ethlambda-por-donde-empezar.md), sección 8, "La corrección
+> que más vale".
 
 **De las tres piezas que hacen falta —definiciones, enunciados, demostraciones— la traducción
 automática cubre una.**
@@ -125,7 +131,7 @@ validadores, 6 u 8 bloques, y el árbol de padres escrito a mano.
 hay nada — el único ejecutable declarado en el `lakefile` imprime "Hello" y es el esqueleto que dejó
 `lake new`, sin tocar. Y el techo está escrito en la firma de las funciones: piden `Fintype Hash`,
 o sea que el conjunto de hashes tiene que ser finito y recorrible. Con `Hash := Fin 6` eso se cumple
-y anda; con los 2²⁵⁶ hashes de la cadena real, no. A cambio, es el más riguroso de los cuatro: sus
+y anda; con los 2²⁵⁶ hashes de la cadena de bloques real, no. A cambio, es el más riguroso de los cinco: sus
 teoremas usan sólo `propext` y `Quot.sound`, ni siquiera `Classical.choice`.
 
 ### verified-consensus — Lean solo, pero con el enunciado hecho
@@ -205,7 +211,7 @@ Nombres como `leanerSTFSpec` o `leanerVM` aprovechan el doble sentido a propósi
 
 Esta es la parte que más nos costó entender, y la que más dice sobre cada proyecto.
 
-**Primero, lo que es igual en los tres:** todo teorema en Lean lo revisa el *kernel*, el
+**Primero, lo que es igual en los cuatro de la tabla de abajo:** todo teorema en Lean lo revisa el *kernel*, el
 núcleo chico del lenguaje que acepta o rechaza cada paso. Eso pasa siempre, por el solo
 hecho de usar Lean; no distingue a nadie.
 
@@ -291,9 +297,9 @@ Qué quiere decir cada caso:
     ✓ Classical.choice: not used                        (ni siquiera el axioma de elección)
   ```
 
-**En resumen:** en los tres, el kernel revisa las demostraciones. La diferencia es que en
-dos hay además un **guardia automático** que impide que se cuele un axioma de más, y en el
-tercero no — por eso ahí hay 10 teoremas con *native axioms*, uno de ellos central
+**En resumen:** en los cuatro, el kernel revisa las demostraciones. La diferencia es que en
+tres hay además un **guardia automático** que impide que se cuele un axioma de más, y en el
+cuarto no — por eso ahí hay 10 teoremas con *native axioms*, uno de ellos central
 (`uncompress_compress`), que nadie había contado hasta que los contamos nosotros.
 
 `gasper-lean4` llega al extremo: eliminó hasta el axioma de elección, y el premio es que
@@ -371,7 +377,7 @@ axioms): el segundo es el visible; el primero es el grave.
 | **gasper-lean4** | para razonar, no para servir | no | **no**: hay `#eval` de juguete adentro de Lean, nada desplegable — y no escalaría (pide `Fintype Hash`) |
 | **verified-consensus** | sí, sólo para verificar: una hora de build | no | **no**: cero `@[export]` y ningún ejecutable — aunque el modelo **sí computa**, así que la puerta se podría construir |
 
-De los ocho casilleros de las dos últimas columnas, sólo dos dicen algo. Van en detalle,
+De los diez casilleros de las dos últimas columnas, sólo dos dicen algo. Van en detalle,
 porque son los dos que de verdad nos sirven:
 
 **Traducción de código: sólo en `verified-zkevm`, y en un solo sentido, Rust → Lean.** El Rust
@@ -384,7 +390,10 @@ porque una función Rust puede entrar en pánico o desbordar y en Lean toda func
 —`unsafe`, llamadas al sistema, intrínsecos— queda declarado en `FunsExternal.lean` con un modelo
 escrito a mano: eso no es traducción, es un supuesto, y todo teorema que pase por ahí vale sólo si
 ese modelo describe bien lo que hace el Rust. Ojo: ese agujero es más chico de lo que parece —las
-colecciones de `std` se traducen solas— pero todo lo que caiga ahí es un supuesto. Y **Lean → Rust
+colecciones de `std` se traducen solas— pero todo lo que caiga ahí es un supuesto. (Nota del 15
+nov 2026: eso de las colecciones estaba mal; `HashMap` y los iteradores no se traducen solos. Ver
+la corrección del 28 oct en [`ethlambda-por-donde-empezar.md`](ethlambda-por-donde-empezar.md),
+sección 8.) Y **Lean → Rust
 no existe**: Lean compila a C, no tiene backend Rust.
 
 **Lean en el entorno de ejecución: sólo en `cryptography-specs`, y a medias.** Los 33 `@[export]`
@@ -398,7 +407,7 @@ garantía costaría un teorema de refinamiento — justo lo que a `leanerSTFSpec
 `py_arkworks_bls12381` y `ckzg`. La puerta está abierta y todavía no entró nadie.
 
 **La conclusión de toda la tabla:** Lean compilado y llamable desde otro lenguaje existe
-en **un solo repo de los cuatro**, `cryptography-specs`. Y todavía nadie lo usa en
+en **un solo repo de los cinco**, `cryptography-specs`. Y todavía nadie lo usa en
 producción. En producción corre Rust, C y Go.
 
 ### El hueco principal de cada uno
@@ -408,7 +417,7 @@ producción. En producción corre Rust, C y Go.
 | **cryptography-specs** | `ConcreteBlsLaws`: los teoremas de la ceremonia valen *si* el pairing programado cumple tres leyes que nadie demostró |
 | **leanerSTFSpec** | el teorema de refinamiento que ata la spec a las implementaciones: ni siquiera está acordado **cómo enunciarlo** |
 | **verified-zkevm** | la demostración vale sobre la *traducción*, no sobre el Rust: hay que confiar en `rustc` → Charon → Aeneas |
-| **gasper-lean4** | falta LMD-GHOST, o sea **la mitad de Gasper**: la que elige qué cadena seguir |
+| **gasper-lean4** | falta LMD-GHOST, o sea **la mitad de Gasper**: la que elige qué cadena de bloques seguir |
 | **verified-consensus** | el modelo **supone** la criptografía y los tiempos en vez de calcularlos: "firmas infalsificables" es una premisa, no código. Que un cliente real se gane esas premisas no lo demostró nadie |
 
 ---
@@ -483,7 +492,7 @@ producción. En producción corre Rust, C y Go.
 - **Generaliza el paper**: de 1-finalización a *k*-finalización, y de validadores
   estáticos a dinámicos. Traduce la formalización en Coq de Runtime Verification y
   **corrige un bug** del original.
-- **Lo que no cubre**: LMD-GHOST. Casper FFG no elige qué cadena seguir, solo pone
+- **Lo que no cubre**: LMD-GHOST. Casper FFG no elige qué cadena de bloques seguir, solo pone
   candados: "de este punto para atrás no se toca más".
 - **Página**: `gasper-lean4.html`. Leído el 12 oct 2026, commit `7650709`.
 
@@ -491,7 +500,7 @@ producción. En producción corre Rust, C y Go.
 
 | Repo | Qué es | Dato |
 |---|---|---|
-| `formal-leanSpec` | el modelo en Lean del **consenso nuevo** | 36 proposiciones, todas demostradas salvo 3 que quedan como axiomas (la criptografía, delegada a ArkLib), con IDs (`ST-1`, `FC-3`…) que el cliente cita en sus comentarios |
+| `formal-leanSpec` | el modelo en Lean del **consenso nuevo** | 35 proposiciones, todas demostradas salvo 3 que quedan como axiomas (la criptografía, delegada a ArkLib), con IDs (`ST-1`, `FC-3`…) que el cliente cita en sus comentarios |
 | `verity` | el **cliente** de Lean Consensus | 29 235 líneas de Rust, **cero de Lean**; corre en devnet junto a `ethlambda` y `ream` |
 
 **Y acá está el hallazgo más valioso de todo el estudio:** el Lean de `formal-leanSpec`
@@ -502,7 +511,7 @@ todos los clientes están transcribiendo:
   2⁶³ y el loop de `process_slots` itera esa cantidad de veces. DoS para todos. Lo
   descubrieron *al demostrar que el loop termina*: termina matemáticamente, lo cual es
   silencioso sobre que sea un loop real no acotado.
-- **La cabeza de la cadena no es función pura del store**: ante una equivocación, el
+- **La cabeza de la cadena de bloques no es función pura del store**: ante una equivocación, el
   código se queda con la atestación que entró primero al diccionario. Dos nodos honestos
   con los mismos bloques en distinto orden pueden elegir cabezas distintas. *"Every unit
   test passes, and heads diverge only on the interop network."*
@@ -514,7 +523,7 @@ todos los clientes están transcribiendo:
 > y la demostración de sus garantías. Autor: Francesco D'Amato.
 
 - **Un solo teorema para trece garantías**: `concreteConsensus` agrupa el encaje de las tres
-  cadenas (finalizado dentro de estable, estable dentro de confirmado), la *accountable safety*,
+  cadenas de bloques (finalizado dentro de estable, estable dentro de confirmado), la *accountable safety*,
   la monotonía, las cotas de inclusión y la resistencia a un apagón de red. Demostrarlas juntas
   obliga a cubrir las interacciones entre capas, que es donde estos protocolos se rompen.
 - **La separación entre lo que lee un humano y lo que revisa la máquina.** De las 334.092
@@ -574,6 +583,6 @@ todos los clientes están transcribiendo:
 
 ---
 
-*Fuentes: clones de solo lectura de los cuatro repos. `cryptography-specs` se recorrió archivo
-por archivo entre septiembre y el 7 de octubre de 2026; los otros tres se leyeron entre el 11 y el
-13 de octubre. El detalle y las citas textuales, en las páginas HTML de esta misma carpeta.*
+*Fuentes: clones de solo lectura de los cinco repos. `cryptography-specs` se recorrió archivo
+por archivo entre septiembre y el 7 de octubre de 2026; otros tres se leyeron entre el 11 y el
+13 de octubre, y `verified-consensus` el 18 de octubre. El detalle y las citas textuales, en las páginas HTML de esta misma carpeta.*

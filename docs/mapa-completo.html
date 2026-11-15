@@ -194,7 +194,7 @@ dd{margin:2px 0 0;color:var(--muted);font-size:14px}
     <h3>Dónde se usa Lean acá</h3>
     <p>Las mismas tres preguntas en todas las páginas de <code>docs/</code>, para poder comparar un repo con otro.</p>
     <dl>
-      <dt>¿Se compila el Lean?</dt><dd><span class="si">Sí</span> — <code>lake build</code> genera un <code>.c.o.export</code> por módulo, y <code>setup.py</code> los compila dentro de la extensión <code>_native.cpython-311-darwin.so</code> (8,8 MB), enlazada dinámicamente contra <code>libleanshared</code>.</dd>
+      <dt>¿Se compila el Lean?</dt><dd><span class="si">Sí</span> — <code>lake build</code> genera un <code>.c.o.export</code> por módulo, y <code>setup.py</code> los compila dentro de la extensión <code>_native.cpython-312-darwin.so</code> (8,8 MB), enlazada dinámicamente contra <code>libleanshared</code>.</dd>
       <dt>¿Se traduce código entre Lean y otro lenguaje?</dt><dd><span class="no">No</span> — no se traduce código fuente a otro lenguaje ni viene de ninguno. El C lo genera el compilador de Lean, y aparte hay 928 líneas de binding en C escritas a mano (<code>bls.c</code>, <code>kzg.c</code>, <code>module.c</code>) que hacen el <i>marshalling</i> entre Python y Lean.</dd>
       <dt>¿Hay Lean en el entorno de ejecución?</dt><dd><span class="si">Sí, es invocable</span> — 33 <code>@[export]</code> (14 funciones y 19 constantes) hacen que esas definiciones Lean aparezcan como símbolos C adentro del <code>.so</code>; el binding en C las envuelve y Python las llama con un <code>from eth_cryptography_specs import bls</code> común y corriente. Así corrimos los 364 vectores: cada llamada ejecuta código Lean compilado, no una reimplementación que hace lo mismo.
       <p style="margin:8px 0 0"><b>Por qué importa tanto.</b> Es lo único que cierra el círculo entre teoremas y
@@ -256,7 +256,7 @@ flowchart TB
     INIT["bls/__init__.py · kzg/__init__.py<br/>solo reexportan desde _native"]
   end
   subgraph CC["Mundo C · binding escrito a mano"]
-    SO["_native.cpython-311-darwin.so · 8,8 MB<br/>código máquina: binding C + spec Lean"]
+    SO["_native.cpython-312-darwin.so · 8,8 MB<br/>código máquina: binding C + spec Lean"]
     BC["bls.c · kzg.c · module.c<br/>marshalling: bytes ⇄ ByteArray"]
   end
   subgraph LX["Mundo Lean · spec: se convierte en programa"]

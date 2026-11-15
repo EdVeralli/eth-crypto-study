@@ -14,6 +14,13 @@ Todo lo que sigue está medido sobre un clon de solo lectura de
 > **Esta sección se corrigió el 23 de octubre**, después de instalar la cadena de herramientas y correrla
 > sobre este código. Decía que el obstáculo era la biblioteca estándar. **No lo es.** El
 > log completo está en la [sección 7](#7-el-experimento-lo-que-pas%C3%B3-de-verdad).
+>
+> **Nota del 15 nov 2026: esa corrección también quedó corta.** `HashMap` y los iteradores
+> **no** se traducen solos: aparecen nombrados en las firmas, pero `lake build` falla con
+> `Unknown identifier`. Se corrigió el 28 de octubre en la sección 8 ("La corrección que
+> más vale, y es la tercera sobre el mismo tema"). Lo que dice esta sección sobre `std`, y
+> lo que repite la sección 4 sobre el `HashMap` del fork choice, hay que leerlo con eso
+> presente.
 
 La cadena de herramientas Rust → Lean (Charon + Aeneas, disparada por
 `cargo hax into lean`) tiene **dos límites**, y ninguno de los dos es `std`:
@@ -62,8 +69,8 @@ suciedad —los `Arc`, los `RwLock`, el tokio— vive en el actor, el pool de at
 el caché de claves públicas, no en las reglas del protocolo.
 
 Y una aclaración sobre el nombre: el crate `state_transition` tiene **dos cadenas
-adentro**. `src/beacon/` es la Beacon Chain de hoy (el seguidor de mainnet); la STF de
-*lean* —la cadena que ethlambda realmente es— está en `src/lib.rs` y
+de bloques adentro**. `src/beacon/` es la Beacon Chain de hoy (el seguidor de mainnet); la STF de
+*lean* —la cadena de bloques que ethlambda realmente es— está en `src/lib.rs` y
 `src/justified_slots_ops.rs`. Las dos dan **0 async, 0 locks, 0 unsafe**.
 
 ---
@@ -90,8 +97,8 @@ funciones son `is_slot_justified`, `set_justified`, `extend_to_slot` y `shift_wi
 - **Es aritmética con `checked_sub` y off-by-ones por todos lados**, y dos loops que
   reconstruyen el bitlist copiando bits de una posición a otra.
 - **Si eso se corre un lugar, el nodo cree que un slot está justificado cuando no lo
-  está.** Es el tipo de bug que no rompe ningún test unitario y parte la cadena en
-  producción.
+  está.** Es el tipo de bug que no rompe ningún test unitario y parte la cadena de bloques
+  en producción.
 - **Lo que hay que modelar a mano es una sola cosa**: `JustifiedSlots`, que es un bitlist
   de SSZ. Se modela como una lista de booleanos y listo. Es el escenario ideal — lo que
   entra como supuesto es chico y obviamente correcto.
@@ -123,7 +130,7 @@ La justificación y finalización de **Casper FFG**: el bitfield de 4 bits que e
 - **A favor**: [`gasper-lean4`](gasper-lean4.html) **ya tiene esos teoremas escritos en
   Lean** — justificación, finalización, accountable safety. Tendrías contra qué comparar
   en vez de inventar el enunciado.
-- **En contra**: es el seguidor de mainnet, no la cadena que ethlambda es.
+- **En contra**: es el seguidor de mainnet, no la cadena de bloques que ethlambda es.
 
 ### `blockchain/fork_choice` — 136 líneas, una sola dependencia
 
@@ -137,7 +144,9 @@ spec — justo el caso donde un teorema de equivalencia tiene sentido.
 - **En contra, y esto lo medimos**: no traduce. El `HashMap` no es el problema —se traduce
   solo, y aparece tal cual como `std.collections.hash.map.HashMap` en la firma generada—
   pero **el `max_by_key` sí**: Aeneas falla con *"Can't end abstraction"* en esa línea
-  exacta. La firma sale completa y el cuerpo sale `sorry`.
+  exacta. La firma sale completa y el cuerpo sale `sorry`. (Nota del 15 nov 2026: lo del
+  `HashMap` estaba mal. Aparece en la firma, pero no tiene modelo y `lake build` no lo
+  encuentra; ver la corrección del 28 oct en la sección 8.)
 
 > **Observación al leer el código, sin demostrar:** acá parece que lo resolvieron bien. El
 > desempate es `max_by_key(|root| (peso, *root))`, y como los roots son únicos no hay
@@ -211,7 +220,18 @@ de tu reescritura, y no hay forma de conectarla con el original, porque el origi
 traduce. El teorema sería verdadero y mudo. Es la misma trampa que el `max_by_key` del
 fork choice, y vale anotarla para no caer.
 
+> **Nota del 15 nov 2026.** Lo que se terminó haciendo fue la C **más** la reescritura que
+> describe la E: cuatro de las doce funciones (`process_attestations` entre ellas) se
+> reescribieron con loops de índice. La objeción de arriba —que no hay forma de conectar la
+> reescritura con el original— se atendió con los tests del original corriendo sobre la
+> reescritura, más dos nuestros. Está en
+> [`tooling/hax-lean/mini-stf/`](../tooling/hax-lean/mini-stf/PROPUESTA.md).
+
 ### La recomendación: la D, y no como premio consuelo
+
+> **Nota del 15 nov 2026.** Ésta era la recomendación del 26 de octubre. No fue el camino
+> final: se hizo la C con la reescritura de la E (ver la nota de arriba). El teorema de los
+> pronic que se describe acá sí se demostró.
 
 Mirá qué es `slot_is_justifiable_after`, que decide qué slots se pueden justificar:
 
@@ -255,6 +275,12 @@ Con la salvedad de arriba: **la B deja de ser una apuesta a ciegas**. El refacto
 empaquetado —sacar la STF de lean a su propio crate, sin `ethlambda-storage` ni la Beacon
 Chain— apunta a algo que sabemos que la herramienta puede digerir. La C queda como plan de
 contingencia, no como camino principal.
+
+> **Nota del 15 nov 2026.** Las dos cosas cambiaron. El chequeo pendiente se hizo y dio mal:
+> Aeneas sólo emite definiciones del crate local, así que los tipos de `ethlambda-types`
+> salen nombrados y sin definir (está medido en el README de
+> [`mini-stf`](../tooling/hax-lean/mini-stf/README.md), "Por qué existe"). Por eso la C dejó
+> de ser el plan de contingencia y fue el camino que se siguió, con la reescritura de la E.
 
 **Si sale la D**, tenés una propiedad demostrada sobre código de producción. **Si no sale**,
 sabés exactamente dónde se traba y por qué — que para Pablo también es un resultado, y
@@ -367,6 +393,11 @@ referencias**.
 [`tooling/hax-lean/mini-stf/`](../tooling/hax-lean/mini-stf/README.md), con el
 detalle completo.
 
+> **Nota del 15 nov 2026.** Éstos son los números del 28 de octubre. El estado final es
+> **doce de doce** funciones traducidas, cero `sorry`, sin ninguna función de la STF opaca,
+> y `lake build` con 1742 jobs el 6 nov (1743 en el rearmado en limpio del 12 nov). Los
+> números finales están en la [`PROPUESTA.md`](../tooling/hax-lean/mini-stf/PROPUESTA.md).
+
 Nueve de las doce funciones traducidas con cero `sorry`, entre ellas
 `state_transition`, `process_slots`, `process_block`, `process_block_header`,
 `is_valid_vote` y `slot_is_justifiable_after`. Y los tipos salieron como
@@ -375,8 +406,9 @@ estructuras de verdad: `structure tipos.State`, `tipos.Block`,
 
 ### Cómo se llegó, que es lo que importa para la próxima
 
-La opción que terminó funcionando no era ninguna de las cinco de la sección 5.
-Fue **la C** —tipos escritos a mano— pero con un ingrediente que no teníamos:
+La opción que terminó funcionando no era ninguna de las cinco de la sección 5
+tal como estaban planteadas. Fue **la C** —tipos escritos a mano— pero con un
+ingrediente que no teníamos:
 `--charon-args="--opaque ..."`. Con eso se le dice a la herramienta que no mire
 el cuerpo de una función y emita sólo su firma, lo que permite dejar afuera las
 tres funciones problemáticas **sin tocar el código de las otras nueve**.

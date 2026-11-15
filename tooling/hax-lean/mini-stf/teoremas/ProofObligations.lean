@@ -108,7 +108,7 @@ theorem bind_da_ok {α β : Type} {x : RustM α} {k : α → RustM β} {y : β}
 /- ===========================================================================
    Teorema 2: la mitad de ST-3 que vive en `try_finalize`
 
-   `ST-3` es una de las 36 proposiciones de NyxFoundation/formal-leanSpec:
+   `ST-3` es una de las 35 proposiciones de NyxFoundation/formal-leanSpec:
 
        latest_justified.slot y latest_finalized.slot nunca retroceden
 
@@ -212,11 +212,14 @@ theorem try_finalize_no_toca_justified
       simp_all
 
 /- ===========================================================================
-   ST-3 mitad 2: donde quedo, 4 nov
+   ST-3 mitad 2: nota historica del 4 nov
 
-   Falta la otra mitad: que `latest_justified.slot` tampoco retroceda en el
-   loop de `process_attestations`. El intento esta en
-   `teoremas/ST3-en-progreso.lean`, que NO es parte de la biblioteca.
+   Esto es como estaba el 4 nov, ANTES de cerrar la otra mitad. Se deja porque
+   explica por que el teorema 4, mas abajo, no usa
+   `Hax.loop_range_spec_unsigned`. Lo que aca figura como faltante -- que
+   `latest_justified.slot` tampoco retroceda en el loop de
+   `process_attestations` -- esta demostrado en los teoremas 4 y 5. El archivo
+   de trabajo de ese dia, `teoremas/ST3-en-progreso.lean`, ya no existe.
 
    Lo que ya esta medido:
 
@@ -262,16 +265,23 @@ theorem try_finalize_no_toca_justified
 /- ===========================================================================
    Teorema 4: ST-3 mitad 2 -- `latest_justified` no retrocede en el loop
 
-   Con esto `ST-3` queda COMPLETA: las dos mitades demostradas.
+   Con esto quedan demostradas las dos mitades de `ST-3`, cada una sobre el
+   componente donde se mueve su campo. NO es la proposicion del catalogo, que
+   esta enunciada sobre `State.transition` entera; ver PROPUESTA.md.
 
-   El enunciado es condicional al exito, igual que el teorema 2:
+   El enunciado es condicional a que la llamada devuelva `ok`, igual que el
+   teorema 2:
 
-       si `process_attestations_loop` termina bien, el slot justificado del
+       si `process_attestations_loop` devuelve `ok`, el slot justificado del
        resultado no es menor que el que habia al entrar.
 
-   Y esa es la forma correcta, no una version debilitada. La propiedad habla
-   de la transicion de estado; si la transicion falla el bloque se rechaza y
-   no hay estado nuevo del que afirmar nada.
+   Ojo con que `ok` es ese. Es el de `RustM`: la corrida no entro en panico
+   (`fail`) ni dejo de terminar (`div`). NO es el `Ok` de Rust. Un bloque
+   rechazado es `ok (Err e, estado)` y esta cubierto por el teorema. Lo que
+   queda afuera son los panicos -- un desborde, un indice fuera de rango -- y
+   eso es un limite real: un panico no rechaza el bloque, tira el nodo.
+   Demostrar que no los hay es otro teorema, mucho mas grande (ver el punto 1
+   de abajo).
 
    Dos decisiones que costaron el dia y vale dejar escritas.
 
@@ -293,10 +303,10 @@ theorem try_finalize_no_toca_justified
       ahi que `try_finalize_spec` salga en una linea del teorema 3, sin
       rehacer la demostracion.
 
-   Once de los doce lemas `@[spec]` no dicen nada: el invariante habla solo de
-   `latest_justified` y esas funciones no reciben ni devuelven el estado, asi
-   que alcanza con que la tactica pueda atravesar la llamada. El unico con
-   contenido es `try_finalize_spec`.
+   Once de los trece lemas `@[spec]` de este bloque no dicen nada: el
+   invariante habla solo de `latest_justified` y esas funciones no reciben ni
+   devuelven el estado, asi que alcanza con que la tactica pueda atravesar la
+   llamada. Los dos con contenido son `is_none_spec` y `try_finalize_spec`.
 
    Y donde esta la propiedad, al final: `mvcgen` genera mas de 250
    condiciones de verificacion y deja dieciocho. Se cierran de dos formas --
@@ -335,9 +345,10 @@ theorem triple_mayThrow_of {α : Type} {x : RustM α} {P : α → Prop}
 /- ====================================================================
    Lemas de las funciones del cuerpo.
 
-   Once de los doce no tienen que decir NADA: el invariante habla solo de
+   Once de los trece no tienen que decir NADA: el invariante habla solo de
    `latest_justified`, y estas funciones no reciben ni devuelven el estado.
-   Alcanza con que `mvcgen` pueda atravesar la llamada.
+   Alcanza con que `mvcgen` pueda atravesar la llamada. Los otros dos son
+   `is_none_spec` y `try_finalize_spec`.
    ==================================================================== -/
 
 @[local spec]
@@ -513,7 +524,8 @@ end ST3
        si `process_attestations` termina bien, el slot justificado del estado
        resultante no es menor que el que habia al entrar.
 
-   Con esto `ST-3` queda completa sobre la funcion, no sobre una parte.
+   Con esto la mitad de la justificacion queda demostrada sobre la funcion
+   entera, no solo sobre el loop.
 
    Dos notas de metodo.
 

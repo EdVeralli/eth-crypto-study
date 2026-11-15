@@ -12,7 +12,7 @@ dice exactamente qué necesitó cada una y por qué.
 Trae además teoremas, porque una traducción que chequea es sólo la mitad de la
 pregunta — la otra mitad es si se puede demostrar algo sobre lo que sale. No son
 un reclamo de cobertura contra ningún catálogo. Lo que sí cubren es la propiedad
-que la suite de ustedes afirma por ejemplo después del congelamiento del devnet
+que un test de ustedes afirma por ejemplo después del congelamiento del devnet
 en el slot 27984.
 
 Cada número de acá salió de una corrida.
@@ -40,7 +40,7 @@ rehacerlo.
 
 Cadena de herramientas: `cargo-hax 0.4.2`, `charon nightly-2026.09.02`,
 `aeneas build-183e4f0`, y `elan` para Lean. Corrimos todo en x86-64 Linux; la
-cadena no soporta macOS Intel, así que usamos un contenedor `linux/amd64`.
+cadena de herramientas no soporta macOS Intel, así que usamos un contenedor `linux/amd64`.
 
 ## Háganle el diff ustedes
 
@@ -71,7 +71,7 @@ diff -u <(plain ethlambda/.../lib.rs) <(plain mini-stf/src/stf.rs)
 ```
 
 Es un instrumento tosco — también cortaría un `//` dentro de un literal de
-cadena, aunque no hay ninguno en ninguno de los dos archivos. Sirve para leer,
+texto, aunque no hay ninguno en ninguno de los dos archivos. Sirve para leer,
 no para CI.
 
 ## Cómo correrlo
@@ -133,6 +133,11 @@ supuestos/FunsExternal.lean     →  proofs/lean/MiniStf/Assumptions/
 teoremas/ProofObligations.lean  →  proofs/lean/MiniStf/Verification/
 ```
 
+`regenerar.sh` copia además `supuestos/RevisarAxiomas.lean` al lado del
+lakefile. Ese no es parte del build: es el script que imprime los axiomas de
+cada función traducida, y se corre a mano con
+`lake env lean RevisarAxiomas.lean`.
+
 A mano, los mismos tres pasos son:
 
 ```bash
@@ -150,9 +155,10 @@ con `[Error] Unreachable`, y sacar el derive no es salida porque `.expect()` lo
 necesita. El primer `lake build` compila además Aeneas, `CoreModels` y la
 biblioteca de tácticas de hax, lo que tarda un rato; los siguientes no.
 
-Una corrida exitosa termina en `Build completed successfully (1742 jobs)`, sin
-`sorry` y con las doce funciones presentes como `def` en
-`proofs/lean/MiniStf/Extraction/Funs.lean`.
+Una corrida exitosa termina en `Build completed successfully`, sin `sorry` y
+con las doce funciones presentes como `def` en
+`proofs/lean/MiniStf/Extraction/Funs.lean`. La cuenta de jobs es 1742; el primer
+build sobre un checkout limpio da 1743, uno más que todos los que le siguen.
 
 Los tests — sus seis más dos nuestros:
 
@@ -180,11 +186,11 @@ Todo, con las líneas tal como se entrega.
 | `regenerar.sh` | 36 | nuestro — extraer, restaurar, compilar. |
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 309 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
-| `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime la base de confianza de cada teorema. |
-| `teoremas/ProofObligations.lean` | 686 | nuestro — los teoremas. |
-| `axiomas.txt` | 112 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
+| `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
+| `teoremas/ProofObligations.lean` | 698 | nuestro — los teoremas. |
+| `axiomas.txt` | 123 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 604 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 645 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -262,8 +268,8 @@ la leía. Devolvía `Ok(())` sobre un bloque que su código rechaza, y llamaba a
 divergencias.
 
 Los seis tests pasaron igual. Los dos que chequean errores
-(`rejects_justification_votes_length_mismatch`,
-`rejects_empty_validator_registry`) cubren las salidas de **antes** del loop;
+(`process_attestations_rejects_justification_votes_length_mismatch`,
+`process_attestations_rejects_empty_validator_registry`) cubren las salidas de **antes** del loop;
 ninguno cubre las tres de adentro. Así que agregamos dos que sí:
 
 | Test | Qué fuerza |
@@ -284,7 +290,7 @@ estos dos fallan.
 | `chequeo_de_paridad_redundante` | su corolario: el chequeo de paridad de al lado nunca puede fallar |
 | `try_finalize_no_retrocede` | la finalidad no retrocede |
 | `try_finalize_no_toca_justified` | `try_finalize` no toca `latest_justified` |
-| `ST3.process_attestations_loop_no_retrocede` | la justificación no retrocede, sobre una vuelta del loop |
+| `ST3.process_attestations_loop_no_retrocede` | la justificación no retrocede, sobre el loop de attestations entero |
 | `ST3.process_attestations_no_retrocede` | lo mismo, sobre la función entera |
 | `bind_da_ok` | una herramienta: abre un bind de `RustM` |
 
@@ -356,16 +362,27 @@ theorem ST3.process_attestations_no_retrocede
 ```
 
 Atención a la hipótesis: estos enunciados son **condicionales a que la llamada
-devuelva `ok`**. No dicen nada sobre las entradas en las que la transición
-falla — y ésa es la forma correcta y no una debilitada, porque una transición
-que falla rechaza el bloque y no deja estado nuevo del cual afirmar algo.
+devuelva `ok`** — y ese `ok` es el de la cadena de herramientas, no el de Rust.
+Aeneas envuelve cada función traducida en `RustM`, que tiene tres resultados:
+`ok`, `fail` (un pánico — un desborde aritmético, un índice fuera de rango) y
+`div` (no terminación). `process_attestations` se traduce a
+`RustM (Result<(), Error> × State)`, así que un bloque que el código de ustedes
+rechaza es `ok (Err e, state')` y **está cubierto**: el slot justificado tampoco
+retrocede por ese camino.
+
+Lo que los enunciados dejan afuera son las corridas que entran en pánico o que
+no terminan. Ése es un límite real y no una cuestión de forma: un pánico en la
+STF no rechaza un bloque, tira el nodo. La ausencia de pánico es un teorema
+aparte y mucho más grande, que no demostramos — ver **Cómo demostrar sobre lo
+traducido**.
 
 Ésta es la propiedad que su propio test afirma por ejemplo, en
 `latest_justified_does_not_regress_within_block`. Su comentario dice por qué
 existe: en el devnet, en el slot 27984, un bloque llevó tres attestations con
 supermayoría apuntando a los slots 27978, 27981 y 27974 en ese orden, la
-asignación sin guarda se quedó con la última, y la cadena se congeló. El test
-cubre ese escenario; el teorema cubre toda entrada que la transición acepte.
+asignación sin guarda se quedó con la última, y la cadena de bloques se congeló.
+El test cubre ese escenario; el teorema cubre toda entrada con la que la
+función devuelve algo, acepte el bloque o lo rechace.
 
 ### Qué es esto contra el catálogo, dicho exacto
 
@@ -411,8 +428,11 @@ Tres categorías, con tres pesos distintos.
 de cualquier demostración clásica y no dicen nada sobre este código.
 
 **Los nativos** son los `_native.decide.ax_*`: hechos que el núcleo de Lean no
-chequeó, computados por el compilador. Aparecen siete distintos en todo el
-build. No son nuestros ni de ustedes. Definir una función en Lean puede exigir
+chequeó, computados por el compilador. Siete distintos llegan a los teoremas
+de arriba, y las doce funciones cargan nueve entre todas: `state_transition` y
+`process_block` suman `process_block_header._native.decide.ax_3` y
+`extend_to_slot_loop.body._native.decide.ax_3`, que ningún teorema de acá toca.
+No son nuestros ni de ustedes. Definir una función en Lean puede exigir
 demostraciones —un literal escalar carga la prueba de que entra en su tipo,
 indexar carga la de que el índice está en rango— y Aeneas genera esas
 obligaciones al traducir, y después descarga las de cotas con `native_decide`.
@@ -430,13 +450,13 @@ Llegan con las **definiciones traducidas**, antes de que exista un teorema:
 devuelve los mismos trece axiomas que nuestro teorema sobre `try_finalize`, uno
 por uno. Traduzcan la STF con esta cadena de herramientas y no demuestren nada,
 y ya los tienen; demostrar encima no ensancha la base de confianza en una sola
-entrada. Lo que no hicimos fue abrir cada uno de los siete para nombrar el hecho
-que descarga.
+entrada. Lo que no hicimos fue abrir cada uno de los nueve para nombrar el hecho
+que representa.
 
 **Las declaraciones** son nuestras, en `supuestos/FunsExternal.lean`:
 veintiocho axiomas que son firma y nada más — el `get`, `insert` y `new` de
 `HashMap`, los tipos de trait `Borrow` y `BuildHasher`, el `cmp` y `hash` de
-`[T; N]`, `mem::take`, `bool::then`, y diecisiete stubs de `Debug::fmt`. Existen
+`[T; N]`, `mem::take`, `bool::then`, y diecisiete stubs de `fmt` — catorce de `Debug`, tres de `Display`. Existen
 para que el Lean generado compile: `try_finalize` llama a `root_to_slot.get(…)`,
 Aeneas nombra `HashMap::get` en la salida, `CoreModels` no tiene modelo para él,
 y sin la declaración el módulo muere con `Unknown identifier` y no compila nada.
@@ -489,7 +509,8 @@ propios. `Aeneas.Std.loop_spec` toma una postcondición completa, con ramas de
 falla y de divergencia; elegir `PostCond.mayThrow` descarga esas solas, vuelve
 irrelevante el desborde de `attestations_processed + 1` y —al tolerar la
 divergencia— saca la necesidad de una medida de terminación. De ahí viene la
-forma condicional al éxito de los enunciados.
+forma condicional de los enunciados — condicional a que no haya pánico, no a
+que el bloque se acepte.
 
 **Dos puentes, y son la parte reutilizable.**
 
@@ -503,9 +524,11 @@ tiene **como ecuación** en el lema `@[spec]` que la táctica consume, así un
 resultado demostrado por el camino difícil queda usable sin rehacerlo. El otro
 sentido devuelve una terna a ecuación, que es como están enunciados los
 resultados de arriba. Veintitrés lemas `@[spec]` alimentan las dos
-demostraciones del loop; todos menos dos tienen una postcondición trivialmente
+demostraciones del loop; todos menos cuatro tienen una postcondición trivialmente
 verdadera, presentes sólo para que la táctica pueda atravesar una llamada que no
-puede mover `latest_justified`.
+puede mover `latest_justified`. Los cuatro con contenido son `is_none_spec`,
+`try_finalize_spec`, `serialize_spec` y el propio teorema del loop, reusado como
+lema para la función entera.
 
 **`hax_mvcgen` se detiene en silencio.** Decide si queda trabajo por la *forma*
 del objetivo: `goalNeedsMvcgen` reconoce un `Triple`, un `entails` que lleva un
@@ -571,12 +594,12 @@ definiciones y no un `use`. Chequeamos si la cadena de herramientas ofrece una
 forma de evitar la copia, sobre un crate chico que no hacía más que tocar
 `State` y `Block` de `ethlambda-types`. El manual de hax documenta
 `--charon-args="--start-from <función>"`, que extrae una función *"along with
-all its dependencies"* — y eso vale para la cadena de llamadas, no para los
+all its dependencies"* — y eso vale para el grafo de llamadas, no para los
 tipos. La función salió traducida, el tipo no, y `TypesExternal_Template.lean`
-salió vacío, así que la cadena ni siquiera pide el tipo como externo. El nombre
+salió vacío, así que la cadena de herramientas ni siquiera pide el tipo como externo. El nombre
 que cuelga aparece en el `lake build`, no en la extracción. `--start-from`
 cambia qué ítems emite Charon, no de qué crate define Aeneas, así que la copia
-no es un atajo que tomamos: es la única ruta que la cadena deja.
+no es un atajo que tomamos: es la única ruta que la cadena de herramientas deja.
 
 El costo de la copia es la deriva. Si `State` cambia, alguien tiene que
 sincronizar `src/tipos.rs`. Los dos problemas desaparecen juntos si los tipos y
@@ -601,6 +624,6 @@ una precondición no enunciada, y pueden preferir `checked_add` o una forma
 saturante.
 
 **La base de confianza no está vacía**, y lo que hay en ella está detallado en
-**La base de confianza**, arriba: siete axiomas nativos que vienen con la
-traducción, veintiocho declaraciones nuestras que no afirman nada, y una
+**La base de confianza**, arriba: nueve axiomas nativos que vienen con la
+traducción —siete de los cuales llegan a los teoremas—, veintiocho declaraciones nuestras que no afirman nada, y una
 afirmación de modelado que sí hacemos.

@@ -194,7 +194,7 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
       <blockquote>the theorem does not merely assert that honest validators would not create a fork, but that <b>*if* a
       fork occurs, provable evidence exists to identify and punish the responsible validators</b>.</blockquote>
       <p>No es "confiemos en que se portan bien". Es: si pasa, hay pruebas y hay a quién cobrarle.</p>
-      <p>Y "en conflicto" tiene una definición precisa, que es donde el teorema sí habla de cadenas: dos bloques
+      <p>Y "en conflicto" tiene una definición precisa, que es donde el teorema sí habla de cadenas de bloques: dos bloques
       finalizados donde <b>ninguno es ancestro del otro</b>, o sea, en ramas distintas del árbol.</p>
       <div class="pipe">∃ b1 b1_h b2 b2_h,
   finalized … b1 b1_h ∧ finalized … b2 b2_h ∧
@@ -215,7 +215,7 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
     <div class="box thm">
       <div class="eyebrow">3 · plausible_liveness</div>
       <p>Que el protocolo nunca se trabe: siempre existe una manera de extender el estado y finalizar un bloque nuevo
-      <b>sin que nadie nuevo quede castigable</b>, mientras la cadena siga produciendo bloques y haya ⅔ de stake
+      <b>sin que nadie nuevo quede castigable</b>, mientras la cadena de bloques siga produciendo bloques y haya ⅔ de stake
       honesto.</p>
       <p>Sin esto, un protocolo podría ser perfectamente seguro por el método de no finalizar nunca nada.</p>
     </div>
@@ -228,16 +228,16 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
 
   <section id="mitad">
     <div class="eyebrow">Lo que no cubre</div>
-    <h2>Es la mitad de Gasper: falta elegir la cadena</h2>
+    <h2>Es la mitad de Gasper: falta elegir la cadena de bloques</h2>
     <p>El nombre Gasper es la suma de dos piezas, y este repo formaliza una sola:</p>
     <div class="tw"><table>
       <tr><th>Pieza</th><th>Qué hace</th><th>Cada cuánto</th><th>¿Está?</th></tr>
-      <tr><td><b>LMD-GHOST</b></td><td>elige <b>cuál cadena seguir</b> ahora mismo</td><td>todo el tiempo, slot a slot</td>
+      <tr><td><b>LMD-GHOST</b></td><td>elige <b>cuál cadena de bloques seguir</b> ahora mismo</td><td>todo el tiempo, slot a slot</td>
           <td style="color:var(--warn);font-weight:600">no</td></tr>
       <tr><td><b>Casper FFG</b></td><td>pone <b>candados</b> sobre checkpoints</td><td>cada época (32 slots)</td>
           <td style="color:var(--exec);font-weight:600">sí, es todo el repo</td></tr>
     </table></div>
-    <p>Casper FFG no opina sobre qué cadena seguís: dice "de este punto para atrás, no se toca más". Es el escribano
+    <p>Casper FFG no opina sobre qué cadena de bloques seguís: dice "de este punto para atrás, no se toca más". Es el escribano
     que sella una escritura; no te dice por qué calle seguir construyendo, te garantiza que lo ya escriturado no se
     discute.</p>
     <p>Las dos piezas se enganchan así: el fork choice de Gasper <b>no arranca del génesis</b>, arranca del último
@@ -316,7 +316,7 @@ theorem justifiedB_iff … :           -- y el puente entre las dos…
       <p>No es una opinión: está en la firma de la función. <span class="tag m">verificado acá</span></p>
       <div class="pipe">def justifiedB … [Fintype Validator] <b>[Fintype Hash]</b> … : Bool</div>
       <p>Ese <code>[Fintype Hash]</code> exige que el conjunto de hashes posibles sea <b>finito y enumerable</b>. En los
-      ejemplos del repo son 6 u 8 bloques, según el modelo. En una cadena real los hashes son 2²⁵⁶ posibilidades: la función literalmente
+      ejemplos del repo son 6 u 8 bloques, según el modelo. En una cadena de bloques real los hashes son 2²⁵⁶ posibilidades: la función literalmente
       no se puede instanciar para Ethereum.</p>
       <p>Está escrita para razonar y para jugar con escenarios chicos, no para procesar bloques. Y eso está bien: el
       producto de este repo es el teorema, no el binario.</p>
@@ -338,7 +338,7 @@ theorem justifiedB_iff … :           -- y el puente entre las dos…
 
     <div class="box">
       <div class="eyebrow"><code>formal-leanSpec</code> · el catálogo</div>
-      <p>41 archivos, 8.534 líneas, <b>36 proposiciones, todas demostradas</b> (3 quedan como axiomas: la criptografía,
+      <p>41 archivos, 8.534 líneas, <b>35 proposiciones, todas demostradas</b> (3 quedan como axiomas: la criptografía,
       delegada a ArkLib). Cada una tiene un ID, y los prefijos mapean 1:1 con las carpetas: <code>SSZ</code>,
       <code>CONT</code> (containers), <code>ST</code> (transición de estado), <code>FC</code> (fork choice),
       <code>VAL</code>, <code>NET</code>, <code>STOR</code>, <code>SYNC</code>. Por ejemplo:</p>
@@ -373,7 +373,7 @@ theorem justifiedB_iff … :           -- y el puente entre las dos…
       <p>Al demostrar que el loop termina, se dieron cuenta de que "termina matemáticamente" y "termina antes del fin
       del universo" son cosas distintas. El teorema no los engañó: les mostró exactamente qué no cubría.</p>
 
-      <p><span class="sev">Critical-2</span> <b>La cabeza de la cadena no es función pura del store.</b> Si un validador
+      <p><span class="sev">Critical-2</span> <b>La cabeza de la cadena de bloques no es función pura del store.</b> Si un validador
       equivoca (dos atestaciones distintas en el mismo slot), el código se queda con la que <b>entró primero al
       diccionario</b>: orden de llegada, no contenido. Dos nodos honestos con exactamente los mismos bloques, recibidos
       en distinto orden, pueden elegir cabezas distintas de manera persistente.</p>

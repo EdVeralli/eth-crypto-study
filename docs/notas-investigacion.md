@@ -127,6 +127,11 @@ python3 -m venv .venv                 # Python 3.11.7
 .venv/bin/pip install -e '.[test]'
 ```
 
+Nota del 15 nov 2026: asi se hizo en septiembre. Despues del formateo del 12 nov el
+`python3` del sistema es 3.9.6 (el repo pide >= 3.10), asi que el `.venv` se rehizo con
+`uv` y Python 3.12.16, y la extension ahora se llama `_native.cpython-312-darwin.so`.
+Los comandos estan en `RESTAURAR.md`, en la raiz del repo.
+
 Que hace ese `pip install -e` por dentro (`setup.py`):
 
 1. Corre `lake build` de nuevo (idempotente si ya esta compilado)
@@ -274,5 +279,7 @@ Los caros son los tres que tocan celdas: `compute_cells_and_kzg_proofs`,
 ### Repos
 
 - **Repo original (solo lectura):** `~/cryptography-specs` — clon de `ethereum/cryptography-specs`
+  (Nota del 15 nov 2026: ese clon ya no existe desde el formateo del 12 nov; se vuelve a
+  clonar, solo lectura, si hacen falta commits de upstream.)
 - **Tu repo personal:** `~/eth-crypto-study` — copia independiente en `github.com/EdVeralli/eth-crypto-study`
 - **Docs generados:** `~/eth-crypto-study/docs/` — mapa interactivo + estas notas

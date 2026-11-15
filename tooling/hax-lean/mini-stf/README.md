@@ -1,9 +1,15 @@
 # mini-stf — la STF de ethlambda en un crate solo
 
 > **Para LambdaClass hay otro documento: [`PROPOSAL.md`](PROPOSAL.md), en
-> inglés.** Ese es el entregable — qué es suyo y qué es nuestro, qué cambió en
+> inglés, y su par en castellano, [`PROPUESTA.md`](PROPUESTA.md).** Ese es el
+> entregable — qué es suyo y qué es nuestro, qué cambió en
 > cada función, qué cuesta y cómo correrlo. Este README es nuestra bitácora:
 > tiene el camino, los errores y las reglas que fuimos encontrando.
+
+Esta bitácora está en orden cronológico y conserva los números de cada etapa.
+El estado final está en [`PROPUESTA.md`](PROPUESTA.md) /
+[`PROPOSAL.md`](PROPOSAL.md); donde un número de acá difiere, vale el de la
+propuesta.
 
 
 Crate armado para pasar la transición de estado de ethlambda por la cadena de
@@ -25,17 +31,25 @@ crate que se extrae**. De ahí este crate.
 
 | módulo | de dónde sale | líneas |
 |---|---|---|
-| `stf` | **copia** de `state_transition/src/lib.rs`, sólo cambian los `use` | 646 |
-| `justified_slots_ops` | **copia**, sólo cambian los `use` | 91 |
-| `tipos` | definiciones de `ethlambda-types`, sin los derives | ~250 |
-| `ssz` | **nuestro**: sustitutos de `SszList` y `SszBitlist` | ~130 |
-| `stubs` | **nuestro**: `tracing` y `metrics` sin efecto | ~50 |
+| `stf` | **copia** de `state_transition/src/lib.rs`: ocho de las doce funciones sin cambios, cuatro reescritas, 19 funciones auxiliares nuestras, y al final el módulo de tests del original (437 renglones) con dos tests agregados | 1484 |
+| `justified_slots_ops` | **copia**, sólo cambian los `use` | 90 |
+| `tipos` | definiciones de `ethlambda-types`, sin los derives | 431 |
+| `ssz` | **nuestro**: sustitutos de `SszList` y `SszBitlist` | 154 |
+| `mapa` | **nuestro**: lista de asociación que reemplaza un `HashMap` | 245 |
+| `stubs` | **nuestro**: `tracing` y `metrics` sin efecto | 49 |
+
+(Líneas al 15 nov 2026.)
 
 Lo copiado viene de [lambdaclass/ethlambda](https://github.com/lambdaclass/ethlambda)
 (MIT): `crates/blockchain/state_transition/src/{lib,justified_slots_ops}.rs` y
 `crates/common/types/src/{primitives,checkpoint,state,block,attestation}.rs`.
 
 ## Qué se cambió, exactamente
+
+> Nota del 15 nov 2026: esta sección describe el estado del 29 oct. Después se
+> reescribieron cuatro de las doce funciones y los tests volvieron a `stf.rs`,
+> con dos más nuestros; está contado más abajo en esta misma bitácora ("La red
+> de seguridad", "El bug del 4 nov").
 
 El cuerpo de `stf.rs` es **idéntico al original**. Lo único que cambia:
 
@@ -137,6 +151,10 @@ puede con la firma de algo transversal —como el iterador de slices— no deja 
 **La STF de ethlambda existe en Lean y Lean la acepta.** `lake build` cierra en
 verde, 1736 jobs, cero errores.
 
+> Nota del 15 nov 2026: éstos son los números del primer cierre. El estado
+> final es **doce de doce** funciones traducidas, cero `sorry`, y `lake build`
+> con 1742 jobs el 6 nov (1743 en el rearmado en limpio del 12 nov).
+
 **Diez de las doce funciones traducidas, cero `sorry`:**
 
 ```
@@ -190,6 +208,16 @@ es un ciclo (`bad import 'MiniStf'`). El encabezado que escribe hax ya lo dice.
 
 ## Los supuestos, que es donde hay que mirar
 
+> Nota del 15 nov 2026: lo que sigue es la foto del 30 oct. Al final quedaron
+> **28 axiomas declarados** en `supuestos/FunsExternal.lean`: los 17 de `fmt`
+> (14 `Debug` + 3 `Display`) y 11 firmas de `core`/`std`. Ya no hay ninguna
+> funcion de la STF opaca (los dos `--opaque` que quedan son solo
+> `Debug`/`Display`), e `isqrt` es una definicion sobre `Nat.sqrt` desde el
+> 30 oct, no un axioma. Y una cuenta que abajo no cierra: el desglose suma 25
+> y el total dice 24. El 24 es el correcto para ese dia: en el commit `f028e61`
+> el archivo tenia 17 + 2 + 5, porque de las tres funciones opacas solo
+> `process_attestations` y `serialize_justifications` tenian su axioma ahi.
+
 24 axiomas. **La mayoria es ruido**, pero no todos:
 
 - **17 son `fmt`** — como se imprime un `H256`. Ningun teorema los va a tocar.
@@ -203,6 +231,9 @@ es un ciclo (`bad import 'MiniStf'`). El encabezado que escribe hax ya lo dice.
 lindo que habiamos identificado (la identidad de los numeros pronic). Esta
 bloqueado hasta reemplazarlo por una definicion real sobre `Nat.sqrt`. Es el
 primer supuesto que conviene cerrar.
+
+(Nota del 15 nov 2026: se cerro ese mismo 30 oct. `isqrt` paso a ser una
+definicion sobre `Nat.sqrt` y el teorema de los pronic esta mas abajo.)
 
 ### La auditoria, corrida el 30 oct
 
@@ -219,7 +250,8 @@ cd proofs/lean && lake env lean RevisarAxiomas.lean
 
 **`isqrt` bloquea dos**: `slot_is_justifiable_after` y `is_valid_vote`. Un axioma
 sin definicion es una funcion de la que no se sabe nada, asi que el teorema de
-los pronic no es dificil: es imposible hasta reemplazarlo.
+los pronic no es dificil: es imposible hasta reemplazarlo. (Nota del 15 nov
+2026: reemplazado el 30 oct, ver arriba.)
 
 **Y cuatro `_native.decide.ax_*`**, que nadie pidio. Son native axioms —el
 resultado lo calcula el compilador de Lean, el kernel no revisa— y los metio
@@ -227,6 +259,11 @@ Aeneas solo, probablemente al despachar condiciones de borde sobre las
 constantes grandes del estado. Los arrastran `extend_to_slot`, `set_justified`,
 `process_block_header` y, por transitividad, `state_transition` y
 `process_block`.
+
+(Nota del 15 nov 2026: el conteo final es otro. A los teoremas llegan **7**
+nativos distintos, y contando las doce funciones de la STF son **9**: los dos
+de mas son `process_block_header._native.decide.ax_3` y
+`extend_to_slot_loop.body._native.decide.ax_3`.)
 
 Eso ultimo es un hallazgo que va mas alla de este crate: en los cuatro repos del
 cuadro comparativo el native axiom siempre es rastreable hasta una linea que
@@ -335,7 +372,7 @@ verificar antes de confiar en ellos:
 - Llaman **directo** a `process_attestations` (cinco de seis) y a
   `attestation_data_matches_chain` (el otro). Ninguno pasa por
   `state_transition` ni `process_block_header`, que son los dos lugares donde el
-  stub de `hash_tree_root` importaria.
+  hash que no es SSZ importaria.
 - `hash_tree_root` aparece en los tests solo como
   `body_root: BlockBody::default().hash_tree_root()` — un campo que asignan y
   nunca verifican. Las aserciones son sobre `latest_justified`,
@@ -370,7 +407,7 @@ Para llegar hay que separar dos cosas, y mezclarlas arruinaria la propuesta:
 | | Que es | Les sirve? |
 |---|---|---|
 | La reescritura de sus doce funciones | **la propuesta** | si, tal cual, en su repo |
-| Nuestros sustitutos SSZ, el stub de hash, los `--opaque`, los modelos en `Assumptions/` | el banco de pruebas | no — ellos tienen los tipos reales |
+| Nuestros sustitutos SSZ, el hash sustituto, los `--opaque`, los modelos en `Assumptions/` | el banco de pruebas | no — ellos tienen los tipos reales |
 
 Y hay un costo que tenemos que poner nosotros sobre la mesa: el codigo reescrito
 es **menos idiomatico**. Un `for` con indices donde habia un
@@ -508,7 +545,7 @@ Dicho eso, lo demostrado:
 El cuarto es el que mas pesa: habla de `process_attestations`, la funcion que
 ethlambda llama, y no de una parte de ella. No cierra ST-3 -- para eso falta el
 lift de arriba -- pero cubre el modo de falla que si les ocurrio. Base de axiomas: veinte -- tres estandar de
-Lean, seis nativos de la biblioteca de tacticas de Aeneas, y once declaraciones
+Lean, siete nativos de la biblioteca de tacticas de Aeneas, y diez declaraciones
 y modelos de `std` que solo existen para que las firmas chequeen.
 
 ### El lema del loop tenia que ser el de Aeneas, no el de hax
@@ -579,6 +616,10 @@ no lo vuelve a mirar, asi que cuando una funcion deja de ser opaca su axioma se
 queda ahi. **Al sacar un `--opaque`, sacar tambien su axioma.**
 
 ## Lo que sigue
+
+> Nota del 15 nov 2026: el paquete se cerro el 6 nov. Los puntos de abajo son
+> trabajo futuro posible, no pendientes. Lo unico pendiente es enviar el
+> paquete a LambdaClass.
 
 Los tres hallazgos de herramienta -- que los axiomas nativos vienen de la
 biblioteca de tacticas de Aeneas, que `--start-from` no trae los tipos de una

@@ -129,6 +129,10 @@ supuestos/FunsExternal.lean     →  proofs/lean/MiniStf/Assumptions/
 teoremas/ProofObligations.lean  →  proofs/lean/MiniStf/Verification/
 ```
 
+`regenerar.sh` also copies `supuestos/RevisarAxiomas.lean` next to the lakefile.
+That one is not part of the build: it is the script that prints the axioms of
+each translated function, run by hand with `lake env lean RevisarAxiomas.lean`.
+
 By hand, the same three steps are:
 
 ```bash
@@ -146,9 +150,11 @@ Both `--opaque` are required: without them every `#[derive(Debug)]` fails with
 `.expect()` needs it. The first `lake build` also compiles Aeneas, `CoreModels`
 and the hax tactic library, which takes a while; later ones do not.
 
-A successful run ends in `Build completed successfully (1742 jobs)`, with no
-`sorry` and the twelve functions present as `def`s in
-`proofs/lean/MiniStf/Extraction/Funs.lean`.
+A successful run ends in `Build completed successfully`, with no `sorry` and
+the twelve functions present as `def`s in
+`proofs/lean/MiniStf/Extraction/Funs.lean`. The job count is 1742; the very
+first build on a clean checkout reports 1743, one more than every build after
+it.
 
 The tests — your six plus two of ours:
 
@@ -176,11 +182,11 @@ Everything, with line counts as shipped.
 | `regenerar.sh` | 36 | ours — extract, restore, build. |
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 309 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
-| `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the trust base of each theorem. |
-| `teoremas/ProofObligations.lean` | 686 | ours — the theorems. |
-| `axiomas.txt` | 112 | ours — the `#print axioms` output, so the trust base can be read without building. |
+| `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
+| `teoremas/ProofObligations.lean` | 698 | ours — the theorems. |
+| `axiomas.txt` | 123 | ours — the `#print axioms` output, so the trust base can be read without building. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 604 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 645 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -255,8 +261,8 @@ returned `Ok(())` on a block your code rejects, and it called
 divergences.
 
 All six of your tests passed anyway. The two that check errors
-(`rejects_justification_votes_length_mismatch`,
-`rejects_empty_validator_registry`) cover the exits **before** the loop; none
+(`process_attestations_rejects_justification_votes_length_mismatch`,
+`process_attestations_rejects_empty_validator_registry`) cover the exits **before** the loop; none
 cover the three inside it. So we added two that do:
 
 | Test | What it forces |
@@ -277,7 +283,7 @@ these two fail.
 | `chequeo_de_paridad_redundante` | its corollary: the parity check beside it can never fail |
 | `try_finalize_no_retrocede` | finality does not roll back |
 | `try_finalize_no_toca_justified` | `try_finalize` leaves `latest_justified` alone |
-| `ST3.process_attestations_loop_no_retrocede` | justification does not roll back, over one turn of the loop |
+| `ST3.process_attestations_loop_no_retrocede` | justification does not roll back, over the whole attestation loop |
 | `ST3.process_attestations_no_retrocede` | the same, over the whole function |
 | `bind_da_ok` | a tool: opens one `RustM` bind |
 
@@ -348,16 +354,25 @@ theorem ST3.process_attestations_no_retrocede
 ```
 
 Note the hypothesis: these statements are conditional on the call returning
-`ok`. They say nothing about inputs on which the transition fails — and that is
-the right shape rather than a weakened one, because a failed transition rejects
-the block and leaves no new state to say anything about.
+`ok` — and that `ok` is the toolchain's, not Rust's. Aeneas wraps every
+translated function in `RustM`, which has three outcomes: `ok`, `fail` (a panic
+— an arithmetic overflow, an index out of range) and `div` (non-termination).
+`process_attestations` translates to `RustM (Result<(), Error> × State)`, so a
+block your code rejects is `ok (Err e, state')` and **is covered**: the
+justified slot does not go backwards on that path either.
+
+What the statements leave out is the runs that panic or do not terminate. That
+is a real limit and not a matter of shape: a panic in the STF does not reject a
+block, it takes the node down. Absence of panic is a separate and much larger
+theorem, which we did not prove — see **Proving on the output**.
 
 This is the property your own test asserts by example, in
 `latest_justified_does_not_regress_within_block`. Its comment says why it
 exists: on devnet at slot 27984 a block carried three supermajority
 attestations targeting slots 27978, 27981 and 27974 in that order, the
 unconditional assignment kept the last, and the chain froze. The test covers
-that scenario; the theorem covers every input the transition accepts.
+that scenario; the theorem covers every input on
+which the function returns at all, whether it accepts the block or rejects it.
 
 ### What this is against the catalog, stated exactly
 
@@ -402,8 +417,12 @@ Three categories, with three different weights.
 classical proof and say nothing about this code.
 
 **The native ones** are `_native.decide.ax_*`: facts the Lean kernel did not
-check, computed by the compiler instead. Seven distinct ones appear across the
-build. They are not ours and not yours. Defining a function in Lean can require
+check, computed by the compiler instead. Seven distinct ones reach the
+theorems above, and the twelve functions carry nine between them:
+`state_transition` and `process_block` add
+`process_block_header._native.decide.ax_3` and
+`extend_to_slot_loop.body._native.decide.ax_3`, which no theorem here touches.
+They are not ours and not yours. Defining a function in Lean can require
 proofs — a scalar literal carries a proof that it fits its type, indexing
 carries a proof that the index is in range — and Aeneas generates those
 obligations as it translates, then discharges the bound-related ones with
@@ -421,13 +440,13 @@ They arrive with the **translated definitions**, before any theorem exists:
 returns the same thirteen axioms as our `try_finalize` theorem, item for item.
 Translate the STF with this toolchain and prove nothing at all, and you already
 have them; proving on top of the output does not widen the trust base by one
-entry. What we did not do is open each of the seven to name the fact it stands
+entry. What we did not do is open each of the nine to name the fact it stands
 for.
 
 **The declarations** are ours, in `supuestos/FunsExternal.lean`: twenty-eight
 axioms that are signatures and no more — `HashMap`'s `get`, `insert` and `new`,
 the `Borrow` and `BuildHasher` trait types, the `cmp` and `hash` of `[T; N]`,
-`mem::take`, `bool::then`, and seventeen `Debug::fmt` stubs. They exist so the
+`mem::take`, `bool::then`, and seventeen `fmt` stubs — fourteen `Debug`, three `Display`. They exist so the
 generated Lean compiles: `try_finalize` calls `root_to_slot.get(…)`, Aeneas
 names `HashMap::get` in the output, `CoreModels` has no model for it, and
 without the declaration the module dies with `Unknown identifier` and nothing
@@ -479,7 +498,8 @@ full postcondition, with failure and divergence branches; choosing
 `PostCond.mayThrow` discharges those for free, makes the
 `attestations_processed + 1` overflow irrelevant, and — because divergence is
 tolerated — removes the need for a termination measure. That is where the
-conditional-on-success shape of the statements comes from.
+conditional shape of the statements comes from — conditional on not panicking,
+not on the block being accepted.
 
 **Two bridges, and they are the reusable part.**
 
@@ -493,8 +513,10 @@ have **as an equation** into the `@[spec]` lemma the tactic consumes, so a resul
 proved the hard way stays usable without being redone. The other direction
 brings a triple back to an equation, which is how the statements above are
 phrased. Twenty-three `@[spec]` lemmas feed the two loop-related proofs; all but
-two have a trivially true postcondition, present only so the tactic can step
-over a call that cannot move `latest_justified`.
+four have a trivially true postcondition, present only so the tactic can step
+over a call that cannot move `latest_justified`. The four with content are
+`is_none_spec`, `try_finalize_spec`, `serialize_spec`, and the loop theorem
+itself, reused as a lemma for the whole function.
 
 **`hax_mvcgen` stops silently.** It decides whether work remains from the
 *shape* of the goal: `goalNeedsMvcgen` recognizes a `Triple`, an `entails`
@@ -586,5 +608,5 @@ No slot will realistically get there, and the guard above requires
 an unstated precondition, and you may prefer `checked_add` or a saturating form.
 
 **The trust base is not empty**, and what is in it is set out under **The trust
-base** above: seven native axioms that come with the translation, twenty-eight
-declarations of ours that assert nothing, and one modeling claim we do make.
+base** above: nine native axioms that come with the translation — seven of which
+reach the theorems — twenty-eight declarations of ours that assert nothing, and one modeling claim we do make.

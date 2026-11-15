@@ -2,6 +2,12 @@
 
 Traducir Rust a Lean con **hax + Charon + Aeneas**, desde una Mac.
 
+Al lado de este README hay tres crates: [`ejemplo-jsops/`](ejemplo-jsops/) (el primer
+archivo de ethlambda que tradujo), [`mini-stf/`](mini-stf/) (el paquete de la STF
+completa; se entra por su [`PROPUESTA.md`](mini-stf/PROPUESTA.md)) y
+[`prueba-types/`](prueba-types/) (el crate chico con el que se probó si los tipos de
+una dependencia salen emitidos).
+
 ## Por qué Docker y no la Mac directamente
 
 hax publica binarios precompilados de Charon y Aeneas sólo para tres
@@ -93,6 +99,13 @@ nightly que Charon pide, traduce, y arma un proyecto Lean completo con su
    formulación: **no es que los closures no pasen** — un `.map()` sobre un
    `Option` de números se traduce sin problema. Es el borrow lo que molesta, no
    el closure.
+
+   **Nota del 15 nov 2026: lo de `std` estaba mal.** `HashMap` y los iteradores
+   **no** se traducen solos: aparecen nombrados en las firmas, pero no tienen
+   modelo en `CoreModels` y `lake build` falla con `Unknown identifier`. Se
+   corrigió el 28 oct en
+   [`docs/ethlambda-por-donde-empezar.md`](../../docs/ethlambda-por-donde-empezar.md),
+   sección 8, "La corrección que más vale". Lo del borrow sigue valiendo.
 
 **Lo que sí pasa limpio:** código con `for i in 0..n`, indexación, aritmética
 con `checked_*` y el operador `?`. Probado sobre un archivo real de ethlambda

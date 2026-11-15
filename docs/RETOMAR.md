@@ -1,6 +1,13 @@
 # Retomar trabajo
 
-_Ultima actualizacion: 2026-10-19_
+_Ultima actualizacion: 2026-11-15_
+
+> **Estado al 15 nov 2026.** Las entradas de abajo llegan hasta el 22 oct y no se
+> reescribieron. Lo que vino despues (23 oct - 6 nov) es el paquete
+> `tooling/hax-lean/mini-stf/`: la transicion de estado de ethlambda pasada de Rust a
+> Lean. Se entra por su `PROPUESTA.md` (castellano) o `PROPOSAL.md` (ingles); lo unico
+> pendiente es enviarlo a LambdaClass. La Mac se formateo el 12 nov: como reconstruir
+> el entorno esta en `RESTAURAR.md`, en la raiz del repo.
 
 ## Como retomar en otra computadora (Windows)
 
@@ -16,7 +23,7 @@ Clonar por **HTTPS**, no por SSH: la clave privada esta en la Mac y no viaja.
 
 **Que viene en el clon** (~100 MB): las fuentes Lean (`EthCryptographySpecs/`), los
 364 vectores de prueba (`tests/`), el binding de Python (`bindings/`) y toda la
-documentacion (`docs/`). Los siete HTML se abren con doble clic; los `.md` con
+documentacion (`docs/`). Los ocho HTML se abren con doble clic; los `.md` con
 cualquier editor.
 
 **Que NO viene, porque esta en el `.gitignore`:**
@@ -46,6 +53,10 @@ Host github.com
   User git
 ```
 
+Nota del 15 nov 2026: el 12 nov, con la Mac recien formateada, el puerto 22 funciono
+y no hizo falta este bloque. La configuracion por el 443 solo se necesita en las redes
+que bloquean el 22.
+
 ---
 
 ## Donde quedamos (19 oct 2026): los cinco repos de Pablo, comparados
@@ -56,7 +67,7 @@ pregunta de fondo, que es la que a el le importa: **como juegan Rust y Lean**.
 
 El resultado esta en `docs/repos-comparados.md` (el cuadro sinoptico) y en una
 pagina HTML por repo. La seccion 0 del cuadro es la que hay que leer primero: las
-cuatro maneras distintas en que cada repo usa Lean con otros lenguajes.
+cinco maneras distintas en que cada repo usa Lean con otros lenguajes.
 
 | Repo | La jugada |
 |---|---|
@@ -86,7 +97,7 @@ Hitos de esas dos semanas, por si hace falta rastrear algo:
 ### Pendiente inmediato
 
 1. ~~`docs/verified-consensus.html`~~ **HECHA** (20-21 oct). La pagina del quinto repo,
-   con el bloque de las tres preguntas igual que las otras seis, y el chequeo de axiomas
+   con el bloque de las tres preguntas igual que las otras siete, y el chequeo de axiomas
    **corrido por nosotros**, no citado del README.
 
    Lo que se hizo el 21 oct: se clono `fradamt/verified-consensus` en `~/verified-consensus`
@@ -103,6 +114,9 @@ Hitos de esas dos semanas, por si hace falta rastrear algo:
 
    **`~/verified-consensus/.lake` ya se puede borrar** para recuperar disco (la Mac estaba
    al 93%). Si alguna vez hace falta rehacerlo: `lake exe cache get && lake build`.
+
+   Nota del 15 nov 2026: `~/verified-consensus` ya no existe. No sobrevivio al formateo
+   de la Mac del 12 nov; si hace falta, se vuelve a clonar (solo lectura).
 
 2. **El cruce con `decoupled-consensus-apuntes`** (repo aparte,
    `github.com/EdVeralli/decoupled-consensus-apuntes`): ese repo tiene el **paper**
@@ -125,6 +139,10 @@ Hitos de esas dos semanas, por si hace falta rastrear algo:
    **Lo que falta para arrancar**: chequear si la cadena de herramientas hax/Aeneas se instala en el
    contenedor de la sesion (para no tocar la Mac) y correr el paso 1, que es traducir
    ese crate y mirar que queda en `FunsExternal_Template.lean`.
+
+   Nota del 15 nov 2026: esto se hizo entre el 23 y el 26 oct (la cadena de
+   herramientas corre en Docker, ver `tooling/hax-lean/`), y de ahi salio el paquete
+   `tooling/hax-lean/mini-stf/`.
 4. Lo de antes, que sigue abierto: la guia paso a paso de `accountable_safety` y la
    guia del piso 2 (`Bls/G1.lean`).
 
@@ -137,7 +155,9 @@ investigadas y respondidas (hasta donde hay informacion publica) las 5 preguntas
 abiertas del FODA; ver detalle mas abajo. **Lo que sigue**: repasar
 `fp-paso-a-paso.html` o arrancar la guia del piso 2 (`Bls/G1.lean`), a eleccion.
 Para seguirle el paso a upstream: `git -C ~/cryptography-specs fetch` y comparar
-contra `d1331f0` (ultimo chequeo, 7 oct).
+contra `d1331f0` (ultimo chequeo, 7 oct). (Nota del 15 nov 2026: el clon
+`~/cryptography-specs` ya no existe desde el formateo del 12 nov; hay que volver a
+clonarlo, solo lectura, antes de ese `fetch`.)
 
 Chequeo de upstream (5 oct 2026, `ethereum/cryptography-specs` master en
 `8f811fc`): 6 commits despues de nuestro `09deaff`, todos de XMSS (#33, #35,
@@ -166,7 +186,7 @@ C sigue sin verificar. Fuente nueva (6): metadatos de PyPI via `pip download`.
 La infraestructura esta cerrada (ver mas abajo). Desde el 29 sept estamos
 armando y repasando la **documentacion de estudio** en `docs/`, para que
 alguien que llega (Pablo, por ejemplo) entienda el repo sin haber estado en
-las sesiones. Son siete paginas HTML que se abren con el navegador, mas el
+las sesiones. Son ocho paginas HTML que se abren con el navegador, mas el
 cuadro sinoptico en markdown:
 
 0. `docs/propuesta-foda.html` — la propuesta, como se implementa y FODA (5 oct)
@@ -252,8 +272,10 @@ para el desglose por handler y las dos lecciones sobre el costo de correrla.
   Autocontenido desde el 29 sept 2026: fuentes Lean, `lake build` en verde,
   `.venv` con los bindings compilados, los 364 vectores y los docs.
 - **Repo original (solo lectura):** `~/cryptography-specs` — clon de
-  `ethereum/cryptography-specs`, solo para traer commits de upstream. Solo existe
-  en la Mac; en otra maquina no hace falta.
+  `ethereum/cryptography-specs`, solo para traer commits de upstream. Solo existia
+  en la Mac; en otra maquina no hace falta. Nota del 15 nov 2026: desde el formateo
+  del 12 nov ya no existe; si se quieren commits de upstream hay que volver a
+  clonarlo (solo lectura).
 - **Los otros repos del ecosistema**, clonados de solo lectura cuando los
   analizamos (no viven en la Mac, se vuelven a clonar cuando hagan falta):
   `alexanderlhicks/leanerSTFSpec`, `github.com/verified-zkevm`,
@@ -276,7 +298,10 @@ para el desglose por handler y las dos lecciones sobre el costo de correrla.
 
 ## Como volver a usarlo
 
-El venv ya existe en tu propio repo, no hay que recrearlo:
+El venv esta en tu propio repo. Se rehizo el 12 nov 2026, despues de formatear la
+Mac, con `uv` y Python 3.12 (el `python3` del sistema es 3.9.6 y el repo pide
+>= 3.10); los comandos exactos estan en `RESTAURAR.md`. Mientras exista, no hay que
+recrearlo:
 
 ```bash
 cd ~/eth-crypto-study
@@ -286,7 +311,9 @@ cd ~/eth-crypto-study
 
 Si se borra `.lake/`, rehacer el build (`lake exe cache get` y `lake build`).
 Si se borra `.venv/`, rehacer solo el paso de pip — pero ojo: `pip install -e`
-dispara `lake build` de nuevo via `setup.py`.
+dispara `lake build` de nuevo via `setup.py`. (Desde el 12 nov 2026 ese paso se
+hace con `uv`, y `lake` vive en `~/.elan/bin`, que no esta en el `PATH` por
+defecto: ver `RESTAURAR.md`.)
 
 ## Si vas a correr la suite de nuevo
 
@@ -332,9 +359,11 @@ cliente de consenso.
 ## Proximos pasos posibles
 
 La lista al dia esta arriba, en **"Pendiente inmediato"** (seccion del 19 oct).
-En dos palabras: la pagina de `verified-consensus`, el cruce con el repo de
-apuntes del paper, y las dos guias de estudio que vienen de antes
-(`accountable_safety` y el piso 2, `Bls/G1.lean`).
+En dos palabras: el cruce con el repo de apuntes del paper y las dos guias de
+estudio que vienen de antes (`accountable_safety` y el piso 2, `Bls/G1.lean`).
+La pagina de `verified-consensus` ya esta hecha (20-21 oct), y el experimento con
+ethlambda termino en `tooling/hax-lean/mini-stf/`, donde lo unico pendiente es
+enviar el paquete a LambdaClass.
 
 De infraestructura y de repaso de mapas no queda nada, salvo repasar
 `fp-paso-a-paso.html`.

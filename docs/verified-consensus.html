@@ -163,12 +163,12 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
       escribe una persona— pero acá se ve el antes y el después <i>del mismo autor</i>.</p>
     </div>
 
-    <p>Para entender el protocolo en sí están los apuntes. Acá alcanza con la idea: una cadena no puede ser siempre
+    <p>Para entender el protocolo en sí están los apuntes. Acá alcanza con la idea: una cadena de bloques no puede ser siempre
     disponible y siempre segura a la vez, así que en vez de dos niveles —como el Ethereum de hoy, donde LMD-GHOST
-    da la cabeza que siempre avanza y Casper FFG finaliza por detrás— se ofrecen <b>tres cadenas encajadas</b>, cada
+    da la cabeza que siempre avanza y Casper FFG finaliza por detrás— se ofrecen <b>tres cadenas de bloques encajadas</b>, cada
     una con su garantía:</p>
     <div class="tw"><table>
-      <tr><th>Cadena</th><th>Quién la construye</th><th>Qué promete</th></tr>
+      <tr><th>Cadena de bloques</th><th>Quién la construye</th><th>Qué promete</th></tr>
       <tr><td><b>confirmed</b><br>la disponible</td><td>Goldfish, un fork-choice con <i>view merge</i></td>
           <td>una propuesta honesta entra en la de todos dentro de <b>6Δ</b>. Rápida, pero todavía reorganizable</td></tr>
       <tr><td><b>stable</b><br>la capa nueva</td><td>el <i>stabilization gadget</i>, por mayoría relativa en rondas</td>
@@ -182,13 +182,13 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
     estable está también en la confirmada— no es una obviedad: <b>es uno de los trece teoremas</b>, el que se llama
     <code>nested</code>. Y es un teorema porque <i>podría fallar</i>. Son tres mecanismos distintos corriendo en
     paralelo, con sus propios votos y sus propias reglas; nada impide a priori que el gadget de finalidad finalice un
-    bloque que la cadena estable no tiene. Si eso pasara, el nodo estaría afirmando dos cosas incompatibles sobre su
+    bloque que la cadena de bloques estable no tiene. Si eso pasara, el nodo estaría afirmando dos cosas incompatibles sobre su
     propio estado: "esto es irreversible" y "esto no lo tengo".</p>
     <div class="box key">
       <div class="eyebrow">Y acá está la diferencia con gasper-lean4</div>
       <p>Para <b>enunciar</b> que lo finalizado está adentro de lo confirmado, las dos cosas tienen que existir en la
       misma formalización. <a href="gasper-lean4.html">gasper-lean4</a> formalizó Casper FFG, que es el mecanismo que
-      produce <b>lo finalizado</b>. La otra mitad de Gasper —LMD-GHOST, la que decide qué cadena seguir en este
+      produce <b>lo finalizado</b>. La otra mitad de Gasper —LMD-GHOST, la que decide qué cadena de bloques seguir en este
       momento y daría el equivalente de <b>lo confirmado</b>— no está escrita en ese repo.</p>
       <p>Así que no es que no lo demostraron: <b>la frase no se puede ni escribir</b>, porque le falta una de las dos
       mitades que compara. Es como querer enunciar "lo que tengo en la caja de ahorro nunca supera mi saldo total"
@@ -270,8 +270,8 @@ blockquote{margin:0;padding:10px 0 10px 16px;border-left:3px solid var(--line);c
         <tr><td><code>finalizedMonotone</code></td><td>lo finalizado de cada nodo sólo se extiende, nunca retrocede</td></tr>
         <tr><td><code>finalizedSafe</code></td><td>dos nodos honestos nunca finalizan cosas que se contradigan</td></tr>
         <tr><td><code>available</code></td><td>confirmado y estable son seguros, y una propuesta honesta entra en todo confirmado dentro de 6Δ y en todo estable dentro de η_SG+1 rondas más 8Δ</td></tr>
-        <tr><td><code>confirmedLive</code></td><td>la cadena confirmada sigue creciendo</td></tr>
-        <tr><td><code>stableLive</code></td><td>la cadena estable sigue creciendo</td></tr>
+        <tr><td><code>confirmedLive</code></td><td>la cadena de bloques confirmada sigue creciendo</td></tr>
+        <tr><td><code>stableLive</code></td><td>la cadena de bloques estable sigue creciendo</td></tr>
         <tr><td><code>stableIncludedFast</code></td><td>con mayoría fresca, una propuesta honesta entra en todo estable en 2 rondas más 8Δ</td></tr>
         <tr><td><code>finalized</code></td><td>pasado un arranque, una propuesta honesta se finaliza en todos lados antes de su plazo, y lo finalizado sigue creciendo</td></tr>
         <tr><td><code>stableAsynchronyResilient</code></td><td>un bloque que está en una lectura estable honesta sigue estando del otro lado del apagón</td></tr>

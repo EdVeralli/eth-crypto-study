@@ -30,8 +30,8 @@ Antes de mirar código, abrí estas páginas en este orden:
    estudio. Explica el campo finito, que es la base de todo, línea por línea
    y con sus teoremas.
 
-Y para ubicar este repo en el ecosistema: otros dos proyectos de la Ethereum
-Foundation que usan Lean 4 para lo mismo, en otras capas. Cada página analiza
+Y para ubicar este repo en el ecosistema: otros cuatro proyectos del ecosistema
+de Ethereum que usan Lean 4 para lo mismo, en otras capas. Cada página analiza
 un repo distinto de los que leímos.
 
 4. **[leanerSTFSpec](docs/leaner-stf-spec.html)** — analiza
@@ -85,6 +85,13 @@ Mide qué partes del cliente son puras (resulta que el núcleo de la transición
 estado ya lo es), propone un archivo concreto de 89 líneas como primer candidato
 con cuatro teoremas para demostrar, y dice qué costaría y qué no.
 
+Y lo que salió de ahí está en **[`tooling/hax-lean/mini-stf/`](tooling/hax-lean/mini-stf/)**:
+la transición de estado (STF) de ethlambda pasada por la cadena de herramientas
+hax + Charon + Aeneas, de Rust a Lean. Se entra por
+[`PROPUESTA.md`](tooling/hax-lean/mini-stf/PROPUESTA.md) (en castellano) o
+[`PROPOSAL.md`](tooling/hax-lean/mini-stf/PROPOSAL.md) (en inglés), y
+[`RESTAURAR.md`](RESTAURAR.md) explica cómo reconstruir el entorno desde cero.
+
 El mapa es la vista de arriba y cada guía baja a un archivo. Se estudian de
 abajo hacia arriba, porque cada piso usa al anterior:
 
@@ -126,9 +133,11 @@ que se commitea y se pushea. Es **autocontenido**: tiene las fuentes Lean, el
 build, los bindings de Python y los 364 vectores, así que es la única carpeta de
 trabajo necesaria.
 
-El clon del repo original vive en `~/cryptography-specs` y es **solo lectura**:
-su `origin` apunta a `ethereum/cryptography-specs`, así que ahí no se pushea
-nada. Solo se usa para traer commits nuevos de upstream.
+El clon del repo original vivía en `~/cryptography-specs` y era **solo lectura**:
+su `origin` apuntaba a `ethereum/cryptography-specs`, así que ahí no se pusheaba
+nada. Solo se usaba para traer commits nuevos de upstream. Desde que se formateó
+la Mac el 12 nov 2026 ese clon ya no existe: si se quieren commits de upstream hay
+que volver a clonarlo, siempre como solo lectura.
 
 Base: upstream `09deaff` (23 sept 2026). El README original del proyecto quedó
 en [`docs/README-upstream.md`](docs/README-upstream.md).
@@ -207,16 +216,26 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    está en `09deaff` y upstream ya va por `d1331f0` (8 commits, todos de XMSS:
    +6 archivos de spec, +8 de teoremas, unos 425 teoremas escritos a mano en
    vez de 357). Traer los commits nuevos acá (merge desde el clon de lectura), nunca
-   al revés. Al hacerlo hay que recompilar y volver a correr
+   al revés. El clon de lectura `~/cryptography-specs` no sobrevivió al formateo
+   del 12 nov 2026: antes hay que volver a clonarlo. Al hacerlo hay que recompilar y volver a correr
    `docs/native_axioms.lean`, porque los conteos de esta documentación son de
    `09deaff`.
+7. **Enviar el paquete `mini-stf` a LambdaClass**: el paquete de
+   [`tooling/hax-lean/mini-stf/`](tooling/hax-lean/mini-stf/) está terminado
+   (ver su [`PROPUESTA.md`](tooling/hax-lean/mini-stf/PROPUESTA.md)); lo único
+   pendiente es mandarlo.
 
 ## Entorno
 
-Todo vive en esta carpeta y ya está construido — no hay que recrear nada:
+Todo vive en esta carpeta. El build se rehízo el 12 nov 2026, después de
+formatear la Mac, con `elan` (Lean) y `uv` (Python 3.12, porque el `python3` del
+sistema es 3.9.6 y el repo pide >= 3.10). `~/.elan/bin` y `~/.local/bin` no están
+en el `PATH` por defecto. El procedimiento completo está en
+[`RESTAURAR.md`](RESTAURAR.md).
 
 ```bash
 cd ~/eth-crypto-study
+export PATH="$HOME/.elan/bin:$HOME/.local/bin:$PATH"
 lake build                                          # verde: 3444 jobs
 .venv/bin/python docs/bls_smoke.py                  # ALL CHECKS PASSED
 .venv/bin/python -c "from eth_cryptography_specs import bls, kzg"
@@ -225,8 +244,16 @@ lake env lean docs/native_axioms.lean               # qué teoremas dependen de 
 
 Si se borra `.lake/`: `lake exe cache get && lake build` (lo primero baja
 Mathlib ya compilado; sin eso, compilarlo lleva horas).
-Si se borra `.venv/`: `python3 -m venv .venv && .venv/bin/pip install -e '.[test]'`
-(dispara `lake build` vía `setup.py`; con el build hecho tarda ~1 min).
+Si se borra `.venv/` (el `python3 -m venv` de antes ya no sirve: el Python del
+sistema es 3.9.6):
+
+```bash
+uv venv --python 3.12 .venv
+uv pip install --python .venv "pytest==9.0.3" "ruamel.yaml==0.19.1" "py_ecc==8.0.0" "setuptools>=68" wheel
+PATH="$HOME/.elan/bin:$PATH" uv pip install --python .venv --no-build-isolation -e .
+```
+
+El último paso dispara `lake build` vía `setup.py`.
 
 Para correr la suite de vectores, dos cosas aprendidas a golpes —enchufada, con
 la tapa abierta y con `caffeinate`, o la Mac duerme y no avanza; y no extrapolar
@@ -245,9 +272,10 @@ caffeinate -i -s -w <PID>                           # si ya está corriendo
 
 ### En la Mac (incluido desde la app de Claude)
 
-1. Pasarle **`/Users/eduardoveralli/eth-crypto-study`** como carpeta de trabajo.
+1. Pasarle **`/Users/eduardo/eth-crypto-study`** como carpeta de trabajo.
    Es la única que hace falta: acá están las fuentes, el build, el venv y los
-   vectores. No hace falta agregar `~/cryptography-specs`.
+   vectores. No hace falta agregar `~/cryptography-specs` (que además ya no
+   existe desde el formateo del 12 nov 2026).
 2. Leer [`docs/RETOMAR.md`](docs/RETOMAR.md) — el estado detallado y los comandos.
 3. Elegir una de las tareas de **Qué falta** de acá arriba.
 4. Recordar la regla: se commitea y pushea **solo** en este repo. Nunca a
