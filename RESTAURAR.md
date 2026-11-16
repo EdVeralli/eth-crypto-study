@@ -247,8 +247,11 @@ caffeinate -i -s .venv/bin/python -m pytest -q
 ⚠️ **`caffeinate -s` sólo mantiene despierta la Mac enchufada a la corriente.**
 Con batería se duerme igual y la suite queda parada. Ya pasó: la suite se
 largó el 12 nov, se frenó porque la Mac se durmió con batería, y un reinicio
-el 15 nov la cortó sin que hubiera terminado. Al 15 nov 2026 la suite completa
-**no se volvió a correr entera** en la Mac formateada.
+el 15 nov la cortó sin que hubiera terminado.
+
+Se relanzó el 15 nov con la Mac enchufada y esa vez terminó:
+**`364 passed in 7732.92s (2:08:52)`**. Con eso la Mac formateada quedó
+verificada entera.
 
 ---
 
