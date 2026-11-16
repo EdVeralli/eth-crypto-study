@@ -1202,9 +1202,10 @@ theorem ST3.state_transition_no_retrocede
      5. la composicion por `process_block` hasta `state_transition`.
 
    Lo que NO se demuestra: que el primer bloque despues del genesis deje el
-   estado cumpliendo `EnElHistorial`, ni que `latest_block_header.slot` siga
-   distinto de cero despues de la transicion. Son los dos lemas que faltan
-   para decir "vale en todo estado alcanzable desde el genesis".
+   estado cumpliendo `EnElHistorial`. Es el lema que falta para decir "vale
+   en todo estado alcanzable desde el genesis". La otra hipotesis, que
+   `latest_block_header.slot` sea distinto de cero, si se conserva: esta en
+   el teorema 8 (`ST2.state_transition_conserva_no_genesis`).
    =========================================================================== -/
 
 namespace ST7
@@ -1993,6 +1994,630 @@ theorem ST7.state_transition_adelante
     ST7.EnElHistorial state'.historical_block_hashes state'.latest_justified :=
   ST3.of_triple_mayThrow (ST7.state_transition_st7_spec state block) h hnz hhist
 
+/- ===========================================================================
+   Teorema 8: ST-1, ST-2, ST-4 y ST-6 (15 nov 2026)
+
+   Las otras propiedades de transicion de estado del catalogo. Con ST-3 y
+   ST-7 quedan cubiertas las siete, contando que ST-5 ("la transicion es
+   pura") es `rfl` para cualquier funcion de Lean y no se enuncia.
+
+   ST-1. `process_slots` deja el estado en el slot pedido. El catalogo la
+         enuncia con `slot <= target` porque su modelo devuelve un estado y
+         no rechaza. La especificacion en Python y ethlambda rechazan los dos
+         cuando `slot >= target`, asi que aca son dos enunciados: si acepta,
+         queda en el slot pedido; y si el slot pedido no esta en el futuro,
+         rechaza sin tocar el estado.
+
+   ST-2. Si `process_block_header` acepta, el ultimo header queda en el slot
+         del bloque. De paso sale lo que le faltaba a ST-7: si el ultimo
+         header no era el del genesis, sigue sin serlo, acepte o rechace. Y
+         eso se sube a `state_transition` entera, para lo que hace falta que
+         el resto de la transicion no toque `latest_block_header`.
+
+   ST-4. El slot justificado es siempre >= el finalizado. En el catalogo es
+         un invariante de los estados alcanzables; aca se demuestra el paso
+         inductivo, para cualquier estado: si vale antes de la transicion,
+         vale despues. La razon: `try_finalize` solo corre justo despues de
+         justificar un target, lo que finaliza es el source de ese voto, y un
+         voto valido tiene `source.slot < target.slot`. No hace falta razonar
+         sobre la lista de bits `justified_slots`, y tampoco hace falta
+         ninguna hipotesis sobre el anclaje del genesis, porque ethlambda ahi
+         escribe solo las raices.
+
+   ST-6. La finalizacion es irreversible: es la mitad `latest_finalized` de
+         ST-3, con nombre propio como en el catalogo.
+
+   Lo que NO esta: el caso base de ST-4 (que el estado del genesis cumple el
+   invariante). El crate no construye el estado del genesis.
+   =========================================================================== -/
+
+namespace ST1
+open mini_stf
+
+/-- `ST-1`: si `process_slots` acepta, el estado queda en el slot pedido. -/
+theorem process_slots_avanza
+    (state state' : tipos.State) (t : Std.U64)
+    (h : stf.process_slots state t = ok (core.result.Result.Ok (), state')) :
+    state'.slot = t := by
+  unfold stf.process_slots at h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  split at h
+  · simp only [RustM.ok.injEq, Prod.mk.injEq] at h
+    obtain ⟨hres, -⟩ := h
+    cases hres
+  · obtain ⟨_, _, h⟩ := bind_da_ok h
+    obtain ⟨_, _, h⟩ := bind_da_ok h
+    obtain ⟨_, _, h⟩ := bind_da_ok h
+    obtain ⟨_, _, h⟩ := bind_da_ok h
+    simp only [RustM.ok.injEq, Prod.mk.injEq] at h
+    obtain ⟨-, hst⟩ := h
+    subst hst
+    rfl
+
+/-- El otro lado: si el slot pedido no esta en el futuro, rechaza y devuelve
+    el estado sin tocar. -/
+theorem process_slots_rechaza
+    (state : tipos.State) (t : Std.U64) (h : state.slot ≥ t) :
+    stf.process_slots state t =
+      ok (core.result.Result.Err (stf.Error.StateSlotIsNewer t state.slot), state) := by
+  unfold stf.process_slots
+  simp [stubs.metrics.time_slots_processing, h]
+
+end ST1
+
+namespace ST2
+open mini_stf
+open Std.Tactic
+open ST3
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+section
+attribute [local spec] ssz_len_spec ST3H.current_proposer_spec ST3H.ok_or_spec
+  ST3H.branch_spec ST3H.header_hash_spec ST3H.ne_default_spec ST3H.take_spec
+  ST3H.into_inner_spec ST3H.push_spec ST3H.header_loop_spec ST3H.try_from_spec
+  ST3H.expect_spec ST3H.extend_spec ST3H.body_hash_spec
+  ST7.from_residual_err_spec
+
+theorem process_block_header_slot_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_block_header state block
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ (r.1 = core.result.Result.Ok () →
+                       r.2.latest_block_header.slot = block.slot) ∧
+                    (state.latest_block_header.slot ≠ 0#u64 →
+                       r.2.latest_block_header.slot ≠ 0#u64) ⌝) ⦄ := by
+  unfold stf.process_block_header
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | trivial
+    | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+    | (refine ⟨?_, ?_⟩ <;> first | (simp_all; done) | (intros; scalar_tac) | grind)
+end
+
+/-- `ST-2`: si `process_block_header` acepta, el ultimo header queda en el
+    slot del bloque. -/
+theorem process_block_header_slot
+    (state state' : tipos.State) (block : tipos.Block)
+    (h : stf.process_block_header state block =
+           ok (core.result.Result.Ok (), state')) :
+    state'.latest_block_header.slot = block.slot :=
+  (of_triple_mayThrow (process_block_header_slot_spec state block) h).1 rfl
+
+/-- Acepte o rechace, si el ultimo header no era el del genesis sigue sin
+    serlo. -/
+theorem process_block_header_conserva_no_genesis
+    (state state' : tipos.State) (block : tipos.Block)
+    (res : core.result.Result Unit stf.Error)
+    (hnz : state.latest_block_header.slot ≠ 0#u64)
+    (h : stf.process_block_header state block = ok (res, state')) :
+    state'.latest_block_header.slot ≠ 0#u64 :=
+  (of_triple_mayThrow (process_block_header_slot_spec state block) h).2 hnz
+
+/- El resto de la transicion no toca `latest_block_header`. -/
+
+theorem try_finalize_no_toca_header
+    (state state' : tipos.State) (source target : tipos.Checkpoint)
+    (j j' : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global)
+    (h : stf.try_finalize state source target j rts = ok (state', j')) :
+    state'.latest_block_header = state.latest_block_header := by
+  unfold stf.try_finalize at h
+  split at h
+  · simp_all
+  · obtain ⟨i, hadd, h⟩ := bind_da_ok h
+    obtain ⟨b, hb, h⟩ := bind_da_ok h
+    split at h
+    · simp [stubs.metrics.inc_finalizations] at h
+      simp_all
+    · simp [stubs.metrics.inc_finalizations] at h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      simp only [RustM.ok.injEq, Prod.mk.injEq] at h
+      obtain ⟨hst, -⟩ := h
+      subst hst
+      rfl
+
+theorem serialize_no_toca_header
+    (state state' : tipos.State) (j : mapa.MapaVotos) (vc : Std.Usize)
+    (h : stf.serialize_justifications state j vc = ok state') :
+    state'.latest_block_header = state.latest_block_header := by
+  unfold stf.serialize_justifications at h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  simp only [RustM.ok.injEq] at h
+  subst h
+  rfl
+
+theorem try_finalize_header_spec (state : tipos.State)
+    (source target : tipos.Checkpoint) (j : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.try_finalize state source target j rts
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ r.1.latest_block_header = state.latest_block_header ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv => by
+    obtain ⟨st', j'⟩ := v
+    exact try_finalize_no_toca_header state st' source target j j' rts hv)
+
+theorem serialize_header_spec (st : tipos.State) (j : mapa.MapaVotos)
+    (vc : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.serialize_justifications st j vc
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ r.latest_block_header = st.latest_block_header ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv => serialize_no_toca_header st v j vc hv)
+
+section
+attribute [local spec] is_none_spec dato_en_spec bits_en_uno_en_spec
+  is_valid_vote_spec primer_bit_spec votos_vacios_spec poner_si_falta_spec
+  marcar_votos_spec cuenta_votos_spec sin_spec div_ceil_spec set_justified_spec
+  try_finalize_header_spec
+
+theorem process_attestations_loop_header_spec
+    (s0 : tipos.State)
+    (attestations : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (validator_count n : Std.Usize)
+    (j0 : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations_loop { start := 0#usize, «end» := n } s0
+      attestations validator_count 0#u64 j0 rts core.option.Option.None
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ r.1.latest_block_header = s0.latest_block_header ⌝) ⦄ := by
+  unfold stf.process_attestations_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × Acc =>
+              x.2.1.latest_block_header = s0.latest_block_header)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · rfl
+  · intro x hinv
+    obtain ⟨iter, st, ap, jj, fl⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    simp only at hinv
+    unfold stf.process_attestations_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | assumption
+      | trivial
+      | simp [PostCond.div, PostCond.mayThrow]
+      | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+end
+
+section
+attribute [local spec] timer_spec inc_procesadas_spec contar_datos_spec
+  hay_raiz_cero_spec construir_mapa_spec construir_rts_spec ssz_len_spec
+  bitlist_len_spec serialize_header_spec process_attestations_loop_header_spec
+
+theorem process_attestations_header_spec (state : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations state atts
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ r.2.latest_block_header = state.latest_block_header ⌝) ⦄ := by
+  unfold stf.process_attestations
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | assumption
+    | trivial
+    | simp [PostCond.div, PostCond.mayThrow]
+    | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+end
+
+theorem process_slots_header_spec (state : tipos.State) (t : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_slots state t
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ r.2.latest_block_header.slot = state.latest_block_header.slot ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv => by
+    obtain ⟨res, st'⟩ := v
+    exact (ST7.process_slots_no_toca state st' t res hv).2.2.2)
+
+theorem process_block_header_no_genesis_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_block_header state block
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ state.latest_block_header.slot ≠ 0#u64 →
+                    r.2.latest_block_header.slot ≠ 0#u64 ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv hnz => by
+    obtain ⟨res, st'⟩ := v
+    exact process_block_header_conserva_no_genesis state st' block res hnz hv)
+
+section
+attribute [local spec] ST3H.branch_spec ST3H.from_residual_spec
+  ST3H.ne_default_spec ST3T.time_block_spec ST3T.time_transition_spec
+  ST3T.state_hash_spec process_block_header_no_genesis_spec
+  process_attestations_header_spec
+
+theorem process_block_no_genesis_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_block state block
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ state.latest_block_header.slot ≠ 0#u64 →
+                    r.2.latest_block_header.slot ≠ 0#u64 ⌝) ⦄ := by
+  unfold stf.process_block
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | trivial
+    | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+    | grind
+end
+
+section
+attribute [local spec] ST3H.branch_spec ST3H.from_residual_spec
+  ST3H.ne_default_spec ST3T.time_transition_spec ST3T.state_hash_spec
+  process_slots_header_spec process_block_no_genesis_spec
+
+theorem state_transition_no_genesis_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.state_transition state block
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ state.latest_block_header.slot ≠ 0#u64 →
+                    r.2.latest_block_header.slot ≠ 0#u64 ⌝) ⦄ := by
+  unfold stf.state_transition
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | trivial
+    | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+    | grind
+end
+
+end ST2
+
+namespace ST4
+open mini_stf
+open Std.Tactic
+open ST3
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+/-- Cuando `try_finalize` mueve la finalidad, la mueve al `source`. -/
+theorem try_finalize_fin_es_source
+    (state state' : tipos.State) (source target : tipos.Checkpoint)
+    (j j' : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global)
+    (h : stf.try_finalize state source target j rts = ok (state', j')) :
+    state'.latest_finalized = state.latest_finalized ∨
+    state'.latest_finalized = source := by
+  unfold stf.try_finalize at h
+  split at h
+  · simp_all
+  · obtain ⟨i, hadd, h⟩ := bind_da_ok h
+    obtain ⟨b, hb, h⟩ := bind_da_ok h
+    split at h
+    · simp [stubs.metrics.inc_finalizations] at h
+      simp_all
+    · simp [stubs.metrics.inc_finalizations] at h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      simp only [RustM.ok.injEq, Prod.mk.injEq] at h
+      obtain ⟨hst, -⟩ := h
+      subst hst
+      exact Or.inr rfl
+
+theorem try_finalize_st4_spec (state : tipos.State)
+    (source target : tipos.Checkpoint) (j : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.try_finalize state source target j rts
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ r.1.latest_justified = state.latest_justified ∧
+                    (r.1.latest_finalized = state.latest_finalized ∨
+                     r.1.latest_finalized = source) ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv => by
+    obtain ⟨st', j'⟩ := v
+    exact ⟨try_finalize_no_toca_justified state st' source target j j' rts hv,
+           try_finalize_fin_es_source state st' source target j j' rts hv⟩)
+
+section
+attribute [local spec] ST7.ssz_deref_spec ST7.is_slot_justified_spec
+  ST7.justifiable_spec ST7.from_residual_err_spec ST7.matches_chain_spec
+  ST3H.branch_spec
+
+/-- Un voto que `is_valid_vote` acepta va hacia adelante: el source esta
+    estrictamente antes que el target. -/
+theorem is_valid_vote_orden_spec (st : tipos.State) (d : tipos.AttestationData) :
+    ⦃ ⌜ True ⌝ ⦄ stf.is_valid_vote st d
+    ⦃ PostCond.mayThrow (fun r => ⌜ r = core.result.Result.Ok true →
+        d.source.slot < d.target.slot ⌝) ⦄ := by
+  unfold stf.is_valid_vote
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | trivial
+    | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+    | scalar_tac
+    | (simp_all; scalar_tac)
+    | grind
+end
+
+/-- Cierre de la rama en que el target empata o supera al justificado. -/
+theorem cierre4_si (st r : tipos.State) (src tgt : tipos.Checkpoint) (v : Bool)
+    (res : core.result.Result Bool stf.Error)
+    (hinv : st.latest_finalized.slot ≤ st.latest_justified.slot)
+    (hvoto : res = core.result.Result.Ok true → src.slot < tgt.slot)
+    (hres : res = core.result.Result.Ok v) (hv : v = true)
+    (hge : tgt.slot ≥ st.latest_justified.slot)
+    (hfin : r.latest_justified = { root := tgt.root, slot := tgt.slot } ∧
+            (r.latest_finalized = st.latest_finalized ∨
+             r.latest_finalized = src)) :
+    r.latest_finalized.slot ≤ r.latest_justified.slot := by
+  obtain ⟨e1, e2⟩ := hfin
+  have hlt := hvoto (by rw [hres, hv])
+  rw [e1]
+  show r.latest_finalized.slot ≤ tgt.slot
+  rcases e2 with e2 | e2 <;> rw [e2] <;> scalar_tac
+
+/-- Cierre de la rama en que el target queda atras del justificado. -/
+theorem cierre4_no (st r : tipos.State) (src tgt : tipos.Checkpoint) (v : Bool)
+    (res : core.result.Result Bool stf.Error)
+    (hinv : st.latest_finalized.slot ≤ st.latest_justified.slot)
+    (hvoto : res = core.result.Result.Ok true → src.slot < tgt.slot)
+    (hres : res = core.result.Result.Ok v) (hv : v = true)
+    (hlt : ¬ tgt.slot ≥ st.latest_justified.slot)
+    (hfin : r.latest_justified =
+              { root := st.latest_justified.root, slot := st.latest_justified.slot } ∧
+            (r.latest_finalized = st.latest_finalized ∨
+             r.latest_finalized = src)) :
+    r.latest_finalized.slot ≤ r.latest_justified.slot := by
+  obtain ⟨e1, e2⟩ := hfin
+  have hst := hvoto (by rw [hres, hv])
+  rw [e1]
+  show r.latest_finalized.slot ≤ st.latest_justified.slot
+  rcases e2 with e2 | e2 <;> rw [e2] <;> scalar_tac
+
+section
+attribute [local spec] is_none_spec dato_en_spec bits_en_uno_en_spec
+  primer_bit_spec votos_vacios_spec poner_si_falta_spec
+  marcar_votos_spec cuenta_votos_spec sin_spec div_ceil_spec set_justified_spec
+  is_valid_vote_orden_spec try_finalize_st4_spec
+
+theorem process_attestations_loop_st4
+    (s0 : tipos.State)
+    (attestations : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (validator_count n : Std.Usize)
+    (j0 : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global)
+    (h0 : s0.latest_finalized.slot ≤ s0.latest_justified.slot) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations_loop { start := 0#usize, «end» := n } s0
+      attestations validator_count 0#u64 j0 rts core.option.Option.None
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ r.1.latest_finalized.slot ≤ r.1.latest_justified.slot ⌝) ⦄ := by
+  unfold stf.process_attestations_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × Acc =>
+              x.2.1.latest_finalized.slot ≤ x.2.1.latest_justified.slot)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · exact h0
+  · intro x hinv
+    obtain ⟨iter, st, ap, jj, fl⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    simp only at hinv
+    unfold stf.process_attestations_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | assumption
+      | trivial
+      | simp [PostCond.div, PostCond.mayThrow]
+      | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+    all_goals first
+      | exact cierre4_si _ _ _ _ _ _ hinv (by assumption) (by assumption)
+          (by assumption) (by assumption) (by assumption)
+      | exact cierre4_no _ _ _ _ _ _ hinv (by assumption) (by assumption)
+          (by assumption) (by assumption) (by assumption)
+end
+
+theorem process_attestations_loop_st4_spec
+    (s0 : tipos.State)
+    (attestations : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (validator_count n : Std.Usize)
+    (j0 : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations_loop { start := 0#usize, «end» := n } s0
+      attestations validator_count 0#u64 j0 rts core.option.Option.None
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ s0.latest_finalized.slot ≤ s0.latest_justified.slot →
+                    r.1.latest_finalized.slot ≤ r.1.latest_justified.slot ⌝) ⦄ :=
+  triple_mayThrow_of (fun _ hv h0 =>
+    of_triple_mayThrow
+      (process_attestations_loop_st4 s0 attestations validator_count n j0 rts h0) hv)
+
+section
+attribute [local spec] timer_spec inc_procesadas_spec contar_datos_spec
+  hay_raiz_cero_spec construir_mapa_spec construir_rts_spec ssz_len_spec
+  bitlist_len_spec ST7.serialize_st7_spec process_attestations_loop_st4_spec
+
+theorem process_attestations_st4 (state : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (h0 : state.latest_finalized.slot ≤ state.latest_justified.slot) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations state atts
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ r.2.latest_finalized.slot ≤ r.2.latest_justified.slot ⌝) ⦄ := by
+  unfold stf.process_attestations
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | assumption
+    | trivial
+    | exact h0
+    | simp [PostCond.div, PostCond.mayThrow]
+    | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+  all_goals first
+    | exact (by assumption : _ ≤ _ → _) h0
+    | (have a := (by assumption : _ ≤ _ → _) h0
+       obtain ⟨b1, b2, -⟩ := (by assumption : _ = _ ∧ _ = _ ∧ _ = _)
+       rw [b1, b2]; exact a)
+end
+
+theorem process_attestations_st4_spec (state : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations state atts
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ state.latest_finalized.slot ≤ state.latest_justified.slot →
+                    r.2.latest_finalized.slot ≤ r.2.latest_justified.slot ⌝) ⦄ :=
+  triple_mayThrow_of (fun _ hv h0 =>
+    of_triple_mayThrow (process_attestations_st4 state atts h0) hv)
+
+theorem paso4_header_atts (s s1 s2 : tipos.State)
+    (h : s.latest_finalized.slot ≤ s.latest_justified.slot)
+    (hh : s1.latest_justified.slot = s.latest_justified.slot ∧
+          s1.latest_finalized.slot = s.latest_finalized.slot)
+    (ha : s1.latest_finalized.slot ≤ s1.latest_justified.slot →
+          s2.latest_finalized.slot ≤ s2.latest_justified.slot) :
+    s2.latest_finalized.slot ≤ s2.latest_justified.slot :=
+  ha (by rw [hh.1, hh.2]; exact h)
+
+theorem paso4_header (s s1 : tipos.State)
+    (h : s.latest_finalized.slot ≤ s.latest_justified.slot)
+    (hh : s1.latest_justified.slot = s.latest_justified.slot ∧
+          s1.latest_finalized.slot = s.latest_finalized.slot) :
+    s1.latest_finalized.slot ≤ s1.latest_justified.slot := by
+  rw [hh.1, hh.2]; exact h
+
+section
+attribute [local spec] ST3H.branch_spec ST3H.from_residual_spec
+  ST3H.ne_default_spec ST3T.time_block_spec ST3H.process_block_header_spec
+  process_attestations_st4_spec
+
+theorem process_block_st4_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_block state block
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ state.latest_finalized.slot ≤ state.latest_justified.slot →
+                    r.2.latest_finalized.slot ≤ r.2.latest_justified.slot ⌝) ⦄ := by
+  unfold stf.process_block
+  hax_mvcgen
+  all_goals first
+    | exact paso4_header_atts state _ _ (by assumption) (by assumption) (by assumption)
+    | exact paso4_header state _ (by assumption) (by assumption)
+end
+
+theorem paso4_slots_block (s s1 s2 : tipos.State)
+    (h : s.latest_finalized.slot ≤ s.latest_justified.slot)
+    (hs : s1.latest_justified = s.latest_justified ∧
+          s1.latest_finalized = s.latest_finalized)
+    (hb : s1.latest_finalized.slot ≤ s1.latest_justified.slot →
+          s2.latest_finalized.slot ≤ s2.latest_justified.slot) :
+    s2.latest_finalized.slot ≤ s2.latest_justified.slot :=
+  hb (by rw [hs.1, hs.2]; exact h)
+
+theorem paso4_slots (s s1 : tipos.State)
+    (h : s.latest_finalized.slot ≤ s.latest_justified.slot)
+    (hs : s1.latest_justified = s.latest_justified ∧
+          s1.latest_finalized = s.latest_finalized) :
+    s1.latest_finalized.slot ≤ s1.latest_justified.slot := by
+  rw [hs.1, hs.2]; exact h
+
+section
+attribute [local spec] ST3H.branch_spec ST3H.from_residual_spec
+  ST3H.ne_default_spec ST3T.time_transition_spec ST3T.state_hash_spec
+  ST3T.process_slots_spec process_block_st4_spec
+
+theorem state_transition_st4_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.state_transition state block
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ state.latest_finalized.slot ≤ state.latest_justified.slot →
+                    r.2.latest_finalized.slot ≤ r.2.latest_justified.slot ⌝) ⦄ := by
+  unfold stf.state_transition
+  hax_mvcgen
+  all_goals first
+    | exact paso4_slots_block state _ _ (by assumption) (by assumption) (by assumption)
+    | exact paso4_slots state _ (by assumption) (by assumption)
+end
+
+end ST4
+
+/-- `ST-4`, el paso inductivo: si el slot finalizado no supera al justificado
+    antes de la transicion, tampoco lo supera despues. Vale para cualquier
+    estado, acepte o rechace el bloque. -/
+theorem ST4.state_transition_justificado_ge_finalizado
+    (state state' : mini_stf.tipos.State) (block : mini_stf.tipos.Block)
+    (res : core.result.Result Unit mini_stf.stf.Error)
+    (hinv : state.latest_finalized.slot ≤ state.latest_justified.slot)
+    (h : mini_stf.stf.state_transition state block = ok (res, state')) :
+    state'.latest_finalized.slot ≤ state'.latest_justified.slot :=
+  ST3.of_triple_mayThrow (ST4.state_transition_st4_spec state block) h hinv
+
+/-- La hipotesis `hnz` de `ST-7` se conserva: si el ultimo header no era el
+    del genesis antes de la transicion, tampoco lo es despues. -/
+theorem ST2.state_transition_conserva_no_genesis
+    (state state' : mini_stf.tipos.State) (block : mini_stf.tipos.Block)
+    (res : core.result.Result Unit mini_stf.stf.Error)
+    (hnz : state.latest_block_header.slot ≠ 0#u64)
+    (h : mini_stf.stf.state_transition state block = ok (res, state')) :
+    state'.latest_block_header.slot ≠ 0#u64 :=
+  ST3.of_triple_mayThrow (ST2.state_transition_no_genesis_spec state block) h hnz
+
+/-- `ST-6`: la finalizacion es irreversible. Es la mitad `latest_finalized`
+    de `ST-3`, con nombre propio como en el catalogo. -/
+theorem ST6.finalizacion_irreversible
+    (state state' : mini_stf.tipos.State) (block : mini_stf.tipos.Block)
+    (res : core.result.Result Unit mini_stf.stf.Error)
+    (h : mini_stf.stf.state_transition state block = ok (res, state')) :
+    state.latest_finalized.slot ≤ state'.latest_finalized.slot :=
+  (ST3.state_transition_no_retrocede state state' block res h).2
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -2007,3 +2632,9 @@ theorem ST7.state_transition_adelante
 #print axioms ST7.process_attestations_adelante
 #print axioms ST7.process_block_header_no_toca_checkpoints
 #print axioms ST7.state_transition_adelante
+#print axioms ST1.process_slots_avanza
+#print axioms ST1.process_slots_rechaza
+#print axioms ST2.process_block_header_slot
+#print axioms ST2.state_transition_conserva_no_genesis
+#print axioms ST4.state_transition_justificado_ge_finalizado
+#print axioms ST6.finalizacion_irreversible

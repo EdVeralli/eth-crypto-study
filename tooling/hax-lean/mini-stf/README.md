@@ -705,5 +705,37 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    > "this tactic is never executed" sobre una alternativa quiere decir que
    > esa alternativa fallo antes de llegar ahi, no que el bloque sobre. El
    > build completo lo agarro.
+
+   > Segunda nota del 15 nov 2026: **las otras de transicion de estado.**
+   > Quedaron ST-1, ST-2, ST-4 y ST-6 (teorema 8 del archivo). Con ST-3 y
+   > ST-7 son las siete del catalogo, contando que ST-5 (pureza) es `rfl` y
+   > no se enuncia.
+   >
+   > - ST-1: dos enunciados, porque ethlambda y la especificacion en Python
+   >   RECHAZAN cuando `slot >= target` y el modelo del catalogo no. Si
+   >   acepta queda en el slot pedido; si no esta en el futuro, rechaza sin
+   >   tocar el estado. Aca no hay divergencia con la especificacion.
+   > - ST-2: si el header acepta, queda en el slot del bloque. Del mismo
+   >   lema sale que `latest_block_header.slot != 0` se conserva, y eso se
+   >   subio a `state_transition`: era uno de los dos lemas que le faltaban
+   >   a ST-7. Hubo que demostrar que `process_attestations` no toca el
+   >   header (otro loop con el script de siempre; cerro solo).
+   > - ST-4: el paso inductivo, para cualquier estado. La razon es corta:
+   >   `try_finalize` corre justo despues de justificar un target, finaliza
+   >   el source, y un voto valido tiene `source.slot < target.slot`. No
+   >   hizo falta tocar la lista de bits. Falta el caso base (el genesis).
+   > - ST-6: corolario de ST-3 con nombre.
+   >
+   > Todo compilo al primer intento, con la maquinaria de ST-7: lema con
+   > contenido para `is_valid_vote`, lema de `try_finalize`, dos lemas de
+   > cierre para las dos ramas del `if`, e hipotesis dentro de la
+   > postcondicion. Control negativo de ST-4: con el lema trivial de
+   > `is_valid_vote` quedan abiertos justo los dos casos en que la finalidad
+   > pasa al source.
+   >
+   > Lo que sigue faltando para "vale en todo estado alcanzable": que el
+   > primer bloque despues del genesis establezca `EnElHistorial` (ST-7) y
+   > el caso base de ST-4. Las dos piden construir el estado del genesis,
+   > que el crate no tiene.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

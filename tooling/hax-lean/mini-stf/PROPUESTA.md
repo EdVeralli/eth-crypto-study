@@ -11,13 +11,16 @@ dice exactamente qué necesitó cada una y por qué.
 
 Trae además teoremas, porque una traducción que chequea es sólo la mitad de la
 pregunta — la otra mitad es si se puede demostrar algo sobre lo que sale. No son
-un reclamo de cobertura contra ningún catálogo. Lo que sí cubren son dos de sus
-proposiciones, de punta a punta. Una: ningún slot de checkpoint retrocede a lo
-largo de la transición de un bloque — la propiedad que un test de ustedes afirma
-por ejemplo después del congelamiento del devnet en el slot 27984. La otra:
-ningún checkpoint cambia de raíz sin subir de slot — que sobre su código vale
-por un motivo distinto al de la especificación y sólo bajo una hipótesis, porque
-ante un empate de slots su código y la especificación eligen distinto.
+un reclamo de cobertura contra ningún catálogo. Lo que sí cubren son las
+proposiciones que ese catálogo tiene sobre la transición de estado, que son
+siete de treinta y cinco. Dos van de punta a punta y son las que más dicen. Una:
+ningún slot de checkpoint retrocede a lo largo de la transición de un bloque —
+la propiedad que un test de ustedes afirma por ejemplo después del congelamiento
+del devnet en el slot 27984. La otra: ningún checkpoint cambia de raíz sin subir
+de slot — que sobre su código vale por un motivo distinto al de la
+especificación y sólo bajo una hipótesis, porque ante un empate de slots su
+código y la especificación eligen distinto. De las otras cinco, una queda en su
+paso inductivo y una no se enuncia porque es trivial; está dicho cuál es cuál.
 
 Cada número de acá salió de una corrida.
 
@@ -191,10 +194,10 @@ Todo, con las líneas tal como se entrega.
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 322 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 2009 | nuestro — los teoremas. |
-| `axiomas.txt` | 269 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
+| `teoremas/ProofObligations.lean` | 2640 | nuestro — los teoremas. |
+| `axiomas.txt` | 360 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 709 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 741 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -286,7 +289,7 @@ estos dos fallan.
 
 ## Qué recibe
 
-`teoremas/ProofObligations.lean` tiene dieciséis resultados con nombre:
+`teoremas/ProofObligations.lean` tiene veintidós resultados con nombre:
 
 | Resultado | Qué es |
 |---|---|
@@ -305,6 +308,12 @@ estos dos fallan.
 | `ST7.process_attestations_adelante` | ningún checkpoint cambia de raíz sin subir de slot, sobre `process_attestations` entera |
 | `ST7.process_block_header_no_toca_checkpoints` | fuera del anclaje del génesis, `process_block_header` deja los dos checkpoints enteros y sólo agrega al final del historial |
 | `ST7.state_transition_adelante` | **ningún checkpoint cambia de raíz sin subir de slot a lo largo de `state_transition`**, si el justificado está en el historial |
+| `ST1.process_slots_avanza` | si `process_slots` acepta, el estado queda en el slot pedido |
+| `ST1.process_slots_rechaza` | si el slot pedido no está en el futuro, rechaza sin tocar el estado |
+| `ST2.process_block_header_slot` | si `process_block_header` acepta, el último header queda en el slot del bloque |
+| `ST2.state_transition_conserva_no_genesis` | si el último header no era el del génesis, sigue sin serlo después de `state_transition` |
+| `ST4.state_transition_justificado_ge_finalizado` | **si el slot finalizado no supera al justificado antes de `state_transition`, tampoco después** |
+| `ST6.finalizacion_irreversible` | la finalización no retrocede a lo largo de `state_transition` — la mitad de `ST-3`, con nombre propio |
 | `bind_da_ok` | una herramienta: abre un bind de `RustM` |
 
 No se eligieron por cantidad. Entre todos cubren aritmética, ramificación y
@@ -536,9 +545,64 @@ Tres cosas que hicieron falta y que sirven fuera de este teorema:
   (`ST7.process_block_header_no_toca_checkpoints`).
 
 Lo que **no** está demostrado: que el primer bloque después del génesis deje el
-estado cumpliendo `hhist`, ni que `hnz` se conserve de un bloque al siguiente.
-Son los dos lemas que faltan para decir "vale en todo estado alcanzable desde
-el génesis".
+estado cumpliendo `hhist`. Es el lema que falta para decir "vale en todo estado
+alcanzable desde el génesis". La otra hipótesis sí se conserva: que `hnz` pasa
+de un bloque al siguiente está demostrado más abajo, con `ST-2`.
+
+### Las otras cuatro de transición de estado
+
+El catálogo tiene siete proposiciones sobre la transición de estado. Con las dos
+de arriba, éstas completan la lista.
+
+**`ST-1`, el avance de slots.** El catálogo la enuncia con `slot ≤ target`,
+porque su modelo de `process_slots` devuelve un estado y no rechaza. La
+especificación en Python y el código de ustedes rechazan los dos cuando
+`slot >= target`, así que acá son dos enunciados: si acepta, el estado queda en
+el slot pedido (`ST1.process_slots_avanza`); y si el slot pedido no está en el
+futuro, devuelve `StateSlotIsNewer` y el estado sin tocar
+(`ST1.process_slots_rechaza`). El segundo no es condicional: dice qué devuelve.
+
+**`ST-2`, el header.** Si `process_block_header` acepta, el último header queda
+en el slot del bloque. Del mismo lema sale lo que le faltaba a `ST-7`: si el
+último header no era el del génesis, sigue sin serlo, acepte o rechace. Eso
+está subido a la transición entera (`ST2.state_transition_conserva_no_genesis`),
+para lo que hubo que demostrar que el resto de `state_transition` no toca
+`latest_block_header`.
+
+**`ST-4`, justificado ≥ finalizado.**
+
+```lean
+theorem ST4.state_transition_justificado_ge_finalizado
+    (state state' : tipos.State) (block : tipos.Block) (res : ...)
+    (hinv : state.latest_finalized.slot ≤ state.latest_justified.slot) :
+    stf.state_transition state block = ok (res, state') →
+    state'.latest_finalized.slot ≤ state'.latest_justified.slot
+```
+
+En el catálogo es un invariante de los estados alcanzables. Esto es su paso
+inductivo, y vale para cualquier estado: si se cumple antes de la transición,
+se cumple después. La razón está a la vista en el código de ustedes.
+`try_finalize` sólo corre justo después de justificar un target; lo que
+finaliza es el `source` de ese voto; y `is_valid_vote` exige
+`target.slot > source.slot`. El finalizado nuevo queda entonces por debajo del
+target, que a su vez no supera al justificado nuevo. No hizo falta razonar
+sobre la lista de bits `justified_slots`.
+
+Como control negativo corrimos el mismo script con un lema de `is_valid_vote`
+que no dice nada. Quedan abiertos exactamente los dos casos en que la finalidad
+pasa al `source`, pidiendo `source.slot ≤` el justificado nuevo.
+
+Falta el caso base: que el estado del génesis cumple el invariante. El crate no
+construye ese estado.
+
+**`ST-6`, la finalización es irreversible.** El catálogo mismo dice que es la
+mitad `latest_finalized` de `ST-3`. `ST6.finalizacion_irreversible` le pone
+nombre.
+
+**`ST-5`, la pureza, no está enunciada.** En el catálogo es
+`transition s b = transition s b`, demostrada con `rfl`. Vale igual para
+cualquier función de Lean, la de ustedes traducida incluida, y agregarla no
+diría nada sobre el código.
 
 ### Qué es esto contra el catálogo, dicho exacto
 
@@ -574,11 +638,15 @@ su código y la especificación eligen distinto. Chequeado contra `leanSpec`
 `main` del 15 nov 2026 (`Checkpoint.advance_to` y `state_transition.py`) y
 contra el `main` de ustedes, que ese día seguía idéntico a `35c074b`.
 
-Las propiedades no se eligieron porque parecieran demostrables. `ST-3` y `ST-7`
-son dos de treinta y cinco proposiciones de ese catálogo — siete sobre la transición de
-estado, el resto sobre fork choice, SSZ, el validador, red, storage y sync. El
-enunciado es anterior a nuestro trabajo sobre él, y eso importa: elegir las
-propias propiedades vuelve el ejercicio circular.
+**`ST-4` es el paso inductivo, no el invariante.** El catálogo demuestra
+`justified_ge_finalized` por inducción sobre sus estados alcanzables. Acá está
+el paso —si vale antes de un bloque, vale después— y falta el caso base.
+
+Las propiedades no se eligieron porque parecieran demostrables. Ese catálogo
+tiene treinta y cinco proposiciones — siete sobre la transición de estado, el
+resto sobre fork choice, SSZ, el validador, red, storage y sync — y éstas son
+las siete. Los enunciados son anteriores a nuestro trabajo sobre ellos, y eso
+importa: elegir las propias propiedades vuelve el ejercicio circular.
 
 ### La base de confianza
 
@@ -591,12 +659,12 @@ propias propiedades vuelve el ejercicio circular.
 | los dos de `try_finalize` | 13 | 3 | 3 | 7 |
 | el del loop | 14 | 3 | 4 | 7 |
 | `process_attestations`, justificación y finalidad | 20 | 3 | 7 | 10 |
-| `process_slots` | 3 | 3 | — | — |
-| `process_block_header`, los dos resultados | 8 | 3 | 3 | 2 |
+| `process_slots`, los tres resultados | 3 | 3 | — | — |
+| `process_block_header`, los tres resultados | 8 | 3 | 3 | 2 |
 | `process_block`, `state_transition` (`ST-3`) | 23 | 3 | 9 | 11 |
 | la igualdad de `H256` | 3 | 3 | — | — |
 | `process_attestations` (`ST-7`) | 20 | 3 | 7 | 10 |
-| `state_transition` (`ST-7`) | 23 | 3 | 9 | 11 |
+| `state_transition` (`ST-4`, `ST-6`, `ST-7`, conservación del header) | 23 | 3 | 9 | 11 |
 
 Tres categorías, con tres pesos distintos.
 
@@ -605,7 +673,7 @@ de cualquier demostración clásica y no dicen nada sobre este código.
 
 **Los nativos** son los `_native.decide.ax_*`: hechos que el núcleo de Lean no
 chequeó, computados por el compilador. Aparecen nueve distintos en las doce
-funciones. Los dos teoremas sobre la transición entera dependen de los nueve;
+funciones. Los cinco teoremas sobre la transición entera dependen de los nueve;
 los resultados sobre componentes dependen de menos, como muestra la tabla.
 No son nuestros ni de ustedes. Definir una función en Lean puede exigir
 demostraciones —un literal escalar carga la prueba de que entra en su tipo,
@@ -833,3 +901,6 @@ afirmaciones de modelado que sí hacemos.
 teorema pide que el checkpoint justificado esté en el historial y demuestra que
 eso se conserva, pero no que el primer bloque lo establezca. Y sin esa
 hipótesis el enunciado es falso sobre su código, como muestra el test.
+
+**`ST-4` es un paso inductivo sin caso base.** Falta que el estado del génesis
+cumpla que el finalizado no supera al justificado; el crate no lo construye.
