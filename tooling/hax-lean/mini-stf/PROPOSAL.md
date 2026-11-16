@@ -31,7 +31,7 @@ Every number here came from a run.
 Beacon Chain support, #661, 2026-10-20)* — the commit that last touched it, not
 whatever `main` happened to be.
 
-Checked again on 6 Nov 2026: the file on `main` is byte-identical to the one at
+Checked again on 15 Nov 2026: the file on `main` is byte-identical to the one at
 `35c074b`. We compared contents rather than tracking commits, since contents
 are what the numbers depend on. The same check, so you need not take our word:
 
@@ -64,7 +64,7 @@ Four kinds of difference come out of it:
 1. the `use` block — our types come from this crate instead of yours;
 2. nineteen helper functions, new and ours, which the rewritten functions call;
 3. the four functions in the table under **What changed in your code**;
-4. two tests of ours appended to your test module, which lives in this file.
+4. three tests of ours appended to your test module, which lives in this file.
 
 Comments differ throughout, so to check the "eight of twelve unchanged" claim
 specifically, strip comments and blank lines first:
@@ -78,6 +78,73 @@ That is a blunt instrument — it would also cut a `//` inside a string literal,
 though there are none in either file. It is for reading, not for CI.
 
 ## Run it
+
+### From nothing to the theorems
+
+The only things you need installed are **Docker** and `git`. Rust, Lean, hax,
+Charon and Aeneas are not installed on your machine: they live inside the
+image. The whole sequence, from a terminal:
+
+```bash
+# 1. get the repo
+git clone https://github.com/EdVeralli/eth-crypto-study.git
+cd eth-crypto-study/tooling/hax-lean
+
+# 2. build the image (once; it takes a while and several GB)
+docker build --platform linux/amd64 -t hax-lean .
+
+# 3. enter the container, with the crate mounted at /work
+docker run --platform linux/amd64 -it \
+  -v "$PWD/mini-stf:/work" \
+  -v hax-cargo:/root/.cargo/registry \
+  -v hax-cache:/root/.cache/hax \
+  -v hax-elan:/root/.elan \
+  hax-lean bash
+```
+
+Inside the container the prompt becomes `root@…` and you are already in
+`/work`, which is the crate root:
+
+```bash
+# 4. the Rust tests
+cargo test
+
+# 5. translate to Lean and build the theorems
+bash regenerar.sh 2>&1 | tee /tmp/build.log
+
+# 6. count what came out
+grep -c "depends on axioms" /tmp/build.log
+grep -c sorryAx /tmp/build.log
+```
+
+What each step should give:
+
+| Step | Result |
+|---|---|
+| 4 | `test result: ok. 9 passed` |
+| 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
+| 6 | `22` — one axiom block per result — and `0` |
+
+There is no separate "run the proofs" step. The theorems are in
+`teoremas/ProofObligations.lean`; step 5 copies that file into the Lean project
+and `lake build` checks all of it. If the build ends green, Lean accepted the
+twenty-two proofs. At the end it prints which axioms each one depends on, which
+is what step 6 counts.
+
+To convince yourself the check is real, break a statement by hand. In
+`proofs/lean/MiniStf/Verification/ProofObligations.lean`, inside
+`ST3.state_transition_no_retrocede`, change the `≤` on `latest_justified.slot`
+to a `<` and run:
+
+```bash
+cd /work/proofs/lean && lake build
+```
+
+It fails with `Type mismatch` at that theorem. `bash regenerar.sh` from `/work`
+copies the good file back and leaves everything green again.
+
+The rest of this section explains each step and what to do if you already have
+the tools installed.
 
 ### The environment
 
@@ -193,7 +260,7 @@ Everything, with line counts as shipped.
 | `teoremas/ProofObligations.lean` | 2640 | ours — the theorems. |
 | `axiomas.txt` | 360 | ours — the `#print axioms` output, so the trust base can be read without building. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 741 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 746 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -279,6 +346,10 @@ cover the three inside it. So we added two that do:
 
 Both were checked against the defect: with the fix removed, your six pass and
 these two fail.
+
+The third test of ours is of a different kind: it does not cover our rewrite
+but a behaviour of your code. It is under **Checkpoint replacement**, further
+down.
 
 ## What you get
 
@@ -762,8 +833,8 @@ of_triple_mayThrow : ⦃True⦄ x ⦃mayThrow (⌜P ·⌝)⦄ → x = ok v → P
 have **as an equation** into the `@[spec]` lemma the tactic consumes, so a result
 proved the hard way stays usable without being redone. The other direction
 brings a triple back to an equation, which is how the statements above are
-phrased. Twenty-three `@[spec]` lemmas feed the two loop-related proofs; all but
-four have a trivially true postcondition, present only so the tactic can step
+phrased. Twenty-three `@[spec]` lemmas feed the first two loop-related proofs,
+those of `ST-3`; all but four have a trivially true postcondition, present only so the tactic can step
 over a call that cannot move `latest_justified`. The four with content are
 `is_none_spec`, `try_finalize_spec`, `serialize_spec`, and the loop theorem
 itself, reused as a lemma for the whole function.
@@ -785,6 +856,13 @@ antecedent **inside** the postcondition (`⌜ hyp → conclusion ⌝`), not as a
 argument of the lemma. That way `hax_mvcgen` consumes it like any other, and
 the hypothesis is discharged where it is used, from what the previous step left
 proved.
+
+With that in place, the other state-transition propositions asked for nothing
+new. `ST-4` is the loop script once more, with a different invariant,
+an `is_valid_vote` lemma saying the vote goes forward and a `try_finalize` lemma
+saying where it moves finality. The new proofs are long to write and short to
+think: the work is in choosing the invariant and in saying what each call
+returns.
 
 **`hax_mvcgen` stops silently.** It decides whether work remains from the
 *shape* of the goal: `goalNeedsMvcgen` recognizes a `Triple`, an `entails`

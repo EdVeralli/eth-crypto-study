@@ -206,6 +206,14 @@ exit code 0
 git status: limpio, diff en tests/ vacio
 ```
 
+Nota del 15 nov 2026: se volvio a correr entera despues de formatear la Mac y
+rearmar el entorno (ver `RESTAURAR.md`). Mismo resultado, mas rapido:
+
+```
+364 passed in 7732.92s (2:08:52)
+git status: limpio, diff en tests/ vacio
+```
+
 Los 364 vectores se regeneraron **byte a byte identicos** a los commiteados,
 en los 14 handlers de BLS y KZG:
 

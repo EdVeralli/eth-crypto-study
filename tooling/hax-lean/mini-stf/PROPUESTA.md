@@ -31,7 +31,7 @@ Cada número de acá salió de una corrida.
 Beacon Chain support, #661, 2026-10-20)* — el commit que lo tocó por última
 vez, no lo que `main` tuviera en ese momento.
 
-Chequeado de nuevo el 6 nov 2026: el archivo en `main` es byte a byte idéntico
+Chequeado de nuevo el 15 nov 2026: el archivo en `main` es byte a byte idéntico
 al de `35c074b`. Comparamos contenidos en vez de rastrear commits, porque el
 contenido es de lo que dependen los números. El mismo chequeo, para que no
 tengan que creernos:
@@ -66,7 +66,7 @@ De ahí salen cuatro clases de diferencia:
 2. diecinueve funciones auxiliares, nuevas y nuestras, que las funciones
    reescritas llaman;
 3. las cuatro funciones de la tabla de **Qué cambió de su código**;
-4. dos tests nuestros agregados a su módulo de tests, que vive en este archivo.
+4. tres tests nuestros agregados a su módulo de tests, que vive en este archivo.
 
 Los comentarios difieren en todo el archivo, así que para chequear
 específicamente la afirmación de "ocho de doce sin cambios", saquen primero
@@ -82,6 +82,73 @@ texto, aunque no hay ninguno en ninguno de los dos archivos. Sirve para leer,
 no para CI.
 
 ## Cómo correrlo
+
+### De cero a los teoremas
+
+Lo único que hay que tener instalado es **Docker** y `git`. Rust, Lean, hax,
+Charon y Aeneas no se instalan en la máquina: van adentro de la imagen. La
+secuencia completa, desde una terminal:
+
+```bash
+# 1. bajar el repo
+git clone https://github.com/EdVeralli/eth-crypto-study.git
+cd eth-crypto-study/tooling/hax-lean
+
+# 2. armar la imagen (una sola vez; tarda y ocupa varios GB)
+docker build --platform linux/amd64 -t hax-lean .
+
+# 3. entrar al contenedor, con el crate montado en /work
+docker run --platform linux/amd64 -it \
+  -v "$PWD/mini-stf:/work" \
+  -v hax-cargo:/root/.cargo/registry \
+  -v hax-cache:/root/.cache/hax \
+  -v hax-elan:/root/.elan \
+  hax-lean bash
+```
+
+Adentro del contenedor el prompt pasa a `root@…` y ya quedan parados en `/work`,
+que es la raíz del crate:
+
+```bash
+# 4. los tests de Rust
+cargo test
+
+# 5. traducir a Lean y compilar los teoremas
+bash regenerar.sh 2>&1 | tee /tmp/build.log
+
+# 6. contar lo que salió
+grep -c "depends on axioms" /tmp/build.log
+grep -c sorryAx /tmp/build.log
+```
+
+Qué tiene que dar cada paso:
+
+| Paso | Resultado |
+|---|---|
+| 4 | `test result: ok. 9 passed` |
+| 5 | `Build completed successfully (1742 jobs).` y después `=== listo ===` (1743 jobs la primera vez sobre un checkout limpio) |
+| 6 | `22` — un bloque de axiomas por resultado — y `0` |
+
+No hay un paso aparte de "correr las pruebas". Los teoremas están en
+`teoremas/ProofObligations.lean`; el paso 5 copia ese archivo adentro del
+proyecto Lean y `lake build` lo chequea entero. Si el build termina en verde,
+Lean aceptó las veintidós demostraciones. Al final imprime de qué axiomas
+depende cada una, que es lo que cuenta el paso 6.
+
+Para convencerse de que el chequeo es real, rompan un enunciado a mano. En
+`proofs/lean/MiniStf/Verification/ProofObligations.lean`, dentro de
+`ST3.state_transition_no_retrocede`, cambien el `≤` de `latest_justified.slot`
+por un `<` y corran:
+
+```bash
+cd /work/proofs/lean && lake build
+```
+
+Falla con `Type mismatch` en ese teorema. `bash regenerar.sh` desde `/work`
+vuelve a copiar el archivo bueno y deja todo en verde otra vez.
+
+El resto de esta sección explica cada paso y qué hacer si ya tienen las
+herramientas instaladas.
 
 ### El entorno
 
@@ -197,7 +264,7 @@ Todo, con las líneas tal como se entrega.
 | `teoremas/ProofObligations.lean` | 2640 | nuestro — los teoremas. |
 | `axiomas.txt` | 360 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 741 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 746 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -286,6 +353,10 @@ ninguno cubre las tres de adentro. Así que agregamos dos que sí:
 
 Los dos se chequearon contra el defecto: sacando el arreglo, sus seis pasan y
 estos dos fallan.
+
+El tercer test nuestro es de otra clase: no cubre nuestra reescritura sino un
+comportamiento del código de ustedes. Está en **El reemplazo de checkpoint**,
+más abajo.
 
 ## Qué recibe
 
@@ -774,8 +845,8 @@ of_triple_mayThrow : ⦃True⦄ x ⦃mayThrow (⌜P ·⌝)⦄ → x = ok v → P
 tiene **como ecuación** en el lema `@[spec]` que la táctica consume, así un
 resultado demostrado por el camino difícil queda usable sin rehacerlo. El otro
 sentido devuelve una terna a ecuación, que es como están enunciados los
-resultados de arriba. Veintitrés lemas `@[spec]` alimentan las dos
-demostraciones del loop; todos menos cuatro tienen una postcondición trivialmente
+resultados de arriba. Veintitrés lemas `@[spec]` alimentan las dos primeras
+demostraciones sobre el loop, las de `ST-3`; todos menos cuatro tienen una postcondición trivialmente
 verdadera, presentes sólo para que la táctica pueda atravesar una llamada que no
 puede mover `latest_justified`. Los cuatro con contenido son `is_none_spec`,
 `try_finalize_spec`, `serialize_spec` y el propio teorema del loop, reusado como
@@ -798,6 +869,13 @@ forma de componer lemas que tienen hipótesis: la hipótesis va como antecedente
 **dentro** de la postcondición (`⌜ hip → conclusión ⌝`), no como argumento del
 lema. Así `hax_mvcgen` lo consume igual que a cualquier otro, y la hipótesis se
 descarga donde se usa, con lo que el paso anterior dejó demostrado.
+
+Con eso armado, las otras de transición de estado no pidieron nada nuevo.
+`ST-4` es el script del loop otra vez, con otro invariante, un lema de
+`is_valid_vote` que dice que el voto va hacia adelante y otro de `try_finalize`
+que dice a dónde mueve la finalidad. Las demostraciones nuevas son largas de
+escribir y cortas de pensar: el trabajo está en elegir el invariante y en decir
+qué devuelve cada llamada.
 
 **`hax_mvcgen` se detiene en silencio.** Decide si queda trabajo por la *forma*
 del objetivo: `goalNeedsMvcgen` reconoce un `Triple`, un `entails` que lleva un

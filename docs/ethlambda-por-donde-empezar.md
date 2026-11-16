@@ -397,6 +397,9 @@ detalle completo.
 > **doce de doce** funciones traducidas, cero `sorry`, sin ninguna función de la STF opaca,
 > y `lake build` con 1742 jobs el 6 nov (1743 en el rearmado en limpio del 12 nov). Los
 > números finales están en la [`PROPUESTA.md`](../tooling/hax-lean/mini-stf/PROPUESTA.md).
+> Encima de la traducción hay, desde el 15 nov, veintidós resultados demostrados, que
+> cubren las siete proposiciones de transición de estado del catálogo de
+> `formal-leanSpec`.
 
 Nueve de las doce funciones traducidas con cero `sorry`, entre ellas
 `state_transition`, `process_slots`, `process_block`, `process_block_header`,

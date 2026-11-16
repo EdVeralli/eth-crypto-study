@@ -262,9 +262,10 @@ constantes grandes del estado. Los arrastran `extend_to_slot`, `set_justified`,
 `process_block_header` y, por transitividad, `state_transition` y
 `process_block`.
 
-(Nota del 15 nov 2026: el conteo final es otro. A los teoremas llegan **7**
-nativos distintos, y contando las doce funciones de la STF son **9**: los dos
-de mas son `process_block_header._native.decide.ax_3` y
+(Nota del 15 nov 2026: el conteo final es otro. Contando las doce funciones
+de la STF son **9** nativos distintos, y los nueve llegan a los teoremas sobre
+`state_transition` entera. A los teoremas sobre `process_attestations` llegan
+7; los dos de mas son `process_block_header._native.decide.ax_3` y
 `extend_to_slot_loop.body._native.decide.ax_3`.)
 
 Eso ultimo es un hallazgo que va mas alla de este crate: en los cuatro repos del
@@ -622,6 +623,10 @@ queda ahi. **Al sacar un `--opaque`, sacar tambien su axioma.**
 > Nota del 15 nov 2026: el paquete se cerro el 6 nov. Los puntos de abajo son
 > trabajo futuro posible, no pendientes. Lo unico pendiente es enviar el
 > paquete a LambdaClass.
+>
+> El punto 1 entero se hizo ese mismo 15 nov, en tres tandas: ST-3 sobre
+> `state_transition`, despues ST-7, despues ST-1, ST-2, ST-4 y ST-6. Cada
+> tanda tiene su nota mas abajo.
 
 Los tres hallazgos de herramienta -- que los axiomas nativos vienen de la
 biblioteca de tacticas de Aeneas, que `--start-from` no trae los tipos de una

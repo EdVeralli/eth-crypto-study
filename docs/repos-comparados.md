@@ -251,6 +251,13 @@ Cuatro *native axioms* en código que nadie escribió a mano: lo generó Aeneas,
 probablemente al despachar condiciones de borde sobre las constantes grandes del estado
 (`262144` y parecidas). Cuatro de las trece funciones los arrastran.
 
+> **Nota del 15 nov 2026.** Ésa era la foto de fines de octubre, cuando todavía había
+> funciones opacas. En el estado final son **nueve** *native axioms* distintos repartidos
+> en las doce funciones de la STF, y los nueve llegan a los teoremas sobre la transición
+> entera. De dónde salen ya no es una conjetura: los pone la biblioteca de tácticas de
+> Aeneas (`BvSimprocs.lean`, `StepArraySpec.lean`) al descargar cotas de arrays y
+> escalares, y no hay flag para apagarlos. El argumento de abajo no cambia.
+
 Esto vale la pena anotarlo porque **cambia dónde hay que mirar**. En los cuatro repos el
 *native axiom* es rastreable hasta una línea que un humano escribió; acá no hay tal línea.
 Si alguien le aplicara a esto la regla D21 de `leanerSTFSpec` —que prohíbe los native

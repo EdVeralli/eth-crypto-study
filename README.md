@@ -92,6 +92,16 @@ hax + Charon + Aeneas, de Rust a Lean. Se entra por
 [`PROPOSAL.md`](tooling/hax-lean/mini-stf/PROPOSAL.md) (en inglés), y
 [`RESTAURAR.md`](RESTAURAR.md) explica cómo reconstruir el entorno desde cero.
 
+Al 15 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
+`sorry` y veintidós resultados demostrados encima. Cubren las siete
+proposiciones de transición de estado del catálogo de `formal-leanSpec` (`ST-1`
+a `ST-7`), con dos salvedades que la propuesta detalla: `ST-4` está en su paso
+inductivo y `ST-7` vale bajo una hipótesis extra. Esa hipótesis no es un
+tecnicismo: al demostrar `ST-7` apareció que, cuando un voto justifica un target
+en el mismo slot que el checkpoint justificado, **ethlambda y la especificación
+eligen distinto** (`max_by_key` se queda con el target; leanSpec compara con `>`
+estricto y se queda con el que estaba). Hay un test en Rust que lo muestra.
+
 El mapa es la vista de arriba y cada guía baja a un archivo. Se estudian de
 abajo hacia arriba, porque cada piso usa al anterior:
 
@@ -164,7 +174,7 @@ revisa, nunca ejecuta; se apoyan en Mathlib, la biblioteca matemática de Lean).
 | `pip install -e '.[test]'` | Completo — extensión C compilada y enlazada |
 | BLS desde Python | Funciona (`from eth_cryptography_specs import bls`) |
 | Verificación cruzada contra `py_ecc` | Pasa — agregación coincide byte a byte (`docs/bls_smoke.py`) |
-| Suite completa de 364 vectores | **Pasó — 0 diferencias contra git** (2:57:50) |
+| Suite completa de 364 vectores | **Pasó — 0 diferencias contra git** (2:57:50 el 28 sep; 2:08:52 el 15 nov, en la Mac formateada) |
 | Documentación del repo | Notas + mapa interactivo en `docs/` |
 
 El `git status` limpio después de correr la suite es el resultado importante:
@@ -223,7 +233,14 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
 7. **Enviar el paquete `mini-stf` a LambdaClass**: el paquete de
    [`tooling/hax-lean/mini-stf/`](tooling/hax-lean/mini-stf/) está terminado
    (ver su [`PROPUESTA.md`](tooling/hax-lean/mini-stf/PROPUESTA.md)); lo único
-   pendiente es mandarlo.
+   pendiente es mandarlo. Antes de mandarlo conviene releer la sección "El
+   reemplazo de checkpoint, y dónde su código se aparta de la especificación":
+   es la que les dice que su código y leanSpec difieren en un punto.
+8. **Lo que le falta al paquete para valer "en todo estado alcanzable"**: el
+   caso base de `ST-4` y que el primer bloque después del génesis establezca la
+   hipótesis del historial de `ST-7`. Las dos piden construir el estado del
+   génesis, que el crate no tiene. Y queda el condicional de todos los
+   teoremas: la ausencia de pánico no está demostrada.
 
 ## Entorno
 
