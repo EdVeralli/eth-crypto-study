@@ -31,7 +31,7 @@ crate que se extrae**. De ahí este crate.
 
 | módulo | de dónde sale | líneas |
 |---|---|---|
-| `stf` | **copia** de `state_transition/src/lib.rs`: ocho de las doce funciones sin cambios, cuatro reescritas, 19 funciones auxiliares nuestras, y al final el módulo de tests del original (437 renglones) con dos tests agregados | 1484 |
+| `stf` | **copia** de `state_transition/src/lib.rs`: ocho de las doce funciones sin cambios, cuatro reescritas, 19 funciones auxiliares nuestras, y al final el módulo de tests del original (437 renglones) con tres tests agregados | 1585 |
 | `justified_slots_ops` | **copia**, sólo cambian los `use` | 90 |
 | `tipos` | definiciones de `ethlambda-types`, sin los derives | 431 |
 | `ssz` | **nuestro**: sustitutos de `SszList` y `SszBitlist` | 154 |
@@ -210,7 +210,9 @@ es un ciclo (`bad import 'MiniStf'`). El encabezado que escribe hax ya lo dice.
 
 > Nota del 15 nov 2026: lo que sigue es la foto del 30 oct. Al final quedaron
 > **28 axiomas declarados** en `supuestos/FunsExternal.lean`: los 17 de `fmt`
-> (14 `Debug` + 3 `Display`) y 11 firmas de `core`/`std`. Ya no hay ninguna
+> (14 `Debug` + 3 `Display`) y 11 firmas de `core`/`std`. (Desde la tarde del
+> 15 nov son 27: `mem::take` paso a ser una definicion, por lo mismo que
+> `isqrt`. Ver la nota de ST-7 en "Lo que sigue".) Ya no hay ninguna
 > funcion de la STF opaca (los dos `--opaque` que quedan son solo
 > `Debug`/`Display`), e `isqrt` es una definicion sobre `Nat.sqrt` desde el
 > 30 oct, no un axioma. Y una cuenta que abajo no cierra: el desglose suma 25
@@ -652,5 +654,56 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    alcanzable porque `is_valid_vote` chequea por slot y rechazaria el voto
    antes, pero entonces estaria a salvo por otro motivo que el de la
    especificacion, y eso es lo que un teorema aclara.
+
+   > Nota del 15 nov 2026: **ST-7 hecha, y el teorema aclaro las dos cosas.**
+   >
+   > Tal como la enuncia el catalogo (solo con la hipotesis de que el ultimo
+   > header no sea el del genesis), ST-7 es FALSA sobre el codigo de
+   > ethlambda. El test nuevo
+   > `same_slot_root_swap_needs_a_justified_root_off_the_chain` lo muestra:
+   > con `latest_justified = (4, X)`, `historical_block_hashes[4] != X` y el
+   > slot 4 sin marcar en `justified_slots`, un voto con supermayoria al
+   > target del slot 4 le cambia la raiz al justificado sin moverlo de slot.
+   > La especificacion compara con `>` estricto y no lo cambiaria.
+   >
+   > Lo que si vale es `ST7.state_transition_adelante`: si el justificado
+   > esta en el historial (`EnElHistorial`: `hist[c.slot] = c.root`), ningun
+   > checkpoint cambia de raiz sin subir de slot, y esa hipotesis se conserva.
+   > La prediccion de arriba era casi: el voto no se rechaza "por slot", pasa;
+   > lo que salva es `attestation_data_matches_chain`, que obliga a que el
+   > target tenga la raiz del historial, o sea la misma del justificado.
+   >
+   > Lo que costo, en orden:
+   >
+   > 1. `H256 == H256` se traduce a un loop de `CoreModels` sobre 32 bytes.
+   >    Hubo que demostrar que si da `true` los valores son iguales
+   >    (`ST7.h256_eq_true`): `loop_spec` con el invariante "el prefijo
+   >    coincide".
+   > 2. `attestation_data_matches_chain` e `is_valid_vote` con postcondicion
+   >    de verdad. `hax_mvcgen` las atraviesa solo con lemas para `Slice::len`,
+   >    el `deref` de `SszList` y un `from_residual` que diga "nunca es `Ok`".
+   > 3. El loop: mismo script que el teorema 4, invariante de cuatro partes.
+   >    Quedan exactamente dos objetivos, las dos ramas del `if` de la
+   >    justificacion, y se cierran con dos lemas a mano.
+   > 4. **`core.mem.take` era un axioma** y por eso era imposible demostrar
+   >    que `process_block_header` conserva el historial: lo saca del estado
+   >    con `mem::take` y de un axioma no se sabe ni que devuelve lo que
+   >    recibio. Paso a definicion. Los axiomas declarados bajan de 28 a 27,
+   >    `process_block_header` de 9 a 8 y `state_transition` de 24 a 23.
+   > 5. Las hipotesis van DENTRO de la postcondicion (`hip -> conclusion`),
+   >    no como argumento del lema; asi `hax_mvcgen` los compone.
+   >
+   > Control negativo: el mismo script del loop sin la hipotesis deja un solo
+   > objetivo abierto, la rama `target.slot >= latest_justified.slot`.
+   >
+   > Lo que NO esta: que el primer bloque despues del genesis establezca
+   > `EnElHistorial`, y que `latest_block_header.slot != 0` se conserve. Con
+   > esos dos lemas se podria decir "vale en todo estado alcanzable".
+   >
+   > Un tropiezo para no repetir: al limpiar tacticas "que no se usan" segun
+   > el linter saque una que si hacia falta. Dentro de un `first`, el aviso
+   > "this tactic is never executed" sobre una alternativa quiere decir que
+   > esa alternativa fallo antes de llegar ahi, no que el bloque sobre. El
+   > build completo lo agarro.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

@@ -206,8 +206,21 @@ end core.bool.Bool
 namespace core.mem
 
 /-- `mem::take(&mut x)`: devuelve el valor viejo y deja el default en su lugar.
-    El par es (lo que saco, como queda). -/
-axiom take {T : Type} (inst : core.default.Default T) : T -> RustM (T × T)
+    El par es (lo que saco, como queda).
+
+    Era un axioma; desde el 15 nov 2026 es una definicion. La razon es la
+    misma que con `isqrt`: de un axioma no se sabe nada, ni siquiera que lo
+    que devuelve tiene que ver con lo que recibe. `process_block_header` saca
+    `historical_block_hashes` del estado con `mem::take`, le agrega la raiz
+    del padre y lo vuelve a guardar; con `take` axiomatico era imposible
+    demostrar que el historial viejo sigue ahi, que es lo que necesita ST-7.
+
+    EL SUPUESTO QUE QUEDA, ahora explicito: que `mem::take` de Rust devuelve
+    el valor que habia y deja `Default::default()`. Es lo que dice su
+    documentacion. -/
+def take {T : Type} (inst : core.default.Default T) (x : T) : RustM (T × T) := do
+  let d ← inst.default
+  ok (x, d)
 
 end core.mem
 

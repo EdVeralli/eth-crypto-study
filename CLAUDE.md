@@ -79,5 +79,6 @@ byte a byte. Lo que queda es estudio y verificación, listado en el README.
 Desde fines de octubre de 2026 hay una segunda línea de trabajo: aplicar la
 cadena de herramientas Rust → Lean (hax + Charon + Aeneas) a la función de
 transición de estado de `lambdaclass/ethlambda`. El resultado es el crate
-`tooling/hax-lean/mini-stf/`, cerrado el 6 nov 2026; lo único pendiente es
+`tooling/hax-lean/mini-stf/`, cerrado el 6 nov 2026 y ampliado el 15 nov con
+`ST-3` y `ST-7` sobre `state_transition` entera; lo único pendiente es
 enviárselo a LambdaClass.

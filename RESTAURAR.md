@@ -174,7 +174,7 @@ Las tres cosas que tienen que dar:
 # adentro del contenedor, en /work
 cargo test
 ```
-→ **8 pasan** (seis de ethlambda más dos nuestros)
+→ **9 pasan** (seis de ethlambda más tres nuestros)
 
 ```bash
 cd /work/proofs/lean && lake build
@@ -200,9 +200,9 @@ loops, closures, instancias de `Debug`/`Display` y las diecinueve funciones
 auxiliares nuestras) y da 66, no 12.
 
 Si el `lake build` imprime las bases de axiomas, compará contra
-`mini-stf/axiomas.txt`: doce bloques, nueve nativos distintos en total, y 24
-axiomas (3 estándar + 9 nativos + 12 modelos) para
-`ST3.state_transition_no_retrocede`.
+`mini-stf/axiomas.txt`: dieciséis bloques, nueve nativos distintos en total, y
+23 axiomas (3 estándar + 9 nativos + 11 modelos) para los dos teoremas sobre
+`state_transition`.
 
 ---
 
@@ -282,10 +282,11 @@ al día juntos.
 
 Qué tiene: la STF de ethlambda traducida a Lean con las doce funciones y cero
 `sorry`, ocho de doce idénticas a las de ellos salvo comentarios, un bug que
-encontramos en la reescritura con los dos tests que lo cubren, nueve teoremas
-sobre su código —entre ellos `ST-3` sobre `state_transition` entera, desde el
-15 nov—, y tres hallazgos de la cadena de herramientas que no están
-documentados en ninguna parte.
+encontramos en la reescritura con los dos tests que lo cubren, doce teoremas
+sobre su código —entre ellos `ST-3` y `ST-7` sobre `state_transition` entera,
+desde el 15 nov—, un punto donde su código se aparta de la especificación (el
+empate de slots al justificar, con un test que lo muestra), y tres hallazgos de
+la cadena de herramientas que no están documentados en ninguna parte.
 
 **Lo único pendiente: enviárselo.** Al 11 nov no se les había mandado todavía.
 

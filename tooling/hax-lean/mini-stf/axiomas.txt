@@ -124,9 +124,8 @@ ST3F.process_attestations_fin_no_retrocede
     ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
 
 ST3H.process_block_header_no_mueve_slots
-  TOTAL 9 = 3 estandar + 3 nativos + 3 modelos
+  TOTAL 8 = 3 estandar + 3 nativos + 2 modelos
   modelos:
-    - core.mem.take
     - core.bool.Bool.then
     - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
   nativos:
@@ -135,11 +134,10 @@ ST3H.process_block_header_no_mueve_slots
     ~ mini_stf.stf.process_block_header._native.decide.ax_3
 
 ST3T.process_block_no_retrocede
-  TOTAL 24 = 3 estandar + 9 nativos + 12 modelos
+  TOTAL 23 = 3 estandar + 9 nativos + 11 modelos
   modelos:
     - core.borrow.Borrow
     - core.hash.BuildHasher
-    - core.mem.take
     - core.bool.Bool.then
     - core.borrow.Borrow.Blanket
     - core.Array.Insts.CoreCmpOrd.cmp
@@ -161,11 +159,70 @@ ST3T.process_block_no_retrocede
     ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
 
 ST3.state_transition_no_retrocede
-  TOTAL 24 = 3 estandar + 9 nativos + 12 modelos
+  TOTAL 23 = 3 estandar + 9 nativos + 11 modelos
   modelos:
     - core.borrow.Borrow
     - core.hash.BuildHasher
-    - core.mem.take
+    - core.bool.Bool.then
+    - core.borrow.Borrow.Blanket
+    - core.Array.Insts.CoreCmpOrd.cmp
+    - core.Array.Insts.CoreHashHash.hash
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+    - std.collections.hash.map.HashMap.get
+    - std.collections.hash.map.HashMap.insert
+    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
+    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+    ~ mini_stf.stf.process_block_header._native.decide.ax_3
+    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
+    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
+    ~ mini_stf.stf.try_finalize._native.decide.ax_1
+    ~ mini_stf.stf.try_finalize._native.decide.ax_2
+    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+
+ST7.h256_eq_true
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+ST7.process_attestations_adelante
+  TOTAL 20 = 3 estandar + 7 nativos + 10 modelos
+  modelos:
+    - core.borrow.Borrow
+    - core.hash.BuildHasher
+    - core.borrow.Borrow.Blanket
+    - core.Array.Insts.CoreCmpOrd.cmp
+    - core.Array.Insts.CoreHashHash.hash
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+    - std.collections.hash.map.HashMap.get
+    - std.collections.hash.map.HashMap.insert
+    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
+    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
+    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
+    ~ mini_stf.stf.try_finalize._native.decide.ax_1
+    ~ mini_stf.stf.try_finalize._native.decide.ax_2
+    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+
+ST7.process_block_header_no_toca_checkpoints
+  TOTAL 8 = 3 estandar + 3 nativos + 2 modelos
+  modelos:
+    - core.bool.Bool.then
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+    ~ mini_stf.stf.process_block_header._native.decide.ax_3
+
+ST7.state_transition_adelante
+  TOTAL 23 = 3 estandar + 9 nativos + 11 modelos
+  modelos:
+    - core.borrow.Borrow
+    - core.hash.BuildHasher
     - core.bool.Bool.then
     - core.borrow.Borrow.Blanket
     - core.Array.Insts.CoreCmpOrd.cmp
@@ -200,7 +257,13 @@ NATIVOS DISTINTOS EN TODO EL BUILD: 9
   mini_stf.stf.try_finalize._native.decide.ax_2
   mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
 
-Los nueve llegan a `ST3.state_transition_no_retrocede`, que depende de
-exactamente los mismos 24 axiomas que el `def` de `state_transition` sin
-teorema de por medio (se ve con supuestos/RevisarAxiomas.lean). Los
-teoremas sobre componentes dependen de menos.
+Los nueve llegan a `ST3.state_transition_no_retrocede` y a
+`ST7.state_transition_adelante`, que dependen de exactamente los mismos 23
+axiomas que el `def` de `state_transition` sin teorema de por medio (se ve
+con supuestos/RevisarAxiomas.lean). Los teoremas sobre componentes dependen
+de menos.
+
+Hasta el 15 nov 2026 eran 24: `core.mem.take` era un axioma y ese dia paso
+a ser una definicion (ver supuestos/FunsExternal.lean). Por eso
+`process_block_header` y todo lo que pasa por ella tienen un modelo menos
+que en la version anterior de este archivo.

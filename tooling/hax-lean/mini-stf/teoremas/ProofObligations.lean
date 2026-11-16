@@ -1162,6 +1162,837 @@ theorem ST3.state_transition_no_retrocede
     state.latest_finalized.slot ≤ state'.latest_finalized.slot :=
   ST3.of_triple_mayThrow (ST3T.state_transition_spec state block) h
 
+/- ===========================================================================
+   Teorema 7: ST-7 sobre `state_transition` ENTERA (15 nov 2026)
+
+   ST-3 acota solo los SLOTS de los checkpoints. Deja pasar una transicion que
+   le cambie la raiz a un checkpoint sin moverlo de slot. ST-7 cierra eso:
+   cada checkpoint queda igual ENTERO, raiz incluida, o pasa a un slot
+   estrictamente mayor.
+
+   En el modelo del catalogo vale para cualquier estado posterior al genesis,
+   porque la especificacion compara con `>` estricto
+   (`Checkpoint.advance_to`). En ethlambda NO vale asi: usa
+
+       std::cmp::max_by_key(state.latest_justified, target, |c| c.slot)
+
+   que ante un empate de slots devuelve el SEGUNDO argumento, el target. Con
+   un estado en que la raiz justificada no es la que el historial guarda en
+   ese slot, la raiz cambia sin que el slot se mueva. Lo muestra el test
+   `same_slot_root_swap_needs_a_justified_root_off_the_chain` de src/stf.rs.
+
+   Lo que si vale, y es lo que se demuestra aca: si el checkpoint justificado
+   esta en el historial (`EnElHistorial`), no hay cambio de raiz en el mismo
+   slot, y `EnElHistorial` se conserva. La razon NO es la de la
+   especificacion: un voto solo cuenta si su target coincide con el historial
+   (`attestation_data_matches_chain`), asi que un target que empata en slot
+   con el justificado tiene la misma raiz, y entonces es el mismo checkpoint.
+
+   La mitad de la finalidad no necesita esa hipotesis: `try_finalize` asigna
+   solo cuando `source.slot` es estrictamente mayor.
+
+   Piezas:
+     1. la igualdad traducida de `H256` es la igualdad (un loop de 32 bytes);
+     2. voto valido => target en el historial;
+     3. el loop de attestations, con un invariante de cuatro partes;
+     4. `process_block_header` fuera del anclaje del genesis: los checkpoints
+        quedan enteros y el historial viejo es prefijo del nuevo. Para esto
+        hizo falta que `core.mem.take` dejara de ser un axioma (ver
+        supuestos/FunsExternal.lean);
+     5. la composicion por `process_block` hasta `state_transition`.
+
+   Lo que NO se demuestra: que el primer bloque despues del genesis deje el
+   estado cumpliendo `EnElHistorial`, ni que `latest_block_header.slot` siga
+   distinto de cero despues de la transicion. Son los dos lemas que faltan
+   para decir "vale en todo estado alcanzable desde el genesis".
+   =========================================================================== -/
+
+namespace ST7
+open mini_stf
+open Std.Tactic
+open ST3
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+theorem array_eq_loop_spec (a b : Array Std.U8 32#usize) :
+    ⦃ ⌜ True ⌝ ⦄
+    core.Array.Insts.CoreCmpPartialEqArray.eq_loop
+      core.U8.Insts.CoreCmpPartialEqU8 a b 0#usize
+    ⦃ PostCond.mayThrow (fun r => ⌜ r = true → a = b ⌝) ⦄ := by
+  unfold core.Array.Insts.CoreCmpPartialEqArray.eq_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun i : Std.Usize => ∀ k : Nat, k < i.val → a.val[k]? = b.val[k]?)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · simp
+  · intro i hinv
+    unfold core.Array.Insts.CoreCmpPartialEqArray.eq_loop.body
+    simp only [core.U8.Insts.CoreCmpPartialEqU8]
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | trivial
+      | simp [PostCond.div, PostCond.mayThrow]
+    -- Rama `cont`: el invariante para i+1.
+    · rename_i hlt ra hra rb hrb heq r hr
+      obtain ⟨hia, rfl⟩ := hra
+      obtain ⟨hib, rfl⟩ := hrb
+      intro k hk
+      by_cases hki : k < i.val
+      · exact hinv k hki
+      · have hk' : k = i.val := by scalar_tac
+        subst hk'
+        have e1 : (a.to_slice).val = a.val := rfl
+        have e2 : (b.to_slice).val = b.val := rfl
+        have la : i.val < a.val.length := by scalar_tac
+        have lb : i.val < b.val.length := by scalar_tac
+        rw [List.getElem?_eq_getElem la, List.getElem?_eq_getElem lb]
+        simp only [beq_iff_eq] at heq
+        simpa [e1, e2] using heq
+    -- Rama `done false`: nada que probar.
+    · simp [PostCond.okAssertion]
+    -- Rama `done true`: i >= 32 y todo el prefijo coincide.
+    · simp only [PostCond.okAssertion]
+      intro _
+      have ha : a.val.length = 32 := by scalar_tac
+      have hb : b.val.length = 32 := by scalar_tac
+      apply Subtype.ext
+      apply List.ext_getElem?
+      intro k
+      by_cases hk : k < 32
+      · exact hinv k (by scalar_tac)
+      · rw [List.getElem?_eq_none (by omega), List.getElem?_eq_none (by omega)]
+
+/-- La igualdad traducida de `H256` es la igualdad. -/
+theorem h256_eq_true (a b : tipos.H256)
+    (h : tipos.H256.Insts.CoreCmpPartialEqH256.eq a b = ok true) : a = b := by
+  unfold tipos.H256.Insts.CoreCmpPartialEqH256.eq at h
+  exact of_triple_mayThrow (array_eq_loop_spec a b) h rfl
+
+/-- `try_finalize`: la finalidad queda igual ENTERA o avanza estrictamente;
+    el historial de hashes no se toca. -/
+theorem try_finalize_adelante
+    (state state' : tipos.State) (source target : tipos.Checkpoint)
+    (j j' : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global)
+    (h : stf.try_finalize state source target j rts = ok (state', j')) :
+    (state'.latest_finalized = state.latest_finalized ∨
+      state.latest_finalized.slot < state'.latest_finalized.slot) ∧
+    state'.historical_block_hashes = state.historical_block_hashes := by
+  unfold stf.try_finalize at h
+  split at h
+  · simp_all
+  · obtain ⟨i, hadd, h⟩ := bind_da_ok h
+    obtain ⟨b, hb, h⟩ := bind_da_ok h
+    split at h
+    · simp [stubs.metrics.inc_finalizations] at h
+      simp_all
+    · simp [stubs.metrics.inc_finalizations] at h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      obtain ⟨_, _, h⟩ := bind_da_ok h
+      simp only [RustM.ok.injEq, Prod.mk.injEq] at h
+      obtain ⟨hst, -⟩ := h
+      subst hst
+      refine ⟨Or.inr ?_, rfl⟩
+      simp_all
+
+/-- `process_slots`: no toca checkpoints, ni el historial, ni el slot del
+    ultimo header. -/
+theorem process_slots_no_toca
+    (state state' : tipos.State) (t : Std.U64)
+    (res : core.result.Result Unit stf.Error)
+    (h : stf.process_slots state t = ok (res, state')) :
+    state'.latest_justified = state.latest_justified ∧
+    state'.latest_finalized = state.latest_finalized ∧
+    state'.historical_block_hashes = state.historical_block_hashes ∧
+    state'.latest_block_header.slot = state.latest_block_header.slot := by
+  unfold stf.process_slots at h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  split at h
+  · simp only [RustM.ok.injEq, Prod.mk.injEq] at h
+    obtain ⟨-, hst⟩ := h
+    subst hst
+    exact ⟨rfl, rfl, rfl, rfl⟩
+  · obtain ⟨_, _, h⟩ := bind_da_ok h
+    obtain ⟨_, _, h⟩ := bind_da_ok h
+    obtain ⟨_, _, h⟩ := bind_da_ok h
+    obtain ⟨_, _, h⟩ := bind_da_ok h
+    simp only [RustM.ok.injEq, Prod.mk.injEq] at h
+    obtain ⟨-, hst⟩ := h
+    subst hst
+    exact ⟨rfl, rfl, rfl, rfl⟩
+
+theorem serialize_no_toca_historial
+    (state state' : tipos.State) (j : mapa.MapaVotos) (vc : Std.Usize)
+    (h : stf.serialize_justifications state j vc = ok state') :
+    state'.historical_block_hashes = state.historical_block_hashes := by
+  unfold stf.serialize_justifications at h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  simp only [RustM.ok.injEq] at h
+  subst h
+  rfl
+
+
+/- ====================================================================
+   Voto valido => la raiz del target es la del historial en ese slot.
+   ==================================================================== -/
+
+/-- El checkpoint `c` esta en el historial: en la posicion de su slot,
+    `historical_block_hashes` guarda su raiz. Se enuncia con el mismo `cast` que
+    usa el codigo traducido, para no razonar sobre el ancho de `usize`. -/
+def EnElHistorial (hist : ssz.SszList tipos.H256 262144#usize)
+    (c : tipos.Checkpoint) : Prop :=
+  hist.items.val[(UScalar.cast .Usize c.slot).val]? = some c.root
+
+theorem h256_eq_spec (a b : tipos.H256) :
+    ⦃ ⌜ True ⌝ ⦄ tipos.H256.Insts.CoreCmpPartialEqH256.eq a b
+    ⦃ PostCond.mayThrow (fun r => ⌜ r = true → a = b ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv => by
+    intro hvt; subst hvt; exact h256_eq_true a b hv)
+
+theorem slice_len_spec {T : Type} (s : Slice T) :
+    ⦃ ⌜ True ⌝ ⦄ core.slice.Slice.len s ⦃ PostCond.mayThrow (fun _ => ⌜ True ⌝) ⦄ :=
+  triple_mayThrow_of (fun _ _ => trivial)
+
+section
+attribute [local spec] h256_eq_spec slice_len_spec
+
+theorem matches_chain_spec (s : Slice tipos.H256) (d : tipos.AttestationData) :
+    ⦃ ⌜ True ⌝ ⦄ stf.attestation_data_matches_chain s d
+    ⦃ PostCond.mayThrow (fun r => ⌜ r = true →
+        s.val[(UScalar.cast .Usize d.target.slot).val]? = some d.target.root ⌝) ⦄ := by
+  unfold stf.attestation_data_matches_chain
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | trivial
+    | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+    | (simp_all; done)
+    | grind
+end
+
+theorem ssz_deref_spec {T : Type} {N : Std.Usize} (l : ssz.SszList T N) :
+    ⦃ ⌜ True ⌝ ⦄ ssz.SszList.Insts.CoreOpsDerefDerefSlice.deref l
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.val = l.items.val ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv => by
+    simp [ssz.SszList.Insts.CoreOpsDerefDerefSlice.deref,
+      alloc.vec.Vec.Insts.CoreOpsDerefDerefSlice.deref, alloc.vec.Vec.as_slice,
+      rust_primitives.sequence.seq_to_slice] at hv
+    subst hv; rfl)
+
+theorem is_slot_justified_spec (b : ssz.SszBitlist 262144#usize) (x y : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ justified_slots_ops.is_slot_justified b x y
+    ⦃ PostCond.mayThrow (fun _ => ⌜ True ⌝) ⦄ :=
+  triple_mayThrow_of (fun _ _ => trivial)
+
+theorem justifiable_spec (x y : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ stf.slot_is_justifiable_after x y
+    ⦃ PostCond.mayThrow (fun _ => ⌜ True ⌝) ⦄ :=
+  triple_mayThrow_of (fun _ _ => trivial)
+
+/-- `from_residual` nunca devuelve `Ok`: o entra en panico o devuelve `Err`. -/
+theorem from_residual_err_spec (T : Type) {E F : Type}
+    (inst : core.convert.From F E)
+    (r : core.result.Result core.convert.Infallible E) :
+    ⦃ ⌜ True ⌝ ⦄
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResultInfallibleE.from_residual T inst r
+    ⦃ PostCond.mayThrow (fun res => ⌜ ∀ v, res ≠ core.result.Result.Ok v ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv => by
+    unfold core.result.Result.Insts.CoreOpsTry_traitFromResidualResultInfallibleE.from_residual at hv
+    cases r with
+    | Ok x => simp [core.panicking.internal.panic] at hv
+    | Err e =>
+      obtain ⟨t, _, hv⟩ := bind_da_ok hv
+      simp only [RustM.ok.injEq] at hv
+      subst hv
+      intro v h
+      cases h)
+
+section
+attribute [local spec] ssz_deref_spec is_slot_justified_spec justifiable_spec
+  from_residual_err_spec matches_chain_spec ST3H.branch_spec
+
+/-- Un voto que `is_valid_vote` acepta tiene su target en el historial. -/
+theorem is_valid_vote_historial_spec (st : tipos.State) (d : tipos.AttestationData) :
+    ⦃ ⌜ True ⌝ ⦄ stf.is_valid_vote st d
+    ⦃ PostCond.mayThrow (fun r => ⌜ r = core.result.Result.Ok true →
+        EnElHistorial st.historical_block_hashes d.target ⌝) ⦄ := by
+  unfold stf.is_valid_vote
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | trivial
+    | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+    | (simp_all [EnElHistorial]; done)
+end
+
+/- ====================================================================
+   El loop de attestations.
+   ==================================================================== -/
+
+/-- "Igual entero, o estrictamente hacia adelante": la forma de ST-7. -/
+def Adelante (viejo nuevo : tipos.Checkpoint) : Prop :=
+  nuevo = viejo ∨ viejo.slot < nuevo.slot
+
+/-- El paso de justificacion. Si el target empata en slot con el justificado
+    actual, los dos estan en el historial en el MISMO slot, asi que tienen la
+    misma raiz y son el mismo checkpoint: no hay cambio. Si no empata, el
+    slot sube. -/
+theorem adelante_al_target (hist : ssz.SszList tipos.H256 262144#usize)
+    (lj0 lj tgt : tipos.Checkpoint)
+    (h0 : Adelante lj0 lj) (hlj : EnElHistorial hist lj) (htg : EnElHistorial hist tgt)
+    (hge : tgt.slot ≥ lj.slot) : Adelante lj0 tgt := by
+  by_cases heq : tgt.slot = lj.slot
+  · have hig : tgt = lj := by
+      unfold EnElHistorial at hlj htg
+      rw [heq] at htg
+      rw [hlj] at htg
+      have hr : lj.root = tgt.root := Option.some.inj htg
+      cases tgt; cases lj; simp_all
+    rw [hig]; exact h0
+  · right
+    rcases h0 with h0 | h0
+    · subst h0; scalar_tac
+    · scalar_tac
+
+theorem adelante_trans {a b c : tipos.Checkpoint}
+    (h1 : Adelante a b) (h2 : Adelante b c) : Adelante a c := by
+  rcases h1 with h1 | h1 <;> rcases h2 with h2 | h2
+  · left; rw [h2, h1]
+  · right; rw [← h1]; exact h2
+  · right; rw [h2]; exact h1
+  · right; scalar_tac
+
+/-- Cierre de la rama en que el target empata o supera al justificado. -/
+theorem cierre_si (s0 st r : tipos.State) (tgt : tipos.Checkpoint) (v : Bool)
+    (res : core.result.Result Bool stf.Error)
+    (hj : Adelante s0.latest_justified st.latest_justified)
+    (hf : Adelante s0.latest_finalized st.latest_finalized)
+    (hh : st.historical_block_hashes = s0.historical_block_hashes)
+    (hc : EnElHistorial st.historical_block_hashes st.latest_justified)
+    (hvoto : res = core.result.Result.Ok true →
+               EnElHistorial st.historical_block_hashes tgt)
+    (hres : res = core.result.Result.Ok v) (hv : v = true)
+    (hge : tgt.slot ≥ st.latest_justified.slot)
+    (hfin : r.latest_justified = { root := tgt.root, slot := tgt.slot } ∧
+            Adelante st.latest_finalized r.latest_finalized ∧
+            r.historical_block_hashes = st.historical_block_hashes) :
+    Adelante s0.latest_justified r.latest_justified ∧
+    Adelante s0.latest_finalized r.latest_finalized ∧
+    r.historical_block_hashes = s0.historical_block_hashes ∧
+    EnElHistorial r.historical_block_hashes r.latest_justified := by
+  obtain ⟨e1, e2, e3⟩ := hfin
+  have htg := hvoto (by rw [hres, hv])
+  have etgt : ({ root := tgt.root, slot := tgt.slot } : tipos.Checkpoint) = tgt := by
+    cases tgt; rfl
+  rw [etgt] at e1
+  refine ⟨?_, adelante_trans hf e2, e3.trans hh, ?_⟩
+  · rw [e1]; exact adelante_al_target _ _ _ _ hj hc htg hge
+  · rw [e1, e3]; exact htg
+
+/-- Cierre de la rama en que el target queda atras: no cambia nada. -/
+theorem cierre_no (s0 st r : tipos.State)
+    (hj : Adelante s0.latest_justified st.latest_justified)
+    (hf : Adelante s0.latest_finalized st.latest_finalized)
+    (hh : st.historical_block_hashes = s0.historical_block_hashes)
+    (hc : EnElHistorial st.historical_block_hashes st.latest_justified)
+    (hfin : r.latest_justified =
+              { root := st.latest_justified.root, slot := st.latest_justified.slot } ∧
+            Adelante st.latest_finalized r.latest_finalized ∧
+            r.historical_block_hashes = st.historical_block_hashes) :
+    Adelante s0.latest_justified r.latest_justified ∧
+    Adelante s0.latest_finalized r.latest_finalized ∧
+    r.historical_block_hashes = s0.historical_block_hashes ∧
+    EnElHistorial r.historical_block_hashes r.latest_justified := by
+  obtain ⟨e1, e2, e3⟩ := hfin
+  have elj : ({ root := st.latest_justified.root, slot := st.latest_justified.slot }
+                : tipos.Checkpoint) = st.latest_justified := by
+    cases st.latest_justified; rfl
+  rw [elj] at e1
+  refine ⟨?_, adelante_trans hf e2, e3.trans hh, ?_⟩
+  · rw [e1]; exact hj
+  · rw [e1, e3]; exact hc
+
+theorem try_finalize_st7_spec (state : tipos.State)
+    (source target : tipos.Checkpoint) (j : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.try_finalize state source target j rts
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ r.1.latest_justified = state.latest_justified ∧
+                    Adelante state.latest_finalized r.1.latest_finalized ∧
+                    r.1.historical_block_hashes = state.historical_block_hashes ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv => by
+    obtain ⟨st', j'⟩ := v
+    have h1 := try_finalize_no_toca_justified state st' source target j j' rts hv
+    have h2 := try_finalize_adelante state st' source target j j' rts hv
+    exact ⟨h1, h2.1, h2.2⟩)
+
+section
+attribute [local spec] is_none_spec dato_en_spec bits_en_uno_en_spec
+  primer_bit_spec votos_vacios_spec poner_si_falta_spec
+  marcar_votos_spec cuenta_votos_spec sin_spec div_ceil_spec set_justified_spec
+  is_valid_vote_historial_spec try_finalize_st7_spec
+
+theorem process_attestations_loop_st7
+    (s0 : tipos.State)
+    (attestations : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (validator_count n : Std.Usize)
+    (j0 : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global)
+    (h0 : EnElHistorial s0.historical_block_hashes s0.latest_justified) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations_loop { start := 0#usize, «end» := n } s0
+      attestations validator_count 0#u64 j0 rts core.option.Option.None
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ Adelante s0.latest_justified r.1.latest_justified ∧
+                    Adelante s0.latest_finalized r.1.latest_finalized ∧
+                    r.1.historical_block_hashes = s0.historical_block_hashes ∧
+                    EnElHistorial r.1.historical_block_hashes r.1.latest_justified ⌝) ⦄ := by
+  unfold stf.process_attestations_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × Acc =>
+              Adelante s0.latest_justified x.2.1.latest_justified ∧
+              Adelante s0.latest_finalized x.2.1.latest_finalized ∧
+              x.2.1.historical_block_hashes = s0.historical_block_hashes ∧
+              EnElHistorial x.2.1.historical_block_hashes x.2.1.latest_justified)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨Or.inl rfl, Or.inl rfl, rfl, h0⟩
+  · intro x hinv
+    obtain ⟨iter, st, ap, jj, fl⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hj, hf, hh, hc⟩ := hinv
+    simp only at hj hf hh hc
+    unfold stf.process_attestations_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | assumption
+      | trivial
+      | exact ⟨hj, hf, hh, hc⟩
+      | simp [PostCond.div, PostCond.mayThrow]
+      | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+    all_goals first
+      | exact cierre_si _ _ _ _ _ _ hj hf hh hc (by assumption) (by assumption)
+          (by assumption) (by assumption) (by assumption)
+      | exact cierre_no _ _ _ hj hf hh hc (by assumption)
+end
+
+/-- El mismo resultado sin hipotesis afuera: la precondicion pasa a ser el
+    antecedente de la postcondicion, que es la forma que `mvcgen` compone. -/
+theorem process_attestations_loop_st7_spec
+    (s0 : tipos.State)
+    (attestations : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (validator_count n : Std.Usize)
+    (j0 : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations_loop { start := 0#usize, «end» := n } s0
+      attestations validator_count 0#u64 j0 rts core.option.Option.None
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ EnElHistorial s0.historical_block_hashes s0.latest_justified →
+                    (Adelante s0.latest_justified r.1.latest_justified ∧
+                     Adelante s0.latest_finalized r.1.latest_finalized ∧
+                     r.1.historical_block_hashes = s0.historical_block_hashes ∧
+                     EnElHistorial r.1.historical_block_hashes r.1.latest_justified) ⌝) ⦄ :=
+  triple_mayThrow_of (fun _ hv h0 =>
+    of_triple_mayThrow
+      (process_attestations_loop_st7 s0 attestations validator_count n j0 rts h0) hv)
+
+theorem serialize_st7_spec (st : tipos.State) (j : mapa.MapaVotos)
+    (vc : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.serialize_justifications st j vc
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ r.latest_justified = st.latest_justified ∧
+                    r.latest_finalized = st.latest_finalized ∧
+                    r.historical_block_hashes = st.historical_block_hashes ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv =>
+    ⟨serialize_no_toca_justified st v j vc hv,
+     serialize_no_toca_finalized st v j vc hv,
+     serialize_no_toca_historial st v j vc hv⟩)
+
+section
+attribute [local spec] timer_spec inc_procesadas_spec contar_datos_spec
+  hay_raiz_cero_spec construir_mapa_spec construir_rts_spec ssz_len_spec
+  bitlist_len_spec serialize_st7_spec process_attestations_loop_st7_spec
+
+theorem process_attestations_st7 (state : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (h0 : EnElHistorial state.historical_block_hashes state.latest_justified) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations state atts
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ Adelante state.latest_justified r.2.latest_justified ∧
+                    Adelante state.latest_finalized r.2.latest_finalized ∧
+                    r.2.historical_block_hashes = state.historical_block_hashes ∧
+                    EnElHistorial r.2.historical_block_hashes r.2.latest_justified ⌝) ⦄ := by
+  unfold stf.process_attestations
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | assumption
+    | trivial
+    | exact ⟨Or.inl rfl, Or.inl rfl, rfl, h0⟩
+    | simp [PostCond.div, PostCond.mayThrow]
+    | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+  all_goals first
+    | exact ⟨Or.inl rfl, Or.inl rfl, h0⟩
+    | exact (by assumption : EnElHistorial _ _ → _) h0
+    | (obtain ⟨a1, a2, a3, a4⟩ := (by assumption : EnElHistorial _ _ → _) h0
+       obtain ⟨b1, b2, b3⟩ := (by assumption : _ = _ ∧ _ = _ ∧ _ = _)
+       exact ⟨by rw [b1]; exact a1, by rw [b2]; exact a2, b3.trans a3,
+              by rw [b1, b3]; exact a4⟩)
+end
+
+theorem process_attestations_st7_spec (state : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations state atts
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ EnElHistorial state.historical_block_hashes state.latest_justified →
+                    (Adelante state.latest_justified r.2.latest_justified ∧
+                     Adelante state.latest_finalized r.2.latest_finalized ∧
+                     r.2.historical_block_hashes = state.historical_block_hashes ∧
+                     EnElHistorial r.2.historical_block_hashes r.2.latest_justified) ⌝) ⦄ :=
+  triple_mayThrow_of (fun _ hv h0 =>
+    of_triple_mayThrow (process_attestations_st7 state atts h0) hv)
+
+/- ====================================================================
+   `process_block_header` fuera del anclaje del genesis.
+   ==================================================================== -/
+
+theorem take_modelo_spec {T : Type} (inst : core.default.Default T) (x : T) :
+    ⦃ ⌜ True ⌝ ⦄ core.mem.take inst x
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.1 = x ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv => by
+    unfold core.mem.take at hv
+    obtain ⟨d, _, hv⟩ := bind_da_ok hv
+    simp only [RustM.ok.injEq] at hv
+    subst hv; rfl)
+
+theorem into_inner_modelo_spec {T : Type} {N : Std.Usize} (l : ssz.SszList T N) :
+    ⦃ ⌜ True ⌝ ⦄ ssz.SszList.into_inner l
+    ⦃ PostCond.mayThrow (fun r => ⌜ r = l.items ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv => by
+    unfold ssz.SszList.into_inner at hv
+    simp only [RustM.ok.injEq] at hv
+    exact hv.symm)
+
+theorem push_modelo_spec {T : Type} (v : alloc.vec.Vec T) (x : T) :
+    ⦃ ⌜ True ⌝ ⦄ alloc.vec.Vec.push v x
+    ⦃ PostCond.mayThrow (fun r => ⌜ v.val <+: r.val ⌝) ⦄ :=
+  triple_mayThrow_of (fun r hr => by
+    unfold alloc.vec.Vec.push at hr
+    obtain ⟨s, hs, hr⟩ := bind_da_ok hr
+    simp only [RustM.ok.injEq] at hr
+    subst hr
+    unfold rust_primitives.sequence.seq_push at hs
+    dsimp only at hs
+    split at hs
+    · simp only [RustM.ok.injEq] at hs
+      subst hs
+      exact ⟨[x], rfl⟩
+    · simp at hs)
+
+theorem try_from_modelo_spec {T : Type} (N : Std.Usize) (v : alloc.vec.Vec T) :
+    ⦃ ⌜ True ⌝ ⦄
+    ssz.SszList.Insts.CoreConvertTryFromVecFueraDeCapacidad.try_from N v
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ ∀ l, r = core.result.Result.Ok l → l.items = v ⌝) ⦄ :=
+  triple_mayThrow_of (fun r hr l hl => by
+    unfold ssz.SszList.Insts.CoreConvertTryFromVecFueraDeCapacidad.try_from at hr
+    obtain ⟨i, _, hr⟩ := bind_da_ok hr
+    split at hr
+    · simp only [RustM.ok.injEq] at hr
+      subst hr
+      cases hl
+    · simp only [RustM.ok.injEq] at hr
+      subst hr
+      injection hl with hl
+      subst hl
+      rfl)
+
+theorem expect_modelo_spec {T E : Type} (inst : core.fmt.Debug E)
+    (r : core.result.Result T E) (s : Str) :
+    ⦃ ⌜ True ⌝ ⦄ core.result.Result.expect inst r s
+    ⦃ PostCond.mayThrow (fun t => ⌜ r = core.result.Result.Ok t ⌝) ⦄ :=
+  triple_mayThrow_of (fun t ht => by
+    unfold core.result.Result.expect at ht
+    cases r with
+    | Ok x =>
+      simp only [RustM.ok.injEq] at ht
+      subst ht; rfl
+    | Err e => simp [core.panicking.internal.panic] at ht)
+
+section
+attribute [local spec] push_modelo_spec
+
+/-- El loop que rellena los slots vacios solo AGREGA al final. -/
+theorem header_loop_prefijo_spec (it : core.ops.range.Range Std.Usize)
+    (v0 : alloc.vec.Vec tipos.H256) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_block_header_loop it v0
+    ⦃ PostCond.mayThrow (fun r => ⌜ v0.val <+: r.val ⌝) ⦄ := by
+  unfold stf.process_block_header_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × (alloc.vec.Vec tipos.H256) =>
+              v0.val <+: x.2.val)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · exact List.prefix_rfl
+  · intro x hinv
+    obtain ⟨iter, v⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    simp only at hinv
+    unfold stf.process_block_header_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | assumption
+      | trivial
+      | simp [PostCond.div, PostCond.mayThrow]
+      | exact List.IsPrefix.trans hinv (by assumption)
+end
+
+section
+attribute [local spec] ssz_len_spec ST3H.current_proposer_spec ST3H.ok_or_spec
+  ST3H.branch_spec ST3H.header_hash_spec ST3H.ne_default_spec ST3H.extend_spec
+  ST3H.body_hash_spec ST3H.from_residual_spec
+  take_modelo_spec into_inner_modelo_spec push_modelo_spec
+  header_loop_prefijo_spec try_from_modelo_spec expect_modelo_spec
+
+/-- Si el ultimo header no es el del genesis, `process_block_header` deja los
+    dos checkpoints ENTEROS como estaban, y el historial viejo queda como
+    prefijo del nuevo. -/
+theorem process_block_header_st7_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_block_header state block
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ state.latest_block_header.slot ≠ 0#u64 →
+            (r.2.latest_justified = state.latest_justified ∧
+             r.2.latest_finalized = state.latest_finalized ∧
+             state.historical_block_hashes.items.val <+:
+               r.2.historical_block_hashes.items.val) ⌝) ⦄ := by
+  unfold stf.process_block_header
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | assumption
+    | trivial
+    | exact fun _ => ⟨rfl, rfl, List.prefix_rfl⟩
+    | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+  -- Queda la rama que llega al final. El historial nuevo se arma sacando el
+  -- viejo con `mem::take`, agregandole la raiz del padre y los slots vacios,
+  -- y volviendolo a guardar: cada paso solo agrega al final, y `grind`
+  -- encadena los prefijos. Las ramas del anclaje del genesis ya se cerraron
+  -- arriba, porque chocan con la hipotesis.
+  all_goals grind [List.IsPrefix.trans]
+end
+
+/- ====================================================================
+   Composicion.
+   ==================================================================== -/
+
+theorem enElHistorial_prefijo {h h' : ssz.SszList tipos.H256 262144#usize}
+    {c : tipos.Checkpoint}
+    (hc : EnElHistorial h c) (hp : h.items.val <+: h'.items.val) :
+    EnElHistorial h' c := by
+  unfold EnElHistorial at *
+  obtain ⟨t, ht⟩ := hp
+  rw [← ht]
+  obtain ⟨hlt, _⟩ := List.getElem?_eq_some_iff.mp hc
+  rw [List.getElem?_append_left hlt]
+  exact hc
+
+theorem process_slots_st7_spec (state : tipos.State) (t : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_slots state t
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ r.2.latest_justified = state.latest_justified ∧
+                    r.2.latest_finalized = state.latest_finalized ∧
+                    r.2.historical_block_hashes = state.historical_block_hashes ∧
+                    r.2.latest_block_header.slot = state.latest_block_header.slot ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv => by
+    obtain ⟨res, st'⟩ := v
+    exact process_slots_no_toca state st' t res hv)
+
+/-- Lo que ST-7 pide de un paso, mas la hipotesis de coherencia conservada. -/
+def Paso7 (s s' : tipos.State) : Prop :=
+  Adelante s.latest_justified s'.latest_justified ∧
+  Adelante s.latest_finalized s'.latest_finalized ∧
+  EnElHistorial s'.historical_block_hashes s'.latest_justified
+
+/-- Encadenar header y attestations. -/
+theorem paso7_header_atts (s s1 s2 : tipos.State)
+    (hc : EnElHistorial s.historical_block_hashes s.latest_justified)
+    (hh : s1.latest_justified = s.latest_justified ∧
+          s1.latest_finalized = s.latest_finalized ∧
+          s.historical_block_hashes.items.val <+: s1.historical_block_hashes.items.val)
+    (ha : EnElHistorial s1.historical_block_hashes s1.latest_justified →
+          (Adelante s1.latest_justified s2.latest_justified ∧
+           Adelante s1.latest_finalized s2.latest_finalized ∧
+           s2.historical_block_hashes = s1.historical_block_hashes ∧
+           EnElHistorial s2.historical_block_hashes s2.latest_justified)) :
+    Paso7 s s2 := by
+  obtain ⟨h1, h2, h3⟩ := hh
+  have hc1 : EnElHistorial s1.historical_block_hashes s1.latest_justified := by
+    rw [h1]; exact enElHistorial_prefijo hc h3
+  obtain ⟨a1, a2, -, a4⟩ := ha hc1
+  rw [h1] at a1
+  rw [h2] at a2
+  exact ⟨a1, a2, a4⟩
+
+/-- Si el header rechaza el bloque, el estado que devuelve igual cumple. -/
+theorem paso7_header (s s1 : tipos.State)
+    (hc : EnElHistorial s.historical_block_hashes s.latest_justified)
+    (hh : s1.latest_justified = s.latest_justified ∧
+          s1.latest_finalized = s.latest_finalized ∧
+          s.historical_block_hashes.items.val <+: s1.historical_block_hashes.items.val) :
+    Paso7 s s1 := by
+  obtain ⟨h1, h2, h3⟩ := hh
+  refine ⟨Or.inl h1, Or.inl h2, ?_⟩
+  rw [h1]; exact enElHistorial_prefijo hc h3
+
+section
+attribute [local spec] ST3H.branch_spec ST3H.from_residual_spec
+  ST3H.ne_default_spec ST3T.time_block_spec ST3T.time_transition_spec
+  ST3T.state_hash_spec process_block_header_st7_spec
+  process_attestations_st7_spec
+
+theorem process_block_st7_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_block state block
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ state.latest_block_header.slot ≠ 0#u64 →
+                    EnElHistorial state.historical_block_hashes state.latest_justified →
+                    Paso7 state r.2 ⌝) ⦄ := by
+  unfold stf.process_block
+  hax_mvcgen
+  all_goals first
+    | exact paso7_header_atts _ _ _ (by assumption)
+        ((by assumption : _ ≠ _ → _) (by assumption)) (by assumption)
+    | exact paso7_header _ _ (by assumption)
+        ((by assumption : _ ≠ _ → _) (by assumption))
+end
+
+theorem paso7_slots_block (s s1 s2 : tipos.State)
+    (hnz : s.latest_block_header.slot ≠ 0#u64)
+    (hc : EnElHistorial s.historical_block_hashes s.latest_justified)
+    (hs : s1.latest_justified = s.latest_justified ∧
+          s1.latest_finalized = s.latest_finalized ∧
+          s1.historical_block_hashes = s.historical_block_hashes ∧
+          s1.latest_block_header.slot = s.latest_block_header.slot)
+    (hb : s1.latest_block_header.slot ≠ 0#u64 →
+          EnElHistorial s1.historical_block_hashes s1.latest_justified →
+          Paso7 s1 s2) :
+    Paso7 s s2 := by
+  obtain ⟨h1, h2, h3, h4⟩ := hs
+  have hp := hb (by rw [h4]; exact hnz) (by rw [h3, h1]; exact hc)
+  unfold Paso7 at *
+  rw [h1, h2] at hp
+  exact hp
+
+theorem paso7_slots (s s1 : tipos.State)
+    (hc : EnElHistorial s.historical_block_hashes s.latest_justified)
+    (hs : s1.latest_justified = s.latest_justified ∧
+          s1.latest_finalized = s.latest_finalized ∧
+          s1.historical_block_hashes = s.historical_block_hashes ∧
+          s1.latest_block_header.slot = s.latest_block_header.slot) :
+    Paso7 s s1 := by
+  obtain ⟨h1, h2, h3, -⟩ := hs
+  exact ⟨Or.inl h1, Or.inl h2, by rw [h3, h1]; exact hc⟩
+
+section
+attribute [local spec] ST3H.branch_spec ST3H.from_residual_spec
+  ST3H.ne_default_spec ST3T.time_transition_spec ST3T.state_hash_spec
+  process_slots_st7_spec process_block_st7_spec
+
+theorem state_transition_st7_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.state_transition state block
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ state.latest_block_header.slot ≠ 0#u64 →
+                    EnElHistorial state.historical_block_hashes state.latest_justified →
+                    Paso7 state r.2 ⌝) ⦄ := by
+  unfold stf.state_transition
+  hax_mvcgen
+  all_goals first
+    | exact paso7_slots_block _ _ _ (by assumption) (by assumption)
+        (by assumption) (by assumption)
+    | exact paso7_slots _ _ (by assumption) (by assumption)
+end
+
+/-- `ST-7` sobre `process_attestations`, como ecuacion. -/
+theorem process_attestations_adelante
+    (state state' : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (res : core.result.Result Unit stf.Error)
+    (hhist : EnElHistorial state.historical_block_hashes state.latest_justified)
+    (h : stf.process_attestations state atts = ok (res, state')) :
+    Adelante state.latest_justified state'.latest_justified ∧
+    Adelante state.latest_finalized state'.latest_finalized ∧
+    EnElHistorial state'.historical_block_hashes state'.latest_justified := by
+  obtain ⟨a1, a2, -, a4⟩ :=
+    of_triple_mayThrow (process_attestations_st7 state atts hhist) h
+  exact ⟨a1, a2, a4⟩
+
+/-- Fuera del anclaje del genesis, `process_block_header` no toca ninguno de
+    los dos checkpoints -- enteros, raiz incluida -- y solo agrega al final
+    del historial. -/
+theorem process_block_header_no_toca_checkpoints
+    (state state' : tipos.State) (block : tipos.Block)
+    (res : core.result.Result Unit stf.Error)
+    (hnz : state.latest_block_header.slot ≠ 0#u64)
+    (h : stf.process_block_header state block = ok (res, state')) :
+    state'.latest_justified = state.latest_justified ∧
+    state'.latest_finalized = state.latest_finalized ∧
+    state.historical_block_hashes.items.val <+:
+      state'.historical_block_hashes.items.val :=
+  of_triple_mayThrow (process_block_header_st7_spec state block) h hnz
+
+end ST7
+
+/-- Teorema 7: `ST-7` sobre la transicion entera de un bloque.
+
+    Sobre un estado que ya paso el anclaje del genesis (`hnz`) y cuyo
+    checkpoint justificado esta en el historial (`hhist`), si `state_transition`
+    devuelve `ok` -- acepte el bloque o lo rechace --, cada checkpoint queda
+    igual ENTERO, raiz incluida, o pasa a un slot estrictamente mayor. No hay
+    cambio de raiz en el mismo slot. Ademas `hhist` se conserva. -/
+theorem ST7.state_transition_adelante
+    (state state' : mini_stf.tipos.State) (block : mini_stf.tipos.Block)
+    (res : core.result.Result Unit mini_stf.stf.Error)
+    (hnz : state.latest_block_header.slot ≠ 0#u64)
+    (hhist : ST7.EnElHistorial state.historical_block_hashes state.latest_justified)
+    (h : mini_stf.stf.state_transition state block = ok (res, state')) :
+    (state'.latest_justified = state.latest_justified ∨
+      state.latest_justified.slot < state'.latest_justified.slot) ∧
+    (state'.latest_finalized = state.latest_finalized ∨
+      state.latest_finalized.slot < state'.latest_finalized.slot) ∧
+    ST7.EnElHistorial state'.historical_block_hashes state'.latest_justified :=
+  ST3.of_triple_mayThrow (ST7.state_transition_st7_spec state block) h hnz hhist
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -1172,3 +2003,7 @@ theorem ST3.state_transition_no_retrocede
 #print axioms ST3H.process_block_header_no_mueve_slots
 #print axioms ST3T.process_block_no_retrocede
 #print axioms ST3.state_transition_no_retrocede
+#print axioms ST7.h256_eq_true
+#print axioms ST7.process_attestations_adelante
+#print axioms ST7.process_block_header_no_toca_checkpoints
+#print axioms ST7.state_transition_adelante

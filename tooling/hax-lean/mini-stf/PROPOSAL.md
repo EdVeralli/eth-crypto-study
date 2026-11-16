@@ -11,10 +11,13 @@ says exactly what each one needed and why.
 
 It also carries theorems, because a translation that typechecks is only half
 the question — the other half is whether you can prove anything on the output.
-They are not a coverage claim against any catalog. What they do cover is one of
-its propositions, end to end: neither checkpoint slot goes backwards across the
-transition of a block — the property your own regression test asserts by
-example after the devnet freeze at slot 27984.
+They are not a coverage claim against any catalog. What they do cover is two of
+its propositions, end to end. One: neither checkpoint slot goes backwards across
+the transition of a block — the property your own regression test asserts by
+example after the devnet freeze at slot 27984. The other: no checkpoint changes
+root without moving to a higher slot — which holds of your code for a different
+reason than the spec's, and only under a hypothesis, because on a slot tie your
+code and the spec choose differently.
 
 Every number here came from a run.
 
@@ -157,13 +160,13 @@ the twelve functions present as `def`s in
 first build on a clean checkout reports 1743, one more than every build after
 it.
 
-The tests — your six plus two of ours:
+The tests — your six plus three of ours:
 
 ```bash
 cargo test
 ```
 
-Eight pass.
+Nine pass.
 
 ## What the crate contains
 
@@ -171,7 +174,7 @@ Everything, with line counts as shipped.
 
 | File | Lines | Origin |
 |---|---|---|
-| `src/stf.rs` | 1484 | **yours** — `state_transition/src/lib.rs`: eight of twelve functions unchanged, four rewritten, nineteen helpers of ours, and your 437-line test module with two tests appended. |
+| `src/stf.rs` | 1585 | **yours** — `state_transition/src/lib.rs`: eight of twelve functions unchanged, four rewritten, nineteen helpers of ours, and your 437-line test module with three tests appended. |
 | `src/justified_slots_ops.rs` | 90 | **yours** — unchanged except the `use` lines. |
 | `src/tipos.rs` | 431 | **your type definitions**, serialization derives removed, plus our stand-in `hash_tree_root`. |
 | `src/ssz.rs` | 154 | ours — stand-ins for `SszList` and `SszBitlist`. |
@@ -182,12 +185,12 @@ Everything, with line counts as shipped.
 | `Cargo.lock` | 65 | ours, and versioned on purpose — it pins the dependency versions, the same concern as the `cargo-hax` pin in the Dockerfile. |
 | `regenerar.sh` | 36 | ours — extract, restore, build. |
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
-| `supuestos/FunsExternal.lean` | 309 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
+| `supuestos/FunsExternal.lean` | 322 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 1174 | ours — the theorems. |
-| `axiomas.txt` | 206 | ours — the `#print axioms` output, so the trust base can be read without building. |
+| `teoremas/ProofObligations.lean` | 2009 | ours — the theorems. |
+| `axiomas.txt` | 269 | ours — the `#print axioms` output, so the trust base can be read without building. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 656 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 709 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -276,7 +279,7 @@ these two fail.
 
 ## What you get
 
-`teoremas/ProofObligations.lean` holds twelve named results:
+`teoremas/ProofObligations.lean` holds sixteen named results:
 
 | Result | What it is |
 |---|---|
@@ -291,12 +294,17 @@ these two fail.
 | `ST3H.process_block_header_no_mueve_slots` | `process_block_header` keeps both checkpoint slots, genesis anchoring included |
 | `ST3T.process_block_no_retrocede` | neither slot rolls back across `process_block` |
 | `ST3.state_transition_no_retrocede` | **neither slot rolls back across `state_transition`** — the whole one-block transition |
+| `ST7.h256_eq_true` | the translated equality on `H256` is equality |
+| `ST7.process_attestations_adelante` | no checkpoint changes root without moving to a higher slot, over the whole of `process_attestations` |
+| `ST7.process_block_header_no_toca_checkpoints` | outside genesis anchoring, `process_block_header` leaves both checkpoints whole and only appends to the history |
+| `ST7.state_transition_adelante` | **no checkpoint changes root without moving to a higher slot across `state_transition`**, if the justified one is in the history |
 | `bind_da_ok` | a tool: opens one `RustM` bind |
 
 They were not picked for count. Between them they cover arithmetic, branching
 and record updates, induction over a loop, composition across a whole
-function with early exits and a `match`, and composition of five functions up to
-the entry point.
+function with early exits and a `match`, composition of five functions up to
+the entry point, and a property that depends on the contents of a list and not
+only on guards and assignments.
 
 ### The arithmetic
 
@@ -419,6 +427,108 @@ false version and ran the same proof script, and it stops with exactly the
 anchoring branch open — `{ root := r, slot := state.latest_justified.slot } =
 state.latest_justified`.
 
+### Checkpoint replacement, and where your code departs from the spec
+
+`ST-3` bounds only the slots. It still admits a transition that swaps a
+checkpoint's **root** without moving its slot. The catalog closes that with
+`ST-7`: across a transition each checkpoint is either unchanged as a whole —
+root included — or moves to a strictly higher slot.
+
+In the catalog's model that holds for every post-genesis state, because the
+spec compares with a strict `>`:
+
+```python
+# leanSpec, state_transition.py
+if target.slot > latest_justified.slot:
+    latest_justified = target
+```
+
+Your code does not:
+
+```rust
+state.latest_justified =
+    std::cmp::max_by_key(state.latest_justified, target, |c| c.slot);
+```
+
+`max_by_key` returns the **second** argument when the keys tie. Given a target
+at the same slot as the justified checkpoint, the spec keeps the one it had and
+you keep the target. Our rewrite preserves that behaviour: `if target.slot >=
+state.latest_justified.slot`.
+
+**As stated, `ST-7` is false of your code.** The test
+`same_slot_root_swap_needs_a_justified_root_off_the_chain` shows it. It starts
+from a state with `latest_justified = (4, X)` where
+`historical_block_hashes[4]` is a different root and slot 4 is not marked in
+`justified_slots`; a supermajority votes for the target
+`(4, historical_block_hashes[4])`; after `process_attestations` the justified
+checkpoint is still at slot 4 and has a different root. On that same state the
+spec does not replace it: `4 > 4` is false. That last part we read off the
+leanSpec source, we did not run it; the catalog has it proved of its model.
+
+We do not believe that state is reachable by applying blocks to a well-formed
+genesis, but we did not prove it (see the end of this section). And you already
+treat a state with broken cross-field invariants as a possible input: the
+comment on `process_attestations_rejects_justification_votes_length_mismatch`
+says a malformed checkpoint-sync anchor can carry one, because SSZ decoding
+does not check them.
+
+What does hold, and is proved:
+
+```lean
+theorem ST7.state_transition_adelante
+    (state state' : tipos.State) (block : tipos.Block) (res : ...)
+    (hnz : state.latest_block_header.slot ≠ 0#u64)
+    (hhist : ST7.EnElHistorial state.historical_block_hashes
+               state.latest_justified) :
+    stf.state_transition state block = ok (res, state') →
+    (state'.latest_justified = state.latest_justified ∨
+       state.latest_justified.slot < state'.latest_justified.slot) ∧
+    (state'.latest_finalized = state.latest_finalized ∨
+       state.latest_finalized.slot < state'.latest_finalized.slot) ∧
+    ST7.EnElHistorial state'.historical_block_hashes state'.latest_justified
+```
+
+`hnz` is the catalog's hypothesis: it excludes genesis anchoring, the one place
+where the root changes on purpose. `hhist` is ours: `EnElHistorial hist c` says
+`hist[c.slot] = c.root`, that is, the justified checkpoint is the block the
+history holds at that slot. The third part of the conclusion says `hhist` is
+preserved.
+
+The reason it holds is not the spec's reason. `is_valid_vote` only lets a vote
+through if `attestation_data_matches_chain` accepts it, and that requires
+`historical_block_hashes[target.slot] == target.root`. A target that ties on
+slot with the justified checkpoint therefore has the same root as it, and is
+the same checkpoint: the assignment happens and changes nothing. The spec is
+safe because of the comparison; your code, because of the check against the
+history. With the spec's `>`, `hhist` would not be needed.
+
+The finality half does not need `hhist`: `try_finalize` assigns only if
+`source.slot > latest_finalized.slot`.
+
+As a negative control we ran the same loop script without `hhist`. One goal is
+left open, and it is the `target.slot ≥ latest_justified.slot` branch.
+
+Three things this needed that are useful beyond this theorem:
+
+- **The translated equality on `H256` is equality.** `==` on `[u8; 32]`
+  translates to a `CoreModels` loop comparing byte by byte. `ST7.h256_eq_true`
+  proves that if it returns `true` the two values are equal. Without it you
+  cannot get from "the code compared and got equal" to an equality in Lean.
+- **`mem::take` is no longer an axiom.** `process_block_header` takes
+  `historical_block_hashes` out of the state with `std::mem::take`, appends the
+  parent root and stores it back. With `take` as a contentless signature it was
+  impossible to prove the old history is still there. It is now a definition —
+  it returns what was there and leaves the `Default` — and it is the second
+  modeling claim we make, next to `isqrt`.
+- **`process_block_header` only appends to the history**, and outside the
+  anchoring it leaves both checkpoints whole
+  (`ST7.process_block_header_no_toca_checkpoints`).
+
+What is **not** proved: that the first block after genesis leaves the state
+satisfying `hhist`, nor that `hnz` is preserved from one block to the next.
+Those are the two lemmas missing to say "it holds on every state reachable from
+genesis".
+
 ### What this is against the catalog, stated exactly
 
 `ST-3` in
@@ -445,8 +555,16 @@ states your code and that model behave differently, which is worth knowing
 whichever of the two is intended. Checked against `formal-leanSpec` at
 `ba72845`.
 
-The property was not chosen because it looked provable. `ST-3` is one of thirty-five
-propositions in that catalog — seven about the state transition, the rest about
+**`ST-7` needs a hypothesis the catalog does not have.**
+`State.checkpoint_forward` asks only that the latest header is not the genesis
+one. `ST7.state_transition_adelante` asks for `hhist` as well, and without it
+is false. Here the difference is not one of modeling but of behaviour: on a slot
+tie, your code and the spec choose differently. Checked against `leanSpec`
+`main` as of 15 Nov 2026 (`Checkpoint.advance_to` and `state_transition.py`) and
+against your `main`, which that day was still identical to `35c074b`.
+
+The properties were not chosen because they looked provable. `ST-3` and `ST-7`
+are two of thirty-five propositions in that catalog — seven about the state transition, the rest about
 fork choice, SSZ, the validator, networking, storage and sync. The statement
 predates our work on it, which matters: picking your own properties makes the
 exercise circular.
@@ -463,8 +581,11 @@ exercise circular.
 | the loop theorem | 14 | 3 | 4 | 7 |
 | `process_attestations`, justification and finality | 20 | 3 | 7 | 10 |
 | `process_slots` | 3 | 3 | — | — |
-| `process_block_header` | 9 | 3 | 3 | 3 |
-| `process_block`, `state_transition` | 24 | 3 | 9 | 12 |
+| `process_block_header`, both results | 8 | 3 | 3 | 2 |
+| `process_block`, `state_transition` (`ST-3`) | 23 | 3 | 9 | 11 |
+| equality on `H256` | 3 | 3 | — | — |
+| `process_attestations` (`ST-7`) | 20 | 3 | 7 | 10 |
+| `state_transition` (`ST-7`) | 23 | 3 | 9 | 11 |
 
 Three categories, with three different weights.
 
@@ -473,7 +594,7 @@ classical proof and say nothing about this code.
 
 **The native ones** are `_native.decide.ax_*`: facts the Lean kernel did not
 check, computed by the compiler instead. Nine distinct ones appear across
-the twelve functions. The whole-transition theorem depends on all nine; the
+the twelve functions. The two whole-transition theorems depend on all nine; the
 results about components depend on fewer, as the table shows.
 They are not ours and not yours. Defining a function in Lean can require
 proofs — a scalar literal carries a proof that it fits its type, indexing
@@ -496,10 +617,10 @@ have them; proving on top of the output does not widen the trust base by one
 entry. What we did not do is open each of the nine to name the fact it stands
 for.
 
-**The declarations** are ours, in `supuestos/FunsExternal.lean`: twenty-eight
+**The declarations** are ours, in `supuestos/FunsExternal.lean`: twenty-seven
 axioms that are signatures and no more — `HashMap`'s `get`, `insert` and `new`,
 the `Borrow` and `BuildHasher` trait types, the `cmp` and `hash` of `[T; N]`,
-`mem::take`, `bool::then`, and seventeen `fmt` stubs — fourteen `Debug`, three `Display`. They exist so the
+`bool::then`, and seventeen `fmt` stubs — fourteen `Debug`, three `Display`. They exist so the
 generated Lean compiles: `try_finalize` calls `root_to_slot.get(…)`, Aeneas
 names `HashMap::get` in the output, `CoreModels` has no model for it, and
 without the declaration the module dies with `Unknown identifier` and nothing
@@ -511,15 +632,22 @@ anything. What it costs is reach: any property depending on how the map behaves
 is out of bounds. Models *with* content would buy those properties at the price
 of asserting things that could be wrong, and we declined that trade.
 
-The one real assertion we make is `U64::isqrt`, modeled as `Nat.sqrt`. Both are
-the floor of the square root, so we believe it, but it is our claim and not
-something the toolchain checked. `HashMap` also gets a representation in
+We make two real assertions. One is `U64::isqrt`, modeled as `Nat.sqrt`: both
+are the floor of the square root. The other is `mem::take`, modeled as "returns
+what was there and leaves `Default::default()`", which is what its documentation
+says. We believe both, but they are our claims and not something the toolchain
+checked. Until 15 Nov `mem::take` was the twenty-eighth contentless declaration;
+that is why the results that go through `process_block_header` now have one
+axiom fewer. `HashMap` also gets a representation in
 `TypesExternal.lean` — a list of pairs — but `get` and `insert` stay opaque over
 it, so no behaviour is asserted there.
 
-None of the twenty-eight carries weight in the theorems above: the properties
-come from the guards and the assignments, not from anything the map, the hash or
-the formatter does. That is a claim about the proofs, read off them. `#print
+None of the twenty-seven carries weight in the theorems above: the properties
+come from the guards, the assignments and the hash history, not from anything
+the map, the hash or the formatter does. Of the two modeling claims, `ST-3`
+leans on neither; `ST-7` over the whole transition does lean on the `mem::take`
+one, because it needs the history to survive `process_block_header`. That is a
+claim about the proofs, read off them. `#print
 axioms` tells you what a theorem depends on, not whether it leans on that
 dependency's behaviour, and that distinction is ours to argue rather than the
 tool's to measure.
@@ -578,6 +706,16 @@ picks one lemma per call. `process_block_header` took fourteen more trivial
 lemmas, one per call that neither takes nor returns the state, and with them
 `hax_mvcgen` closed every verification condition by itself. `process_block` and
 `state_transition` close the same way from the lemmas of what they call.
+
+`ST-7` asked for two things `ST-3` did not. Lemmas with content for the `core`
+and `alloc` operations the history goes through — `Vec::push`, `mem::take`, the
+`try_from` and `expect` that store it back, `==` on `H256` — because there it
+is no longer enough to get past the call: you need to know what it returns. And
+a way to compose lemmas that carry hypotheses: the hypothesis goes as an
+antecedent **inside** the postcondition (`⌜ hyp → conclusion ⌝`), not as an
+argument of the lemma. That way `hax_mvcgen` consumes it like any other, and
+the hypothesis is discharged where it is used, from what the previous step left
+proved.
 
 **`hax_mvcgen` stops silently.** It decides whether work remains from the
 *shape* of the goal: `goalNeedsMvcgen` recognizes a `Triple`, an `entails`
@@ -669,5 +807,10 @@ No slot will realistically get there, and the guard above requires
 an unstated precondition, and you may prefer `checked_add` or a saturating form.
 
 **The trust base is not empty**, and what is in it is set out under **The trust
-base** above: nine native axioms that come with the translation, twenty-eight
-declarations of ours that assert nothing, and one modeling claim we do make.
+base** above: nine native axioms that come with the translation, twenty-seven
+declarations of ours that assert nothing, and two modeling claims we do make.
+
+**`ST-7` holds under a hypothesis that is not established from genesis.** The
+theorem asks that the justified checkpoint be in the history and proves that
+this is preserved, but not that the first block establishes it. And without
+that hypothesis the statement is false of your code, as the test shows.

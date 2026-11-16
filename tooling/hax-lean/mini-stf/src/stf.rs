@@ -1481,4 +1481,105 @@ mod tests {
             "expected AggregationBitsOutOfBounds {{ index: 5, validator_count: 4 }}, got {err:?}"
         );
     }
+
+    /// NUEVO: no esta en la suite de ethlambda. Muestra la unica forma de
+    /// cambiarle la raiz a `latest_justified` sin subir de slot, que es lo que
+    /// prohibe la propiedad ST-7 del catalogo de formal-leanSpec.
+    ///
+    /// `max_by_key(latest_justified, target, |c| c.slot)` devuelve el SEGUNDO
+    /// argumento cuando los slots empatan, o sea el target. La especificacion
+    /// compara con `>` estricto (`Checkpoint.advance_to`) y ante un empate se
+    /// queda con el que estaba.
+    ///
+    /// El empate con raiz distinta se arma desde un estado incoherente:
+    /// `latest_justified` apunta al slot 4 con una raiz que NO es la que
+    /// `historical_block_hashes` guarda en el slot 4, y el slot 4 tampoco
+    /// figura como justificado en `justified_slots`. El teorema
+    /// `ST7.state_transition_adelante` demuestra que cuando la raiz
+    /// justificada SI es la del historial esto no pasa, y que esa coherencia
+    /// se conserva de un bloque al siguiente. Un estado asi puede entrar por
+    /// un ancla de checkpoint-sync mal formada: la decodificacion SSZ no
+    /// chequea invariantes entre campos.
+    ///
+    /// La segunda mitad es el control: el mismo voto sobre el mismo estado,
+    /// con la raiz coherente. No cambia nada.
+    #[test]
+    fn same_slot_root_swap_needs_a_justified_root_off_the_chain() {
+        const NUM_VALIDATORS: usize = 4;
+        let r3 = H256([3u8; 32]);
+        let r4 = H256([4u8; 32]);
+        let ajena = H256([0xAAu8; 32]);
+
+        let armar = |raiz_justificada: H256| {
+            let mut hashes: Vec<H256> = vec![H256::ZERO; 10];
+            hashes[3] = r3;
+            hashes[4] = r4;
+
+            let mut justified_slots = JustifiedSlots::new();
+            justified_slots_ops::extend_to_slot(&mut justified_slots, 0, 9);
+            // Slot 3 justificado para que source=(3, r3) pase is_valid_vote.
+            // El slot 4 NO se marca, aunque `latest_justified` apunte a el.
+            justified_slots_ops::set_justified(&mut justified_slots, 0, 3);
+
+            State {
+                config: StateConfig { genesis_time: 0 },
+                slot: 10,
+                latest_block_header: BlockHeader {
+                    slot: 9,
+                    proposer_index: 0,
+                    parent_root: H256::ZERO,
+                    state_root: H256::ZERO,
+                    body_root: BlockBody::default().hash_tree_root(),
+                },
+                latest_justified: Checkpoint {
+                    slot: 4,
+                    root: raiz_justificada,
+                },
+                latest_finalized: Checkpoint {
+                    slot: 0,
+                    root: H256::ZERO,
+                },
+                historical_block_hashes: SszList::try_from(hashes).unwrap(),
+                justified_slots,
+                validators: SszList::try_from(make_validators(NUM_VALIDATORS)).unwrap(),
+                justifications_roots: Default::default(),
+                justifications_validators: JustificationValidators::new(),
+            }
+        };
+        // Supermayoria (3 de 4) de source=(3, r3) a target=(4, r4), el target
+        // que el historial tiene en el slot 4.
+        let voto = || -> AggregatedAttestations {
+            let atts: Vec<AggregatedAttestation> = vec![make_attestation(
+                3,
+                (3, r3),
+                (4, r4),
+                (4, r4),
+                &[0, 1, 2],
+                NUM_VALIDATORS,
+            )];
+            atts.try_into().unwrap()
+        };
+
+        // Estado incoherente: la raiz justificada no es la del historial.
+        let mut state = armar(ajena);
+        process_attestations(&mut state, &voto()).expect("process_attestations should succeed");
+        assert_eq!(
+            state.latest_justified.slot, 4,
+            "el slot justificado no tenia que moverse"
+        );
+        assert_eq!(
+            state.latest_justified.root, r4,
+            "con el estado incoherente la raiz cambia en el mismo slot"
+        );
+        assert_ne!(state.latest_justified.root, ajena);
+
+        // Control: la misma situacion con la raiz coherente. Nada cambia.
+        let mut state = armar(r4);
+        let before = state.latest_justified;
+        process_attestations(&mut state, &voto()).expect("process_attestations should succeed");
+        assert_eq!(
+            state.latest_justified, before,
+            "con la raiz coherente el checkpoint justificado queda igual entero"
+        );
+    }
 }
