@@ -890,5 +890,35 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    >
    > Lo que sigue (el 16 de la lista): acotar el slot del header por el tope
    > de `historical_block_hashes`, para que la ventana no pase de 262144.
+
+   > Quinta nota del 17 nov 2026: **el 16, hecho** (teorema 13, namespace
+   > `HC`). Invariante `HistorialAcotado`: un hash por slot, y el slot del
+   > header <= 262144. Se conserva por `state_transition`.
+   >
+   > Consecuencia que conviene tener escrita: `process_block_header` no
+   > acepta ningun bloque con slot mayor que 262144
+   > (`header_acepta_slot_acotado`). No es divergencia: el tope es `2**18`
+   > en leanSpec y en ethlambda (verificado contra el `main` de los dos). El
+   > `new_total` que el codigo compara contra `HISTORICAL_ROOTS_LIMIT` es
+   > exactamente `block.slot`.
+   >
+   > Con este invariante y el del teorema 12, la ventana no pasa de 262144
+   > bits y `shift_window` sobre ella devuelve
+   > (`shift_window_no_falla`): queda descargada la hipotesis de capacidad
+   > del teorema 10.
+   >
+   > Tecnica: para nombrar hipotesis sin nombre con
+   > `(by assumption : patron)`, el patron necesita los TIPOS cuando hay
+   > notacion de campo (`l.items` no resuelve si no se sabe el tipo de `l`).
+   > Escribir `ssz.SszList.items (Prod.fst (_ : A × B))` en vez de
+   > `(Prod.fst _).items`. Y no mezclar con `subst_vars`: reordena las
+   > igualdades y rompe los patrones.
+   >
+   > Control negativo: sin "un hash por slot" la cota del slot falla en la
+   > cuenta final.
+   >
+   > Lo que sigue: la ausencia de panico de las doce funciones de `stf.rs`.
+   > Para `try_finalize` y `process_block_header` ya estan las piezas de la
+   > ventana; falta el resto de cada una.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

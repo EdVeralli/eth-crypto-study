@@ -41,7 +41,7 @@ Lean las acepta sin `sorry`. Eso dice que el programa quedó escrito en Lean. No
 dice que sea correcto.
 
 **Las demostraciones son de propiedades puntuales.** Un programa no "se
-demuestra": se demuestran afirmaciones sobre él. Acá hay treinta y nueve,
+demuestra": se demuestran afirmaciones sobre él. Acá hay cuarenta y dos,
 listadas en **Qué recibe**. Cada una dice una cosa precisa, con sus hipótesis a
 la vista.
 
@@ -167,12 +167,12 @@ Qué tiene que dar cada paso:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` y después `=== listo ===` (1743 jobs la primera vez sobre un checkout limpio) |
-| 6 | `39` — un bloque de axiomas por resultado — y `0` |
+| 6 | `42` — un bloque de axiomas por resultado — y `0` |
 
 No hay un paso aparte de "correr las pruebas". Los teoremas están en
 `teoremas/ProofObligations.lean`; el paso 5 copia ese archivo adentro del
 proyecto Lean y `lake build` lo chequea entero. Si el build termina en verde,
-Lean aceptó las treinta y nueve demostraciones. Al final imprime de qué axiomas
+Lean aceptó las cuarenta y dos demostraciones. Al final imprime de qué axiomas
 depende cada una, que es lo que cuenta el paso 6.
 
 Para convencerse de que el chequeo es real, rompan un enunciado a mano. En
@@ -301,10 +301,10 @@ Todo, con las líneas tal como se entrega.
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 322 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 4864 | nuestro — los teoremas. |
-| `axiomas.txt` | 524 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
+| `teoremas/ProofObligations.lean` | 5296 | nuestro — los teoremas. |
+| `axiomas.txt` | 566 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 894 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 924 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -400,7 +400,7 @@ más abajo.
 
 ## Qué recibe
 
-`teoremas/ProofObligations.lean` tiene treinta y nueve resultados con nombre:
+`teoremas/ProofObligations.lean` tiene cuarenta y dos resultados con nombre:
 
 | Resultado | Qué es |
 |---|---|
@@ -442,6 +442,9 @@ más abajo.
 | `VI.state_transition_conserva_ventana` | la transición conserva que la ventana no pasa del último slot materializado |
 | `VI.state_transition_ventana_justa` | **tras un bloque aceptado, la ventana termina exactamente en el slot anterior al del bloque** |
 | `VI.tras_header_rechaza_inv` | el "exactly" del comentario de `is_valid_vote`, con ese invariante en lugar de la hipótesis suelta |
+| `HC.header_acepta_slot_acotado` | **`process_block_header` no acepta ningún bloque con slot mayor que 262144** |
+| `HC.state_transition_conserva_acotado` | la transición conserva los dos invariantes: dónde termina la ventana, y un hash por slot con el slot acotado |
+| `HC.shift_window_no_falla` | con esos invariantes, `shift_window` sobre la ventana del estado devuelve |
 | `bind_da_ok` | una herramienta: abre un bind de `RustM` |
 
 No se eligieron por cantidad. Entre todos cubren aritmética, ramificación y
@@ -950,9 +953,62 @@ secciones anteriores, que acá aparece tres veces: el índice del source, el
 32 bits esos casts truncan y la cuenta no cierra. No analizamos qué pasa en ese
 caso más allá de eso.
 
-**Lo que no está.** Que la ventana no pase de 262144 bits. De `VentanaNoPasa`
-sale que no pasa del slot del header; falta acotar ese slot, y eso depende del
-tope de `historical_block_hashes`.
+Que la ventana no pasa de 262144 bits es el tema de la sección que sigue.
+
+### La ventana no pasa de su capacidad
+
+La sección anterior deja la ventana acotada por el slot del último header. Falta
+acotar ese slot, y sale de un segundo invariante, sobre el historial de hashes:
+
+- `HistorialAcotado`: `historical_block_hashes` tiene exactamente un hash por
+  slot —su largo es el slot del último header— y ese slot no pasa de 262144, que
+  es `HISTORICAL_ROOTS_LIMIT`.
+
+Vale en el génesis y se conserva por `state_transition`, acepte el bloque o lo
+rechace. `process_block_header` le agrega al historial la raíz del padre y un
+cero por cada slot vacío entre el padre y el bloque: en total
+`block.slot − parent.slot` elementos, así que si había uno por slot, sigue
+habiendo uno por slot. Y antes de agregarlos chequea que el total no pase de
+`HISTORICAL_ROOTS_LIMIT`. Ese total **es** el slot del bloque.
+
+De ahí salen dos cosas.
+
+**Ningún bloque con slot mayor que 262144 se acepta.**
+
+```lean
+theorem HC.header_acepta_slot_acotado ...
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hlen : state.historical_block_hashes.items.val.length =
+              state.latest_block_header.slot.val) :
+    stf.process_block_header state block = ok (Ok (), state') →
+    block.slot.val ≤ 262144
+```
+
+Esto no es una diferencia con la especificación: el tope es el mismo en leanSpec
+(`2**18`) y en su código. Es una consecuencia de ese tope, y conviene tenerla
+escrita: con un hash por slot desde el génesis, la cadena de bloques no pasa
+del slot 262144. El chequeo
+que ustedes agregaron para evitar un pedido de memoria desmedido
+(`SlotGapTooLarge`) es el que la hace cumplir.
+
+**La ventana no pasa de 262144 bits.** Con los dos invariantes, el de esta
+sección y el de la anterior, `HC.ventana_en_capacidad` da la cota, y
+`HC.shift_window_no_falla` la usa: sobre la ventana de un estado así,
+`shift_window` devuelve. Es la hipótesis de capacidad de **La ventana no entra
+en pánico**, descargada. `HC.state_transition_conserva_acotado` dice que los dos
+invariantes juntos pasan de un bloque al siguiente.
+
+Como control negativo corrimos la cota del slot sin la hipótesis de un hash por
+slot. Falla en la cuenta final.
+
+Hizo falta el largo exacto que deja el loop que rellena los slots vacíos —antes
+sólo estaba que agrega al final— y que `process_attestations` no toca el
+historial, sin ninguna hipótesis.
+
+**Lo que no está.** Juntar todo esto en la ausencia de pánico de las funciones
+de `stf.rs`. Las piezas para `try_finalize` y `process_block_header` ya están:
+que sus llamadas a `shift_window` y `extend_to_slot` no abortan. Falta el resto
+de cada función.
 
 ### Qué es esto contra el catálogo, dicho exacto
 
@@ -1022,6 +1078,9 @@ importa: elegir las propias propiedades vuelve el ejercicio circular.
 | sin pánico: `extend_to_slot` | 6 | 3 | 2 | 1 |
 | la ventana después del header, los tres resultados | 8 | 3 | 3 | 2 |
 | el invariante de la ventana sobre `state_transition`, los dos | 23 | 3 | 9 | 11 |
+| la cota del slot en el header | 8 | 3 | 3 | 2 |
+| los dos invariantes juntos sobre `state_transition` | 23 | 3 | 9 | 11 |
+| `shift_window` sobre la ventana de un estado con los invariantes | 5 | 3 | 1 | 1 |
 
 Tres categorías, con tres pesos distintos.
 
@@ -1030,7 +1089,7 @@ de cualquier demostración clásica y no dicen nada sobre este código.
 
 **Los nativos** son los `_native.decide.ax_*`: hechos que el núcleo de Lean no
 chequeó, computados por el compilador. Aparecen nueve distintos en las doce
-funciones. Los siete teoremas sobre la transición entera dependen de los nueve;
+funciones. Los resultados sobre la transición entera dependen de los nueve;
 los resultados sobre componentes dependen de menos, como muestra la tabla.
 No son nuestros ni de ustedes. Definir una función en Lean puede exigir
 demostraciones —un literal escalar carga la prueba de que entra en su tipo,
@@ -1281,11 +1340,10 @@ funciones de `justified_slots_ops` devuelven, bajo hipótesis de capacidad. Las
 doce de `stf.rs`, que son la transición propiamente dicha, conservan el
 condicional "si la función devuelve".
 
-**Dos hipótesis de capacidad sobre la ventana de slots no están establecidas
-como invariantes.** Que no pase de 262144 bits, y que ningún slot quede a más
-de eso del finalizado. Los teoremas de ausencia de pánico las piden a la
-entrada. Dónde termina la ventana ya está demostrado; lo que falta es acotar el
-slot del header, que depende del tope de `historical_block_hashes`.
+**La capacidad de la ventana está demostrada, pero no armada dentro de cada
+función.** Que la ventana no pasa de 262144 bits es un invariante de la
+transición. Lo que no está es la ausencia de pánico de las funciones de
+`stf.rs` que la usan: para eso falta recorrer el resto de cada función.
 
 **El invariante de la ventana supone `usize` de 64 bits.** Los resultados sobre
 dónde termina la ventana llevan esa hipótesis explícita. En 32 bits los

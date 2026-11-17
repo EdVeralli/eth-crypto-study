@@ -4825,6 +4825,435 @@ theorem tras_header_rechaza_inv (state state' : tipos.State) (block : tipos.Bloc
 
 end VI
 
+/- ===========================================================================
+   Teorema 13: la ventana no pasa de su capacidad (17 nov 2026)
+
+   El teorema 12 dejo la ventana acotada por el slot del ultimo header. Aca
+   se acota ese slot, y con eso la ventana.
+
+   El invariante nuevo, `HistorialAcotado`:
+
+     - `historical_block_hashes` tiene exactamente un hash por slot: su largo
+       es el slot del ultimo header;
+     - y ese slot no pasa de 262144, que es `HISTORICAL_ROOTS_LIMIT`.
+
+   Vale en el genesis (historial vacio, header en el slot cero) y se conserva
+   por `state_transition`, acepte el bloque o lo rechace.
+
+   Por que vale. `process_block_header` le agrega al historial la raiz del
+   padre y un cero por cada slot vacio entre el padre y el bloque: en total
+   `block.slot - parent.slot` elementos, asi que si antes tenia uno por slot,
+   despues tambien. Y antes de agregarlos chequea que el total no pase de
+   `HISTORICAL_ROOTS_LIMIT`; si pasa, rechaza con `SlotGapTooLarge`. Ese total
+   ES el slot del bloque. El resto de la transicion no toca el historial.
+
+   De ahi salen dos cosas:
+
+     - `header_acepta_slot_acotado`: `process_block_header` no acepta ningun
+       bloque con slot mayor que 262144. No es una diferencia con la
+       especificacion: el tope es el mismo en leanSpec (`2**18`) y en el
+       codigo de ethlambda. Es una consecuencia del tope que conviene tener
+       escrita: con un hash por slot desde el genesis, la cadena de bloques no
+       pasa del slot 262144.
+     - `ventana_en_capacidad` y `shift_window_no_falla`: con los dos
+       invariantes (este y el del teorema 12), la ventana no pasa de 262144
+       bits, y `shift_window` sobre ella devuelve. Es la hipotesis de
+       capacidad del teorema 10, descargada.
+
+   Hizo falta: el largo EXACTO que deja el loop que rellena los slots vacios
+   (hasta ahora solo estaba que agrega al final), y que `process_attestations`
+   no toca el historial sin ninguna hipotesis (el teorema 7 lo tenia bajo
+   `EnElHistorial`).
+
+   Lleva la misma hipotesis `h64` del teorema 12: la cantidad de slots vacios
+   pasa por un `as usize`.
+   =========================================================================== -/
+
+namespace HC
+open mini_stf
+open Std.Tactic
+open ST3 JS NP VC VI
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+theorem limite_val : tipos.HISTORICAL_ROOTS_LIMIT.val = 262144 := by
+  first
+    | (simp [tipos.HISTORICAL_ROOTS_LIMIT]; done)
+    | (unfold tipos.HISTORICAL_ROOTS_LIMIT; rfl)
+    | scalar_tac
+
+theorem ssz_len_eq {T : Type} {N : Std.Usize} (l : ssz.SszList T N) :
+    ∃ n : Std.Usize, ssz.SszList.len l = ok n ∧ n.val = l.items.val.length := by
+  unfold ssz.SszList.len
+  simp [alloc.vec.Vec.len, rust_primitives.sequence.seq_len]
+
+theorem ssz_len_modelo_spec {T : Type} {N : Std.Usize} (l : ssz.SszList T N) :
+    ⦃ ⌜ True ⌝ ⦄ ssz.SszList.len l
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.val = l.items.val.length ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv => by
+    obtain ⟨n, hn, hval⟩ := ssz_len_eq l
+    rw [hv] at hn
+    simp only [RustM.ok.injEq] at hn
+    subst hn
+    exact hval)
+
+/-- `Vec::push` agrega exactamente un elemento al final. -/
+theorem push_exacto_spec {T : Type} (v : alloc.vec.Vec T) (x : T) :
+    ⦃ ⌜ True ⌝ ⦄ alloc.vec.Vec.push v x
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.val = v.val ++ [x] ⌝) ⦄ :=
+  triple_mayThrow_of (fun r hr => by
+    unfold alloc.vec.Vec.push at hr
+    obtain ⟨s, hs, hr⟩ := bind_da_ok hr
+    simp only [RustM.ok.injEq] at hr
+    subst hr
+    unfold rust_primitives.sequence.seq_push at hs
+    dsimp only at hs
+    split at hs
+    · simp only [RustM.ok.injEq] at hs
+      subst hs
+      rfl
+    · simp at hs)
+
+section
+attribute [local spec] push_exacto_spec
+
+/-- El loop que rellena los slots vacios agrega exactamente `n` elementos. -/
+theorem header_loop_largo_spec (n : Std.Usize) (v0 : alloc.vec.Vec tipos.H256) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_block_header_loop { start := 0#usize, «end» := n } v0
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ r.val.length = v0.val.length + n.val ⌝) ⦄ := by
+  unfold stf.process_block_header_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × (alloc.vec.Vec tipos.H256) =>
+       x.1.«end» = n ∧ x.1.start.val ≤ n.val ∧
+       x.2.val.length = v0.val.length + x.1.start.val)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, by simp, by simp⟩
+  · intro x hinv
+    obtain ⟨iter, v⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hle, hlen⟩ := hinv
+    simp only at hend hle hlen
+    subst hend
+    unfold stf.process_block_header_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | trivial
+      | simp [PostCond.div, PostCond.mayThrow]
+    -- se agrega un cero y el contador avanza uno.
+    · rename_i hlt s hs r hr
+      refine ⟨by omega, ?_⟩
+      rw [hr]
+      simp
+      omega
+    -- se termino el rango.
+    · rename_i hge
+      show v.val.length = v0.val.length + hasta.val
+      omega
+end
+
+section
+attribute [local spec] ssz_len_modelo_spec ST3H.current_proposer_spec
+  ST3H.ok_or_spec ST3H.branch_spec ST3H.header_hash_spec ST3H.ne_default_spec
+  ST7.take_modelo_spec ST7.into_inner_modelo_spec push_exacto_spec
+  header_loop_largo_spec ST7.try_from_modelo_spec ST7.expect_modelo_spec
+  ST3H.extend_spec ST3H.body_hash_spec ST7.from_residual_err_spec
+
+/-- Lo que `process_block_header` le hace al historial y al slot del header. -/
+theorem header_historial_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_block_header state block
+    ⦃ PostCond.mayThrow (fun r => ⌜ UScalarTy.Usize.numBits = 64 →
+        state.historical_block_hashes.items.val.length =
+          state.latest_block_header.slot.val →
+        (r.1 = core.result.Result.Ok () →
+           r.2.historical_block_hashes.items.val.length = block.slot.val ∧
+           r.2.latest_block_header.slot = block.slot ∧
+           block.slot.val ≤ 262144) ∧
+        (r.1 ≠ core.result.Result.Ok () →
+           r.2.historical_block_hashes = state.historical_block_hashes ∧
+           r.2.latest_block_header.slot = state.latest_block_header.slot) ⌝) ⦄ := by
+  unfold stf.process_block_header
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | trivial
+    | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+  -- Las dos ramas que llegan al final, con y sin anclaje del genesis.
+  -- El historial nuevo es el viejo, mas la raiz del padre, mas un cero por
+  -- cada slot vacio: en total queda del largo `block.slot`.
+  all_goals (
+    have h64 := (by assumption : UScalarTy.Usize.numBits = 64)
+    have e1 := (by assumption :
+      ∀ l : ssz.SszList tipos.H256 262144#usize,
+        _ = core.result.Result.Ok l → l.items = _) _ (by assumption)
+    have e2 := congrArg List.length (by assumption : _ = _ ++ [_])
+    have e3 := congrArg (fun v : alloc.vec.Vec tipos.H256 => v.val.length)
+      (by assumption : (_ : alloc.vec.Vec tipos.H256) =
+        ssz.SszList.items (Prod.fst (_ :
+          ssz.SszList tipos.H256 262144#usize ×
+          ssz.SszList tipos.H256 262144#usize)))
+    have e4 := (by assumption : Prod.fst _ = state.historical_block_hashes)
+    have hlim := limite_val
+    simp only [cast_usize_64 h64] at *
+    rw [e4] at e3
+    simp at e2 e3
+    refine ⟨⟨?_, trivial, ?_⟩, fun h => absurd rfl h⟩
+    · rw [e1]; scalar_tac
+    · scalar_tac)
+end
+
+/- ====================================================================
+   `process_attestations` no toca el historial.
+   ==================================================================== -/
+
+theorem try_finalize_historial_spec (state : tipos.State)
+    (source target : tipos.Checkpoint) (j : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.try_finalize state source target j rts
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ r.1.historical_block_hashes = state.historical_block_hashes ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv => by
+    obtain ⟨st', j'⟩ := v
+    exact (ST7.try_finalize_adelante state st' source target j j' rts hv).2)
+
+theorem serialize_historial_spec (st : tipos.State) (j : mapa.MapaVotos)
+    (vc : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.serialize_justifications st j vc
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ r.historical_block_hashes = st.historical_block_hashes ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv => ST7.serialize_no_toca_historial st v j vc hv)
+
+section
+attribute [local spec] is_none_spec dato_en_spec bits_en_uno_en_spec
+  is_valid_vote_spec primer_bit_spec votos_vacios_spec poner_si_falta_spec
+  marcar_votos_spec cuenta_votos_spec sin_spec div_ceil_spec set_justified_spec
+  try_finalize_historial_spec
+
+theorem process_attestations_loop_historial_spec
+    (s0 : tipos.State)
+    (attestations : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (validator_count n : Std.Usize)
+    (j0 : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations_loop { start := 0#usize, «end» := n } s0
+      attestations validator_count 0#u64 j0 rts core.option.Option.None
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ r.1.historical_block_hashes = s0.historical_block_hashes ⌝) ⦄ := by
+  unfold stf.process_attestations_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × Acc =>
+              x.2.1.historical_block_hashes = s0.historical_block_hashes)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · rfl
+  · intro x hinv
+    obtain ⟨iter, st, ap, jj, fl⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    simp only at hinv
+    unfold stf.process_attestations_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | assumption
+      | trivial
+      | simp [PostCond.div, PostCond.mayThrow]
+      | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+end
+
+section
+attribute [local spec] timer_spec inc_procesadas_spec contar_datos_spec
+  hay_raiz_cero_spec construir_mapa_spec construir_rts_spec ssz_len_spec
+  bitlist_len_spec serialize_historial_spec
+  process_attestations_loop_historial_spec
+
+theorem process_attestations_historial_spec (state : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations state atts
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ r.2.historical_block_hashes = state.historical_block_hashes ⌝) ⦄ := by
+  unfold stf.process_attestations
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | assumption
+    | trivial
+    | simp [PostCond.div, PostCond.mayThrow]
+    | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+end
+
+/- ====================================================================
+   El invariante y su conservacion.
+   ==================================================================== -/
+
+/-- El historial tiene exactamente un hash por slot, y el slot del ultimo
+    header no pasa del tope del historial. Vale en el genesis. -/
+def HistorialAcotado (st : tipos.State) : Prop :=
+  st.historical_block_hashes.items.val.length =
+    st.latest_block_header.slot.val ∧
+  st.latest_block_header.slot.val ≤ 262144
+
+theorem header_historial (state state' : tipos.State) (block : tipos.Block)
+    (res : core.result.Result Unit stf.Error)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hh : HistorialAcotado state)
+    (h : stf.process_block_header state block = ok (res, state')) :
+    HistorialAcotado state' := by
+  obtain ⟨hok, hfail⟩ :=
+    of_triple_mayThrow (header_historial_spec state block) h h64 hh.1
+  by_cases hres : res = core.result.Result.Ok ()
+  · obtain ⟨e1, e2, e3⟩ := hok hres
+    exact ⟨by rw [e1, e2], by rw [e2]; exact e3⟩
+  · obtain ⟨e1, e2⟩ := hfail hres
+    exact ⟨by rw [e1, e2]; exact hh.1, by rw [e2]; exact hh.2⟩
+
+theorem atts_historial (state state' : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (res : core.result.Result Unit stf.Error)
+    (hh : HistorialAcotado state)
+    (h : stf.process_attestations state atts = ok (res, state')) :
+    HistorialAcotado state' := by
+  have e1 := of_triple_mayThrow (process_attestations_historial_spec state atts) h
+  have e2 := of_triple_mayThrow (ST2.process_attestations_header_spec state atts) h
+  simp only at e1 e2
+  exact ⟨by rw [e1, e2]; exact hh.1, by rw [e2]; exact hh.2⟩
+
+theorem slots_historial (state state' : tipos.State) (t : Std.U64)
+    (res : core.result.Result Unit stf.Error)
+    (hh : HistorialAcotado state)
+    (h : stf.process_slots state t = ok (res, state')) :
+    HistorialAcotado state' := by
+  obtain ⟨-, -, e3, e4⟩ := ST7.process_slots_no_toca state state' t res h
+  exact ⟨by rw [e3, e4]; exact hh.1, by rw [e4]; exact hh.2⟩
+
+theorem header_hist_inv_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_block_header state block
+    ⦃ PostCond.mayThrow (fun r => ⌜ UScalarTy.Usize.numBits = 64 →
+        HistorialAcotado state → HistorialAcotado r.2 ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv h64 hh => by
+    obtain ⟨res, st'⟩ := v
+    exact header_historial state st' block res h64 hh hv)
+
+theorem atts_hist_inv_spec (state : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_attestations state atts
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ HistorialAcotado state → HistorialAcotado r.2 ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv hh => by
+    obtain ⟨res, st'⟩ := v
+    exact atts_historial state st' atts res hh hv)
+
+theorem slots_hist_inv_spec (state : tipos.State) (t : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_slots state t
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ HistorialAcotado state → HistorialAcotado r.2 ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv hh => by
+    obtain ⟨res, st'⟩ := v
+    exact slots_historial state st' t res hh hv)
+
+section
+attribute [local spec] ST3H.branch_spec ST3H.from_residual_spec
+  ST3T.time_block_spec header_hist_inv_spec atts_hist_inv_spec
+
+theorem process_block_hist_inv_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_block state block
+    ⦃ PostCond.mayThrow (fun r => ⌜ UScalarTy.Usize.numBits = 64 →
+        HistorialAcotado state → HistorialAcotado r.2 ⌝) ⦄ := by
+  unfold stf.process_block
+  hax_mvcgen
+  all_goals solve_by_elim
+end
+
+section
+attribute [local spec] ST3H.branch_spec ST3H.from_residual_spec
+  ST3H.ne_default_spec ST3T.time_transition_spec ST3T.state_hash_spec
+  slots_hist_inv_spec process_block_hist_inv_spec
+
+theorem state_transition_hist_inv_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄ stf.state_transition state block
+    ⦃ PostCond.mayThrow (fun r => ⌜ UScalarTy.Usize.numBits = 64 →
+        HistorialAcotado state → HistorialAcotado r.2 ⌝) ⦄ := by
+  unfold stf.state_transition
+  hax_mvcgen
+  all_goals solve_by_elim
+end
+
+/- ====================================================================
+   Los enunciados.
+   ==================================================================== -/
+
+/-- El caso inicial: historial vacio y header en el slot cero. -/
+theorem historialAcotado_inicial (st : tipos.State)
+    (hh : st.historical_block_hashes.items.val = [])
+    (hs : st.latest_block_header.slot.val = 0) : HistorialAcotado st := by
+  unfold HistorialAcotado
+  rw [hh, hs]
+  simp
+
+/-- La transicion de un bloque conserva "un hash por slot, y el slot no pasa
+    del tope", acepte el bloque o lo rechace. -/
+theorem state_transition_conserva_historial
+    (state state' : tipos.State) (block : tipos.Block)
+    (res : core.result.Result Unit stf.Error)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hh : HistorialAcotado state)
+    (h : stf.state_transition state block = ok (res, state')) :
+    HistorialAcotado state' :=
+  of_triple_mayThrow (state_transition_hist_inv_spec state block) h h64 hh
+
+/-- Si el historial tiene un hash por slot, `process_block_header` no acepta
+    ningun bloque con slot mayor que 262144. -/
+theorem header_acepta_slot_acotado
+    (state state' : tipos.State) (block : tipos.Block)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hlen : state.historical_block_hashes.items.val.length =
+              state.latest_block_header.slot.val)
+    (h : stf.process_block_header state block =
+           ok (core.result.Result.Ok (), state')) :
+    block.slot.val ≤ 262144 :=
+  ((of_triple_mayThrow (header_historial_spec state block) h h64 hlen).1 rfl).2.2
+
+/-- Con los dos invariantes, la ventana no pasa de su capacidad. -/
+theorem ventana_en_capacidad (st : tipos.State)
+    (hv : VentanaNoPasa st) (hh : HistorialAcotado st) :
+    st.justified_slots.bits.val.length ≤ 262144 := by
+  unfold VentanaNoPasa at hv
+  have := hh.2
+  omega
+
+/-- Y entonces `shift_window` sobre la ventana de un estado asi no entra en
+    panico: devuelve, y devuelve la ventana corrida. Es la hipotesis de
+    capacidad del teorema 10, descargada. -/
+theorem shift_window_no_falla (st : tipos.State) (delta : Std.Usize)
+    (hv : VentanaNoPasa st) (hh : HistorialAcotado st) :
+    ∃ slots', justified_slots_ops.shift_window st.justified_slots delta = ok slots' ∧
+      slots'.bits.val = st.justified_slots.bits.val.drop delta.val :=
+  shift_window_devuelve st.justified_slots delta (ventana_en_capacidad st hv hh)
+
+/-- Los dos invariantes juntos se conservan a lo largo de la transicion. -/
+theorem state_transition_conserva_acotado
+    (state state' : tipos.State) (block : tipos.Block)
+    (res : core.result.Result Unit stf.Error)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hv : VentanaNoPasa state) (hh : HistorialAcotado state)
+    (h : stf.state_transition state block = ok (res, state')) :
+    VentanaNoPasa state' ∧ HistorialAcotado state' :=
+  ⟨state_transition_conserva_ventana state state' block res h64 hv h,
+   state_transition_conserva_historial state state' block res h64 hh h⟩
+
+end HC
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -4862,3 +5291,6 @@ end VI
 #print axioms VI.state_transition_conserva_ventana
 #print axioms VI.state_transition_ventana_justa
 #print axioms VI.tras_header_rechaza_inv
+#print axioms HC.header_acepta_slot_acotado
+#print axioms HC.state_transition_conserva_acotado
+#print axioms HC.shift_window_no_falla

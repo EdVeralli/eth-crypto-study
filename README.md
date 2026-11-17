@@ -93,12 +93,12 @@ hax + Charon + Aeneas, de Rust a Lean. Se entra por
 [`RESTAURAR.md`](RESTAURAR.md) explica cómo reconstruir el entorno desde cero.
 
 Al 17 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
-`sorry` y treinta y nueve resultados demostrados encima. Los últimos diecisiete
-son sobre la ventana de slots justificados: los cuatro teoremas que se habían
+`sorry` y cuarenta y dos resultados demostrados encima. Los últimos veinte son
+sobre la ventana de slots justificados: los cuatro teoremas que se habían
 propuesto al principio, el 22 de octubre, la demostración de que ese módulo no
 entra en pánico, un comentario del código de ethlambda sobre esa ventana,
-verificado, y el invariante de dónde termina la ventana a lo largo de la
-transición. Los demás cubren las siete
+verificado, el invariante de dónde termina la ventana a lo largo de la
+transición, y que nunca pasa de su capacidad. Los demás cubren las siete
 proposiciones de transición de estado del catálogo de `formal-leanSpec` (`ST-1`
 a `ST-7`), con dos salvedades que la propuesta detalla: `ST-4` está en su paso
 inductivo y `ST-7` vale bajo una hipótesis extra. Esa hipótesis no es un
@@ -248,13 +248,12 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    teoremas: la ausencia de pánico está demostrada sólo para
    `justified_slots_ops`. Faltan sus hipótesis de capacidad como invariantes
    del estado, y el resto de la STF función por función.
-9. **El paso siguiente más útil del paquete**: acotar el slot del último header
-   por el tope de `historical_block_hashes`. Ya está demostrado que la ventana
-   de slots justificados termina siempre en el último slot materializado (17
-   nov); con esa cota saldría que la ventana no pasa de 262144 bits, que es lo
-   que les falta a las condiciones de capacidad de la ausencia de pánico.
-   Después, la ausencia de pánico de las doce funciones de `stf.rs`, empezando
-   por las chicas.
+9. **El paso siguiente más útil del paquete**: la ausencia de pánico de las
+   doce funciones de `stf.rs`, empezando por las chicas (`current_proposer`,
+   `is_proposer`, `slot_is_justifiable_after`,
+   `attestation_data_matches_chain`, `is_valid_vote`). El tema de la ventana de
+   slots justificados quedó cerrado el 17 nov: dónde termina y que no pasa de
+   su capacidad son invariantes de la transición.
 
 ## Entorno
 

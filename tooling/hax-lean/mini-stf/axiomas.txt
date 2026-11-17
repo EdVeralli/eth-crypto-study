@@ -497,6 +497,48 @@ VI.tras_header_rechaza_inv
     ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
     ~ mini_stf.stf.process_block_header._native.decide.ax_3
 
+HC.header_acepta_slot_acotado
+  TOTAL 8 = 3 estandar + 3 nativos + 2 modelos
+  modelos:
+    - core.bool.Bool.then
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+    ~ mini_stf.stf.process_block_header._native.decide.ax_3
+
+HC.state_transition_conserva_acotado
+  TOTAL 23 = 3 estandar + 9 nativos + 11 modelos
+  modelos:
+    - core.borrow.Borrow
+    - core.hash.BuildHasher
+    - core.bool.Bool.then
+    - core.borrow.Borrow.Blanket
+    - core.Array.Insts.CoreCmpOrd.cmp
+    - core.Array.Insts.CoreHashHash.hash
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+    - std.collections.hash.map.HashMap.get
+    - std.collections.hash.map.HashMap.insert
+    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
+    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+    ~ mini_stf.stf.process_block_header._native.decide.ax_3
+    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
+    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
+    ~ mini_stf.stf.try_finalize._native.decide.ax_1
+    ~ mini_stf.stf.try_finalize._native.decide.ax_2
+    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+
+HC.shift_window_no_falla
+  TOTAL 5 = 3 estandar + 1 nativos + 1 modelos
+  modelos:
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+
 ========================================================================
 
 NATIVOS DISTINTOS EN TODO EL BUILD: 9
@@ -511,9 +553,9 @@ NATIVOS DISTINTOS EN TODO EL BUILD: 9
   mini_stf.stf.try_finalize._native.decide.ax_2
   mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
 
-Los nueve llegan a los siete resultados sobre `state_transition` entera
-(`ST-3`, `ST-4`, `ST-6`, `ST-7`, la conservacion del header y los dos del
-invariante de la ventana), que dependen
+Los nueve llegan a los resultados sobre `state_transition` entera (`ST-3`,
+`ST-4`, `ST-6`, `ST-7`, la conservacion del header y los invariantes de la
+ventana y del historial), que dependen
 de exactamente los mismos 23 axiomas que el `def` de `state_transition` sin
 teorema de por medio (se ve con supuestos/RevisarAxiomas.lean). Los teoremas
 sobre componentes dependen de menos.

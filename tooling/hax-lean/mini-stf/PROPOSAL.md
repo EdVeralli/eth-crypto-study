@@ -40,7 +40,7 @@ and Lean accepts them with no `sorry`. That says the program got written in
 Lean. It does not say it is correct.
 
 **The proofs are of specific properties.** A program is not "proved": statements
-about it are. There are thirty-nine here, listed under **What you get**. Each
+about it are. There are forty-two here, listed under **What you get**. Each
 says one precise thing, with its hypotheses in plain sight.
 
 What is **not** proved, said once:
@@ -161,12 +161,12 @@ What each step should give:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
-| 6 | `39` — one axiom block per result — and `0` |
+| 6 | `42` — one axiom block per result — and `0` |
 
 There is no separate "run the proofs" step. The theorems are in
 `teoremas/ProofObligations.lean`; step 5 copies that file into the Lean project
 and `lake build` checks all of it. If the build ends green, Lean accepted the
-thirty-nine proofs. At the end it prints which axioms each one depends on, which
+forty-two proofs. At the end it prints which axioms each one depends on, which
 is what step 6 counts.
 
 To convince yourself the check is real, break a statement by hand. In
@@ -295,10 +295,10 @@ Everything, with line counts as shipped.
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 322 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 4864 | ours — the theorems. |
-| `axiomas.txt` | 524 | ours — the `#print axioms` output, so the trust base can be read without building. |
+| `teoremas/ProofObligations.lean` | 5296 | ours — the theorems. |
+| `axiomas.txt` | 566 | ours — the `#print axioms` output, so the trust base can be read without building. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 894 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 924 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -391,7 +391,7 @@ down.
 
 ## What you get
 
-`teoremas/ProofObligations.lean` holds thirty-nine named results:
+`teoremas/ProofObligations.lean` holds forty-two named results:
 
 | Result | What it is |
 |---|---|
@@ -433,6 +433,9 @@ down.
 | `VI.state_transition_conserva_ventana` | the transition preserves that the window does not reach past the last materialized slot |
 | `VI.state_transition_ventana_justa` | **after an accepted block, the window ends exactly at the slot before the block's** |
 | `VI.tras_header_rechaza_inv` | the "exactly" in the `is_valid_vote` comment, with that invariant instead of the loose hypothesis |
+| `HC.header_acepta_slot_acotado` | **`process_block_header` accepts no block with a slot above 262144** |
+| `HC.state_transition_conserva_acotado` | the transition preserves both invariants: where the window ends, and one hash per slot with the slot bounded |
+| `HC.shift_window_no_falla` | with those invariants, `shift_window` on the state's window returns |
 | `bind_da_ok` | a tool: opens one `RustM` bind |
 
 They were not picked for count. Between them they cover arithmetic, branching
@@ -941,10 +944,62 @@ the previous sections, which here appears three times: the source's index, the
 On 32 bits those casts truncate and the arithmetic does not close. We did not
 analyse what happens in that case beyond that.
 
-**What is not there.** That the window does not exceed 262144 bits. From
-`VentanaNoPasa` it follows that it does not exceed the header's slot; what is
-missing is a bound on that slot, which depends on the cap of
-`historical_block_hashes`.
+That the window does not exceed 262144 bits is the subject of the next section.
+
+### The window stays within capacity
+
+The previous section leaves the window bounded by the latest header's slot.
+That slot still has to be bounded, and the bound comes from a second invariant,
+about the hash history:
+
+- `HistorialAcotado`: `historical_block_hashes` has exactly one hash per slot —
+  its length is the latest header's slot — and that slot does not exceed
+  262144, which is `HISTORICAL_ROOTS_LIMIT`.
+
+It holds at genesis and is preserved by `state_transition`, whether the block is
+accepted or rejected. `process_block_header` appends to the history the parent
+root and one zero per empty slot between the parent and the block:
+`block.slot − parent.slot` elements in all, so if there was one per slot there
+still is. And before appending them it checks that the total does not exceed
+`HISTORICAL_ROOTS_LIMIT`. That total **is** the block's slot.
+
+Two things follow.
+
+**No block with a slot above 262144 is accepted.**
+
+```lean
+theorem HC.header_acepta_slot_acotado ...
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hlen : state.historical_block_hashes.items.val.length =
+              state.latest_block_header.slot.val) :
+    stf.process_block_header state block = ok (Ok (), state') →
+    block.slot.val ≤ 262144
+```
+
+This is not a difference from the spec: the cap is the same in leanSpec
+(`2**18`) and in your code. It is a consequence of that cap, and worth having
+written down: with one hash per slot since genesis, the chain does not go past
+slot 262144. The check you added to
+avoid an unbounded allocation (`SlotGapTooLarge`) is what enforces it.
+
+**The window does not exceed 262144 bits.** With both invariants, this
+section's and the previous one's, `HC.ventana_en_capacidad` gives the bound,
+and `HC.shift_window_no_falla` uses it: on the window of such a state,
+`shift_window` returns. It is the capacity hypothesis of **The window does not
+panic**, discharged. `HC.state_transition_conserva_acotado` says the two
+invariants together carry from one block to the next.
+
+As a negative control we ran the slot bound without the one-hash-per-slot
+hypothesis. It fails at the final arithmetic.
+
+What it took was the exact length left by the loop that fills in the empty
+slots — before there was only that it appends — and that
+`process_attestations` leaves the history alone, with no hypothesis.
+
+**What is not there.** Putting all this together into absence of panic for the
+functions in `stf.rs`. The pieces for `try_finalize` and `process_block_header`
+are in place: their calls to `shift_window` and `extend_to_slot` do not abort.
+The rest of each function is still to do.
 
 ### What this is against the catalog, stated exactly
 
@@ -1015,6 +1070,9 @@ own properties makes the exercise circular.
 | no panic: `extend_to_slot` | 6 | 3 | 2 | 1 |
 | the window after the header, all three results | 8 | 3 | 3 | 2 |
 | the window invariant over `state_transition`, both | 23 | 3 | 9 | 11 |
+| the slot bound in the header | 8 | 3 | 3 | 2 |
+| both invariants together over `state_transition` | 23 | 3 | 9 | 11 |
+| `shift_window` on the window of a state with the invariants | 5 | 3 | 1 | 1 |
 
 Three categories, with three different weights.
 
@@ -1023,7 +1081,7 @@ classical proof and say nothing about this code.
 
 **The native ones** are `_native.decide.ax_*`: facts the Lean kernel did not
 check, computed by the compiler instead. Nine distinct ones appear across
-the twelve functions. The seven whole-transition theorems depend on all nine; the
+the twelve functions. The whole-transition results depend on all nine; the
 results about components depend on fewer, as the table shows.
 They are not ours and not yours. Defining a function in Lean can require
 proofs — a scalar literal carries a proof that it fits its type, indexing
@@ -1267,11 +1325,10 @@ on a given input is the Rust tests.
 `stf.rs`, which are the transition proper, keep the "if the function returns"
 conditional.
 
-**Two capacity hypotheses about the slot window are not established as
-invariants.** That it does not exceed 262144 bits, and that no slot ends up
-further than that from the finalized one. The absence-of-panic theorems ask for
-them on entry. Where the window ends is now proved; what is missing is a bound
-on the header's slot, which depends on the cap of `historical_block_hashes`.
+**The window's capacity is proved, but not assembled inside each function.**
+That the window does not exceed 262144 bits is an invariant of the transition.
+What is not there is absence of panic for the functions in `stf.rs` that use
+it: that needs going through the rest of each function.
 
 **The window invariant assumes a 64-bit `usize`.** The results about where the
 window ends carry that hypothesis explicitly. On 32 bits the `as usize` casts
