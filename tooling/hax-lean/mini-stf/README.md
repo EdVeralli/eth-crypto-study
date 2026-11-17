@@ -212,7 +212,8 @@ es un ciclo (`bad import 'MiniStf'`). El encabezado que escribe hax ya lo dice.
 > **28 axiomas declarados** en `supuestos/FunsExternal.lean`: los 17 de `fmt`
 > (14 `Debug` + 3 `Display`) y 11 firmas de `core`/`std`. (Desde la tarde del
 > 15 nov son 27: `mem::take` paso a ser una definicion, por lo mismo que
-> `isqrt`. Ver la nota de ST-7 en "Lo que sigue".) Ya no hay ninguna
+> `isqrt`. Ver la nota de ST-7 en "Lo que sigue". Y desde el 17 nov son 26:
+> tambien `bool::then`.) Ya no hay ninguna
 > funcion de la STF opaca (los dos `--opaque` que quedan son solo
 > `Debug`/`Display`), e `isqrt` es una definicion sobre `Nat.sqrt` desde el
 > 30 oct, no un axioma. Y una cuenta que abajo no cierra: el desglose suma 25
@@ -920,5 +921,42 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    > Lo que sigue: la ausencia de panico de las doce funciones de `stf.rs`.
    > Para `try_finalize` y `process_block_header` ya estan las piezas de la
    > ventana; falta el resto de cada una.
+
+   > Sexta nota del 17 nov 2026: **las cinco chicas no entran en panico**
+   > (teorema 14, namespace `NP2`): `current_proposer`, `is_proposer`,
+   > `slot_is_justifiable_after`, `attestation_data_matches_chain` e
+   > `is_valid_vote`. Sin hipotesis, para toda entrada.
+   >
+   > - `core.bool.Bool.then` paso de axioma a definicion: `current_proposer`
+   >   es `(n > 0).then(|| slot % n)`. Declaraciones sin contenido: 27 -> 26.
+   >   `process_block_header` baja de 8 a 7 axiomas y `state_transition` de
+   >   23 a 22. Los 42 resultados anteriores siguieron compilando sin tocar.
+   > - `slot_is_justifiable_after`: el unico panico posible era el
+   >   `isqrt().pow(2)`. `core.num.U64.pow` es `UScalar.tryMk (x ^ n)`, que
+   >   falla si no entra. Lema `pow_total` con precondicion, y la
+   >   precondicion sale de `Nat.sqrt_le'` (OJO: esta en forma `sqrt n ^ 2`,
+   >   no `sqrt n * sqrt n`).
+   > - Los closures de `and_then` e `is_some_and`: se despliegan con
+   >   `simp only [...]` ANTES de `hax_mvcgen`, con el nombre de la instancia
+   >   y el de su `call_once`.
+   > - La igualdad de `H256`, ahora total: `loop_spec` con medida
+   >   `32 - i`. Salen las ramas `h_fail` de los dos `array_index` y de
+   >   `i + 1`, y se cierran con `exfalso; scalar_tac`.
+   > - `attestation_data_matches_chain` cerro SOLA: `hax_mvcgen` descargo los
+   >   tres indices con las guardas que estan en el codigo.
+   > - `is_valid_vote`: `branch` y `from_residual` con contenido. Si `branch`
+   >   corta, lleva un `Err`; con eso `from_residual` devuelve.
+   > - `x % n` de Aeneas: `WP.spec_imp_exists (UScalar.rem_spec x h)` da
+   >   `∃ r, x % n = ok r ∧ r.val = x.val % n.val`.
+   >
+   > Los cinco dependen SOLO de los tres axiomas de Lean. Ojo al contarlo:
+   > siguen apoyandose en `bool::then` e `isqrt`, que son definiciones
+   > nuestras y no aparecen en `#print axioms`.
+   >
+   > Control negativo: con un lema de `isqrt` que no dice cuanto vale,
+   > quedan abiertos los dos cuadrados.
+   >
+   > Lo que sigue: las otras siete de `stf.rs`. `process_slots` deberia ser
+   > la mas corta (una resta guardada y el hash).
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

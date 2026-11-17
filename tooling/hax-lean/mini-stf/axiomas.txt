@@ -124,9 +124,8 @@ ST3F.process_attestations_fin_no_retrocede
     ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
 
 ST3H.process_block_header_no_mueve_slots
-  TOTAL 8 = 3 estandar + 3 nativos + 2 modelos
+  TOTAL 7 = 3 estandar + 3 nativos + 1 modelos
   modelos:
-    - core.bool.Bool.then
     - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
   nativos:
     ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -134,11 +133,10 @@ ST3H.process_block_header_no_mueve_slots
     ~ mini_stf.stf.process_block_header._native.decide.ax_3
 
 ST3T.process_block_no_retrocede
-  TOTAL 23 = 3 estandar + 9 nativos + 11 modelos
+  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
   modelos:
     - core.borrow.Borrow
     - core.hash.BuildHasher
-    - core.bool.Bool.then
     - core.borrow.Borrow.Blanket
     - core.Array.Insts.CoreCmpOrd.cmp
     - core.Array.Insts.CoreHashHash.hash
@@ -159,11 +157,10 @@ ST3T.process_block_no_retrocede
     ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
 
 ST3.state_transition_no_retrocede
-  TOTAL 23 = 3 estandar + 9 nativos + 11 modelos
+  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
   modelos:
     - core.borrow.Borrow
     - core.hash.BuildHasher
-    - core.bool.Bool.then
     - core.borrow.Borrow.Blanket
     - core.Array.Insts.CoreCmpOrd.cmp
     - core.Array.Insts.CoreHashHash.hash
@@ -209,9 +206,8 @@ ST7.process_attestations_adelante
     ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
 
 ST7.process_block_header_no_toca_checkpoints
-  TOTAL 8 = 3 estandar + 3 nativos + 2 modelos
+  TOTAL 7 = 3 estandar + 3 nativos + 1 modelos
   modelos:
-    - core.bool.Bool.then
     - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
   nativos:
     ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -219,11 +215,10 @@ ST7.process_block_header_no_toca_checkpoints
     ~ mini_stf.stf.process_block_header._native.decide.ax_3
 
 ST7.state_transition_adelante
-  TOTAL 23 = 3 estandar + 9 nativos + 11 modelos
+  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
   modelos:
     - core.borrow.Borrow
     - core.hash.BuildHasher
-    - core.bool.Bool.then
     - core.borrow.Borrow.Blanket
     - core.Array.Insts.CoreCmpOrd.cmp
     - core.Array.Insts.CoreHashHash.hash
@@ -250,9 +245,8 @@ ST1.process_slots_rechaza
   TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
 
 ST2.process_block_header_slot
-  TOTAL 8 = 3 estandar + 3 nativos + 2 modelos
+  TOTAL 7 = 3 estandar + 3 nativos + 1 modelos
   modelos:
-    - core.bool.Bool.then
     - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
   nativos:
     ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -260,11 +254,10 @@ ST2.process_block_header_slot
     ~ mini_stf.stf.process_block_header._native.decide.ax_3
 
 ST2.state_transition_conserva_no_genesis
-  TOTAL 23 = 3 estandar + 9 nativos + 11 modelos
+  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
   modelos:
     - core.borrow.Borrow
     - core.hash.BuildHasher
-    - core.bool.Bool.then
     - core.borrow.Borrow.Blanket
     - core.Array.Insts.CoreCmpOrd.cmp
     - core.Array.Insts.CoreHashHash.hash
@@ -285,11 +278,10 @@ ST2.state_transition_conserva_no_genesis
     ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
 
 ST4.state_transition_justificado_ge_finalizado
-  TOTAL 23 = 3 estandar + 9 nativos + 11 modelos
+  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
   modelos:
     - core.borrow.Borrow
     - core.hash.BuildHasher
-    - core.bool.Bool.then
     - core.borrow.Borrow.Blanket
     - core.Array.Insts.CoreCmpOrd.cmp
     - core.Array.Insts.CoreHashHash.hash
@@ -310,11 +302,10 @@ ST4.state_transition_justificado_ge_finalizado
     ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
 
 ST6.finalizacion_irreversible
-  TOTAL 23 = 3 estandar + 9 nativos + 11 modelos
+  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
   modelos:
     - core.borrow.Borrow
     - core.hash.BuildHasher
-    - core.bool.Bool.then
     - core.borrow.Borrow.Blanket
     - core.Array.Insts.CoreCmpOrd.cmp
     - core.Array.Insts.CoreHashHash.hash
@@ -418,9 +409,8 @@ NP.finalizar_conserva_justificados_total
     ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
 
 VC.tras_header_cubre
-  TOTAL 8 = 3 estandar + 3 nativos + 2 modelos
+  TOTAL 7 = 3 estandar + 3 nativos + 1 modelos
   modelos:
-    - core.bool.Bool.then
     - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
   nativos:
     ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -428,9 +418,8 @@ VC.tras_header_cubre
     ~ mini_stf.stf.process_block_header._native.decide.ax_3
 
 VC.tras_header_rechaza
-  TOTAL 8 = 3 estandar + 3 nativos + 2 modelos
+  TOTAL 7 = 3 estandar + 3 nativos + 1 modelos
   modelos:
-    - core.bool.Bool.then
     - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
   nativos:
     ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -438,11 +427,10 @@ VC.tras_header_rechaza
     ~ mini_stf.stf.process_block_header._native.decide.ax_3
 
 VI.state_transition_conserva_ventana
-  TOTAL 23 = 3 estandar + 9 nativos + 11 modelos
+  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
   modelos:
     - core.borrow.Borrow
     - core.hash.BuildHasher
-    - core.bool.Bool.then
     - core.borrow.Borrow.Blanket
     - core.Array.Insts.CoreCmpOrd.cmp
     - core.Array.Insts.CoreHashHash.hash
@@ -463,11 +451,10 @@ VI.state_transition_conserva_ventana
     ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
 
 VI.state_transition_ventana_justa
-  TOTAL 23 = 3 estandar + 9 nativos + 11 modelos
+  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
   modelos:
     - core.borrow.Borrow
     - core.hash.BuildHasher
-    - core.bool.Bool.then
     - core.borrow.Borrow.Blanket
     - core.Array.Insts.CoreCmpOrd.cmp
     - core.Array.Insts.CoreHashHash.hash
@@ -488,9 +475,8 @@ VI.state_transition_ventana_justa
     ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
 
 VI.tras_header_rechaza_inv
-  TOTAL 8 = 3 estandar + 3 nativos + 2 modelos
+  TOTAL 7 = 3 estandar + 3 nativos + 1 modelos
   modelos:
-    - core.bool.Bool.then
     - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
   nativos:
     ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -498,9 +484,8 @@ VI.tras_header_rechaza_inv
     ~ mini_stf.stf.process_block_header._native.decide.ax_3
 
 HC.header_acepta_slot_acotado
-  TOTAL 8 = 3 estandar + 3 nativos + 2 modelos
+  TOTAL 7 = 3 estandar + 3 nativos + 1 modelos
   modelos:
-    - core.bool.Bool.then
     - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
   nativos:
     ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -508,11 +493,10 @@ HC.header_acepta_slot_acotado
     ~ mini_stf.stf.process_block_header._native.decide.ax_3
 
 HC.state_transition_conserva_acotado
-  TOTAL 23 = 3 estandar + 9 nativos + 11 modelos
+  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
   modelos:
     - core.borrow.Borrow
     - core.hash.BuildHasher
-    - core.bool.Bool.then
     - core.borrow.Borrow.Blanket
     - core.Array.Insts.CoreCmpOrd.cmp
     - core.Array.Insts.CoreHashHash.hash
@@ -539,6 +523,21 @@ HC.shift_window_no_falla
   nativos:
     ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
 
+NP2.current_proposer_eq
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+NP2.is_proposer_total
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+NP2.slot_is_justifiable_total
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+NP2.matches_chain_total
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+NP2.is_valid_vote_total
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
 ========================================================================
 
 NATIVOS DISTINTOS EN TODO EL BUILD: 9
@@ -556,11 +555,12 @@ NATIVOS DISTINTOS EN TODO EL BUILD: 9
 Los nueve llegan a los resultados sobre `state_transition` entera (`ST-3`,
 `ST-4`, `ST-6`, `ST-7`, la conservacion del header y los invariantes de la
 ventana y del historial), que dependen
-de exactamente los mismos 23 axiomas que el `def` de `state_transition` sin
+de exactamente los mismos 22 axiomas que el `def` de `state_transition` sin
 teorema de por medio (se ve con supuestos/RevisarAxiomas.lean). Los teoremas
 sobre componentes dependen de menos.
 
-Hasta el 15 nov 2026 eran 24: `core.mem.take` era un axioma y ese dia paso
-a ser una definicion (ver supuestos/FunsExternal.lean). Por eso
-`process_block_header` y todo lo que pasa por ella tienen un modelo menos
-que en la version anterior de este archivo.
+Eran 24 hasta el 15 nov 2026 y 23 hasta el 17 nov: `core.mem.take` y
+`core.bool.Bool.then` eran axiomas y pasaron a ser definiciones (ver
+supuestos/FunsExternal.lean). Por eso `process_block_header` y todo lo que
+pasa por ella tienen dos modelos menos que en la primera version de este
+archivo.

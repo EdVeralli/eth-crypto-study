@@ -41,16 +41,16 @@ Lean las acepta sin `sorry`. Eso dice que el programa quedó escrito en Lean. No
 dice que sea correcto.
 
 **Las demostraciones son de propiedades puntuales.** Un programa no "se
-demuestra": se demuestran afirmaciones sobre él. Acá hay cuarenta y dos,
+demuestra": se demuestran afirmaciones sobre él. Acá hay cuarenta y siete,
 listadas en **Qué recibe**. Cada una dice una cosa precisa, con sus hipótesis a
 la vista.
 
 Lo que **no** está demostrado, dicho de una vez:
 
 - **Que el código nunca entre en pánico.** Está para las cuatro funciones de un
-  módulo auxiliar, la ventana de slots justificados (`justified_slots_ops.rs`).
-  Las doce de la transición propiamente dicha (`stf.rs`) conservan el
-  condicional "si la función devuelve".
+  módulo auxiliar, la ventana de slots justificados (`justified_slots_ops.rs`),
+  y para cinco de las doce de la transición propiamente dicha (`stf.rs`). Las
+  otras siete conservan el condicional "si la función devuelve".
 - **Que el código sea equivalente a la especificación.** Sobre estados
   arbitrarios no lo es: encontramos dos puntos donde se comportan distinto, y
   están contados más abajo.
@@ -167,12 +167,12 @@ Qué tiene que dar cada paso:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` y después `=== listo ===` (1743 jobs la primera vez sobre un checkout limpio) |
-| 6 | `42` — un bloque de axiomas por resultado — y `0` |
+| 6 | `47` — un bloque de axiomas por resultado — y `0` |
 
 No hay un paso aparte de "correr las pruebas". Los teoremas están en
 `teoremas/ProofObligations.lean`; el paso 5 copia ese archivo adentro del
 proyecto Lean y `lake build` lo chequea entero. Si el build termina en verde,
-Lean aceptó las cuarenta y dos demostraciones. Al final imprime de qué axiomas
+Lean aceptó las cuarenta y siete demostraciones. Al final imprime de qué axiomas
 depende cada una, que es lo que cuenta el paso 6.
 
 Para convencerse de que el chequeo es real, rompan un enunciado a mano. En
@@ -299,12 +299,12 @@ Todo, con las líneas tal como se entrega.
 | `Cargo.lock` | 65 | nuestro, y versionado a propósito — fija las versiones de las dependencias, la misma preocupación que el pin de `cargo-hax` en el Dockerfile. |
 | `regenerar.sh` | 36 | nuestro — extraer, restaurar, compilar. |
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
-| `supuestos/FunsExternal.lean` | 322 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
+| `supuestos/FunsExternal.lean` | 336 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 5296 | nuestro — los teoremas. |
+| `teoremas/ProofObligations.lean` | 5587 | nuestro — los teoremas. |
 | `axiomas.txt` | 566 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 924 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 962 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -400,7 +400,7 @@ más abajo.
 
 ## Qué recibe
 
-`teoremas/ProofObligations.lean` tiene cuarenta y dos resultados con nombre:
+`teoremas/ProofObligations.lean` tiene cuarenta y siete resultados con nombre:
 
 | Resultado | Qué es |
 |---|---|
@@ -445,6 +445,11 @@ más abajo.
 | `HC.header_acepta_slot_acotado` | **`process_block_header` no acepta ningún bloque con slot mayor que 262144** |
 | `HC.state_transition_conserva_acotado` | la transición conserva los dos invariantes: dónde termina la ventana, y un hash por slot con el slot acotado |
 | `HC.shift_window_no_falla` | con esos invariantes, `shift_window` sobre la ventana del estado devuelve |
+| `NP2.current_proposer_eq` | `current_proposer` devuelve siempre: `None` sin validadores, `Some(slot % n)` con validadores |
+| `NP2.is_proposer_total` | `is_proposer` nunca entra en pánico |
+| `NP2.slot_is_justifiable_total` | `slot_is_justifiable_after` nunca entra en pánico |
+| `NP2.matches_chain_total` | `attestation_data_matches_chain` nunca entra en pánico |
+| `NP2.is_valid_vote_total` | **`is_valid_vote` nunca entra en pánico, para cualquier estado y cualquier voto** |
 | `bind_da_ok` | una herramienta: abre un bind de `RustM` |
 
 No se eligieron por cantidad. Entre todos cubren aritmética, ramificación y
@@ -530,8 +535,9 @@ retrocede por ese camino.
 Lo que los enunciados dejan afuera son las corridas que entran en pánico o que
 no terminan. Ése es un límite real y no una cuestión de forma: un pánico en la
 STF no rechaza un bloque, tira el nodo. La ausencia de pánico es un teorema
-aparte y mucho más grande. Está demostrada para un módulo, la ventana de slots
-justificados —ver **La ventana no entra en pánico**—, y para el resto no.
+aparte y mucho más grande. Está demostrada para la ventana de slots
+justificados y para cinco funciones de la transición —ver **La ventana no entra
+en pánico** y la sección de las cinco funciones—, y para el resto no.
 
 Ésta es la propiedad que su propio test afirma por ejemplo, en
 `latest_justified_does_not_regress_within_block`. Su comentario dice por qué
@@ -671,8 +677,8 @@ Tres cosas que hicieron falta y que sirven fuera de este teorema:
   `historical_block_hashes` del estado con `std::mem::take`, le agrega la raíz
   del padre y lo vuelve a guardar. Con `take` como firma sin contenido era
   imposible demostrar que el historial viejo sigue ahí. Ahora es una definición
-  —devuelve lo que había y deja el `Default`— y es la segunda afirmación de
-  modelado que hacemos, junto a `isqrt`.
+  —devuelve lo que había y deja el `Default`— y es una de las tres afirmaciones
+  de modelado que hacemos, junto a `isqrt` y `bool::then`.
 - **`process_block_header` sólo agrega al final del historial**, y fuera del
   anclaje deja los dos checkpoints enteros
   (`ST7.process_block_header_no_toca_checkpoints`).
@@ -1010,6 +1016,55 @@ de `stf.rs`. Las piezas para `try_finalize` y `process_block_header` ya están:
 que sus llamadas a `shift_window` y `extend_to_slot` no abortan. Falta el resto
 de cada función.
 
+### Cinco funciones de la transición no entran en pánico
+
+**La ventana no entra en pánico** lo hizo para el módulo auxiliar. Acá empieza la
+transición propiamente dicha, por las cinco funciones chicas de `stf.rs`:
+
+| Función | Resultado |
+|---|---|
+| `current_proposer` | devuelve siempre: `None` sin validadores, `Some(slot % n)` con validadores |
+| `is_proposer` | devuelve siempre |
+| `slot_is_justifiable_after` | devuelve siempre |
+| `attestation_data_matches_chain` | devuelve siempre |
+| `is_valid_vote` | devuelve siempre, para cualquier estado y cualquier voto |
+
+Ninguna lleva hipótesis: valen para toda entrada.
+
+Dónde podía haber un pánico y por qué no lo hay:
+
+- `current_proposer` divide por la cantidad de validadores. El `(n > 0).then(…)`
+  de ustedes es lo que lo impide, y el enunciado lo dice entero: con cero
+  validadores devuelve `None`, no aborta.
+- `slot_is_justifiable_after` eleva al cuadrado una raíz entera, dos veces. No
+  desborda porque el cuadrado de la raíz entera no supera al número original. El
+  resto de sus cuentas ya usan `checked_mul` y `checked_add`.
+- `attestation_data_matches_chain` lee tres posiciones del historial. Las tres
+  se chequean contra el largo antes de leer.
+- `is_valid_vote` junta las anteriores con dos `?`. Cuando el `?` corta, lo que
+  propaga es un `Err`, y eso alcanza para que no aborte.
+
+Como control negativo corrimos `slot_is_justifiable_after` con un lema de
+`isqrt` que dice que devuelve pero no cuánto vale. Quedan abiertos exactamente
+los dos cuadrados.
+
+**`bool::then` dejó de ser un axioma.** `current_proposer` es
+`(n > 0).then(|| slot % n)`, y con `then` como firma sin contenido no se podía
+demostrar ni que devuelve. Ahora es una definición —llama al closure sólo si el
+booleano es verdadero y envuelve el resultado en `Some`— y es la tercera
+afirmación de modelado que hacemos.
+
+**Estos cinco resultados dependen sólo de los tres axiomas de Lean.** Ni un
+axioma nativo ni una declaración sin contenido: son los primeros resultados
+sobre el código traducido de este paquete en que `#print axioms` no lista nada
+más. Eso no quiere decir que no supongan nada. Siguen apoyándose en dos de
+nuestras afirmaciones de modelado, `bool::then` e `isqrt`, que son definiciones
+y por eso no aparecen como axiomas.
+
+**Lo que no está.** Las otras siete funciones de `stf.rs`: `process_slots`,
+`process_block_header`, `serialize_justifications`, `try_finalize`,
+`process_attestations`, `process_block` y `state_transition`.
+
 ### Qué es esto contra el catálogo, dicho exacto
 
 `ST-3` en
@@ -1066,21 +1121,22 @@ importa: elegir las propias propiedades vuelve el ejercicio circular.
 | el del loop | 14 | 3 | 4 | 7 |
 | `process_attestations`, justificación y finalidad | 20 | 3 | 7 | 10 |
 | `process_slots`, los tres resultados | 3 | 3 | — | — |
-| `process_block_header`, los tres resultados | 8 | 3 | 3 | 2 |
-| `process_block`, `state_transition` (`ST-3`) | 23 | 3 | 9 | 11 |
+| `process_block_header`, los tres resultados | 7 | 3 | 3 | 1 |
+| `process_block`, `state_transition` (`ST-3`) | 22 | 3 | 9 | 10 |
 | la igualdad de `H256` | 3 | 3 | — | — |
 | `process_attestations` (`ST-7`) | 20 | 3 | 7 | 10 |
-| `state_transition` (`ST-4`, `ST-6`, `ST-7`, conservación del header) | 23 | 3 | 9 | 11 |
+| `state_transition` (`ST-4`, `ST-6`, `ST-7`, conservación del header) | 22 | 3 | 9 | 10 |
 | la ventana: ida y vuelta, `shift_window`, el compuesto | 5 | 3 | 1 | 1 |
 | la ventana: `extend_to_slot`, los dos resultados | 6 | 3 | 2 | 1 |
 | sin pánico: `is_slot_justified` | 3 | 3 | — | — |
 | sin pánico: `set_justified` (los tres), `shift_window`, el compuesto | 5 | 3 | 1 | 1 |
 | sin pánico: `extend_to_slot` | 6 | 3 | 2 | 1 |
-| la ventana después del header, los tres resultados | 8 | 3 | 3 | 2 |
-| el invariante de la ventana sobre `state_transition`, los dos | 23 | 3 | 9 | 11 |
-| la cota del slot en el header | 8 | 3 | 3 | 2 |
-| los dos invariantes juntos sobre `state_transition` | 23 | 3 | 9 | 11 |
+| la ventana después del header, los tres resultados | 7 | 3 | 3 | 1 |
+| el invariante de la ventana sobre `state_transition`, los dos | 22 | 3 | 9 | 10 |
+| la cota del slot en el header | 7 | 3 | 3 | 1 |
+| los dos invariantes juntos sobre `state_transition` | 22 | 3 | 9 | 10 |
 | `shift_window` sobre la ventana de un estado con los invariantes | 5 | 3 | 1 | 1 |
+| sin pánico: las cinco funciones chicas de `stf.rs` | 3 | 3 | — | — |
 
 Tres categorías, con tres pesos distintos.
 
@@ -1113,9 +1169,9 @@ entrada. Lo que no hicimos fue abrir cada uno de los nueve para nombrar el hecho
 que representa.
 
 **Las declaraciones** son nuestras, en `supuestos/FunsExternal.lean`:
-veintisiete axiomas que son firma y nada más — el `get`, `insert` y `new` de
+veintiséis axiomas que son firma y nada más — el `get`, `insert` y `new` de
 `HashMap`, los tipos de trait `Borrow` y `BuildHasher`, el `cmp` y `hash` de
-`[T; N]`, `bool::then`, y diecisiete stubs de `fmt` — catorce de `Debug`, tres de `Display`. Existen
+`[T; N]`, y diecisiete stubs de `fmt` — catorce de `Debug`, tres de `Display`. Existen
 para que el Lean generado compile: `try_finalize` llama a `root_to_slot.get(…)`,
 Aeneas nombra `HashMap::get` en la salida, `CoreModels` no tiene modelo para él,
 y sin la declaración el módulo muere con `Unknown identifier` y no compila nada.
@@ -1127,23 +1183,28 @@ comporta el mapa queda fuera. Modelos **con** contenido comprarían esas
 propiedades al precio de afirmar cosas que podrían estar mal, y declinamos ese
 canje.
 
-Afirmaciones reales hacemos dos. Una es `U64::isqrt`, modelado como `Nat.sqrt`:
-las dos son el piso de la raíz cuadrada. La otra es `mem::take`, modelado como
-"devuelve lo que había y deja `Default::default()`", que es lo que dice su
-documentación. Les creemos a las dos, pero son afirmaciones nuestras y no algo
-que la cadena de herramientas verificó. Hasta el 15 nov `mem::take` era la
-vigésimo octava declaración sin contenido; por eso los resultados que pasan por
-`process_block_header` tienen ahora un axioma menos. `HashMap` también
+Afirmaciones reales hacemos tres. Una es `U64::isqrt`, modelado como
+`Nat.sqrt`: las dos son el piso de la raíz cuadrada. Otra es `mem::take`,
+modelado como "devuelve lo que había y deja `Default::default()`". La tercera es
+`bool::then`, modelado como "llama al closure sólo si el booleano es verdadero y
+envuelve el resultado en `Some`". Las dos últimas son lo que dice su
+documentación. Les creemos a las tres, pero son afirmaciones nuestras y no algo
+que la cadena de herramientas verificó. `mem::take` y `bool::then` eran
+declaraciones sin contenido hasta el 15 y el 17 nov; por eso los resultados que
+pasan por `process_block_header` tienen ahora dos axiomas menos que al
+principio. `HashMap` también
 recibe una representación en `TypesExternal.lean` —una lista de pares— pero
 `get` e `insert` siguen opacos por encima, así que ahí no se afirma ningún
 comportamiento.
 
-Ninguna de las veintisiete carga peso en los teoremas de arriba: las
+Ninguna de las veintiséis carga peso en los teoremas de arriba: las
 propiedades salen de las guardas, de las asignaciones y del historial de hashes,
-no de lo que haga el mapa, el hash o el formateador. De las dos afirmaciones de
-modelado, `ST-3` no se apoya en ninguna; `ST-7` sobre la transición entera sí se
-apoya en la de `mem::take`, porque necesita que el historial sobreviva a
-`process_block_header`. Eso es una afirmación sobre las demostraciones, leída
+no de lo que haga el mapa, el hash o el formateador. De las tres afirmaciones de
+modelado, `ST-3` no se apoya en ninguna; `ST-7` sobre la transición entera y los
+invariantes del historial se apoyan en la de `mem::take`, porque necesitan que
+el historial sobreviva a `process_block_header`; y la ausencia de pánico de
+`current_proposer` y de `slot_is_justifiable_after` se apoya en las de
+`bool::then` e `isqrt`. Eso es una afirmación sobre las demostraciones, leída
 de ellas.
 `#print axioms` dice de qué depende un teorema, no si se apoya en el
 comportamiento de esa dependencia, y esa distinción nos toca argumentarla a
@@ -1318,7 +1379,7 @@ saturante.
 
 **La base de confianza no está vacía**, y lo que hay en ella está detallado en
 **La base de confianza**, arriba: nueve axiomas nativos que vienen con la
-traducción, veintisiete declaraciones nuestras que no afirman nada, y dos
+traducción, veintiséis declaraciones nuestras que no afirman nada, y tres
 afirmaciones de modelado que sí hacemos.
 
 **`ST-7` vale bajo una hipótesis que no está establecida desde el génesis.** El
@@ -1335,10 +1396,10 @@ cumpla que el finalizado no supera al justificado; el crate no lo construye.
 para probar un caso concreto: la evidencia de que devuelven lo esperado en una
 entrada dada son los tests de Rust.
 
-**La ausencia de pánico está demostrada para un solo módulo.** Las cuatro
-funciones de `justified_slots_ops` devuelven, bajo hipótesis de capacidad. Las
-doce de `stf.rs`, que son la transición propiamente dicha, conservan el
-condicional "si la función devuelve".
+**La ausencia de pánico no cubre toda la transición.** Las cuatro funciones de
+`justified_slots_ops` devuelven, bajo hipótesis de capacidad, y cinco de las
+doce de `stf.rs` devuelven sin hipótesis. Las otras siete, entre ellas
+`state_transition`, conservan el condicional "si la función devuelve".
 
 **La capacidad de la ventana está demostrada, pero no armada dentro de cada
 función.** Que la ventana no pasa de 262144 bits es un invariante de la

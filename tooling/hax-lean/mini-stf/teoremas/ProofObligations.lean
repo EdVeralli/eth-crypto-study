@@ -5254,6 +5254,292 @@ theorem state_transition_conserva_acotado
 
 end HC
 
+/- ===========================================================================
+   Teorema 14: cinco funciones de la transicion no entran en panico
+   (17 nov 2026)
+
+   El teorema 10 lo hizo para el modulo auxiliar de la ventana. Aca empieza
+   la transicion propiamente dicha, por las cinco funciones chicas de
+   `stf.rs`:
+
+     - `current_proposer`: devuelve siempre. Sin validadores, `None`; con
+       validadores, `Some(slot % n)`. El enunciado dice que devuelve, no solo
+       que devuelve.
+     - `is_proposer`: devuelve siempre.
+     - `slot_is_justifiable_after`: devuelve siempre. La unica cuenta que
+       podria desbordar es el cuadrado de la raiz entera, y no desborda
+       porque no supera al numero del que se saco la raiz.
+     - `attestation_data_matches_chain`: devuelve siempre. Cada indice se
+       chequea contra el largo antes de leer.
+     - `is_valid_vote`: devuelve siempre, para cualquier estado y cualquier
+       voto.
+
+   Ninguna lleva hipotesis: valen para toda entrada.
+
+   Hizo falta que `core.bool.Bool.then` dejara de ser un axioma (ver
+   supuestos/FunsExternal.lean), porque `current_proposer` es
+   `(n > 0).then(|| slot % n)`. Y que la igualdad de `H256` termine: el loop
+   de 32 bytes, ahora con medida de terminacion y con los dos indices en
+   rango.
+
+   Los cinco resultados dependen solo de los tres axiomas estandar de Lean.
+   Es la primera vez en este archivo que un resultado sobre el codigo
+   traducido no arrastra ni un axioma nativo ni una declaracion sin
+   contenido. Siguen apoyandose en dos modelos nuestros, `bool::then` e
+   `isqrt`, que son definiciones y por eso no aparecen en `#print axioms`.
+   =========================================================================== -/
+
+namespace NP2
+open mini_stf
+open Std.Tactic
+open ST3 JS NP
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+/-- El resto de la division devuelve, si el divisor no es cero. -/
+theorem rem_eq (x n : Std.U64) (h : n.val ≠ 0) :
+    ∃ r : Std.U64, (x % n : RustM Std.U64) = ok r ∧ r.val = x.val % n.val :=
+  WP.spec_imp_exists (UScalar.rem_spec x h)
+
+/-- `current_proposer`: nunca entra en panico. Sin validadores devuelve
+    `None`; con validadores, `Some(slot % n)`. -/
+theorem current_proposer_eq (slot n : Std.U64) :
+    (n.val = 0 → stf.current_proposer slot n = ok none) ∧
+    (n.val ≠ 0 → ∃ r : Std.U64,
+       stf.current_proposer slot n = ok (some r) ∧ r.val = slot.val % n.val) := by
+  unfold stf.current_proposer
+  constructor
+  · intro h0
+    have hn : ¬ (n > 0#u64) := by scalar_tac
+    simp [core.bool.Bool.then, hn]
+  · intro hne
+    have hn : n > 0#u64 := by scalar_tac
+    obtain ⟨r, hr, hv⟩ := rem_eq slot n hne
+    refine ⟨r, ?_, hv⟩
+    simp [core.bool.Bool.then, hn,
+      stf.current_proposer.closure.Insts.CoreOpsFunctionFnOnceTupleU64.call_once, hr]
+
+theorem current_proposer_total (slot n : Std.U64) :
+    ∃ o, stf.current_proposer slot n = ok o := by
+  obtain ⟨h0, hne⟩ := current_proposer_eq slot n
+  by_cases h : n.val = 0
+  · exact ⟨_, h0 h⟩
+  · obtain ⟨r, hr, -⟩ := hne h
+    exact ⟨_, hr⟩
+
+/-- `is_proposer` nunca entra en panico. -/
+theorem is_proposer_total (v slot n : Std.U64) :
+    ∃ b, stf.is_proposer v slot n = ok b := by
+  obtain ⟨o, ho⟩ := current_proposer_total slot n
+  unfold stf.is_proposer
+  rw [ho]
+  cases o <;>
+    simp [core.option.Option.Insts.CoreCmpPartialEqOption.eq,
+      core.U64.Insts.CoreCmpPartialEqU64]
+
+theorem isqrt_total (x : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ core.num.U64.isqrt x ⦃ ⇓ r => ⌜ r.val = Nat.sqrt x.val ⌝ ⦄ :=
+  triple_total_of ⟨_, rfl, rfl⟩
+
+theorem pow_total (x : Std.U64) (e : Std.U32) :
+    ⦃ ⌜ x.val ^ e.val ≤ U64.max ⌝ ⦄ core.num.U64.pow x e
+    ⦃ ⇓ r => ⌜ r.val = x.val ^ e.val ⌝ ⦄ := by
+  by_cases hp : x.val ^ e.val ≤ U64.max
+  · simp [core.num.U64.pow, rust_primitives.arithmetic.pow_u64, UScalar.tryMk,
+      UScalar.tryMkOpt, RustM.ofOption, hp, Triple, WP.wp, PredTrans.apply]
+    have hlt : x.val ^ e.val < 18446744073709551616 := by scalar_tac
+    simp [hlt]
+  · simp [hp, Triple, WP.wp, PredTrans.apply]
+
+theorem checked_sub_total (x y : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ core.num.U64.checked_sub x y ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
+  triple_total_of ⟨_, checked_sub_eq x y, trivial⟩
+
+theorem checked_mul_devuelve (x y : Std.U64) :
+    ∃ o, core.num.U64.checked_mul x y = ok o := by
+  simp [core.num.U64.checked_mul, core.num.U64.overflowing_mul,
+    rust_primitives.arithmetic.overflowing_mul_u64, uoverflowing_mul]
+  split <;> simp
+
+theorem checked_add_devuelve (x y : Std.U64) :
+    ∃ o, core.num.U64.checked_add x y = ok o := by
+  simp [core.num.U64.checked_add, core.num.U64.overflowing_add,
+    rust_primitives.arithmetic.overflowing_add_u64]
+  generalize UScalar.overflowing_add x y = p
+  obtain ⟨r, ov⟩ := p
+  cases ov <;> simp
+
+theorem checked_mul_total (x y : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ core.num.U64.checked_mul x y ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  obtain ⟨o, ho⟩ := checked_mul_devuelve x y
+  exact triple_total_of ⟨o, ho, trivial⟩
+
+theorem checked_add_total (x y : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ core.num.U64.checked_add x y ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  obtain ⟨o, ho⟩ := checked_add_devuelve x y
+  exact triple_total_of ⟨o, ho, trivial⟩
+
+section
+attribute [local spec] checked_sub_total isqrt_total pow_total
+  checked_mul_total checked_add_total
+
+/-- `slot_is_justifiable_after` nunca entra en panico. La unica cuenta que
+    podria desbordar es el cuadrado de la raiz entera, y no desborda porque
+    no supera al numero del que se saco la raiz. -/
+theorem slot_is_justifiable_total_spec (s f : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ stf.slot_is_justifiable_after s f ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.slot_is_justifiable_after
+  simp only [core.option.Option.and_then, core.option.Option.is_some_and,
+    stf.slot_is_justifiable_after.closure.Insts.CoreOpsFunctionFnOnceTupleU64OptionU64,
+    stf.slot_is_justifiable_after.closure_1.Insts.CoreOpsFunctionFnOnceTupleU64Bool,
+    stf.slot_is_justifiable_after.closure.Insts.CoreOpsFunctionFnOnceTupleU64OptionU64.call_once,
+    stf.slot_is_justifiable_after.closure_1.Insts.CoreOpsFunctionFnOnceTupleU64Bool.call_once]
+  hax_mvcgen
+  -- Los dos lugares donde se eleva al cuadrado una raiz entera.
+  all_goals (
+    rename_i r hr
+    rw [hr]
+    have h2 : (2#u32 : Std.U32).val = 2 := rfl
+    rw [h2]
+    refine le_trans (Nat.sqrt_le' _) ?_
+    scalar_tac)
+end
+
+theorem slot_is_justifiable_total (s f : Std.U64) :
+    ∃ b, stf.slot_is_justifiable_after s f = ok b := by
+  obtain ⟨b, hb, -⟩ := of_triple_total (slot_is_justifiable_total_spec s f)
+  exact ⟨b, hb⟩
+
+/- ====================================================================
+   La igualdad de `H256` termina y no entra en panico.
+   ==================================================================== -/
+
+theorem array_eq_loop_total (a b : Array Std.U8 32#usize) :
+    ⦃ ⌜ True ⌝ ⦄
+    core.Array.Insts.CoreCmpPartialEqArray.eq_loop
+      core.U8.Insts.CoreCmpPartialEqU8 a b 0#usize
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold core.Array.Insts.CoreCmpPartialEqArray.eq_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun i : Std.Usize => i.val ≤ 32)
+    (γ := Nat) (rel := (· < ·)) (termination := fun i => 32 - i.val)
+  · exact Nat.lt_wfRel.wf
+  · simp
+  · intro i hinv
+    unfold core.Array.Insts.CoreCmpPartialEqArray.eq_loop.body
+    simp only [core.U8.Insts.CoreCmpPartialEqU8]
+    hax_mvcgen
+    all_goals first
+      -- el byte coincide: el indice avanza y lo que falta baja.
+      | (refine ⟨?_, Or.inl ?_⟩ <;> scalar_tac)
+      -- `i + 1` no desborda, y los dos indices estan en rango.
+      | (exfalso; scalar_tac)
+      | (exfalso; simp [Array.to_slice] at *; scalar_tac)
+
+theorem h256_eq_total (a b : tipos.H256) :
+    ⦃ ⌜ True ⌝ ⦄ tipos.H256.Insts.CoreCmpPartialEqH256.eq a b
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold tipos.H256.Insts.CoreCmpPartialEqH256.eq
+  exact array_eq_loop_total a b
+
+section
+attribute [local spec] h256_eq_total
+
+/-- `attestation_data_matches_chain` nunca entra en panico: cada indice se
+    chequea contra el largo antes de leer. -/
+theorem matches_chain_total_spec (s : Slice tipos.H256) (d : tipos.AttestationData) :
+    ⦃ ⌜ True ⌝ ⦄ stf.attestation_data_matches_chain s d ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.attestation_data_matches_chain
+  simp only [core.slice.Slice.len]
+  hax_mvcgen
+end
+
+theorem matches_chain_total (s : Slice tipos.H256) (d : tipos.AttestationData) :
+    ∃ b, stf.attestation_data_matches_chain s d = ok b := by
+  obtain ⟨b, hb, -⟩ := of_triple_total (matches_chain_total_spec s d)
+  exact ⟨b, hb⟩
+
+/- ====================================================================
+   `is_valid_vote` nunca entra en panico.
+   ==================================================================== -/
+
+theorem is_slot_justified_total_spec (b : ssz.SszBitlist 262144#usize)
+    (x y : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ justified_slots_ops.is_slot_justified b x y
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  obtain ⟨r, hr⟩ := is_slot_justified_total b x y
+  exact triple_total_of ⟨r, hr, trivial⟩
+
+/-- `branch` sobre un `Result` devuelve siempre, y si corta (`Break`) lo que
+    lleva adentro es un `Err`. -/
+theorem branch_total {T E : Type} (r : core.result.Result T E) :
+    ⦃ ⌜ True ⌝ ⦄ core.result.Result.Insts.CoreOpsTry_traitTry.branch r
+    ⦃ ⇓ cf => ⌜ ∀ res, cf = core.ops.control_flow.ControlFlow.Break res →
+        ∃ e, res = core.result.Result.Err e ⌝ ⦄ :=
+  triple_total_of (by
+    cases r with
+    | Ok x =>
+      refine ⟨core.ops.control_flow.ControlFlow.Continue x, ?_, ?_⟩
+      · simp [core.result.Result.Insts.CoreOpsTry_traitTry.branch,
+          core.result.Result.Insts.CoreOpsTry_traitTryTResultInfallibleE.branch]
+      · intro res h; cases h
+    | Err e =>
+      refine ⟨core.ops.control_flow.ControlFlow.Break
+                (core.result.Result.Err e), ?_, ?_⟩
+      · simp [core.result.Result.Insts.CoreOpsTry_traitTry.branch,
+          core.result.Result.Insts.CoreOpsTry_traitTryTResultInfallibleE.branch]
+      · intro res h
+        injection h with h
+        exact ⟨e, h.symm⟩)
+
+/-- `from_residual` devuelve si el residuo es un `Err`. -/
+theorem from_residual_total (T : Type) {E : Type}
+    (r : core.result.Result core.convert.Infallible E) :
+    ⦃ ⌜ ∃ e, r = core.result.Result.Err e ⌝ ⦄
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResultInfallibleE.from_residual
+      T (core.convert.From.Blanket E) r
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  cases r with
+  | Ok x => simp [Triple, WP.wp, PredTrans.apply]
+  | Err e =>
+    simp [core.result.Result.Insts.CoreOpsTry_traitFromResidualResultInfallibleE.from_residual,
+      core.convert.From.Blanket.from, Triple, WP.wp, PredTrans.apply]
+
+theorem ssz_deref_total {T : Type} {N : Std.Usize} (l : ssz.SszList T N) :
+    ⦃ ⌜ True ⌝ ⦄ ssz.SszList.Insts.CoreOpsDerefDerefSlice.deref l
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
+  triple_total_of (by
+    refine ⟨l.items, ?_, trivial⟩
+    simp [ssz.SszList.Insts.CoreOpsDerefDerefSlice.deref,
+      alloc.vec.Vec.Insts.CoreOpsDerefDerefSlice.deref, alloc.vec.Vec.as_slice,
+      rust_primitives.sequence.seq_to_slice])
+
+section
+attribute [local spec] is_slot_justified_total_spec branch_total
+  from_residual_total ssz_deref_total matches_chain_total_spec
+  slot_is_justifiable_total_spec
+
+/-- `is_valid_vote` nunca entra en panico, para cualquier estado y cualquier
+    voto. -/
+theorem is_valid_vote_total_spec (st : tipos.State) (d : tipos.AttestationData) :
+    ⦃ ⌜ True ⌝ ⦄ stf.is_valid_vote st d ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.is_valid_vote
+  hax_mvcgen
+  -- Los dos `?`: cuando `branch` corta, lo que lleva es un `Err`, y con eso
+  -- `from_residual` devuelve.
+  all_goals (
+    rename_i h
+    exact h _ rfl)
+end
+
+theorem is_valid_vote_total (st : tipos.State) (d : tipos.AttestationData) :
+    ∃ r, stf.is_valid_vote st d = ok r := by
+  obtain ⟨r, hr, -⟩ := of_triple_total (is_valid_vote_total_spec st d)
+  exact ⟨r, hr⟩
+
+end NP2
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -5294,3 +5580,8 @@ end HC
 #print axioms HC.header_acepta_slot_acotado
 #print axioms HC.state_transition_conserva_acotado
 #print axioms HC.shift_window_no_falla
+#print axioms NP2.current_proposer_eq
+#print axioms NP2.is_proposer_total
+#print axioms NP2.slot_is_justifiable_total
+#print axioms NP2.matches_chain_total
+#print axioms NP2.is_valid_vote_total

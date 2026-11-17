@@ -4,7 +4,7 @@ Traducir Rust a Lean con **hax + Charon + Aeneas**, desde una Mac.
 
 Al lado de este README hay tres crates: [`ejemplo-jsops/`](ejemplo-jsops/) (el primer
 archivo de ethlambda que tradujo), [`mini-stf/`](mini-stf/) (el paquete de la STF
-completa, con cuarenta y dos resultados demostrados encima; se entra por su
+completa, con cuarenta y siete resultados demostrados encima; se entra por su
 [`PROPUESTA.md`](mini-stf/PROPUESTA.md)) y
 [`prueba-types/`](prueba-types/) (el crate chico con el que se probó si los tipos de
 una dependencia salen emitidos).

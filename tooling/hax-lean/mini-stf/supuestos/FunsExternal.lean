@@ -197,9 +197,23 @@ axiom tipos.State.Insts.CoreFmtDebug.fmt
 
 namespace core.bool.Bool
 
-/-- `bool::then(self, f)`: `Some(f())` si es true, `None` si no. -/
-axiom «then» {F T : Type} (inst : core.ops.function.FnOnce F Unit T) :
-  Bool -> F -> RustM (core.option.Option T)
+/-- `bool::then(self, f)`: `Some(f())` si es true, `None` si no.
+
+    Era un axioma; desde el 17 nov 2026 es una definicion. Misma razon que
+    `isqrt` y `mem::take`: de un axioma no se sabe nada, ni siquiera que
+    devuelve. `current_proposer` es `(n > 0).then(|| slot % n)`, y con `then`
+    axiomatico no se podia demostrar ni que no entra en panico ni que devuelve
+    el resto de la division.
+
+    EL SUPUESTO QUE QUEDA, ahora explicito: que `bool::then` de Rust llama al
+    closure solo cuando el booleano es `true` y envuelve el resultado en
+    `Some`. Es lo que dice su documentacion. -/
+def «then» {F T : Type} (inst : core.ops.function.FnOnce F Unit T)
+    (b : Bool) (f : F) : RustM (core.option.Option T) :=
+  if b then do
+    let t ← inst.call_once f ()
+    ok (core.option.Option.Some t)
+  else ok core.option.Option.None
 
 end core.bool.Bool
 
