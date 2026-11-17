@@ -854,5 +854,41 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    > Lo que sigue: que `hlen` se conserve a lo largo de la transicion. Es el
    > invariante "la ventana llega justo hasta el ultimo slot materializado",
    > y de el salen tambien las hipotesis de capacidad del teorema 10.
+
+   > Cuarta nota del 17 nov 2026: **ese invariante, hecho** (teorema 12,
+   > namespace `VI`). `VentanaNoPasa` (largo + finalizado <= slot del header)
+   > se conserva por `state_transition`, y tras un bloque aceptado queda
+   > `VentanaJusta` (largo + finalizado + 1 = slot del header).
+   >
+   > La idea: `try_finalize` mueve la finalidad `source.slot - finalizado` y
+   > `shift_window` acorta la ventana lo mismo, asi que la suma no cambia. Lo
+   > que hay que saber es que el source esta dentro de la ventana, y sale de
+   > `is_valid_vote` (lema `is_valid_vote_fuente_spec`).
+   >
+   > Dos cosas de tecnica:
+   >
+   > - Un lema `@[spec]` no puede tener una variable libre que no aparezca en
+   >   el programa (aca, la cota `L`). `mvcgen` no la puede instanciar. Hay
+   >   que reformular sin ella: en vez de "si la suma + 1 es L, sigue siendo
+   >   L", "la suma no cambia".
+   > - TRAMPA SERIA. Dentro de un `first | exact ⟨..., fun h => by cases h⟩
+   >   | ...`, si el `by` de adentro deja objetivos sin resolver NO falla la
+   >   alternativa: Lean registra el error, admite el objetivo con `sorry` y
+   >   da por buena esa rama. Lo mismo con `obtain ... := (by assumption : ..)`
+   >   cuando el `assumption` falla. Se vio porque `#print axioms` mostro
+   >   `sorryAx`. Regla: nada de `by` que pueda fallar adentro de un termino
+   >   en una alternativa de `first`; cada caso en su vineta, o el paso que
+   >   puede fallar a nivel de tactica (`refine ...; cases h`).
+   >   Los builds anteriores no tienen este problema: no hay ningun "sorry"
+   >   en la salida, y Lean avisa por cada declaracion que lo use.
+   >
+   > Hipotesis nueva en todo el teorema: `h64`, que `usize` es de 64 bits.
+   > Aparece tres veces el `as usize`.
+   >
+   > Control negativo: el loop con el lema trivial de `is_valid_vote` cierra
+   > los casos en que no se finaliza y deja abiertos los dos en que si.
+   >
+   > Lo que sigue (el 16 de la lista): acotar el slot del header por el tope
+   > de `historical_block_hashes`, para que la ventana no pase de 262144.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

@@ -83,6 +83,6 @@ transición de estado de `lambdaclass/ethlambda`. El resultado es el crate
 las siete proposiciones de transición de estado del catálogo de
 formal-leanSpec (`ST-1` a `ST-7`) y, el 17 nov, con los cuatro teoremas sobre
 la ventana de slots justificados, la ausencia de pánico de ese módulo y un
-comentario del código de ethlambda verificado. Son 36 resultados. Lo único
+comentario del código de ethlambda verificado. Son 39 resultados. Lo único
 pendiente es enviárselo a LambdaClass; qué teoremas faltan está en los
 pendientes 8 y 9 del `README.md`.

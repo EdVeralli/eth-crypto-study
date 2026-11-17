@@ -40,7 +40,7 @@ and Lean accepts them with no `sorry`. That says the program got written in
 Lean. It does not say it is correct.
 
 **The proofs are of specific properties.** A program is not "proved": statements
-about it are. There are thirty-six here, listed under **What you get**. Each
+about it are. There are thirty-nine here, listed under **What you get**. Each
 says one precise thing, with its hypotheses in plain sight.
 
 What is **not** proved, said once:
@@ -161,12 +161,12 @@ What each step should give:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
-| 6 | `36` — one axiom block per result — and `0` |
+| 6 | `39` — one axiom block per result — and `0` |
 
 There is no separate "run the proofs" step. The theorems are in
 `teoremas/ProofObligations.lean`; step 5 copies that file into the Lean project
 and `lake build` checks all of it. If the build ends green, Lean accepted the
-thirty-six proofs. At the end it prints which axioms each one depends on, which
+thirty-nine proofs. At the end it prints which axioms each one depends on, which
 is what step 6 counts.
 
 To convince yourself the check is real, break a statement by hand. In
@@ -295,10 +295,10 @@ Everything, with line counts as shipped.
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 322 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 4220 | ours — the theorems. |
-| `axiomas.txt` | 463 | ours — the `#print axioms` output, so the trust base can be read without building. |
+| `teoremas/ProofObligations.lean` | 4864 | ours — the theorems. |
+| `axiomas.txt` | 524 | ours — the `#print axioms` output, so the trust base can be read without building. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 858 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 894 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -391,7 +391,7 @@ down.
 
 ## What you get
 
-`teoremas/ProofObligations.lean` holds thirty-six named results:
+`teoremas/ProofObligations.lean` holds thirty-nine named results:
 
 | Result | What it is |
 |---|---|
@@ -430,6 +430,9 @@ down.
 | `NP.finalizar_conserva_justificados_total` | **the composite, with no panic conditional** |
 | `VC.tras_header_cubre` | after `process_block_header`, `is_slot_justified` answers `Ok` for every slot before the block's |
 | `VC.tras_header_rechaza` | and answers `Err` from the block's slot onwards, if the input window was not longer than it should be |
+| `VI.state_transition_conserva_ventana` | the transition preserves that the window does not reach past the last materialized slot |
+| `VI.state_transition_ventana_justa` | **after an accepted block, the window ends exactly at the slot before the block's** |
+| `VI.tras_header_rechaza_inv` | the "exactly" in the `is_valid_vote` comment, with that invariant instead of the loose hypothesis |
 | `bind_da_ok` | a tool: opens one `RustM` bind |
 
 They were not picked for count. Between them they cover arithmetic, branching
@@ -882,10 +885,66 @@ it had and what was asked for — which was not among the window results, and
 which window `process_block_header` leaves: the input one passed through
 `extend_to_slot` up to `block.slot − 1`, with the same finalized slot.
 
-**What is not there.** That `hlen` is preserved from one block to the next. It
-has to be followed through `process_attestations`, where `shift_window` shortens
-the window each time finality advances. With that invariant the capacity
-hypotheses of the previous section would be covered too.
+That `hlen` is preserved from one block to the next is the subject of the next
+section.
+
+### Where the window ends
+
+The previous section left a loose hypothesis: that the input window did not
+reach past the slot before the block. Here it is as an invariant of the whole
+transition.
+
+There are two predicates on the state:
+
+- `VentanaNoPasa`: the window's length plus the finalized slot does not exceed
+  the latest header's slot. It holds at genesis, where the window is empty and
+  the finalized slot is zero.
+- `VentanaJusta`: length + finalized + 1 is exactly the latest header's slot.
+  That is, the window covers finalized + 1 up to the header's slot − 1, not one
+  bit more and not one less.
+
+```lean
+theorem VI.state_transition_conserva_ventana ...
+    (h64 : UScalarTy.Usize.numBits = 64) :
+    VentanaNoPasa state →
+    stf.state_transition state block = ok (res, state') →
+    VentanaNoPasa state'
+
+theorem VI.state_transition_ventana_justa ...
+    (h64 : UScalarTy.Usize.numBits = 64) :
+    VentanaNoPasa state →
+    stf.state_transition state block = ok (Ok (), state') →
+    VentanaJusta state'
+```
+
+The first holds whether the block is accepted or rejected. The second says
+that after an accepted block the window is exact. Since `VentanaJusta` implies
+`VentanaNoPasa`, the invariant carries from one block to the next, and with it
+the "exactly" in the `is_valid_vote` comment no longer needs a loose hypothesis
+(`VI.tras_header_rechaza_inv`).
+
+Why it holds. `process_block_header` extends the window up to `block.slot − 1`,
+which makes it exact. Then, in the attestation loop, `set_justified` does not
+change the length, and `try_finalize` moves both things at once: finality
+advances by `source.slot − finalized`, and `shift_window` shortens the window by
+that same amount. The sum does not change. For the arithmetic to close the
+source has to be inside the window, and `is_valid_vote` guarantees that: it only
+accepts the vote if `is_slot_justified` answered `Ok(true)` for the source.
+
+As a negative control we ran the loop without that fact about the source. The
+cases where nothing is finalized still close; exactly the two where something
+is stay open.
+
+**This whole result assumes a 64-bit `usize`.** It is the same `as usize` as in
+the previous sections, which here appears three times: the source's index, the
+`delta` passed to `shift_window`, and the index of the last slot in the header.
+On 32 bits those casts truncate and the arithmetic does not close. We did not
+analyse what happens in that case beyond that.
+
+**What is not there.** That the window does not exceed 262144 bits. From
+`VentanaNoPasa` it follows that it does not exceed the header's slot; what is
+missing is a bound on that slot, which depends on the cap of
+`historical_block_hashes`.
 
 ### What this is against the catalog, stated exactly
 
@@ -954,7 +1013,8 @@ own properties makes the exercise circular.
 | no panic: `is_slot_justified` | 3 | 3 | — | — |
 | no panic: `set_justified` (all three), `shift_window`, the composite | 5 | 3 | 1 | 1 |
 | no panic: `extend_to_slot` | 6 | 3 | 2 | 1 |
-| the window after the header, both results | 8 | 3 | 3 | 2 |
+| the window after the header, all three results | 8 | 3 | 3 | 2 |
+| the window invariant over `state_transition`, both | 23 | 3 | 9 | 11 |
 
 Three categories, with three different weights.
 
@@ -963,7 +1023,7 @@ classical proof and say nothing about this code.
 
 **The native ones** are `_native.decide.ax_*`: facts the Lean kernel did not
 check, computed by the compiler instead. Nine distinct ones appear across
-the twelve functions. The five whole-transition theorems depend on all nine; the
+the twelve functions. The seven whole-transition theorems depend on all nine; the
 results about components depend on fewer, as the table shows.
 They are not ours and not yours. Defining a function in Lean can require
 proofs — a scalar literal carries a proof that it fits its type, indexing
@@ -1207,9 +1267,12 @@ on a given input is the Rust tests.
 `stf.rs`, which are the transition proper, keep the "if the function returns"
 conditional.
 
-**Three hypotheses about the slot window are not established as invariants.**
-That it does not exceed 262144 bits, that no slot ends up further than that
-from the finalized one, and that it ends right at the last materialized slot.
-The theorems ask for them on entry; what is missing is a proof that the
-transition preserves them. All three depend on knowing where the window ends,
-and that is the next step.
+**Two capacity hypotheses about the slot window are not established as
+invariants.** That it does not exceed 262144 bits, and that no slot ends up
+further than that from the finalized one. The absence-of-panic theorems ask for
+them on entry. Where the window ends is now proved; what is missing is a bound
+on the header's slot, which depends on the cap of `historical_block_hashes`.
+
+**The window invariant assumes a 64-bit `usize`.** The results about where the
+window ends carry that hypothesis explicitly. On 32 bits the `as usize` casts
+truncate and they do not hold as stated.

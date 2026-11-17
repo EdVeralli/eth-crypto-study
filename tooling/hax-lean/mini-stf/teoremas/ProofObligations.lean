@@ -4184,6 +4184,647 @@ theorem tras_header_rechaza (state state' : tipos.State) (block : tipos.Block)
 
 end VC
 
+/- ===========================================================================
+   Teorema 12: donde termina la ventana, a lo largo de la transicion
+   (17 nov 2026)
+
+   El teorema 11 dejo una hipotesis suelta: que la ventana de entrada no
+   llegara mas alla del slot anterior al bloque. Aca esta como invariante de
+   la transicion entera.
+
+     - `VentanaNoPasa st`: largo de la ventana + slot finalizado <= slot del
+       ultimo header. Vale en el genesis (ventana vacia, finalizado en cero).
+     - `VentanaJusta st`: largo + finalizado + 1 = slot del ultimo header. Es
+       decir, la ventana cubre exactamente del finalizado + 1 al slot del
+       header - 1.
+
+   Lo demostrado:
+
+     - `state_transition_conserva_ventana`: si `VentanaNoPasa` vale antes de
+       un bloque, vale despues, lo acepte o lo rechace.
+     - `state_transition_ventana_justa`: y si lo acepta, queda `VentanaJusta`.
+     - `tras_header_rechaza_inv`: el "exactly" del comentario de
+       `is_valid_vote`, con el invariante en lugar de la hipotesis suelta.
+
+   Por que vale. `process_block_header` extiende la ventana hasta
+   `block.slot - 1`, y con eso la deja justa. Despues, en el loop de
+   attestations, `set_justified` no cambia el largo, y `try_finalize` mueve
+   las dos cosas a la vez: la finalidad avanza `source.slot - finalizado` y
+   `shift_window` acorta la ventana esa misma cantidad. La suma no cambia.
+   Para que la cuenta cierre hace falta que el source este dentro de la
+   ventana, y eso lo da `is_valid_vote`: solo acepta el voto si
+   `is_slot_justified` respondio `Ok(true)` sobre el source.
+
+   Todo el teorema lleva la hipotesis `h64`: que `usize` es de 64 bits. Es el
+   mismo `as usize` de los teoremas 9 y 11, que aca aparece tres veces (el
+   indice del source, el `delta` de `shift_window`, el indice del ultimo slot
+   en el header). En 32 bits esos casts truncan y la cuenta no cierra.
+
+   Lo que NO esta: que la ventana no pase de 262144 bits. De `VentanaNoPasa`
+   sale que no pasa del slot del header; falta acotar ese slot, y eso depende
+   del tope de `historical_block_hashes`.
+   =========================================================================== -/
+
+namespace VI
+open mini_stf
+open Std.Tactic
+open ST3 JS NP VC
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+/-- En 64 bits, pasar un `u64` a `usize` no cambia el valor. -/
+theorem cast_usize_64 (h64 : UScalarTy.Usize.numBits = 64) (x : Std.U64) :
+    (UScalar.cast .Usize x).val = x.val := by
+  rw [UScalar.cast_val_eq, h64]
+  exact Nat.mod_eq_of_lt (by scalar_tac)
+
+theorem serialize_no_toca_ventana
+    (state state' : tipos.State) (j : mapa.MapaVotos) (vc : Std.Usize)
+    (h : stf.serialize_justifications state j vc = ok state') :
+    state'.justified_slots = state.justified_slots := by
+  unfold stf.serialize_justifications at h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  simp only [RustM.ok.injEq] at h
+  subst h
+  rfl
+
+theorem process_slots_no_toca_ventana
+    (state state' : tipos.State) (t : Std.U64)
+    (res : core.result.Result Unit stf.Error)
+    (h : stf.process_slots state t = ok (res, state')) :
+    state'.justified_slots = state.justified_slots := by
+  unfold stf.process_slots at h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  split at h
+  · simp only [RustM.ok.injEq, Prod.mk.injEq] at h
+    obtain ⟨-, hst⟩ := h
+    subst hst
+    rfl
+  · obtain ⟨_, _, h⟩ := bind_da_ok h
+    obtain ⟨_, _, h⟩ := bind_da_ok h
+    obtain ⟨_, _, h⟩ := bind_da_ok h
+    obtain ⟨_, _, h⟩ := bind_da_ok h
+    simp only [RustM.ok.injEq, Prod.mk.injEq] at h
+    obtain ⟨-, hst⟩ := h
+    subst hst
+    rfl
+
+theorem set_justified_largo_spec (slots : ssz.SszBitlist 262144#usize)
+    (f t : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ justified_slots_ops.set_justified slots f t
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ r.bits.val.length = slots.bits.val.length ⌝) ⦄ :=
+  triple_mayThrow_of (fun r hr => by
+    rcases set_justified_eq slots r f t hr with ⟨-, h⟩ | ⟨idx, -, -, hbits⟩
+    · rw [h]
+    · rw [hbits]; simp)
+
+theorem shift_eco_spec (b : ssz.SszBitlist 262144#usize) (d : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ justified_slots_ops.shift_window b d
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ justified_slots_ops.shift_window b d = ok r ⌝) ⦄ :=
+  triple_mayThrow_of (fun _ hv => hv)
+
+theorem trivial_spec {α : Type} (x : RustM α) :
+    ⦃ ⌜ True ⌝ ⦄ x ⦃ PostCond.mayThrow (fun _ => ⌜ True ⌝) ⦄ :=
+  triple_mayThrow_of (fun _ _ => trivial)
+
+theorem hay_slot_spec (a b c : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ stf.hay_slot_justificable a b c
+    ⦃ PostCond.mayThrow (fun _ => ⌜ True ⌝) ⦄ := trivial_spec _
+
+theorem inc_fin_spec (s : Str) :
+    ⦃ ⌜ True ⌝ ⦄ stubs.metrics.inc_finalizations s
+    ⦃ PostCond.mayThrow (fun _ => ⌜ True ⌝) ⦄ := trivial_spec _
+
+theorem vec_new_spec (T : Type) :
+    ⦃ ⌜ True ⌝ ⦄ alloc.vec.Vec.new T
+    ⦃ PostCond.mayThrow (fun _ => ⌜ True ⌝) ⦄ := trivial_spec _
+
+theorem largo_spec (m : mapa.MapaVotos) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.largo m
+    ⦃ PostCond.mayThrow (fun _ => ⌜ True ⌝) ⦄ := trivial_spec _
+
+theorem tf_loop_spec (it : core.ops.range.Range Std.Usize) (s : Std.U64)
+    (j : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global)
+    (c : alloc.vec.Vec Bool) :
+    ⦃ ⌜ True ⌝ ⦄ stf.try_finalize_loop it s j rts c
+    ⦃ PostCond.mayThrow (fun _ => ⌜ True ⌝) ⦄ := trivial_spec _
+
+theorem vec_deref_spec {T : Type} (v : alloc.vec.Vec T) :
+    ⦃ ⌜ True ⌝ ⦄ alloc.vec.Vec.Insts.CoreOpsDerefDerefSlice.deref v
+    ⦃ PostCond.mayThrow (fun _ => ⌜ True ⌝) ⦄ := trivial_spec _
+
+theorem filtrado_spec (m : mapa.MapaVotos) (s : Slice Bool) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.filtrado m s
+    ⦃ PostCond.mayThrow (fun _ => ⌜ True ⌝) ⦄ := trivial_spec _
+
+section
+attribute [local spec] hay_slot_spec inc_fin_spec vec_new_spec largo_spec
+  tf_loop_spec vec_deref_spec filtrado_spec shift_eco_spec
+
+/-- Que le hace `try_finalize` a la ventana: o no toca nada, o pone la
+    finalidad en el `source` y corre la ventana esa distancia. -/
+theorem try_finalize_ventana_spec (state : tipos.State)
+    (source target : tipos.Checkpoint) (j : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.try_finalize state source target j rts
+    ⦃ PostCond.mayThrow (fun r => ⌜
+        (r.1.justified_slots = state.justified_slots ∧
+         r.1.latest_finalized = state.latest_finalized) ∨
+        (r.1.latest_finalized = source ∧
+         state.latest_finalized.slot.val < source.slot.val ∧
+         ∃ i1 : Std.U64, i1.val = source.slot.val - state.latest_finalized.slot.val ∧
+           justified_slots_ops.shift_window state.justified_slots
+             (UScalar.cast .Usize i1) = ok r.1.justified_slots) ⌝) ⦄ := by
+  unfold stf.try_finalize
+  hax_mvcgen
+  -- el source no avanza: no se toca nada.
+  · exact Or.inl trivial
+  -- hay un slot justificable en el medio: tampoco.
+  · exact Or.inl trivial
+  -- se finaliza: la ventana se corre `source.slot - finalizado`.
+  · subst_vars
+    refine Or.inr ⟨trivial, ?_, _, ?_, by assumption⟩
+    · scalar_tac
+    · assumption
+end
+
+section
+attribute [local spec] ST7.ssz_deref_spec is_slot_justified_eco_spec
+  ST7.justifiable_spec ST7.from_residual_err_spec ST7.matches_chain_spec
+  branch_modelo_spec
+
+/-- Un voto que `is_valid_vote` acepta tiene su SOURCE justificado segun la
+    ventana: `is_slot_justified` respondio `Ok(true)` sobre el. -/
+theorem is_valid_vote_fuente_spec (st : tipos.State) (d : tipos.AttestationData) :
+    ⦃ ⌜ True ⌝ ⦄ stf.is_valid_vote st d
+    ⦃ PostCond.mayThrow (fun r => ⌜ r = core.result.Result.Ok true →
+        justified_slots_ops.is_slot_justified st.justified_slots
+          st.latest_finalized.slot d.source.slot =
+          ok (core.result.Result.Ok true) ⌝) ⦄ := by
+  unfold stf.is_valid_vote
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | trivial
+    | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+    | grind
+end
+
+/-- La cuenta. Si la ventana `js` (del mismo largo que `js0`) llegaba justo
+    hasta `L`, el source estaba justificado en `js0`, y la ventana se corre
+    `src - f`, la ventana nueva sigue llegando justo hasta `L` medida desde
+    `src`. -/
+theorem ventana_tras_finalizar (js0 js js' : ssz.SszBitlist 262144#usize)
+    (f src i1 : Std.U64) (L : Nat)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hlen : js.bits.val.length = js0.bits.val.length)
+    (hq : js0.bits.val.length + f.val + 1 = L)
+    (hlt : f.val < src.val)
+    (hsrc : justified_slots_ops.is_slot_justified js0 f src =
+              ok (core.result.Result.Ok true))
+    (hi1 : i1.val = src.val - f.val)
+    (hsh : justified_slots_ops.shift_window js (UScalar.cast .Usize i1) = ok js') :
+    js'.bits.val.length + src.val + 1 = L := by
+  have hs : src.val < 2 ^ 64 := by scalar_tac
+  obtain ⟨idx, ho, hidx⟩ := relative_index_arriba src f hlt (by rw [h64]; omega)
+  have hbit := is_slot_justified_lee js0 f src idx true ho hsrc
+  obtain ⟨hin, -⟩ := List.getElem?_eq_some_iff.mp hbit
+  have hdelta : (UScalar.cast .Usize i1).val = src.val - f.val := by
+    rw [cast_usize_64 h64, hi1]
+  rw [shift_window_eq js js' _ hsh, List.length_drop, hdelta, hlen]
+  omega
+
+/-- Cierre de las dos ramas de la justificacion: `set_justified` no cambia
+    el largo, y `try_finalize` o no toca nada o corre la ventana justo lo que
+    avanza la finalidad. -/
+theorem cierre_ventana (st r : tipos.State) (sb : ssz.SszBitlist 262144#usize)
+    (src : tipos.Checkpoint) (v : Bool)
+    (res : core.result.Result Bool stf.Error) (L : Nat)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hinv : st.justified_slots.bits.val.length +
+              st.latest_finalized.slot.val + 1 = L)
+    (hvoto : res = core.result.Result.Ok true →
+       justified_slots_ops.is_slot_justified st.justified_slots
+         st.latest_finalized.slot src.slot = ok (core.result.Result.Ok true))
+    (hres : res = core.result.Result.Ok v) (hv : v = true)
+    (hset : sb.bits.val.length = st.justified_slots.bits.val.length)
+    (hfin : (r.justified_slots = sb ∧
+             r.latest_finalized = st.latest_finalized) ∨
+            (r.latest_finalized = src ∧
+             st.latest_finalized.slot.val < src.slot.val ∧
+             ∃ i1 : Std.U64, i1.val = src.slot.val - st.latest_finalized.slot.val ∧
+               justified_slots_ops.shift_window sb (UScalar.cast .Usize i1) =
+                 ok r.justified_slots)) :
+    r.justified_slots.bits.val.length + r.latest_finalized.slot.val + 1 = L := by
+  rcases hfin with ⟨e1, e2⟩ | ⟨e1, hlt, i1, hi1, hsh⟩
+  · rw [e1, e2, hset]; exact hinv
+  · rw [e1]
+    exact ventana_tras_finalizar st.justified_slots sb r.justified_slots
+      st.latest_finalized.slot src.slot i1 L h64 hset hinv hlt
+      (hvoto (by rw [hres, hv])) hi1 hsh
+
+section
+attribute [local spec] is_none_spec dato_en_spec bits_en_uno_en_spec
+  primer_bit_spec votos_vacios_spec poner_si_falta_spec
+  marcar_votos_spec cuenta_votos_spec sin_spec div_ceil_spec
+  set_justified_largo_spec is_valid_vote_fuente_spec try_finalize_ventana_spec
+
+/-- El loop de attestations conserva "la ventana llega justo hasta `L`". -/
+theorem process_attestations_loop_ventana
+    (s0 : tipos.State)
+    (attestations : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (validator_count n : Std.Usize)
+    (j0 : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global)
+    (L : Nat) (h64 : UScalarTy.Usize.numBits = 64)
+    (h0 : s0.justified_slots.bits.val.length +
+            s0.latest_finalized.slot.val + 1 = L) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations_loop { start := 0#usize, «end» := n } s0
+      attestations validator_count 0#u64 j0 rts core.option.Option.None
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ r.1.justified_slots.bits.val.length +
+                      r.1.latest_finalized.slot.val + 1 = L ⌝) ⦄ := by
+  unfold stf.process_attestations_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × Acc =>
+              x.2.1.justified_slots.bits.val.length +
+                x.2.1.latest_finalized.slot.val + 1 = L)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · exact h0
+  · intro x hinv
+    obtain ⟨iter, st, ap, jj, fl⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    simp only at hinv
+    unfold stf.process_attestations_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | assumption
+      | trivial
+      | simp [PostCond.div, PostCond.mayThrow]
+      | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+    all_goals first
+      | exact cierre_ventana _ _ _ _ _ _ _ h64 hinv (by assumption)
+          (by assumption) (by assumption) (by assumption) (by assumption)
+end
+
+/-- Lo mismo sin `L`: el loop conserva la suma "largo de la ventana + slot
+    finalizado". Es la forma que `mvcgen` puede componer. -/
+theorem process_attestations_loop_ventana_spec
+    (s0 : tipos.State)
+    (attestations : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (validator_count n : Std.Usize)
+    (j0 : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations_loop { start := 0#usize, «end» := n } s0
+      attestations validator_count 0#u64 j0 rts core.option.Option.None
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ UScalarTy.Usize.numBits = 64 →
+            r.1.justified_slots.bits.val.length + r.1.latest_finalized.slot.val =
+            s0.justified_slots.bits.val.length + s0.latest_finalized.slot.val ⌝) ⦄ :=
+  triple_mayThrow_of (fun _ hv h64 => by
+    have := of_triple_mayThrow
+      (process_attestations_loop_ventana s0 attestations validator_count n j0 rts
+        _ h64 rfl) hv
+    omega)
+
+theorem serialize_ventana_spec (st : tipos.State) (j : mapa.MapaVotos)
+    (vc : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.serialize_justifications st j vc
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ r.justified_slots = st.justified_slots ∧
+                    r.latest_finalized = st.latest_finalized ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv =>
+    ⟨serialize_no_toca_ventana st v j vc hv,
+     serialize_no_toca_finalized st v j vc hv⟩)
+
+section
+attribute [local spec] timer_spec inc_procesadas_spec contar_datos_spec
+  hay_raiz_cero_spec construir_mapa_spec construir_rts_spec ssz_len_spec
+  bitlist_len_spec serialize_ventana_spec process_attestations_loop_ventana_spec
+
+/-- `process_attestations` conserva "largo de la ventana + slot finalizado". -/
+theorem process_attestations_ventana (state : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (h64 : UScalarTy.Usize.numBits = 64) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations state atts
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ r.2.justified_slots.bits.val.length +
+                      r.2.latest_finalized.slot.val =
+                    state.justified_slots.bits.val.length +
+                      state.latest_finalized.slot.val ⌝) ⦄ := by
+  unfold stf.process_attestations
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | trivial
+    | simp [PostCond.div, PostCond.mayThrow]
+    | exact (by assumption : _ = 64 → _) h64
+    | (have a := (by assumption : _ = 64 → _) h64
+       obtain ⟨b1, b2⟩ := (by assumption : _ = _ ∧ _ = _)
+       rw [b1, b2]; exact a)
+end
+
+section
+attribute [local spec] ssz_len_spec ST3H.current_proposer_spec ST3H.ok_or_spec
+  ST3H.branch_spec ST3H.header_hash_spec ST3H.ne_default_spec ST3H.take_spec
+  ST3H.into_inner_spec ST3H.push_spec ST3H.header_loop_spec ST3H.try_from_spec
+  ST3H.expect_spec ST3H.body_hash_spec ST7.from_residual_err_spec
+  extend_eco_spec
+
+/-- Todo lo que `process_block_header` le hace a la ventana, al slot
+    finalizado y al slot del header, acepte o rechace. -/
+theorem header_todo_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_block_header state block
+    ⦃ PostCond.mayThrow (fun r => ⌜
+        (r.1 = core.result.Result.Ok () →
+          ∃ ultimo : Std.U64, ultimo.val + 1 = block.slot.val ∧
+            justified_slots_ops.extend_to_slot state.justified_slots
+              state.latest_finalized.slot ultimo = ok r.2.justified_slots ∧
+            r.2.latest_finalized.slot = state.latest_finalized.slot ∧
+            r.2.latest_block_header.slot = block.slot ∧
+            state.latest_block_header.slot.val < block.slot.val) ∧
+        (r.1 ≠ core.result.Result.Ok () →
+          r.2.justified_slots = state.justified_slots ∧
+          r.2.latest_finalized.slot = state.latest_finalized.slot ∧
+          r.2.latest_block_header.slot = state.latest_block_header.slot) ⌝) ⦄ := by
+  unfold stf.process_block_header
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | trivial
+    | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+  -- Las dos ramas que llegan al final, con y sin anclaje del genesis.
+  all_goals (
+    refine ⟨⟨_, ?_, by assumption, trivial, trivial, ?_⟩, fun h => absurd rfl h⟩
+    · scalar_tac
+    · scalar_tac)
+end
+
+/-- La ventana no pasa del ultimo slot materializado. Vale en el genesis. -/
+def VentanaNoPasa (st : tipos.State) : Prop :=
+  st.justified_slots.bits.val.length + st.latest_finalized.slot.val ≤
+    st.latest_block_header.slot.val
+
+/-- La ventana termina JUSTO en el ultimo slot materializado: cubre del
+    finalizado + 1 al slot del header - 1. -/
+def VentanaJusta (st : tipos.State) : Prop :=
+  st.justified_slots.bits.val.length + st.latest_finalized.slot.val + 1 =
+    st.latest_block_header.slot.val
+
+theorem ventanaJusta_noPasa {st : tipos.State} (h : VentanaJusta st) :
+    VentanaNoPasa st := by
+  unfold VentanaJusta at h
+  unfold VentanaNoPasa
+  omega
+
+/-- `process_block_header`: si la ventana no pasaba, sigue sin pasar; y si
+    acepta el bloque, queda justa. -/
+theorem header_ventana (state state' : tipos.State) (block : tipos.Block)
+    (res : core.result.Result Unit stf.Error)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hp : VentanaNoPasa state)
+    (h : stf.process_block_header state block = ok (res, state')) :
+    VentanaNoPasa state' ∧
+    (res = core.result.Result.Ok () → VentanaJusta state') := by
+  unfold VentanaNoPasa at hp
+  obtain ⟨hok, hfail⟩ := of_triple_mayThrow (header_todo_spec state block) h
+  by_cases hres : res = core.result.Result.Ok ()
+  · obtain ⟨ult, hult, hext, hf, hhs, hlt⟩ := hok hres
+    obtain ⟨hnone, hsome⟩ := of_triple_mayThrow
+      (extend_to_slot_largo_spec state.justified_slots
+        state.latest_finalized.slot ult) hext
+    have hjusta : VentanaJusta state' := by
+      unfold VentanaJusta
+      rw [hf, hhs]
+      obtain ⟨ou, hou, hounone, houval⟩ :=
+        relative_index_eq ult state.latest_finalized.slot
+      cases ou with
+      | none =>
+        have hule := hounone.mp rfl
+        rw [hnone hou]
+        omega
+      | some iu =>
+        have hfu : state.latest_finalized.slot.val < ult.val := by
+          by_contra hle
+          have := hounone.mpr (by omega)
+          simp at this
+        have hub : ult.val < 2 ^ 64 := by scalar_tac
+        have hiu : iu.val = ult.val - state.latest_finalized.slot.val - 1 := by
+          rw [houval iu rfl, h64]; exact Nat.mod_eq_of_lt (by omega)
+        have hle : state.justified_slots.bits.val.length ≤ iu.val + 1 := by omega
+        have hl' : state'.justified_slots.bits.val.length = iu.val + 1 := by
+          rw [hsome iu hou]; exact Nat.max_eq_right hle
+        omega
+    exact ⟨ventanaJusta_noPasa hjusta, fun _ => hjusta⟩
+  · obtain ⟨e1, e2, e3⟩ := hfail hres
+    refine ⟨?_, fun h => absurd h hres⟩
+    unfold VentanaNoPasa
+    rw [e1, e2, e3]
+    exact hp
+
+/-- `process_attestations` conserva "la ventana es justa". -/
+theorem atts_ventana (state state' : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (res : core.result.Result Unit stf.Error)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hj : VentanaJusta state)
+    (h : stf.process_attestations state atts = ok (res, state')) :
+    VentanaJusta state' := by
+  unfold VentanaJusta at hj ⊢
+  have hs := of_triple_mayThrow (process_attestations_ventana state atts h64) h
+  have hh := of_triple_mayThrow (ST2.process_attestations_header_spec state atts) h
+  simp only at hs hh
+  rw [hh]
+  omega
+
+/-- `process_slots` no toca nada de lo que mira el invariante. -/
+theorem slots_ventana (state state' : tipos.State) (t : Std.U64)
+    (res : core.result.Result Unit stf.Error)
+    (hp : VentanaNoPasa state)
+    (h : stf.process_slots state t = ok (res, state')) :
+    VentanaNoPasa state' := by
+  unfold VentanaNoPasa at hp ⊢
+  obtain ⟨-, e2, -, e4⟩ := ST7.process_slots_no_toca state state' t res h
+  rw [process_slots_no_toca_ventana state state' t res h, e2, e4]
+  exact hp
+
+theorem header_inv_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_block_header state block
+    ⦃ PostCond.mayThrow (fun r => ⌜ UScalarTy.Usize.numBits = 64 →
+        VentanaNoPasa state →
+        (VentanaNoPasa r.2 ∧
+         (r.1 = core.result.Result.Ok () → VentanaJusta r.2)) ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv h64 hp => by
+    obtain ⟨res, st'⟩ := v
+    exact header_ventana state st' block res h64 hp hv)
+
+theorem atts_inv_spec (state : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_attestations state atts
+    ⦃ PostCond.mayThrow (fun r => ⌜ UScalarTy.Usize.numBits = 64 →
+        VentanaJusta state → VentanaJusta r.2 ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv h64 hj => by
+    obtain ⟨res, st'⟩ := v
+    exact atts_ventana state st' atts res h64 hj hv)
+
+theorem slots_inv_spec (state : tipos.State) (t : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_slots state t
+    ⦃ PostCond.mayThrow (fun r => ⌜ VentanaNoPasa state → VentanaNoPasa r.2 ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv hp => by
+    obtain ⟨res, st'⟩ := v
+    exact slots_ventana state st' t res hp hv)
+
+section
+attribute [local spec] branch_modelo_spec ST7.from_residual_err_spec
+  ST3T.time_block_spec header_inv_spec atts_inv_spec
+
+theorem process_block_inv_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_block state block
+    ⦃ PostCond.mayThrow (fun r => ⌜ UScalarTy.Usize.numBits = 64 →
+        VentanaNoPasa state →
+        (VentanaNoPasa r.2 ∧
+         (r.1 = core.result.Result.Ok () → VentanaJusta r.2)) ⌝) ⦄ := by
+  unfold stf.process_block
+  hax_mvcgen
+  all_goals (
+    have h64 := (by assumption : UScalarTy.Usize.numBits = 64)
+    have hp := (by assumption : VentanaNoPasa state)
+    obtain ⟨hnp, hju⟩ :=
+      (by assumption : _ = 64 → VentanaNoPasa state → _) h64 hp
+    first
+      -- el header acepto: la ventana quedo justa y attestations la conserva.
+      | (have hj1 := hju ((by assumption :
+           ∀ v : Unit, _ = core.result.Result.Ok v) ())
+         have hj2 := (by assumption :
+           _ = 64 → VentanaJusta _ → VentanaJusta _) h64 hj1
+         first
+           | exact ⟨ventanaJusta_noPasa hj2, hj2⟩
+           | exact ⟨ventanaJusta_noPasa hj2, fun _ => hj2⟩)
+      -- el header rechazo: no pasa, y el resultado no es `Ok`.
+      | exact ⟨hnp, fun h => absurd h ((by assumption :
+          ∀ v : Unit, _ ≠ core.result.Result.Ok v) ())⟩)
+end
+
+section
+attribute [local spec] branch_modelo_spec ST7.from_residual_err_spec
+  ST3H.ne_default_spec ST3T.time_transition_spec ST3T.state_hash_spec
+  slots_inv_spec process_block_inv_spec
+
+theorem state_transition_inv_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄ stf.state_transition state block
+    ⦃ PostCond.mayThrow (fun r => ⌜ UScalarTy.Usize.numBits = 64 →
+        VentanaNoPasa state →
+        (VentanaNoPasa r.2 ∧
+         (r.1 = core.result.Result.Ok () → VentanaJusta r.2)) ⌝) ⦄ := by
+  unfold stf.state_transition
+  hax_mvcgen
+  -- 1. `process_block` acepto y la raiz del estado no coincide: se devuelve
+  --    `Err`, con la ventana como la dejo `process_block`.
+  · have h64 := (by assumption : UScalarTy.Usize.numBits = 64)
+    have hp := (by assumption : VentanaNoPasa state)
+    have hs := (by assumption : VentanaNoPasa state → VentanaNoPasa _) hp
+    have hb := (by assumption : _ = 64 → VentanaNoPasa _ → _ ∧ _) h64 hs
+    refine ⟨hb.1, fun h => ?_⟩
+    cases h
+  -- 2. `process_block` acepto y la raiz coincide: se devuelve `Ok`.
+  · have h64 := (by assumption : UScalarTy.Usize.numBits = 64)
+    have hp := (by assumption : VentanaNoPasa state)
+    have hs := (by assumption : VentanaNoPasa state → VentanaNoPasa _) hp
+    have hb := (by assumption : _ = 64 → VentanaNoPasa _ → _ ∧ _) h64 hs
+    exact ⟨hb.1, hb.2 ((by assumption :
+      ∀ v : Unit, _ = core.result.Result.Ok v) ())⟩
+  -- 3. `process_block` rechazo.
+  · have h64 := (by assumption : UScalarTy.Usize.numBits = 64)
+    have hp := (by assumption : VentanaNoPasa state)
+    have hs := (by assumption : VentanaNoPasa state → VentanaNoPasa _) hp
+    have hb := (by assumption : _ = 64 → VentanaNoPasa _ → _ ∧ _) h64 hs
+    exact ⟨hb.1, fun h => absurd h ((by assumption :
+      ∀ v : Unit, _ ≠ core.result.Result.Ok v) ())⟩
+  -- 4. `process_slots` rechazo.
+  · have hp := (by assumption : VentanaNoPasa state)
+    have hs := (by assumption : VentanaNoPasa state → VentanaNoPasa _) hp
+    exact ⟨hs, fun h => absurd h ((by assumption :
+      ∀ v : Unit, _ ≠ core.result.Result.Ok v) ())⟩
+end
+
+/- ====================================================================
+   Los enunciados.
+   ==================================================================== -/
+
+/-- El caso inicial: con la ventana vacia y el finalizado en cero, la
+    ventana no pasa. Es como arranca el estado del genesis. -/
+theorem ventanaNoPasa_inicial (st : tipos.State)
+    (hv : st.justified_slots.bits.val = [])
+    (hf : st.latest_finalized.slot.val = 0) : VentanaNoPasa st := by
+  unfold VentanaNoPasa
+  rw [hv, hf]
+  simp
+
+/-- La transicion de un bloque conserva "la ventana no pasa del ultimo slot
+    materializado", acepte el bloque o lo rechace. -/
+theorem state_transition_conserva_ventana
+    (state state' : tipos.State) (block : tipos.Block)
+    (res : core.result.Result Unit stf.Error)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hp : VentanaNoPasa state)
+    (h : stf.state_transition state block = ok (res, state')) :
+    VentanaNoPasa state' :=
+  (of_triple_mayThrow (state_transition_inv_spec state block) h h64 hp).1
+
+/-- Y si acepta el bloque, la ventana queda JUSTA: termina exactamente en el
+    slot anterior al del bloque. -/
+theorem state_transition_ventana_justa
+    (state state' : tipos.State) (block : tipos.Block)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hp : VentanaNoPasa state)
+    (h : stf.state_transition state block =
+           ok (core.result.Result.Ok (), state')) :
+    VentanaJusta state' :=
+  (of_triple_mayThrow (state_transition_inv_spec state block) h h64 hp).2 rfl
+
+/-- El "exactly" del comentario de `is_valid_vote`, ahora con el invariante
+    en lugar de la hipotesis suelta sobre el largo: si la ventana no pasaba,
+    despues del header se rechaza todo slot del bloque en adelante. -/
+theorem tras_header_rechaza_inv (state state' : tipos.State) (block : tipos.Block)
+    (s : Std.U64)
+    (h : stf.process_block_header state block =
+           ok (core.result.Result.Ok (), state'))
+    (hp : VentanaNoPasa state)
+    (hs : block.slot.val ≤ s.val)
+    (hfit : s.val - state.latest_finalized.slot.val - 1 <
+              2 ^ UScalarTy.Usize.numBits) :
+    ∃ e, justified_slots_ops.is_slot_justified state'.justified_slots
+        state'.latest_finalized.slot s = ok (core.result.Result.Err e) := by
+  obtain ⟨-, -, -, -, -, hlt⟩ :=
+    (of_triple_mayThrow (header_todo_spec state block) h).1 rfl
+  unfold VentanaNoPasa at hp
+  exact tras_header_rechaza state state' block s h (by omega) hs hfit
+
+end VI
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -4218,3 +4859,6 @@ end VC
 #print axioms NP.finalizar_conserva_justificados_total
 #print axioms VC.tras_header_cubre
 #print axioms VC.tras_header_rechaza
+#print axioms VI.state_transition_conserva_ventana
+#print axioms VI.state_transition_ventana_justa
+#print axioms VI.tras_header_rechaza_inv
