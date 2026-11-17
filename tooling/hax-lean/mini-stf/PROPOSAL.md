@@ -404,8 +404,10 @@ down.
 They were not picked for count. Between them they cover arithmetic, branching
 and record updates, induction over a loop, composition across a whole
 function with early exits and a `match`, composition of five functions up to
-the entry point, and a property that depends on the contents of a list and not
-only on guards and assignments.
+the entry point, a property that depends on the contents of a list and not
+only on guards and assignments, exact statements about two copy loops, and
+total correctness — that the function returns, termination included — for a
+whole module.
 
 ### The arithmetic
 
@@ -1004,6 +1006,7 @@ piece did here:
 | `Hax.loop_range_spec_unsigned` | hax | tried, rejected — below. |
 | `--charon-args="--start-from f"` | hax | tried, rejected — see **Folding this into your tree**. |
 | `triple_mayThrow_of`, `of_triple_mayThrow` | ours | bridges between an equation and a Hoare triple. |
+| `triple_total_of`, `of_triple_total` | ours | the same bridges for total-correctness triples, the ones that tolerate neither panic nor divergence. |
 | `bind_da_ok` | ours | opens one `RustM` bind, for proofs done equationally. |
 
 **Prefer Aeneas's loop lemma over hax's.** `Hax.loop_range_spec_unsigned` states
@@ -1164,7 +1167,17 @@ build it.
 
 **The translated functions cannot be executed in Lean.** Lean marks them
 `noncomputable`; among other things they depend on the `fmt` axioms that
-`.expect()` uses. You can prove
-things about them, but you cannot run them with `#eval` to try a concrete case:
-the evidence that they return what is expected on a given input is the Rust
-tests.
+`.expect()` uses. You can prove things about them, but you cannot run them with
+`#eval` to try a concrete case: the evidence that they return what is expected
+on a given input is the Rust tests.
+
+**Absence of panic is proved for one module only.** The four functions of
+`justified_slots_ops` return, under capacity hypotheses. The other eight of the
+STF keep the "if the function returns" conditional.
+
+**Three hypotheses about the slot window are not established as invariants.**
+That it does not exceed 262144 bits, that no slot ends up further than that
+from the finalized one, and that it ends right at the last materialized slot.
+The theorems ask for them on entry; what is missing is a proof that the
+transition preserves them. All three depend on knowing where the window ends,
+and that is the next step.

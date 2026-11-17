@@ -247,6 +247,13 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    teoremas: la ausencia de pánico está demostrada sólo para
    `justified_slots_ops`. Faltan sus hipótesis de capacidad como invariantes
    del estado, y el resto de la STF función por función.
+9. **El paso siguiente más útil del paquete**: demostrar que la ventana de slots
+   justificados termina siempre en el último slot materializado. Con ese
+   invariante el "exactly" del comentario de `is_valid_vote` queda sin
+   hipótesis, y es el dato que les falta a las dos condiciones de capacidad de
+   la ausencia de pánico (que además necesitan el tope del historial). Hay que
+   seguirlo a través de `process_attestations`, donde `shift_window` acorta la
+   ventana.
 
 ## Entorno
 

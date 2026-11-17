@@ -82,6 +82,7 @@ transición de estado de `lambdaclass/ethlambda`. El resultado es el crate
 `tooling/hax-lean/mini-stf/`, cerrado el 6 nov 2026 y ampliado el 15 nov con
 las siete proposiciones de transición de estado del catálogo de
 formal-leanSpec (`ST-1` a `ST-7`) y, el 17 nov, con los cuatro teoremas sobre
-la ventana de slots justificados y la ausencia de pánico de ese módulo; lo
-único pendiente es
-enviárselo a LambdaClass.
+la ventana de slots justificados, la ausencia de pánico de ese módulo y un
+comentario del código de ethlambda verificado. Son 36 resultados. Lo único
+pendiente es enviárselo a LambdaClass; qué teoremas faltan está en los
+pendientes 8 y 9 del `README.md`.

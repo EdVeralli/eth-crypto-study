@@ -412,8 +412,10 @@ más abajo.
 No se eligieron por cantidad. Entre todos cubren aritmética, ramificación y
 actualización de registros, inducción sobre un loop, composición a lo largo de
 una función entera con salidas tempranas y un `match`, composición de cinco
-funciones hasta el punto de entrada, y una propiedad que depende del contenido
-de una lista y no sólo de guardas y asignaciones.
+funciones hasta el punto de entrada, una propiedad que depende del contenido
+de una lista y no sólo de guardas y asignaciones, enunciados exactos sobre dos
+loops de copia, y corrección total —que la función devuelve, con terminación
+incluida— para un módulo entero.
 
 ### La aritmética
 
@@ -1013,6 +1015,7 @@ cada pieza acá:
 | `Hax.loop_range_spec_unsigned` | hax | probada, descartada — abajo. |
 | `--charon-args="--start-from f"` | hax | probada, descartada — ver **Cómo meterlo en su árbol**. |
 | `triple_mayThrow_of`, `of_triple_mayThrow` | nuestros | puentes entre una ecuación y una terna de Hoare. |
+| `triple_total_of`, `of_triple_total` | nuestros | los mismos puentes para ternas de corrección total, las que no toleran pánico ni divergencia. |
 | `bind_da_ok` | nuestro | abre un bind de `RustM`, para demostraciones hechas por ecuaciones. |
 
 **Conviene el lema de loops de Aeneas antes que el de hax.**
@@ -1178,6 +1181,17 @@ cumpla que el finalizado no supera al justificado; el crate no lo construye.
 
 **Las funciones traducidas no se pueden ejecutar en Lean.** Lean las marca
 `noncomputable`; entre otras cosas dependen de los axiomas de `fmt` que usa
-`.expect()`. Se demuestra sobre ellas, pero no se las puede correr con `#eval` para probar
-un caso concreto: la evidencia de que devuelven lo esperado en una entrada dada
-son los tests de Rust.
+`.expect()`. Se demuestra sobre ellas, pero no se las puede correr con `#eval`
+para probar un caso concreto: la evidencia de que devuelven lo esperado en una
+entrada dada son los tests de Rust.
+
+**La ausencia de pánico está demostrada para un solo módulo.** Las cuatro
+funciones de `justified_slots_ops` devuelven, bajo hipótesis de capacidad. Las
+otras ocho de la STF conservan el condicional "si la función devuelve".
+
+**Tres hipótesis sobre la ventana de slots no están establecidas como
+invariantes.** Que no pase de 262144 bits, que ningún slot quede a más de eso
+del finalizado, y que termine justo en el último slot materializado. Los
+teoremas las piden a la entrada; falta demostrar que la transición las
+conserva. Las tres dependen de saber dónde termina la ventana, y ése es el
+siguiente paso.

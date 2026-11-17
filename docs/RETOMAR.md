@@ -1,8 +1,8 @@
 # Retomar trabajo
 
-_Ultima actualizacion: 2026-11-15_
+_Ultima actualizacion: 2026-11-17_
 
-> **Estado al 15 nov 2026.** Las entradas de abajo llegan hasta el 22 oct y no se
+> **Estado al 17 nov 2026.** Las entradas de abajo llegan hasta el 22 oct y no se
 > reescribieron. Lo que vino despues (23 oct - 6 nov) es el paquete
 > `tooling/hax-lean/mini-stf/`: la transicion de estado de ethlambda pasada de Rust a
 > Lean. Se entra por su `PROPUESTA.md` (castellano) o `PROPOSAL.md` (ingles); lo unico
@@ -20,7 +20,8 @@ _Ultima actualizacion: 2026-11-15_
 > El 17 nov se demostraron los cuatro teoremas originales sobre la ventana de slots
 > justificados (`justified_slots_ops`), los del analisis del 22 oct, y que ese modulo no
 > entra en panico, y se verifico un comentario de su codigo sobre esa ventana. El paquete
-> queda con treinta y seis resultados.
+> queda con treinta y seis resultados. Lo que sigue esta en el `README.md` de la raiz,
+> pendientes 8 y 9.
 
 ## Como retomar en otra computadora (Windows)
 
