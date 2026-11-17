@@ -2618,6 +2618,767 @@ theorem ST6.finalizacion_irreversible
     state.latest_finalized.slot ≤ state'.latest_finalized.slot :=
   (ST3.state_transition_no_retrocede state state' block res h).2
 
+/- ===========================================================================
+   Teorema 9: la ventana de slots justificados (17 nov 2026)
+
+   Los cuatro teoremas con los que empezo el analisis, sobre
+   `justified_slots_ops`: la lista de bits que guarda que slots estan
+   justificados, con indices relativos al slot finalizado. Todo lo anterior
+   de este archivo la esquivo a proposito; aca se entra.
+
+     1. `extend_to_slot` no pierde bits. Forma exacta: solo agrega ceros al
+        final.
+     2. Ida y vuelta: despues de `set_justified(s)`, `is_slot_justified(s)`
+        devuelve `Ok(true)`.
+     3. `shift_window` corre sin deformar. Forma exacta: la lista nueva es la
+        vieja sin sus primeros `delta` bits.
+     4. El compuesto: cuando la finalidad avanza y la ventana se corre, todo
+        slot que sigue por encima del limite nuevo se reporta igual que antes.
+
+   Como esta armado:
+
+     - Una capa base con lo que hacen `get`, `set`, `len`, `with_length` y
+       `relative_index`, como ECUACIONES: `get s i = ok (s.bits[i]?)`. Para
+       eso hubo que desarmar los modelos de `core` hasta el fondo (indices de
+       slice, `vec![false; n]`, la resta con desborde). A diferencia de los
+       teoremas anteriores, estas ecuaciones dicen que la operacion DEVUELVE,
+       no "si devuelve".
+     - Dos invariantes sobre listas, `Copiado` y `Desplazado`, con sus lemas
+       de paso demostrados en Lean puro, sin nada de Rust.
+     - Los dos loops de copia, con el mismo `loop_spec` de siempre: tres
+       objetivos cada uno (bit en uno, bit en cero, fin del rango), cerrados
+       con los lemas de paso.
+
+   Dos cosas a tener presentes al leer los enunciados:
+
+     - Los teoremas 2 y 4 concluyen que `is_slot_justified` DEVUELVE `Ok`: no
+       son condicionales en esa segunda llamada. Si lo son en la primera
+       (`set_justified`, `shift_window`), como todo lo demas.
+     - El teorema 4 pide que la distancia entre el slot y el finalizado entre
+       en un `usize` (`hfit`). El codigo hace `idx as usize`, y el modelo no
+       fija el ancho de `usize`: en 32 bits ese cast trunca y dos slots a
+       distancia 2^32 compartirian bit. En 64 bits la hipotesis vale siempre.
+   =========================================================================== -/
+
+namespace JS
+open mini_stf
+open Std.Tactic
+open ST3
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+theorem get_eq {N : Std.Usize} (s : ssz.SszBitlist N) (i : Std.Usize) :
+    ssz.SszBitlist.get s i = ok (s.bits.val[i.val]?) := by
+  unfold ssz.SszBitlist.get
+  simp [alloc.vec.Vec.len, rust_primitives.sequence.seq_len,
+    alloc.vec.Vec.Insts.CoreOpsIndexIndex.index,
+    alloc.vec.Vec.Insts.CoreOpsDerefDerefSlice.deref, alloc.vec.Vec.as_slice,
+    rust_primitives.sequence.seq_to_slice]
+  by_cases h : i.val < s.bits.val.length
+  · simp [h, core.Slice.Insts.CoreOpsIndexIndex.index,
+      core.Usize.Insts.CoreSliceIndexSliceIndexSliceT.get,
+      rust_primitives.slice.slice_length, rust_primitives.slice.slice_index,
+      Slice.index_usize]
+  · simp [h]
+
+theorem len_eq {N : Std.Usize} (s : ssz.SszBitlist N) :
+    ∃ n : Std.Usize, ssz.SszBitlist.len s = ok n ∧ n.val = s.bits.val.length := by
+  unfold ssz.SszBitlist.len
+  simp [alloc.vec.Vec.len, rust_primitives.sequence.seq_len]
+
+theorem set_eq {N : Std.Usize} (s : ssz.SszBitlist N) (i : Std.Usize) (v : Bool) :
+    ∃ r, ssz.SszBitlist.set s i v = ok r ∧
+      r.2.bits.val = s.bits.val.set i.val v ∧
+      (r.1 = core.result.Result.Ok () ↔ i.val < s.bits.val.length) := by
+  unfold ssz.SszBitlist.set
+  simp [alloc.vec.Vec.Insts.CoreOpsDerefDerefMutSlice.deref_mut,
+    core.slice.Slice.get_mut, alloc.vec.Vec.as_mut_slice,
+    rust_primitives.sequence.seq_to_slice_mut,
+    core.Usize.Insts.CoreSliceIndexSliceIndexSliceT.get_mut,
+    rust_primitives.slice.slice_length]
+  by_cases h : i.val < s.bits.val.length
+  · simp [h, rust_primitives.slice.slice_index_mut, Slice.index_mut_usize,
+      Slice.index_usize]
+  · simp [h]
+    first
+      | exact (List.set_eq_of_length_le (by omega)).symm
+      | (apply List.ext_getElem?; intro k; simp [List.getElem?_set]; intro hk; omega)
+
+theorem mapM_ok {α : Type} (l : List α) :
+    List.mapM (fun x : α => (ok x : RustM α)) l = ok l := by
+  induction l with
+  | nil => rfl
+  | cons a t ih => simp [List.mapM_cons, ih]; rfl
+
+theorem with_length_eq (N l : Std.Usize) (b : ssz.SszBitlist N)
+    (h : ssz.SszBitlist.with_length N l = ok (core.result.Result.Ok b)) :
+    b.bits.val = List.replicate l.val false := by
+  have hclone : (core.Bool.Insts.CoreCloneClone.clone) = fun x : Bool => (ok x : RustM Bool) := by
+    funext x; rfl
+  unfold ssz.SszBitlist.with_length at h
+  simp [alloc.vec.from_elem, rust_primitives.sequence.seq_create, hclone, mapM_ok] at h
+  by_cases hN : N.val < l.val
+  · simp [hN] at h
+  · by_cases h0 : l.val = 0
+    · simp [hN, h0] at h
+      rw [← h]
+      simp [Slice.new, h0]
+    · have hlt : l.val - 1 < Usize.max := by scalar_tac
+      simp [hN, h0, hlt] at h
+      rw [← h]
+      show List.replicate (l.val - 1) false ++ [false] = List.replicate l.val false
+      have e : l.val = (l.val - 1) + 1 := by omega
+      rw [e, List.replicate_succ']
+      simp
+
+theorem sub_val (x y : Std.U64) (h : y.val ≤ x.val) :
+    ((⟨x.bv - y.bv⟩ : Std.U64)).val = x.val - y.val := by
+  show (x.bv - y.bv).toNat = x.bv.toNat - y.bv.toNat
+  exact BitVec.toNat_sub_of_le (by simpa [BitVec.le_def] using h)
+
+theorem checked_sub_eq (x y : Std.U64) :
+    core.num.U64.checked_sub x y =
+      ok (if x.val < y.val then none else some (⟨x.bv - y.bv⟩ : Std.U64)) := by
+  simp [core.num.U64.checked_sub, core.num.U64.overflowing_sub,
+    rust_primitives.arithmetic.overflowing_sub_u64, uoverflowing_sub]
+  split <;> simp_all
+
+/-- `relative_index`: nunca entra en panico; da `none` exactamente cuando el
+    slot no esta por encima del finalizado, y si no el indice es la distancia
+    menos uno, pasada por el `as usize`. -/
+theorem relative_index_eq (t f : Std.U64) :
+    ∃ o, justified_slots_ops.relative_index t f = ok o ∧
+      (o = none ↔ t.val ≤ f.val) ∧
+      (∀ i : Std.Usize, o = some i →
+         i.val = (t.val - f.val - 1) % 2 ^ UScalarTy.Usize.numBits) := by
+  unfold justified_slots_ops.relative_index
+  rw [checked_sub_eq]
+  by_cases h1 : t.val < f.val
+  · refine ⟨none, ?_, ?_, ?_⟩
+    · simp [h1, core.option.Option.Insts.CoreOpsTry_traitTryTOptionInfallible.branch,
+        core.option.Option.Insts.CoreOpsTry_traitFromResidualOptionInfallible.from_residual]
+    · simp; omega
+    · intro i hi; cases hi
+  · have hv := sub_val t f (by omega)
+    by_cases h2 : t.val = f.val
+    · refine ⟨none, ?_, ?_, ?_⟩
+      · simp [h1, core.option.Option.Insts.CoreOpsTry_traitTryTOptionInfallible.branch,
+          checked_sub_eq, hv, h2, core.option.Option.map]
+      · simp; omega
+      · intro i hi; cases hi
+    · have h3 : ¬ ((⟨t.bv - f.bv⟩ : Std.U64)).val < (1#u64).val := by
+        rw [hv]; simp; omega
+      have hv2 := sub_val (⟨t.bv - f.bv⟩ : Std.U64) 1#u64 (by rw [hv]; simp; omega)
+      have h4 : ¬ ((⟨t.bv - f.bv⟩ : Std.U64)).val = 0 := by rw [hv]; omega
+      refine ⟨some (UScalar.cast .Usize
+                (⟨(⟨t.bv - f.bv⟩ : Std.U64).bv - (1#u64).bv⟩ : Std.U64)), ?_, ?_, ?_⟩
+      · simp [h1, core.option.Option.Insts.CoreOpsTry_traitTryTOptionInfallible.branch,
+          checked_sub_eq, h3, h4, core.option.Option.map,
+          justified_slots_ops.relative_index.closure.Insts.CoreOpsFunctionFnOnceTupleU64Usize.call_once]
+      · simp; omega
+      · intro i hi
+        injection hi with hi
+        rw [← hi, UScalar.cast_val_eq, hv2, hv]
+        simp
+
+/- ====================================================================
+   Teorema 2: ida y vuelta. Despues de `set_justified(s)`,
+   `is_slot_justified(s)` devuelve `Ok(true)`.
+   ==================================================================== -/
+
+/-- Lo que hace `set_justified` con la lista: o no la toca (el slot ya esta
+    finalizado), o prende el bit del indice relativo, que estaba en rango. -/
+theorem set_justified_eq (slots slots' : ssz.SszBitlist 262144#usize)
+    (f t : Std.U64)
+    (h : justified_slots_ops.set_justified slots f t = ok slots') :
+    (justified_slots_ops.relative_index t f = ok none ∧ slots' = slots) ∨
+    (∃ idx : Std.Usize, justified_slots_ops.relative_index t f = ok (some idx) ∧
+       idx.val < slots.bits.val.length ∧
+       slots'.bits.val = slots.bits.val.set idx.val true) := by
+  unfold justified_slots_ops.set_justified at h
+  obtain ⟨o, ho, h⟩ := bind_da_ok h
+  cases o with
+  | none =>
+    left
+    simp only [RustM.ok.injEq] at h
+    exact ⟨ho, h.symm⟩
+  | some idx =>
+    right
+    obtain ⟨⟨r, s1⟩, hset, h⟩ := bind_da_ok h
+    obtain ⟨u, hexp, h⟩ := bind_da_ok h
+    simp only [RustM.ok.injEq] at h
+    subst h
+    obtain ⟨r', hr', hbits, hok⟩ := set_eq slots idx true
+    rw [hset] at hr'
+    simp only [RustM.ok.injEq] at hr'
+    subst hr'
+    have hr : r = core.result.Result.Ok () := by
+      unfold core.result.Result.expect at hexp
+      cases r with
+      | Ok x => rfl
+      | Err e => simp [core.panicking.internal.panic] at hexp
+    exact ⟨idx, ho, hok.mp hr, hbits⟩
+
+theorem set_luego_is_justified (slots slots' : ssz.SszBitlist 262144#usize)
+    (f t : Std.U64)
+    (h : justified_slots_ops.set_justified slots f t = ok slots') :
+    justified_slots_ops.is_slot_justified slots' f t =
+      ok (core.result.Result.Ok true) := by
+  rcases set_justified_eq slots slots' f t h with ⟨ho, -⟩ | ⟨idx, ho, hlt, hbits⟩
+  · unfold justified_slots_ops.is_slot_justified
+    rw [ho]
+    rfl
+  · unfold justified_slots_ops.is_slot_justified
+    rw [ho]
+    obtain ⟨n, hn, -⟩ := len_eq slots'
+    simp [get_eq, hn, hbits, hlt, core.option.Option.ok_or]
+
+/-- Invariante del loop de `extend_to_slot`: los primeros `k` bits de la lista
+    nueva ya son los de la original, y de `k` en adelante siguen en `false`. -/
+def Copiado (orig ext : List Bool) (k : Nat) : Prop :=
+  orig.length ≤ ext.length ∧
+  (∀ j, j < k → ext[j]? = orig[j]?) ∧
+  (∀ j, k ≤ j → j < ext.length → ext[j]? = some false)
+
+theorem copiado_ini (orig : List Bool) (c : Nat) (h : orig.length ≤ c) :
+    Copiado orig (List.replicate c false) 0 := by
+  refine ⟨by simpa using h, ?_, ?_⟩
+  · intro j hj; omega
+  · intro j _ hj
+    simp at hj
+    simp [List.getElem?_replicate, hj]
+
+theorem copiado_true {orig ext : List Bool} {k : Nat}
+    (h : Copiado orig ext k) (hk : k < orig.length) (ht : orig[k]? = some true) :
+    Copiado orig (ext.set k true) (k + 1) := by
+  obtain ⟨h1, h2, h3⟩ := h
+  refine ⟨by simpa using h1, ?_, ?_⟩
+  · intro j hj
+    by_cases hjk : j = k
+    · subst hjk
+      rw [ht]
+      simp [List.getElem?_set]
+      omega
+    · rw [List.getElem?_set]
+      simp [Ne.symm hjk]
+      exact h2 j (by omega)
+  · intro j hj hlen
+    simp at hlen
+    rw [List.getElem?_set]
+    have : ¬ k = j := by omega
+    simp [this]
+    exact h3 j (by omega) hlen
+
+theorem copiado_false {orig ext : List Bool} {k : Nat}
+    (h : Copiado orig ext k) (hk : k < orig.length) (hf : ¬ orig[k]? = some true) :
+    Copiado orig ext (k + 1) := by
+  obtain ⟨h1, h2, h3⟩ := h
+  refine ⟨h1, ?_, ?_⟩
+  · intro j hj
+    by_cases hjk : j = k
+    · subst hjk
+      rw [h3 j (Nat.le_refl _) (by omega)]
+      have hget : orig[j]? = some orig[j] := List.getElem?_eq_getElem hk
+      rw [hget] at hf ⊢
+      cases hb : orig[j] <;> simp_all
+    · exact h2 j (by omega)
+  · intro j hj hlen
+    exact h3 j (by omega) hlen
+
+theorem copiado_fin {orig ext : List Bool}
+    (h : Copiado orig ext orig.length) :
+    ext = orig ++ List.replicate (ext.length - orig.length) false := by
+  obtain ⟨h1, h2, h3⟩ := h
+  apply List.ext_getElem?
+  intro j
+  by_cases hj : j < orig.length
+  · rw [h2 j hj, List.getElem?_append_left hj]
+  · by_cases hj2 : j < ext.length
+    · rw [h3 j (by omega) hj2, List.getElem?_append_right (by omega),
+        List.getElem?_replicate]
+      simp
+      omega
+    · rw [List.getElem?_eq_none (by omega), List.getElem?_eq_none (by simp; omega)]
+
+/-- Invariante del loop de `shift_window`: los primeros `k` bits de la lista
+    nueva son los de la original corridos `d` lugares. -/
+def Desplazado (orig nuevo : List Bool) (d k : Nat) : Prop :=
+  (∀ j, j < k → nuevo[j]? = orig[j + d]?) ∧
+  (∀ j, k ≤ j → j < nuevo.length → nuevo[j]? = some false)
+
+theorem desplazado_ini (orig : List Bool) (d c : Nat) :
+    Desplazado orig (List.replicate c false) d 0 := by
+  refine ⟨?_, ?_⟩
+  · intro j hj; omega
+  · intro j _ hj
+    simp at hj
+    simp [List.getElem?_replicate, hj]
+
+theorem desplazado_true {orig nuevo : List Bool} {d k : Nat}
+    (h : Desplazado orig nuevo d k) (hk : k < nuevo.length)
+    (ht : orig[k + d]? = some true) :
+    Desplazado orig (nuevo.set k true) d (k + 1) := by
+  obtain ⟨h2, h3⟩ := h
+  refine ⟨?_, ?_⟩
+  · intro j hj
+    by_cases hjk : j = k
+    · subst hjk
+      rw [ht]
+      simp [List.getElem?_set]
+      omega
+    · rw [List.getElem?_set]
+      simp [Ne.symm hjk]
+      exact h2 j (by omega)
+  · intro j hj hlen
+    simp at hlen
+    rw [List.getElem?_set]
+    have : ¬ k = j := by omega
+    simp [this]
+    exact h3 j (by omega) hlen
+
+theorem desplazado_false {orig nuevo : List Bool} {d k : Nat}
+    (h : Desplazado orig nuevo d k) (hk : k < nuevo.length)
+    (hkd : k + d < orig.length) (hf : orig[k + d]?.getD false = false) :
+    Desplazado orig nuevo d (k + 1) := by
+  obtain ⟨h2, h3⟩ := h
+  refine ⟨?_, ?_⟩
+  · intro j hj
+    by_cases hjk : j = k
+    · subst hjk
+      rw [h3 j (Nat.le_refl _) hk]
+      have hget : orig[j + d]? = some orig[j + d] := List.getElem?_eq_getElem hkd
+      rw [hget] at hf ⊢
+      simp at hf
+      simp [hf]
+    · exact h2 j (by omega)
+  · intro j hj hlen
+    exact h3 j (by omega) hlen
+
+theorem desplazado_fin {orig nuevo : List Bool} {d : Nat}
+    (hlen : nuevo.length = orig.length - d)
+    (h : Desplazado orig nuevo d nuevo.length) :
+    nuevo = orig.drop d := by
+  obtain ⟨h2, -⟩ := h
+  apply List.ext_getElem?
+  intro j
+  by_cases hj : j < nuevo.length
+  · rw [h2 j hj, List.getElem?_drop, Nat.add_comm]
+  · rw [List.getElem?_eq_none (by omega), List.getElem?_eq_none (by simp; omega)]
+
+/- ====================================================================
+   Lemas `@[spec]` con contenido para la lista de bits.
+   ==================================================================== -/
+
+theorem bl_get_spec {N : Std.Usize} (s : ssz.SszBitlist N) (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ ssz.SszBitlist.get s i
+    ⦃ PostCond.mayThrow (fun r => ⌜ r = s.bits.val[i.val]? ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv => by
+    rw [get_eq] at hv
+    simp only [RustM.ok.injEq] at hv
+    exact hv.symm)
+
+theorem bl_set_spec {N : Std.Usize} (s : ssz.SszBitlist N) (i : Std.Usize) (v : Bool) :
+    ⦃ ⌜ True ⌝ ⦄ ssz.SszBitlist.set s i v
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.2.bits.val = s.bits.val.set i.val v ∧
+        (r.1 = core.result.Result.Ok () ↔ i.val < s.bits.val.length) ⌝) ⦄ :=
+  triple_mayThrow_of (fun r hr => by
+    obtain ⟨r', hr', h1, h2⟩ := set_eq s i v
+    rw [hr] at hr'
+    simp only [RustM.ok.injEq] at hr'
+    subst hr'
+    exact ⟨h1, h2⟩)
+
+theorem opt_eq_true_spec (o : core.option.Option Bool) :
+    ⦃ ⌜ True ⌝ ⦄
+    core.option.Option.Insts.CoreCmpPartialEqOption.eq
+      core.Bool.Insts.CoreCmpPartialEqBool o (core.option.Option.Some true)
+    ⦃ PostCond.mayThrow (fun r => ⌜ r = true ↔ o = some true ⌝) ⦄ :=
+  triple_mayThrow_of (fun r hr => by
+    unfold core.option.Option.Insts.CoreCmpPartialEqOption.eq at hr
+    cases o with
+    | none =>
+      simp at hr
+      subst hr
+      simp
+    | some a =>
+      simp [core.Bool.Insts.CoreCmpPartialEqBool] at hr
+      subst hr
+      cases a <;> simp)
+
+section
+attribute [local spec] bl_get_spec bl_set_spec opt_eq_true_spec
+  ST7.expect_modelo_spec
+
+theorem extend_loop_spec (slots ext0 : ssz.SszBitlist 262144#usize)
+    (n : Std.Usize) (hn : n.val = slots.bits.val.length)
+    (h0 : Copiado slots.bits.val ext0.bits.val 0) :
+    ⦃ ⌜ True ⌝ ⦄
+    justified_slots_ops.extend_to_slot_loop { start := 0#usize, «end» := n } slots ext0
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ Copiado slots.bits.val r.bits.val slots.bits.val.length ⌝) ⦄ := by
+  unfold justified_slots_ops.extend_to_slot_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × (ssz.SszBitlist 262144#usize) =>
+       x.1.«end» = n ∧ x.1.start.val ≤ n.val ∧
+       Copiado slots.bits.val x.2.bits.val x.1.start.val)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, by simp, h0⟩
+  · intro x hinv
+    obtain ⟨iter, ext⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hle, hcop⟩ := hinv
+    simp only at hend hle hcop
+    subst hend
+    unfold justified_slots_ops.extend_to_slot_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | trivial
+      | simp [PostCond.div, PostCond.mayThrow]
+    -- Rama 1: el bit original esta en uno y se copia.
+    · rename_i hlt s hs o ho b hb hbo r hr u hu
+      refine ⟨by omega, ?_⟩
+      rw [hs, hr.1]
+      exact copiado_true hcop (by omega) (by rw [← ho]; exact hbo.mp hb)
+    -- Rama 2: el bit original esta en cero y no se toca nada.
+    · rename_i hlt s hs o ho b hb hbo
+      refine ⟨by omega, ?_⟩
+      rw [hs]
+      exact copiado_false hcop (by omega) (by rw [← ho]; exact fun h => hb (hbo.mpr h))
+    -- Rama 3: se termino el rango.
+    · rename_i hge
+      simp only [PostCond.okAssertion]
+      have hfin : desde.val = slots.bits.val.length := by omega
+      rw [← hfin]
+      exact hcop
+end
+
+theorem extend_loop_spec' (slots ext0 : ssz.SszBitlist 262144#usize)
+    (n : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄
+    justified_slots_ops.extend_to_slot_loop { start := 0#usize, «end» := n } slots ext0
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ n.val = slots.bits.val.length →
+                    Copiado slots.bits.val ext0.bits.val 0 →
+                    Copiado slots.bits.val r.bits.val slots.bits.val.length ⌝) ⦄ :=
+  triple_mayThrow_of (fun _ hv hn h0 =>
+    of_triple_mayThrow (extend_loop_spec slots ext0 n hn h0) hv)
+
+theorem bl_len_spec {N : Std.Usize} (s : ssz.SszBitlist N) :
+    ⦃ ⌜ True ⌝ ⦄ ssz.SszBitlist.len s
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.val = s.bits.val.length ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv => by
+    obtain ⟨n, hn, hval⟩ := len_eq s
+    rw [hv] at hn
+    simp only [RustM.ok.injEq] at hn
+    subst hn
+    exact hval)
+
+theorem bl_with_length_spec (N l : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ ssz.SszBitlist.with_length N l
+    ⦃ PostCond.mayThrow (fun r => ⌜ ∀ b, r = core.result.Result.Ok b →
+        b.bits.val = List.replicate l.val false ⌝) ⦄ :=
+  triple_mayThrow_of (fun r hr b hb => by
+    subst hb
+    exact with_length_eq N l b hr)
+
+theorem relative_index_trivial_spec (t f : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ justified_slots_ops.relative_index t f
+    ⦃ PostCond.mayThrow (fun _ => ⌜ True ⌝) ⦄ :=
+  triple_mayThrow_of (fun _ _ => trivial)
+
+section
+attribute [local spec] relative_index_trivial_spec bl_len_spec
+  bl_with_length_spec ST7.expect_modelo_spec extend_loop_spec'
+
+theorem extend_to_slot_spec (slots : ssz.SszBitlist 262144#usize) (f t : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄
+    justified_slots_ops.extend_to_slot slots f t
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.bits.val = slots.bits.val ++
+        List.replicate (r.bits.val.length - slots.bits.val.length) false ⌝) ⦄ := by
+  unfold justified_slots_ops.extend_to_slot
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | trivial
+    | (simp; done)
+  -- Queda la rama que arma la lista nueva y corre el loop de copia.
+  · rename_i o idx ho rc hrc n hnge hn r hwl ext hext res hloop
+    have hbits := hwl ext hext
+    have h0 : Copiado slots.bits.val ext.bits.val 0 := by
+      rw [hbits]
+      exact copiado_ini _ _ (by scalar_tac)
+    exact copiado_fin (hloop hn h0)
+end
+
+/- ====================================================================
+   El loop de `shift_window`.
+   ==================================================================== -/
+
+theorem unwrap_or_spec {T : Type} (o : core.option.Option T) (d : T) :
+    ⦃ ⌜ True ⌝ ⦄ core.option.Option.unwrap_or o d
+    ⦃ PostCond.mayThrow (fun r => ⌜ r = o.getD d ⌝) ⦄ :=
+  triple_mayThrow_of (fun r hr => by
+    unfold core.option.Option.unwrap_or at hr
+    cases o with
+    | none => simp only [RustM.ok.injEq] at hr; subst hr; rfl
+    | some a => simp only [RustM.ok.injEq] at hr; subst hr; rfl)
+
+theorem unwrap_modelo_spec {T E : Type} (inst : core.fmt.Debug E)
+    (r : core.result.Result T E) :
+    ⦃ ⌜ True ⌝ ⦄ core.result.Result.unwrap inst r
+    ⦃ PostCond.mayThrow (fun t => ⌜ r = core.result.Result.Ok t ⌝) ⦄ :=
+  triple_mayThrow_of (fun t ht => by
+    unfold core.result.Result.unwrap at ht
+    cases r with
+    | Ok x =>
+      simp only [RustM.ok.injEq] at ht
+      subst ht; rfl
+    | Err e => simp [core.panicking.internal.panic] at ht)
+
+section
+attribute [local spec] bl_get_spec bl_set_spec unwrap_or_spec unwrap_modelo_spec
+
+theorem shift_loop_spec (slots nb0 : ssz.SszBitlist 262144#usize)
+    (delta rem : Std.Usize)
+    (hlen0 : nb0.bits.val.length = rem.val)
+    (hsum : rem.val + delta.val = slots.bits.val.length)
+    (h0 : Desplazado slots.bits.val nb0.bits.val delta.val 0) :
+    ⦃ ⌜ True ⌝ ⦄
+    justified_slots_ops.shift_window_loop { start := 0#usize, «end» := rem } slots delta nb0
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ r.bits.val.length = rem.val ∧
+                    Desplazado slots.bits.val r.bits.val delta.val rem.val ⌝) ⦄ := by
+  unfold justified_slots_ops.shift_window_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × (ssz.SszBitlist 262144#usize) =>
+       x.1.«end» = rem ∧ x.1.start.val ≤ rem.val ∧
+       x.2.bits.val.length = rem.val ∧
+       Desplazado slots.bits.val x.2.bits.val delta.val x.1.start.val)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, by simp, hlen0, h0⟩
+  · intro x hinv
+    obtain ⟨iter, nb⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hle, hlen, hdes⟩ := hinv
+    simp only at hend hle hlen hdes
+    subst hend
+    unfold justified_slots_ops.shift_window_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | trivial
+      | simp [PostCond.div, PostCond.mayThrow]
+    -- Rama 1: el bit corrido esta en uno y se copia.
+    · rename_i hlt s hs i1 hi1 o ho b hb hbo r hr u hu
+      refine ⟨by omega, ?_, ?_⟩
+      · rw [hr.1]; simpa using hlen
+      · rw [hs, hr.1]
+        refine desplazado_true hdes (by omega) ?_
+        have ho' : slots.bits.val[desde.val + delta.val]? = o := by rw [ho, hi1]
+        rw [ho']
+        subst hbo
+        cases o with
+        | none => simp at hb
+        | some a => simp at hb; rw [hb]
+    -- Rama 2: el bit corrido esta en cero.
+    · rename_i hlt s hs i1 hi1 o ho b hb hbo
+      refine ⟨by omega, hlen, ?_⟩
+      rw [hs]
+      refine desplazado_false hdes (by omega) (by omega) ?_
+      have ho' : slots.bits.val[desde.val + delta.val]? = o := by rw [ho, hi1]
+      rw [ho', ← hbo]
+      simpa using hb
+    -- Rama 3: se termino el rango.
+    · rename_i hge
+      simp only [PostCond.okAssertion]
+      have hfin : desde.val = hasta.val := by omega
+      rw [← hfin]
+      exact ⟨by omega, hdes⟩
+end
+
+theorem shift_loop_spec' (slots nb0 : ssz.SszBitlist 262144#usize)
+    (delta rem : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄
+    justified_slots_ops.shift_window_loop { start := 0#usize, «end» := rem } slots delta nb0
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ nb0.bits.val.length = rem.val →
+                    rem.val + delta.val = slots.bits.val.length →
+                    Desplazado slots.bits.val nb0.bits.val delta.val 0 →
+                    (r.bits.val.length = rem.val ∧
+                     Desplazado slots.bits.val r.bits.val delta.val rem.val) ⌝) ⦄ :=
+  triple_mayThrow_of (fun _ hv h1 h2 h3 =>
+    of_triple_mayThrow (shift_loop_spec slots nb0 delta rem h1 h2 h3) hv)
+
+theorem bl_new_spec (N : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ ssz.SszBitlist.new N
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.bits.val = [] ⌝) ⦄ :=
+  triple_mayThrow_of (fun r hr => by
+    simp [ssz.SszBitlist.new, alloc.vec.Vec.new,
+      rust_primitives.sequence.seq_empty] at hr
+    rw [← hr]
+    rfl)
+
+section
+attribute [local spec] bl_len_spec bl_with_length_spec bl_new_spec
+  ST7.expect_modelo_spec shift_loop_spec'
+
+theorem shift_window_spec (slots : ssz.SszBitlist 262144#usize) (delta : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄
+    justified_slots_ops.shift_window slots delta
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ r.bits.val = slots.bits.val.drop delta.val ⌝) ⦄ := by
+  unfold justified_slots_ops.shift_window
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | trivial
+    | (simp_all; done)
+  -- Queda la rama que arma la lista nueva y corre el loop de copia.
+  · rename_i hne n hnge hn rem hrem hle r hwl nb hnb res hloop
+    have hbits := hwl nb hnb
+    have h1 : nb.bits.val.length = rem.val := by rw [hbits]; simp
+    have h2 : rem.val + delta.val = slots.bits.val.length := by omega
+    have h3 : Desplazado slots.bits.val nb.bits.val delta.val 0 := by
+      rw [hbits]; exact desplazado_ini _ _ _
+    obtain ⟨hl, hd⟩ := hloop h1 h2 h3
+    refine desplazado_fin (by omega) ?_
+    rw [hl]; exact hd
+end
+
+/- ====================================================================
+   Los enunciados, como ecuaciones.
+   ==================================================================== -/
+
+/-- Teorema 1, forma exacta: `extend_to_slot` solo agrega bits en cero al
+    final. -/
+theorem extend_to_slot_eq (slots slots' : ssz.SszBitlist 262144#usize)
+    (f t : Std.U64)
+    (h : justified_slots_ops.extend_to_slot slots f t = ok slots') :
+    slots'.bits.val = slots.bits.val ++
+      List.replicate (slots'.bits.val.length - slots.bits.val.length) false :=
+  of_triple_mayThrow (extend_to_slot_spec slots f t) h
+
+/-- Teorema 1: `extend_to_slot` no pierde bits. Todo bit que estaba en uno
+    sigue en uno, en la misma posicion. -/
+theorem extend_to_slot_no_pierde_bits (slots slots' : ssz.SszBitlist 262144#usize)
+    (f t : Std.U64)
+    (h : justified_slots_ops.extend_to_slot slots f t = ok slots')
+    (j : Nat) (b : Bool) (hj : slots.bits.val[j]? = some b) :
+    slots'.bits.val[j]? = some b := by
+  rw [extend_to_slot_eq slots slots' f t h]
+  obtain ⟨hlt, _⟩ := List.getElem?_eq_some_iff.mp hj
+  rw [List.getElem?_append_left hlt]
+  exact hj
+
+/-- Teorema 3: `shift_window` corre sin deformar. La lista nueva es la vieja
+    sin sus primeros `delta` bits. -/
+theorem shift_window_eq (slots slots' : ssz.SszBitlist 262144#usize)
+    (delta : Std.Usize)
+    (h : justified_slots_ops.shift_window slots delta = ok slots') :
+    slots'.bits.val = slots.bits.val.drop delta.val :=
+  of_triple_mayThrow (shift_window_spec slots delta) h
+
+/-- Teorema 3, bit a bit: el bit en `i + delta` antes es el bit en `i`
+    despues. -/
+theorem shift_window_corre (slots slots' : ssz.SszBitlist 262144#usize)
+    (delta : Std.Usize)
+    (h : justified_slots_ops.shift_window slots delta = ok slots') (i : Nat) :
+    slots'.bits.val[i]? = slots.bits.val[i + delta.val]? := by
+  rw [shift_window_eq slots slots' delta h, List.getElem?_drop, Nat.add_comm]
+
+/-- Lo que `is_slot_justified` lee: si el slot esta por encima del finalizado
+    y responde `Ok b`, es porque el bit de su indice relativo vale `b`. -/
+theorem is_slot_justified_lee (slots : ssz.SszBitlist 262144#usize)
+    (f s : Std.U64) (idx : Std.Usize) (b : Bool)
+    (ho : justified_slots_ops.relative_index s f = ok (some idx))
+    (hj : justified_slots_ops.is_slot_justified slots f s =
+            ok (core.result.Result.Ok b)) :
+    slots.bits.val[idx.val]? = some b := by
+  unfold justified_slots_ops.is_slot_justified at hj
+  rw [ho] at hj
+  obtain ⟨n, hn, -⟩ := len_eq slots
+  cases hg : slots.bits.val[idx.val]? with
+  | none => simp [get_eq, hn, hg, core.option.Option.ok_or] at hj
+  | some v =>
+    simp [get_eq, hn, hg, core.option.Option.ok_or] at hj
+    rw [hj]
+
+/-- Y al reves: si el bit del indice relativo vale `b`, responde `Ok b`. -/
+theorem is_slot_justified_de_bit (slots : ssz.SszBitlist 262144#usize)
+    (f s : Std.U64) (idx : Std.Usize) (b : Bool)
+    (ho : justified_slots_ops.relative_index s f = ok (some idx))
+    (hbit : slots.bits.val[idx.val]? = some b) :
+    justified_slots_ops.is_slot_justified slots f s =
+      ok (core.result.Result.Ok b) := by
+  unfold justified_slots_ops.is_slot_justified
+  rw [ho]
+  obtain ⟨n, hn, -⟩ := len_eq slots
+  simp [get_eq, hn, hbit, core.option.Option.ok_or]
+
+/-- Por encima del finalizado, `relative_index` da el indice, y si la
+    distancia entra en un `usize` el indice es la distancia menos uno. -/
+theorem relative_index_arriba (s f : Std.U64) (hfs : f.val < s.val)
+    (hfit : s.val - f.val - 1 < 2 ^ UScalarTy.Usize.numBits) :
+    ∃ idx : Std.Usize, justified_slots_ops.relative_index s f = ok (some idx) ∧
+      idx.val = s.val - f.val - 1 := by
+  obtain ⟨o, ho, hnone, hval⟩ := relative_index_eq s f
+  cases o with
+  | none => have := hnone.mp rfl; omega
+  | some idx =>
+    exact ⟨idx, ho, by rw [hval idx rfl]; exact Nat.mod_eq_of_lt hfit⟩
+
+/-- `extend_to_slot` no cambia ninguna respuesta que ya se podia leer. -/
+theorem extend_to_slot_conserva_respuestas
+    (slots slots' : ssz.SszBitlist 262144#usize) (f t s : Std.U64) (b : Bool)
+    (hext : justified_slots_ops.extend_to_slot slots f t = ok slots')
+    (hj : justified_slots_ops.is_slot_justified slots f s =
+            ok (core.result.Result.Ok b)) :
+    justified_slots_ops.is_slot_justified slots' f s =
+      ok (core.result.Result.Ok b) := by
+  obtain ⟨o, ho, -, -⟩ := relative_index_eq s f
+  cases o with
+  | none =>
+    unfold justified_slots_ops.is_slot_justified at hj ⊢
+    rw [ho] at hj ⊢
+    exact hj
+  | some idx =>
+    have hbit := is_slot_justified_lee slots f s idx b ho hj
+    exact is_slot_justified_de_bit slots' f s idx b ho
+      (extend_to_slot_no_pierde_bits slots slots' f t hext idx.val b hbit)
+
+/-- Teorema 4, el compuesto. Cuando la finalidad avanza de `f` a `f'` y la
+    ventana se corre esa distancia, todo slot que sigue por encima del limite
+    nuevo se reporta igual que antes: justificado si lo estaba, no justificado
+    si no. Involucra `relative_index`, `is_slot_justified` y `shift_window`, y
+    los dos sistemas de indices (relativo a `f` y relativo a `f'`). -/
+theorem finalizar_conserva_justificados
+    (slots slots' : ssz.SszBitlist 262144#usize) (f f' s : Std.U64)
+    (delta : Std.Usize) (b : Bool)
+    (hff : f.val ≤ f'.val) (hfs : f'.val < s.val)
+    (hdelta : delta.val = f'.val - f.val)
+    (hfit : s.val - f.val - 1 < 2 ^ UScalarTy.Usize.numBits)
+    (hj : justified_slots_ops.is_slot_justified slots f s =
+            ok (core.result.Result.Ok b))
+    (hsh : justified_slots_ops.shift_window slots delta = ok slots') :
+    justified_slots_ops.is_slot_justified slots' f' s =
+      ok (core.result.Result.Ok b) := by
+  obtain ⟨idx, ho, hidx⟩ := relative_index_arriba s f (by omega) hfit
+  obtain ⟨idx', ho', hidx'⟩ := relative_index_arriba s f' hfs (by omega)
+  have hbit := is_slot_justified_lee slots f s idx b ho hj
+  refine is_slot_justified_de_bit slots' f' s idx' b ho' ?_
+  rw [shift_window_corre slots slots' delta hsh]
+  have e : idx'.val + delta.val = idx.val := by omega
+  rw [e]
+  exact hbit
+
+end JS
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -2638,3 +3399,8 @@ theorem ST6.finalizacion_irreversible
 #print axioms ST2.state_transition_conserva_no_genesis
 #print axioms ST4.state_transition_justificado_ge_finalizado
 #print axioms ST6.finalizacion_irreversible
+#print axioms JS.set_luego_is_justified
+#print axioms JS.extend_to_slot_no_pierde_bits
+#print axioms JS.shift_window_corre
+#print axioms JS.extend_to_slot_conserva_respuestas
+#print axioms JS.finalizar_conserva_justificados

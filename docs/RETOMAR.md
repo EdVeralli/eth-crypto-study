@@ -9,13 +9,17 @@ _Ultima actualizacion: 2026-11-15_
 > pendiente es enviarlo a LambdaClass. La Mac se formateo el 12 nov: como reconstruir
 > el entorno esta en `RESTAURAR.md`, en la raiz del repo.
 >
-> El 15 nov el paquete se amplio: ahora tiene veintidos resultados demostrados y cubre
+> El 15 nov el paquete se amplio: ese dia quedo con veintidos resultados demostrados y cubre
 > las siete proposiciones de transicion de estado del catalogo de `formal-leanSpec`
 > (`ST-1` a `ST-7`; `ST-4` en su paso inductivo, `ST-7` con una hipotesis extra). Al
 > demostrar `ST-7` aparecio un punto donde ethlambda y la especificacion eligen
 > distinto: el empate de slots al justificar. Esta contado en la propuesta, seccion
 > "El reemplazo de checkpoint". Ese mismo dia la suite completa volvio a pasar en la
 > Mac formateada: `364 passed in 7732.92s (2:08:52)`, sin diferencias contra git.
+>
+> El 17 nov se demostraron los cuatro teoremas originales sobre la ventana de slots
+> justificados (`justified_slots_ops`), los del analisis del 22 oct. El paquete queda
+> con veintisiete resultados.
 
 ## Como retomar en otra computadora (Windows)
 

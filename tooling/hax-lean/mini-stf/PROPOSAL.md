@@ -22,6 +22,10 @@ hypothesis, because on a slot tie your code and the spec choose differently. Of
 the other five, one is left at its inductive step and one is not stated because
 it is trivial; which is which is spelled out.
 
+Outside the catalog there are four more, about the justified-slots window: the
+ones we set ourselves on first reading your code. The last says that when
+finality advances and the window shifts, no justified slot is lost.
+
 Every number here came from a run.
 
 ## Which version this is against
@@ -123,12 +127,12 @@ What each step should give:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
-| 6 | `22` — one axiom block per result — and `0` |
+| 6 | `27` — one axiom block per result — and `0` |
 
 There is no separate "run the proofs" step. The theorems are in
 `teoremas/ProofObligations.lean`; step 5 copies that file into the Lean project
 and `lake build` checks all of it. If the build ends green, Lean accepted the
-twenty-two proofs. At the end it prints which axioms each one depends on, which
+twenty-seven proofs. At the end it prints which axioms each one depends on, which
 is what step 6 counts.
 
 To convince yourself the check is real, break a statement by hand. In
@@ -257,10 +261,10 @@ Everything, with line counts as shipped.
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 322 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 2640 | ours — the theorems. |
-| `axiomas.txt` | 360 | ours — the `#print axioms` output, so the trust base can be read without building. |
+| `teoremas/ProofObligations.lean` | 3406 | ours — the theorems. |
+| `axiomas.txt` | 397 | ours — the `#print axioms` output, so the trust base can be read without building. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 746 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 790 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -353,7 +357,7 @@ down.
 
 ## What you get
 
-`teoremas/ProofObligations.lean` holds twenty-two named results:
+`teoremas/ProofObligations.lean` holds twenty-seven named results:
 
 | Result | What it is |
 |---|---|
@@ -378,6 +382,11 @@ down.
 | `ST2.state_transition_conserva_no_genesis` | if the latest header was not the genesis one, it still is not after `state_transition` |
 | `ST4.state_transition_justificado_ge_finalizado` | **if the finalized slot does not exceed the justified one before `state_transition`, it does not after** |
 | `ST6.finalizacion_irreversible` | finality does not roll back across `state_transition` — the `ST-3` half, under its own name |
+| `JS.set_luego_is_justified` | after `set_justified(s)`, `is_slot_justified(s)` returns `Ok(true)` |
+| `JS.extend_to_slot_no_pierde_bits` | `extend_to_slot` changes no bit's value or place |
+| `JS.extend_to_slot_conserva_respuestas` | whatever `is_slot_justified` answered before extending, it answers after |
+| `JS.shift_window_corre` | after `shift_window`, the bit at `i` is the one that was at `i + delta` |
+| `JS.finalizar_conserva_justificados` | **when finality advances and the window shifts, every slot above the new boundary is reported as before** |
 | `bind_da_ok` | a tool: opens one `RustM` bind |
 
 They were not picked for count. Between them they cover arithmetic, branching
@@ -664,6 +673,71 @@ name.
 function, your translated one included, and adding it would say nothing about
 the code.
 
+### The justified-slots window
+
+`justified_slots_ops` is the bitlist that records which slots are justified,
+indexed relative to the finalized slot. The results above went around it: they
+come from guards, assignments and the history. These go in.
+
+They are not from the catalog. They are the four we set ourselves on 22
+October, on first reading your code and before translating anything:
+
+| | Statement |
+|---|---|
+| round trip | after `set_justified(s)`, `is_slot_justified(s)` returns `Ok(true)` |
+| `extend_to_slot` | the new list is the old one plus zeros at the end: no bit changes value or place |
+| `shift_window` | the new list is the old one without its first `delta` bits |
+| the composite | when finality advances from `f` to `f'` and the window shifts by `f' − f`, every slot above `f'` is reported as before |
+
+The last one is what justified the exercise:
+
+```lean
+theorem JS.finalizar_conserva_justificados
+    (slots slots' : ssz.SszBitlist ...) (f f' s : U64) (delta : Usize) (b : Bool)
+    (hff : f.val ≤ f'.val) (hfs : f'.val < s.val)
+    (hdelta : delta.val = f'.val - f.val)
+    (hfit : s.val - f.val - 1 < 2 ^ UScalarTy.Usize.numBits) :
+    is_slot_justified slots f s = ok (Ok b) →
+    shift_window slots delta = ok slots' →
+    is_slot_justified slots' f' s = ok (Ok b)
+```
+
+It involves three functions and two index systems. Slot `s` sits at position
+`s − f − 1` before and at `s − f' − 1` after, and `shift_window` must have moved
+exactly that bit. It is not something you check by reading.
+
+Three things differ from everything above.
+
+**The statements are exact.** They do not say "does not go backwards" but which
+list results: `slots ++ zeros` for `extend_to_slot`, `slots.drop delta` for
+`shift_window`.
+
+**Two of the conclusions are not conditional.** The round trip and the composite
+conclude that `is_slot_justified` *returns* `Ok`. That required proving, as
+equations, what `get`, `set`, `len` and `relative_index` return — for instance
+`get s i = ok (s.bits[i]?)` — going down through the `core` models to the
+bottom: slice indexing, `vec![false; n]`, overflowing subtraction. The first
+call in each statement (`set_justified`, `shift_window`) is still conditional,
+as everywhere else.
+
+**The copy loops have their invariant in plain Lean.** `Copiado` and
+`Desplazado` are predicates on lists, and their step lemmas mention nothing
+about Rust. The translated loop leaves three goals — bit set, bit clear, end of
+range — and each one is a step lemma.
+
+**The composite asks that the distance fit in a `usize`.** `relative_index`
+does `idx as usize`, and the toolchain's model does not fix the width of
+`usize`. On 64 bits `hfit` always holds. On 32 bits that cast truncates, and two
+slots 2³² apart would share a bit. Not a live bug, but a precondition the code
+does not state.
+
+**What is not there.** The three `.expect()` and the `.unwrap()` in this module
+(`"index out of bounds"`, `"capacity limit exceeded"`, `"index within
+capacity"`) are still possible panics as far as the model goes. Proving they do
+not fire needs facts about the state — that the window covers the slot being
+marked, that it stays within capacity — and is the natural first step towards
+absence of panic.
+
 ### What this is against the catalog, stated exactly
 
 `ST-3` in
@@ -726,6 +800,8 @@ own properties makes the exercise circular.
 | equality on `H256` | 3 | 3 | — | — |
 | `process_attestations` (`ST-7`) | 20 | 3 | 7 | 10 |
 | `state_transition` (`ST-4`, `ST-6`, `ST-7`, header preservation) | 23 | 3 | 9 | 11 |
+| the window: round trip, `shift_window`, the composite | 5 | 3 | 1 | 1 |
+| the window: `extend_to_slot`, both results | 6 | 3 | 2 | 1 |
 
 Three categories, with three different weights.
 
@@ -965,3 +1041,10 @@ that hypothesis the statement is false of your code, as the test shows.
 **`ST-4` is an inductive step with no base case.** Missing is that the genesis
 state has its finalized slot not above its justified one; the crate does not
 build it.
+
+**The translated functions cannot be executed in Lean.** Lean marks them
+`noncomputable`; among other things they depend on the `fmt` axioms that
+`.expect()` uses. You can prove
+things about them, but you cannot run them with `#eval` to try a concrete case:
+the evidence that they return what is expected on a given input is the Rust
+tests.

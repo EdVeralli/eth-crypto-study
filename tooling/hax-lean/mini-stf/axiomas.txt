@@ -1,7 +1,7 @@
 BASE DE AXIOMAS DE CADA TEOREMA
 
 Salida de los `#print axioms` de teoremas/ProofObligations.lean, generada
-por `lake build` el 15 nov 2026. Se entrega para que la base de confianza se
+por `lake build` el 17 nov 2026. Se entrega para que la base de confianza se
 pueda leer sin tener que compilar.
 
 Tres categorias:
@@ -333,6 +333,43 @@ ST6.finalizacion_irreversible
     ~ mini_stf.stf.try_finalize._native.decide.ax_1
     ~ mini_stf.stf.try_finalize._native.decide.ax_2
     ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+
+JS.set_luego_is_justified
+  TOTAL 5 = 3 estandar + 1 nativos + 1 modelos
+  modelos:
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  nativos:
+    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+
+JS.extend_to_slot_no_pierde_bits
+  TOTAL 6 = 3 estandar + 2 nativos + 1 modelos
+  modelos:
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+
+JS.shift_window_corre
+  TOTAL 5 = 3 estandar + 1 nativos + 1 modelos
+  modelos:
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+
+JS.extend_to_slot_conserva_respuestas
+  TOTAL 6 = 3 estandar + 2 nativos + 1 modelos
+  modelos:
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+
+JS.finalizar_conserva_justificados
+  TOTAL 5 = 3 estandar + 1 nativos + 1 modelos
+  modelos:
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
 
 ========================================================================
 

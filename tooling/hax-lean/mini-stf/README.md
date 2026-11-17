@@ -742,5 +742,50 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    > primer bloque despues del genesis establezca `EnElHistorial` (ST-7) y
    > el caso base de ST-4. Las dos piden construir el estado del genesis,
    > que el crate no tiene.
+
+   > Nota del 17 nov 2026: **los cuatro teoremas originales, sobre la ventana
+   > de slots justificados** (teorema 9 del archivo, namespace `JS`). Son los
+   > del analisis del 22 oct, sobre `justified_slots_ops`, y nunca se habian
+   > hecho: todo lo anterior esquivo la lista de bits.
+   >
+   > Quedaron los cuatro, mas fuertes que como estaban enunciados:
+   > `extend_to_slot` solo agrega ceros al final; `shift_window` es
+   > `drop delta`; despues de `set_justified(s)`, `is_slot_justified(s)`
+   > DEVUELVE `Ok(true)`; y el compuesto, para cualquier respuesta `b` y no
+   > solo para `true`.
+   >
+   > Lo que costo, en orden:
+   >
+   > 1. La capa base: `get`, `set`, `len`, `with_length` como ECUACIONES
+   >    (`get s i = ok (s.bits[i]?)`). Hay que desarmar los modelos de `core`
+   >    nivel por nivel con `#print` y `simp [...]`: `Vec::index` ->
+   >    `Slice::index` -> `SliceIndex::get` -> `slice_index` ->
+   >    `Slice.index_usize`. Cuatro corridas para cuatro lemas.
+   > 2. `vec![false; n]` es `seq_create`, que hace `List.mapM clone`. Hizo
+   >    falta `mapM_ok` (mapear `ok` devuelve la lista) por induccion.
+   > 3. `relative_index`: `checked_sub` es `uoverflowing_sub`, que resta
+   >    vectores de bits. Lema `sub_val` con `BitVec.toNat_sub_of_le`, y
+   >    despues tres casos (`t < f`, `t = f`, `t > f`).
+   > 4. Los invariantes `Copiado` y `Desplazado` sobre `List Bool`, con sus
+   >    lemas de paso en Lean puro. Compilaron todos al primer intento, y eso
+   >    hizo que los loops salieran casi solos: `hax_mvcgen` deja tres
+   >    objetivos por loop y cada uno es un lema de paso.
+   > 5. Para las funciones enteras, otra vez la hipotesis dentro de la
+   >    postcondicion.
+   >
+   > Dos cosas que aparecieron:
+   >
+   > - El `as usize` de `relative_index`. El modelo de Aeneas no fija el
+   >   ancho de `usize` (`System.Platform.numBits`), asi que el compuesto
+   >   necesita la hipotesis de que la distancia entra. En 32 bits truncaria.
+   > - Las funciones traducidas son `noncomputable`, asi que no se pueden
+   >   correr con `#eval`. Quise usarlo para mostrar un caso concreto y no se
+   >   puede. No confirme el motivo exacto; dependen del axioma de `fmt` que
+   >   usa `.expect()`, que alcanza para explicarlo.
+   >
+   > Lo que sigue: los `.expect()` y el `.unwrap()` de este modulo. Con las
+   > ecuaciones de la capa base ya se puede atacar la ausencia de panico de
+   > `set_justified`, `extend_to_slot` y `shift_window`, que pide invariantes
+   > del estado (que la ventana cubre el slot, que no pasa de la capacidad).
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

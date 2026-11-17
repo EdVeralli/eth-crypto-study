@@ -22,6 +22,10 @@ especificación y sólo bajo una hipótesis, porque ante un empate de slots su
 código y la especificación eligen distinto. De las otras cinco, una queda en su
 paso inductivo y una no se enuncia porque es trivial; está dicho cuál es cuál.
 
+Fuera del catálogo hay cuatro más, sobre la ventana de slots justificados: los
+que nos propusimos al mirar su código por primera vez. El último dice que cuando
+la finalidad avanza y la ventana se corre, ningún slot justificado se pierde.
+
 Cada número de acá salió de una corrida.
 
 ## Contra qué versión está
@@ -127,12 +131,12 @@ Qué tiene que dar cada paso:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` y después `=== listo ===` (1743 jobs la primera vez sobre un checkout limpio) |
-| 6 | `22` — un bloque de axiomas por resultado — y `0` |
+| 6 | `27` — un bloque de axiomas por resultado — y `0` |
 
 No hay un paso aparte de "correr las pruebas". Los teoremas están en
 `teoremas/ProofObligations.lean`; el paso 5 copia ese archivo adentro del
 proyecto Lean y `lake build` lo chequea entero. Si el build termina en verde,
-Lean aceptó las veintidós demostraciones. Al final imprime de qué axiomas
+Lean aceptó las veintisiete demostraciones. Al final imprime de qué axiomas
 depende cada una, que es lo que cuenta el paso 6.
 
 Para convencerse de que el chequeo es real, rompan un enunciado a mano. En
@@ -261,10 +265,10 @@ Todo, con las líneas tal como se entrega.
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 322 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 2640 | nuestro — los teoremas. |
-| `axiomas.txt` | 360 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
+| `teoremas/ProofObligations.lean` | 3406 | nuestro — los teoremas. |
+| `axiomas.txt` | 397 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 746 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 790 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -360,7 +364,7 @@ más abajo.
 
 ## Qué recibe
 
-`teoremas/ProofObligations.lean` tiene veintidós resultados con nombre:
+`teoremas/ProofObligations.lean` tiene veintisiete resultados con nombre:
 
 | Resultado | Qué es |
 |---|---|
@@ -385,6 +389,11 @@ más abajo.
 | `ST2.state_transition_conserva_no_genesis` | si el último header no era el del génesis, sigue sin serlo después de `state_transition` |
 | `ST4.state_transition_justificado_ge_finalizado` | **si el slot finalizado no supera al justificado antes de `state_transition`, tampoco después** |
 | `ST6.finalizacion_irreversible` | la finalización no retrocede a lo largo de `state_transition` — la mitad de `ST-3`, con nombre propio |
+| `JS.set_luego_is_justified` | después de `set_justified(s)`, `is_slot_justified(s)` devuelve `Ok(true)` |
+| `JS.extend_to_slot_no_pierde_bits` | `extend_to_slot` no cambia ningún bit de valor ni de lugar |
+| `JS.extend_to_slot_conserva_respuestas` | lo que `is_slot_justified` respondía antes de extender, lo responde después |
+| `JS.shift_window_corre` | tras `shift_window`, el bit en `i` es el que estaba en `i + delta` |
+| `JS.finalizar_conserva_justificados` | **al avanzar la finalidad y correr la ventana, todo slot por encima del límite nuevo se reporta igual** |
 | `bind_da_ok` | una herramienta: abre un bind de `RustM` |
 
 No se eligieron por cantidad. Entre todos cubren aritmética, ramificación y
@@ -675,6 +684,70 @@ nombre.
 cualquier función de Lean, la de ustedes traducida incluida, y agregarla no
 diría nada sobre el código.
 
+### La ventana de slots justificados
+
+`justified_slots_ops` es la lista de bits que guarda qué slots están
+justificados, con índices relativos al slot finalizado. Los resultados de arriba
+la esquivaron: salen de guardas, de asignaciones y del historial. Éstos entran.
+
+No vienen del catálogo. Son los cuatro que nos propusimos el 22 de octubre, al
+mirar su código por primera vez y antes de traducir nada:
+
+| | Enunciado |
+|---|---|
+| ida y vuelta | después de `set_justified(s)`, `is_slot_justified(s)` devuelve `Ok(true)` |
+| `extend_to_slot` | la lista nueva es la vieja más ceros al final: ningún bit cambia de valor ni de lugar |
+| `shift_window` | la lista nueva es la vieja sin sus primeros `delta` bits |
+| el compuesto | cuando la finalidad avanza de `f` a `f'` y la ventana se corre `f' − f`, todo slot por encima de `f'` se reporta igual que antes |
+
+El último es el que justificaba el ejercicio:
+
+```lean
+theorem JS.finalizar_conserva_justificados
+    (slots slots' : ssz.SszBitlist ...) (f f' s : U64) (delta : Usize) (b : Bool)
+    (hff : f.val ≤ f'.val) (hfs : f'.val < s.val)
+    (hdelta : delta.val = f'.val - f.val)
+    (hfit : s.val - f.val - 1 < 2 ^ UScalarTy.Usize.numBits) :
+    is_slot_justified slots f s = ok (Ok b) →
+    shift_window slots delta = ok slots' →
+    is_slot_justified slots' f' s = ok (Ok b)
+```
+
+Involucra tres funciones y dos sistemas de índices. El slot `s` está en la
+posición `s − f − 1` antes y en `s − f' − 1` después, y `shift_window` tiene que
+haber movido exactamente ese bit. No es algo que se verifique leyendo.
+
+Tres cosas son distintas de todo lo anterior.
+
+**Los enunciados son exactos.** No dicen "no retrocede" sino qué lista queda:
+`slots ++ ceros` para `extend_to_slot`, `slots.drop delta` para `shift_window`.
+
+**Dos de las conclusiones no son condicionales.** La ida y vuelta y el compuesto
+concluyen que `is_slot_justified` *devuelve* `Ok`. Para eso hubo que demostrar,
+como ecuaciones, qué devuelven `get`, `set`, `len` y `relative_index` —por
+ejemplo `get s i = ok (s.bits[i]?)`— bajando por los modelos de `core` hasta el
+fondo: índices de slice, `vec![false; n]`, la resta con desborde. La primera
+llamada de cada enunciado (`set_justified`, `shift_window`) sigue siendo
+condicional, como en el resto.
+
+**Los loops de copia tienen su invariante en Lean puro.** `Copiado` y
+`Desplazado` son predicados sobre listas, y sus lemas de paso no mencionan nada
+de Rust. El loop traducido deja tres objetivos —bit en uno, bit en cero, fin del
+rango— y cada uno es un lema de paso.
+
+**El compuesto pide que la distancia entre en un `usize`.** `relative_index`
+hace `idx as usize`, y el modelo de la cadena de herramientas no fija el ancho
+de `usize`. En 64 bits `hfit` vale siempre. En 32 bits ese cast trunca, y dos
+slots a distancia 2³² compartirían bit. No es un bug vivo, pero es una
+precondición que el código no enuncia.
+
+**Lo que no está.** Los tres `.expect()` y el `.unwrap()` de este módulo
+(`"index out of bounds"`, `"capacity limit exceeded"`, `"index within
+capacity"`) siguen siendo pánicos posibles para el modelo. Demostrar que no se
+disparan pide saber cosas del estado —que la ventana cubre el slot que se marca,
+que no pasa de la capacidad— y es el primer paso natural hacia la ausencia de
+pánico.
+
 ### Qué es esto contra el catálogo, dicho exacto
 
 `ST-3` en
@@ -736,6 +809,8 @@ importa: elegir las propias propiedades vuelve el ejercicio circular.
 | la igualdad de `H256` | 3 | 3 | — | — |
 | `process_attestations` (`ST-7`) | 20 | 3 | 7 | 10 |
 | `state_transition` (`ST-4`, `ST-6`, `ST-7`, conservación del header) | 23 | 3 | 9 | 11 |
+| la ventana: ida y vuelta, `shift_window`, el compuesto | 5 | 3 | 1 | 1 |
+| la ventana: `extend_to_slot`, los dos resultados | 6 | 3 | 2 | 1 |
 
 Tres categorías, con tres pesos distintos.
 
@@ -982,3 +1057,9 @@ hipótesis el enunciado es falso sobre su código, como muestra el test.
 
 **`ST-4` es un paso inductivo sin caso base.** Falta que el estado del génesis
 cumpla que el finalizado no supera al justificado; el crate no lo construye.
+
+**Las funciones traducidas no se pueden ejecutar en Lean.** Lean las marca
+`noncomputable`; entre otras cosas dependen de los axiomas de `fmt` que usa
+`.expect()`. Se demuestra sobre ellas, pero no se las puede correr con `#eval` para probar
+un caso concreto: la evidencia de que devuelven lo esperado en una entrada dada
+son los tests de Rust.

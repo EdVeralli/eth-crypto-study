@@ -118,6 +118,15 @@ funciones son `is_slot_justified`, `set_justified`, `extend_to_slot` y `shift_wi
 
 El 4 es el que justifica todo el ejercicio.
 
+> **Nota del 17 nov 2026.** Los cuatro están demostrados, y más fuertes que como están
+> enunciados acá: `extend_to_slot` sólo agrega ceros al final, `shift_window` es
+> exactamente "sacar los primeros `delta` bits", la ida y vuelta concluye que
+> `is_slot_justified` *devuelve* `Ok(true)`, y el compuesto vale para cualquier respuesta
+> y no sólo para "justificado". Están en el namespace `JS` de
+> [`ProofObligations.lean`](../tooling/hax-lean/mini-stf/teoremas/ProofObligations.lean)
+> y contados en la [`PROPUESTA.md`](../tooling/hax-lean/mini-stf/PROPUESTA.md), sección
+> "La ventana de slots justificados".
+
 ---
 
 ## 4. Las otras dos opciones, para tenerlas sobre la mesa
@@ -397,9 +406,9 @@ detalle completo.
 > **doce de doce** funciones traducidas, cero `sorry`, sin ninguna función de la STF opaca,
 > y `lake build` con 1742 jobs el 6 nov (1743 en el rearmado en limpio del 12 nov). Los
 > números finales están en la [`PROPUESTA.md`](../tooling/hax-lean/mini-stf/PROPUESTA.md).
-> Encima de la traducción hay, desde el 15 nov, veintidós resultados demostrados, que
+> Encima de la traducción hay, al 17 nov, veintisiete resultados demostrados, que
 > cubren las siete proposiciones de transición de estado del catálogo de
-> `formal-leanSpec`.
+> `formal-leanSpec` y los cuatro teoremas de la sección 3 de este documento.
 
 Nueve de las doce funciones traducidas con cero `sorry`, entre ellas
 `state_transition`, `process_slots`, `process_block`, `process_block_header`,

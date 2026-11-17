@@ -92,8 +92,10 @@ hax + Charon + Aeneas, de Rust a Lean. Se entra por
 [`PROPOSAL.md`](tooling/hax-lean/mini-stf/PROPOSAL.md) (en inglés), y
 [`RESTAURAR.md`](RESTAURAR.md) explica cómo reconstruir el entorno desde cero.
 
-Al 15 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
-`sorry` y veintidós resultados demostrados encima. Cubren las siete
+Al 17 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
+`sorry` y veintisiete resultados demostrados encima. Los últimos cinco son los
+teoremas sobre la ventana de slots justificados que se habían propuesto al
+principio, el 22 de octubre. Los demás cubren las siete
 proposiciones de transición de estado del catálogo de `formal-leanSpec` (`ST-1`
 a `ST-7`), con dos salvedades que la propuesta detalla: `ST-4` está en su paso
 inductivo y `ST-7` vale bajo una hipótesis extra. Esa hipótesis no es un
@@ -239,8 +241,10 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
 8. **Lo que le falta al paquete para valer "en todo estado alcanzable"**: el
    caso base de `ST-4` y que el primer bloque después del génesis establezca la
    hipótesis del historial de `ST-7`. Las dos piden construir el estado del
-   génesis, que el crate no tiene. Y queda el condicional de todos los
-   teoremas: la ausencia de pánico no está demostrada.
+   génesis, que el crate no tiene. Y queda el condicional de casi todos los
+   teoremas: la ausencia de pánico no está demostrada. El primer paso natural
+   son los `.expect()` de `justified_slots_ops`, que ya tiene sus ecuaciones
+   base.
 
 ## Entorno
 
