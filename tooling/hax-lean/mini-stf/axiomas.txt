@@ -371,6 +371,52 @@ JS.finalizar_conserva_justificados
   nativos:
     ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
 
+NP.is_slot_justified_total
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+NP.set_justified_total
+  TOTAL 5 = 3 estandar + 1 nativos + 1 modelos
+  modelos:
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  nativos:
+    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+
+NP.set_justified_panico
+  TOTAL 5 = 3 estandar + 1 nativos + 1 modelos
+  modelos:
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  nativos:
+    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+
+NP.set_justified_tras_voto_valido
+  TOTAL 5 = 3 estandar + 1 nativos + 1 modelos
+  modelos:
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  nativos:
+    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+
+NP.extend_to_slot_devuelve
+  TOTAL 6 = 3 estandar + 2 nativos + 1 modelos
+  modelos:
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+
+NP.shift_window_devuelve
+  TOTAL 5 = 3 estandar + 1 nativos + 1 modelos
+  modelos:
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+
+NP.finalizar_conserva_justificados_total
+  TOTAL 5 = 3 estandar + 1 nativos + 1 modelos
+  modelos:
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+
 ========================================================================
 
 NATIVOS DISTINTOS EN TODO EL BUILD: 9

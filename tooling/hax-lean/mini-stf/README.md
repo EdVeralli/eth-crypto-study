@@ -787,5 +787,43 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    > ecuaciones de la capa base ya se puede atacar la ausencia de panico de
    > `set_justified`, `extend_to_slot` y `shift_window`, que pide invariantes
    > del estado (que la ventana cubre el slot, que no pasa de la capacidad).
+
+   > Segunda nota del 17 nov 2026: **la ventana no entra en panico** (teorema
+   > 10, namespace `NP`). Primer resultado de ausencia de panico del paquete.
+   >
+   > - `is_slot_justified` devuelve siempre.
+   > - `set_justified` entra en panico EXACTAMENTE cuando `is_slot_justified`
+   >   responde `Err` (dos lemas, uno por lado; el segundo demuestra
+   >   `= fail Error.panic`).
+   > - `extend_to_slot` devuelve si `t - f <= 262144`; `shift_window` si la
+   >   lista no pasa de 262144.
+   > - En el punto de uso: tras un voto que `is_valid_vote` acepta,
+   >   `set_justified` sobre su target devuelve. O sea que el
+   >   `expect("index out of bounds")` no se dispara en `process_attestations`.
+   > - El teorema 4 queda sin condicional de panico.
+   >
+   > Como se hace, que es lo reutilizable:
+   >
+   > 1. Postcondicion `⇓` en vez de `PostCond.mayThrow`. Con eso `hax_mvcgen`
+   >    deja un objetivo por cada punto donde el codigo podria abortar: la
+   >    precondicion del `expect`, la rama `h_fail` de cada suma.
+   > 2. Los lemas `@[spec]` tambien tienen que ser totales. Salen de las
+   >    ecuaciones de la capa base con el puente `triple_total_of`.
+   > 3. `expect` y `unwrap` llevan PRECONDICION: `⌜∃ t, r = Ok t⌝`. La terna
+   >    se demuestra por casos sobre `r` y `simp [Triple, WP.wp, ...]`.
+   > 4. `loop_spec` con medida de verdad:
+   >    `termination := fun x => x.1.end.val - x.1.start.val`, y en cada rama
+   >    `cont` se cierra con `Or.inl (by omega)`.
+   > 5. Los lemas con hipotesis SI sirven como `@[spec]`: `hax_mvcgen` deja
+   >    cada hipotesis como un objetivo aparte. Para ternas totales no vale
+   >    el truco de meter la hipotesis en la postcondicion.
+   > 6. `of_triple_total` convierte la terna en `∃ v, x = ok v ∧ P v`.
+   >
+   > Todo compilo en seis corridas. Control negativo: `shift_window` sin la
+   > hipotesis de capacidad se detiene en el `expect` de `with_length`.
+   >
+   > Lo que sigue: las hipotesis de capacidad como invariantes del estado
+   > (que `justified_slots` nunca pase de 262144), y la ausencia de panico
+   > del resto de la STF, funcion por funcion, con esta misma receta.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

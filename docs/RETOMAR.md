@@ -18,8 +18,8 @@ _Ultima actualizacion: 2026-11-15_
 > Mac formateada: `364 passed in 7732.92s (2:08:52)`, sin diferencias contra git.
 >
 > El 17 nov se demostraron los cuatro teoremas originales sobre la ventana de slots
-> justificados (`justified_slots_ops`), los del analisis del 22 oct. El paquete queda
-> con veintisiete resultados.
+> justificados (`justified_slots_ops`), los del analisis del 22 oct, y que ese modulo no
+> entra en panico. El paquete queda con treinta y cuatro resultados.
 
 ## Como retomar en otra computadora (Windows)
 

@@ -93,9 +93,10 @@ hax + Charon + Aeneas, de Rust a Lean. Se entra por
 [`RESTAURAR.md`](RESTAURAR.md) explica cómo reconstruir el entorno desde cero.
 
 Al 17 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
-`sorry` y veintisiete resultados demostrados encima. Los últimos cinco son los
-teoremas sobre la ventana de slots justificados que se habían propuesto al
-principio, el 22 de octubre. Los demás cubren las siete
+`sorry` y treinta y cuatro resultados demostrados encima. Los últimos doce son
+sobre la ventana de slots justificados: los cuatro teoremas que se habían
+propuesto al principio, el 22 de octubre, y la demostración de que ese módulo
+no entra en pánico. Los demás cubren las siete
 proposiciones de transición de estado del catálogo de `formal-leanSpec` (`ST-1`
 a `ST-7`), con dos salvedades que la propuesta detalla: `ST-4` está en su paso
 inductivo y `ST-7` vale bajo una hipótesis extra. Esa hipótesis no es un
@@ -242,9 +243,9 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    caso base de `ST-4` y que el primer bloque después del génesis establezca la
    hipótesis del historial de `ST-7`. Las dos piden construir el estado del
    génesis, que el crate no tiene. Y queda el condicional de casi todos los
-   teoremas: la ausencia de pánico no está demostrada. El primer paso natural
-   son los `.expect()` de `justified_slots_ops`, que ya tiene sus ecuaciones
-   base.
+   teoremas: la ausencia de pánico está demostrada sólo para
+   `justified_slots_ops`. Faltan sus hipótesis de capacidad como invariantes
+   del estado, y el resto de la STF función por función.
 
 ## Entorno
 

@@ -126,6 +126,10 @@ El 4 es el que justifica todo el ejercicio.
 > [`ProofObligations.lean`](../tooling/hax-lean/mini-stf/teoremas/ProofObligations.lean)
 > y contados en la [`PROPUESTA.md`](../tooling/hax-lean/mini-stf/PROPUESTA.md), sección
 > "La ventana de slots justificados".
+>
+> Y las tres obligaciones de los `.expect()` que se mencionan arriba también: está
+> demostrado cuándo cada función del módulo devuelve y cuándo entra en pánico (sección "La
+> ventana no entra en pánico" de la propuesta).
 
 ---
 
@@ -406,7 +410,7 @@ detalle completo.
 > **doce de doce** funciones traducidas, cero `sorry`, sin ninguna función de la STF opaca,
 > y `lake build` con 1742 jobs el 6 nov (1743 en el rearmado en limpio del 12 nov). Los
 > números finales están en la [`PROPUESTA.md`](../tooling/hax-lean/mini-stf/PROPUESTA.md).
-> Encima de la traducción hay, al 17 nov, veintisiete resultados demostrados, que
+> Encima de la traducción hay, al 17 nov, treinta y cuatro resultados demostrados, que
 > cubren las siete proposiciones de transición de estado del catálogo de
 > `formal-leanSpec` y los cuatro teoremas de la sección 3 de este documento.
 

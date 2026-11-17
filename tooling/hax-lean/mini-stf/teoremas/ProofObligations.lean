@@ -3379,6 +3379,543 @@ theorem finalizar_conserva_justificados
 
 end JS
 
+/- ===========================================================================
+   Teorema 10: la ventana de slots no entra en panico (17 nov 2026)
+
+   Todo lo anterior dice "si la funcion devuelve, entonces...". Esto es lo
+   otro: que DEVUELVE. Para las cuatro funciones de `justified_slots_ops`:
+
+     - `is_slot_justified` nunca entra en panico, sin condiciones.
+     - `set_justified` entra en panico EXACTAMENTE cuando `is_slot_justified`
+       rechaza el slot (`Err`: esta fuera de la ventana). Son dos lemas: si
+       responde `Ok`, `set_justified` devuelve; si responde `Err`,
+       `set_justified = fail panic`. Es el `expect("index out of bounds")`.
+     - `extend_to_slot` devuelve si el slot pedido esta a lo sumo 262144 por
+       encima del finalizado. Cubre el `expect("capacity limit exceeded")`,
+       el `expect("index within capacity")` del loop y el desborde de
+       `required_idx + 1`.
+     - `shift_window` devuelve si la lista no pasa de 262144. Cubre el
+       `expect`, el `unwrap` del loop y el desborde de `i + delta`.
+
+   Y en el punto de uso: despues de un voto que `is_valid_vote` acepta,
+   `set_justified` sobre su target no entra en panico. Es la llamada que hace
+   el loop de `process_attestations`, con el mismo estado entre las dos, asi
+   que ese `expect` no se puede disparar ahi.
+
+   Como esta armado. Las ternas de antes usaban `PostCond.mayThrow`, que
+   tolera el panico y la divergencia. Estas usan `⇓`, que no tolera ninguna
+   de las dos, asi que cada punto donde el codigo podria abortar aparece como
+   un objetivo a demostrar: que el indice esta en rango, que la suma no
+   desborda, que lo pedido entra en la capacidad. Y `loop_spec` recibe una
+   medida de terminacion de verdad (`end - start`) en vez de la constante de
+   antes. Dos puentes nuevos, `triple_total_of` y `of_triple_total`, van y
+   vienen entre "devuelve `v` y vale `P v`" y la terna total.
+
+   Con esto el teorema 4 queda sin condicional de panico
+   (`finalizar_conserva_justificados_total`), y se despeja la duda de si los
+   enunciados del teorema 9 eran vacios: `shift_window` y `extend_to_slot`
+   devuelven.
+
+   Lo que NO esta: que las hipotesis de capacidad valgan en todo estado
+   alcanzable (que la ventana nunca pase de 262144, que el slot nunca este
+   mas lejos que eso del finalizado). Son invariantes del estado, no de este
+   modulo.
+   =========================================================================== -/
+
+namespace NP
+open mini_stf
+open Std.Tactic
+open ST3 JS
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+/-- De "devuelve `v` y vale `P v`" a terna de correccion TOTAL. -/
+theorem triple_total_of {α : Type} {x : RustM α} {P : α → Prop}
+    (h : ∃ v, x = ok v ∧ P v) :
+    ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
+  obtain ⟨v, rfl, hv⟩ := h
+  simp [Triple, WP.wp, PredTrans.apply, hv]
+
+/-- Y de vuelta: una terna total dice que la funcion DEVUELVE. -/
+theorem of_triple_total {α : Type} {x : RustM α} {P : α → Prop}
+    (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) : ∃ v, x = ok v ∧ P v := by
+  cases x with
+  | ok v => exact ⟨v, rfl, by simpa [Triple, WP.wp, PredTrans.apply] using h⟩
+  | fail e => simp [Triple, WP.wp, PredTrans.apply] at h
+  | div => simp [Triple, WP.wp, PredTrans.apply] at h
+
+theorem bl_get_total {N : Std.Usize} (s : ssz.SszBitlist N) (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ ssz.SszBitlist.get s i ⦃ ⇓ r => ⌜ r = s.bits.val[i.val]? ⌝ ⦄ :=
+  triple_total_of ⟨_, get_eq s i, rfl⟩
+
+theorem bl_set_total {N : Std.Usize} (s : ssz.SszBitlist N) (i : Std.Usize) (v : Bool) :
+    ⦃ ⌜ True ⌝ ⦄ ssz.SszBitlist.set s i v
+    ⦃ ⇓ r => ⌜ r.2.bits.val = s.bits.val.set i.val v ∧
+        (r.1 = core.result.Result.Ok () ↔ i.val < s.bits.val.length) ⌝ ⦄ :=
+  triple_total_of (set_eq s i v)
+
+theorem unwrap_or_total {T : Type} (o : core.option.Option T) (d : T) :
+    ⦃ ⌜ True ⌝ ⦄ core.option.Option.unwrap_or o d ⦃ ⇓ r => ⌜ r = o.getD d ⌝ ⦄ :=
+  triple_total_of ⟨o.getD d, by cases o <;> rfl, rfl⟩
+
+theorem unwrap_total {T E : Type} (inst : core.fmt.Debug E)
+    (r : core.result.Result T E) :
+    ⦃ ⌜ ∃ t, r = core.result.Result.Ok t ⌝ ⦄ core.result.Result.unwrap inst r
+    ⦃ ⇓ v => ⌜ r = core.result.Result.Ok v ⌝ ⦄ := by
+  cases r with
+  | Ok x => simp [core.result.Result.unwrap, Triple, WP.wp, PredTrans.apply]
+  | Err e => simp [Triple, WP.wp, PredTrans.apply]
+
+theorem expect_total {T E : Type} (inst : core.fmt.Debug E)
+    (r : core.result.Result T E) (msg : Str) :
+    ⦃ ⌜ ∃ t, r = core.result.Result.Ok t ⌝ ⦄ core.result.Result.expect inst r msg
+    ⦃ ⇓ v => ⌜ r = core.result.Result.Ok v ⌝ ⦄ := by
+  cases r with
+  | Ok x => simp [core.result.Result.expect, Triple, WP.wp, PredTrans.apply]
+  | Err e => simp [Triple, WP.wp, PredTrans.apply]
+
+theorem opt_eq_true_total (o : core.option.Option Bool) :
+    ⦃ ⌜ True ⌝ ⦄
+    core.option.Option.Insts.CoreCmpPartialEqOption.eq
+      core.Bool.Insts.CoreCmpPartialEqBool o (core.option.Option.Some true)
+    ⦃ ⇓ r => ⌜ r = true ↔ o = some true ⌝ ⦄ :=
+  triple_total_of (by
+    unfold core.option.Option.Insts.CoreCmpPartialEqOption.eq
+    cases o with
+    | none => exact ⟨false, rfl, by simp⟩
+    | some a => exact ⟨a == true, rfl, by cases a <;> simp⟩)
+
+theorem bl_len_total {N : Std.Usize} (s : ssz.SszBitlist N) :
+    ⦃ ⌜ True ⌝ ⦄ ssz.SszBitlist.len s ⦃ ⇓ r => ⌜ r.val = s.bits.val.length ⌝ ⦄ :=
+  triple_total_of (len_eq s)
+
+/-- `with_length` nunca entra en panico: devuelve `Err` si no entra en la
+    capacidad, y si entra devuelve la lista de ceros. -/
+theorem with_length_total_eq (N l : Std.Usize) :
+    ∃ r, ssz.SszBitlist.with_length N l = ok r ∧
+      (l.val ≤ N.val → ∃ b, r = core.result.Result.Ok b ∧
+         b.bits.val = List.replicate l.val false) := by
+  have hclone : (core.Bool.Insts.CoreCloneClone.clone) =
+      fun x : Bool => (ok x : RustM Bool) := by
+    funext x; rfl
+  by_cases hN : N.val < l.val
+  · refine ⟨core.result.Result.Err (), ?_, fun h => by omega⟩
+    unfold ssz.SszBitlist.with_length
+    simp [hN]
+  · have hex : ∃ b : ssz.SszBitlist N,
+        ssz.SszBitlist.with_length N l = ok (core.result.Result.Ok b) := by
+      unfold ssz.SszBitlist.with_length
+      simp [alloc.vec.from_elem, rust_primitives.sequence.seq_create, hclone, mapM_ok]
+      by_cases h0 : l.val = 0
+      · simp [hN, h0]
+      · have hlt : l.val - 1 < Usize.max := by scalar_tac
+        simp [hN, h0, hlt]
+    obtain ⟨b, hb⟩ := hex
+    exact ⟨_, hb, fun _ => ⟨b, rfl, with_length_eq N l b hb⟩⟩
+
+theorem bl_with_length_total (N l : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ ssz.SszBitlist.with_length N l
+    ⦃ ⇓ r => ⌜ l.val ≤ N.val → ∃ b, r = core.result.Result.Ok b ∧
+        b.bits.val = List.replicate l.val false ⌝ ⦄ :=
+  triple_total_of (with_length_total_eq N l)
+
+section
+attribute [local spec] bl_get_total bl_set_total unwrap_or_total unwrap_total
+
+/-- El loop de `shift_window` TERMINA y no entra en panico, y deja lo que
+    dice el teorema 3. -/
+theorem shift_loop_total (slots nb0 : ssz.SszBitlist 262144#usize)
+    (delta rem : Std.Usize)
+    (hlen0 : nb0.bits.val.length = rem.val)
+    (hsum : rem.val + delta.val = slots.bits.val.length)
+    (h0 : Desplazado slots.bits.val nb0.bits.val delta.val 0) :
+    ⦃ ⌜ True ⌝ ⦄
+    justified_slots_ops.shift_window_loop { start := 0#usize, «end» := rem } slots delta nb0
+    ⦃ ⇓ r => ⌜ r.bits.val.length = rem.val ∧
+               Desplazado slots.bits.val r.bits.val delta.val rem.val ⌝ ⦄ := by
+  unfold justified_slots_ops.shift_window_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × (ssz.SszBitlist 262144#usize) =>
+       x.1.«end» = rem ∧ x.1.start.val ≤ rem.val ∧
+       x.2.bits.val.length = rem.val ∧
+       Desplazado slots.bits.val x.2.bits.val delta.val x.1.start.val)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, by simp, hlen0, h0⟩
+  · intro x hinv
+    obtain ⟨iter, nb⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hle, hlen, hdes⟩ := hinv
+    simp only at hend hle hlen hdes
+    subst hend
+    unfold justified_slots_ops.shift_window_loop.body
+    hax_mvcgen
+    -- 1. El `unwrap` del `set` no entra en panico: el indice esta en rango.
+    · rename_i hlt s hs i1 hi1 o ho b hb hbo r hr
+      exact ⟨(), hr.2.mpr (by omega)⟩
+    -- 2. Bit en uno: se copia, y el contador baja.
+    · rename_i hlt s hs i1 hi1 o ho b hb hbo r hr u hu
+      refine ⟨⟨trivial, by omega, ?_, ?_⟩, Or.inl (by omega)⟩
+      · rw [hr.1]; simpa using hlen
+      · rw [hs, hr.1]
+        refine desplazado_true hdes (by omega) ?_
+        have ho' : slots.bits.val[desde.val + delta.val]? = o := by rw [ho, hi1]
+        rw [ho']
+        subst hbo
+        cases o with
+        | none => simp at hb
+        | some a => simp at hb; rw [hb]
+    -- 3. Bit en cero: no se toca nada, y el contador baja.
+    · rename_i hlt s hs i1 hi1 o ho b hb hbo
+      refine ⟨⟨trivial, by omega, hlen, ?_⟩, Or.inl (by omega)⟩
+      rw [hs]
+      refine desplazado_false hdes (by omega) (by omega) ?_
+      have ho' : slots.bits.val[desde.val + delta.val]? = o := by rw [ho, hi1]
+      rw [ho', ← hbo]
+      simpa using hb
+    -- 4. `i + delta` no desborda: queda adentro de la lista original.
+    · rename_i hlt s hs hov
+      exfalso
+      have := slots.bits.property
+      scalar_tac
+    -- 5. Se termino el rango.
+    · rename_i hge
+      have hfin : desde.val = hasta.val := by omega
+      show nb.bits.val.length = hasta.val ∧
+        Desplazado slots.bits.val nb.bits.val delta.val hasta.val
+      rw [← hfin]
+      exact ⟨by omega, hdes⟩
+end
+
+section
+attribute [local spec] bl_get_total bl_set_total opt_eq_true_total expect_total
+
+/-- El loop de `extend_to_slot` TERMINA y no entra en panico, y deja lo que
+    dice el teorema 1. -/
+theorem extend_loop_total (slots ext0 : ssz.SszBitlist 262144#usize)
+    (n : Std.Usize) (hn : n.val = slots.bits.val.length)
+    (h0 : Copiado slots.bits.val ext0.bits.val 0) :
+    ⦃ ⌜ True ⌝ ⦄
+    justified_slots_ops.extend_to_slot_loop { start := 0#usize, «end» := n } slots ext0
+    ⦃ ⇓ r => ⌜ Copiado slots.bits.val r.bits.val slots.bits.val.length ⌝ ⦄ := by
+  unfold justified_slots_ops.extend_to_slot_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × (ssz.SszBitlist 262144#usize) =>
+       x.1.«end» = n ∧ x.1.start.val ≤ n.val ∧
+       Copiado slots.bits.val x.2.bits.val x.1.start.val)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, by simp, h0⟩
+  · intro x hinv
+    obtain ⟨iter, ext⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hle, hcop⟩ := hinv
+    simp only at hend hle hcop
+    subst hend
+    unfold justified_slots_ops.extend_to_slot_loop.body
+    hax_mvcgen
+    -- 1. El `expect` del `set` no entra en panico: el indice esta en rango.
+    · rename_i hlt s hs o ho b hb hbo r hr
+      have := hcop.1
+      exact ⟨(), hr.2.mpr (by omega)⟩
+    -- 2. Bit en uno: se copia, y el contador baja.
+    · rename_i hlt s hs o ho b hb hbo r hr u hu
+      refine ⟨⟨trivial, by omega, ?_⟩, Or.inl (by omega)⟩
+      rw [hs, hr.1]
+      exact copiado_true hcop (by omega) (by rw [← ho]; exact hbo.mp hb)
+    -- 3. Bit en cero: no se toca nada, y el contador baja.
+    · rename_i hlt s hs o ho b hb hbo
+      refine ⟨⟨trivial, by omega, ?_⟩, Or.inl (by omega)⟩
+      rw [hs]
+      exact copiado_false hcop (by omega) (by rw [← ho]; exact fun h => hb (hbo.mpr h))
+    -- 4. Se termino el rango.
+    · rename_i hge
+      have hfin : desde.val = slots.bits.val.length := by omega
+      show Copiado slots.bits.val ext.bits.val slots.bits.val.length
+      rw [← hfin]
+      exact hcop
+end
+
+theorem bl_new_total (N : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ ssz.SszBitlist.new N ⦃ ⇓ r => ⌜ r.bits.val = [] ⌝ ⦄ :=
+  triple_total_of (by
+    refine ⟨{ bits := Slice.new Bool }, ?_, rfl⟩
+    simp [ssz.SszBitlist.new, alloc.vec.Vec.new, rust_primitives.sequence.seq_empty])
+
+theorem relative_index_total (t f : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ justified_slots_ops.relative_index t f
+    ⦃ ⇓ o => ⌜ justified_slots_ops.relative_index t f = ok o ∧
+        ∀ i : Std.Usize, o = some i → i.val ≤ t.val - f.val - 1 ⌝ ⦄ :=
+  triple_total_of (by
+    obtain ⟨o, ho, -, hval⟩ := relative_index_eq t f
+    exact ⟨o, ho, ho, fun i hi => by rw [hval i hi]; exact Nat.mod_le _ _⟩)
+
+section
+attribute [local spec] bl_len_total bl_with_length_total bl_new_total
+  expect_total shift_loop_total
+
+/-- `shift_window` no entra en panico ni se cuelga, si la lista no pasa de
+    su capacidad. Y devuelve lo que dice el teorema 3. -/
+theorem shift_window_total_spec (slots : ssz.SszBitlist 262144#usize)
+    (delta : Std.Usize) (hcap : slots.bits.val.length ≤ 262144) :
+    ⦃ ⌜ True ⌝ ⦄
+    justified_slots_ops.shift_window slots delta
+    ⦃ ⇓ r => ⌜ r.bits.val = slots.bits.val.drop delta.val ⌝ ⦄ := by
+  unfold justified_slots_ops.shift_window
+  hax_mvcgen
+  -- delta = 0: no se toca nada.
+  · rename_i h
+    subst h
+    simp
+  -- delta >= largo: queda vacia.
+  · rename_i hne n hge hn hnew
+    rw [hnew]
+    exact (List.drop_eq_nil_of_le (by scalar_tac)).symm
+  -- el `expect` de `with_length`: lo que queda entra en la capacidad.
+  · rename_i hne n hnge hn rem hrem hle r hwl
+    obtain ⟨b, hb, -⟩ := hwl (by scalar_tac)
+    exact ⟨b, hb⟩
+  -- lo que deja el loop es `drop delta`.
+  · rename_i hne n hnge hn rem hrem hle r hwl nb hnb res hl hd
+    refine desplazado_fin (by omega) ?_
+    rw [hl]; exact hd
+  -- las tres hipotesis del loop.
+  all_goals try (
+    rename_i hne n hnge hn rem hrem hle r hwl nb hnb
+    have hbits : nb.bits.val = List.replicate rem.val false := by
+      obtain ⟨b, hb, hbb⟩ := hwl (by scalar_tac)
+      rw [hnb] at hb
+      injection hb with hb
+      subst hb
+      exact hbb
+    first
+      | (rw [hbits]; simp; done)
+      | omega
+      | (rw [hbits]; exact desplazado_ini _ _ _))
+  -- `largo - delta` no desborda por abajo.
+  all_goals (exfalso; scalar_tac)
+end
+
+section
+attribute [local spec] relative_index_total bl_len_total bl_with_length_total
+  expect_total extend_loop_total
+
+/-- `extend_to_slot` no entra en panico ni se cuelga, si el slot pedido esta
+    a lo sumo 262144 por encima del finalizado. Y devuelve lo que dice el
+    teorema 1. -/
+theorem extend_to_slot_total_spec (slots : ssz.SszBitlist 262144#usize)
+    (f t : Std.U64) (hcap : t.val - f.val ≤ 262144) :
+    ⦃ ⌜ True ⌝ ⦄
+    justified_slots_ops.extend_to_slot slots f t
+    ⦃ ⇓ r => ⌜ r.bits.val = slots.bits.val ++
+        List.replicate (r.bits.val.length - slots.bits.val.length) false ⌝ ⦄ := by
+  unfold justified_slots_ops.extend_to_slot
+  hax_mvcgen
+  -- el slot ya esta finalizado: no se toca nada.
+  · simp
+  -- la lista ya alcanza: no se toca nada.
+  · simp
+  -- el `expect` de `with_length`: la capacidad pedida entra.
+  · rename_i o idx ho hri rc hrc n hnge hn r hwl
+    have h1 := hri.2 idx rfl
+    obtain ⟨b, hb, -⟩ := hwl (by scalar_tac)
+    exact ⟨b, hb⟩
+  -- lo que deja el loop es la lista vieja mas ceros.
+  · rename_i o idx ho hri rc hrc n hnge hn r hwl ext hext res hcop
+    exact copiado_fin hcop
+  -- las dos hipotesis del loop.
+  · rename_i o idx ho hri rc hrc n hnge hn r hwl ext hext
+    exact hn
+  · rename_i o idx ho hri rc hrc n hnge hn r hwl ext hext
+    have h1 := hri.2 idx rfl
+    have hbits : ext.bits.val = List.replicate rc.val false := by
+      obtain ⟨b, hb, hbb⟩ := hwl (by scalar_tac)
+      rw [hext] at hb
+      injection hb with hb
+      subst hb
+      exact hbb
+    rw [hbits]
+    exact copiado_ini _ _ (by scalar_tac)
+  -- `required_idx + 1` no desborda.
+  · rename_i o idx ho hri hov
+    have h1 := hri.2 idx rfl
+    exfalso
+    scalar_tac
+end
+
+/-- `is_slot_justified` nunca entra en panico. -/
+theorem is_slot_justified_total (slots : ssz.SszBitlist 262144#usize)
+    (f s : Std.U64) :
+    ∃ r, justified_slots_ops.is_slot_justified slots f s = ok r := by
+  obtain ⟨o, ho, -, -⟩ := relative_index_eq s f
+  unfold justified_slots_ops.is_slot_justified
+  rw [ho]
+  cases o with
+  | none => exact ⟨_, rfl⟩
+  | some idx =>
+    obtain ⟨n, hn, -⟩ := len_eq slots
+    cases hg : slots.bits.val[idx.val]? <;>
+      simp [get_eq, hn, hg, core.option.Option.ok_or]
+
+/-- Si `is_slot_justified` responde (`Ok`), `set_justified` no entra en
+    panico. -/
+theorem set_justified_total (slots : ssz.SszBitlist 262144#usize)
+    (f t : Std.U64) (b : Bool)
+    (h : justified_slots_ops.is_slot_justified slots f t =
+           ok (core.result.Result.Ok b)) :
+    ∃ slots', justified_slots_ops.set_justified slots f t = ok slots' := by
+  obtain ⟨o, ho, -, -⟩ := relative_index_eq t f
+  cases o with
+  | none =>
+    unfold justified_slots_ops.set_justified
+    rw [ho]
+    exact ⟨slots, rfl⟩
+  | some idx =>
+    have hbit := is_slot_justified_lee slots f t idx b ho h
+    obtain ⟨hlt, -⟩ := List.getElem?_eq_some_iff.mp hbit
+    obtain ⟨⟨r1, s1⟩, hset, -, hok⟩ := set_eq slots idx true
+    have hr1 : r1 = core.result.Result.Ok () := hok.mpr hlt
+    subst hr1
+    unfold justified_slots_ops.set_justified
+    rw [ho]
+    simp [hset, core.result.Result.expect]
+
+/-- Y si `is_slot_justified` rechaza (`Err`: el slot esta fuera de la
+    ventana), `set_justified` ENTRA en panico. Los dos lemas juntos dicen
+    exactamente cuando se dispara el `expect("index out of bounds")`. -/
+theorem set_justified_panico (slots : ssz.SszBitlist 262144#usize)
+    (f t : Std.U64) (e : stf.Error)
+    (h : justified_slots_ops.is_slot_justified slots f t =
+           ok (core.result.Result.Err e)) :
+    justified_slots_ops.set_justified slots f t = fail Error.panic := by
+  obtain ⟨o, ho, -, -⟩ := relative_index_eq t f
+  cases o with
+  | none =>
+    unfold justified_slots_ops.is_slot_justified at h
+    rw [ho] at h
+    simp at h
+  | some idx =>
+    obtain ⟨n, hn, -⟩ := len_eq slots
+    have hnone : ¬ idx.val < slots.bits.val.length := by
+      intro hlt
+      unfold justified_slots_ops.is_slot_justified at h
+      rw [ho] at h
+      simp [get_eq, hn, List.getElem?_eq_getElem hlt, core.option.Option.ok_or] at h
+    obtain ⟨⟨r1, s1⟩, hset, -, hok⟩ := set_eq slots idx true
+    have hr1 : r1 = core.result.Result.Err () := by
+      cases r1 with
+      | Ok u => exact absurd (hok.mp rfl) hnone
+      | Err u => rfl
+    subst hr1
+    unfold justified_slots_ops.set_justified
+    rw [ho]
+    simp [hset, core.result.Result.expect, core.panicking.internal.panic]
+
+/- ====================================================================
+   Los enunciados.
+   ==================================================================== -/
+
+/-- `shift_window` DEVUELVE, y devuelve la lista sin sus primeros `delta`
+    bits. Sin condicional de panico. -/
+theorem shift_window_devuelve (slots : ssz.SszBitlist 262144#usize)
+    (delta : Std.Usize) (hcap : slots.bits.val.length ≤ 262144) :
+    ∃ slots', justified_slots_ops.shift_window slots delta = ok slots' ∧
+      slots'.bits.val = slots.bits.val.drop delta.val :=
+  of_triple_total (shift_window_total_spec slots delta hcap)
+
+/-- `extend_to_slot` DEVUELVE, y devuelve la lista vieja mas ceros al final.
+    Sin condicional de panico. -/
+theorem extend_to_slot_devuelve (slots : ssz.SszBitlist 262144#usize)
+    (f t : Std.U64) (hcap : t.val - f.val ≤ 262144) :
+    ∃ slots', justified_slots_ops.extend_to_slot slots f t = ok slots' ∧
+      slots'.bits.val = slots.bits.val ++
+        List.replicate (slots'.bits.val.length - slots.bits.val.length) false :=
+  of_triple_total (extend_to_slot_total_spec slots f t hcap)
+
+/-- El compuesto (teorema 4), ahora sin condicional: `shift_window` devuelve
+    y la respuesta se conserva. -/
+theorem finalizar_conserva_justificados_total
+    (slots : ssz.SszBitlist 262144#usize) (f f' s : Std.U64)
+    (delta : Std.Usize) (b : Bool)
+    (hff : f.val ≤ f'.val) (hfs : f'.val < s.val)
+    (hdelta : delta.val = f'.val - f.val)
+    (hfit : s.val - f.val - 1 < 2 ^ UScalarTy.Usize.numBits)
+    (hcap : slots.bits.val.length ≤ 262144)
+    (hj : justified_slots_ops.is_slot_justified slots f s =
+            ok (core.result.Result.Ok b)) :
+    ∃ slots', justified_slots_ops.shift_window slots delta = ok slots' ∧
+      justified_slots_ops.is_slot_justified slots' f' s =
+        ok (core.result.Result.Ok b) := by
+  obtain ⟨slots', hsh, -⟩ := shift_window_devuelve slots delta hcap
+  exact ⟨slots', hsh,
+    finalizar_conserva_justificados slots slots' f f' s delta b hff hfs hdelta hfit hj hsh⟩
+
+/- ====================================================================
+   En el punto de uso: el `expect` de `set_justified` no se dispara en
+   `process_attestations`.
+   ==================================================================== -/
+
+theorem is_slot_justified_eco_spec (b : ssz.SszBitlist 262144#usize) (x y : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ justified_slots_ops.is_slot_justified b x y
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ justified_slots_ops.is_slot_justified b x y = ok r ⌝) ⦄ :=
+  triple_mayThrow_of (fun _ hv => hv)
+
+/-- `branch` sobre un `Result`: si sigue (`Continue v`), el resultado era
+    `Ok v`. -/
+theorem branch_modelo_spec {T E : Type} (r : core.result.Result T E) :
+    ⦃ ⌜ True ⌝ ⦄ core.result.Result.Insts.CoreOpsTry_traitTry.branch r
+    ⦃ PostCond.mayThrow (fun cf => ⌜ ∀ v,
+        cf = core.ops.control_flow.ControlFlow.Continue v →
+        r = core.result.Result.Ok v ⌝) ⦄ :=
+  triple_mayThrow_of (fun cf hcf v hv => by
+    subst hv
+    cases r with
+    | Ok x =>
+      simp [core.result.Result.Insts.CoreOpsTry_traitTry.branch,
+        core.result.Result.Insts.CoreOpsTry_traitTryTResultInfallibleE.branch] at hcf
+      rw [hcf]
+    | Err e =>
+      simp [core.result.Result.Insts.CoreOpsTry_traitTry.branch,
+        core.result.Result.Insts.CoreOpsTry_traitTryTResultInfallibleE.branch] at hcf)
+
+section
+attribute [local spec] ST7.ssz_deref_spec is_slot_justified_eco_spec
+  ST7.justifiable_spec ST7.from_residual_err_spec ST7.matches_chain_spec
+  branch_modelo_spec
+
+/-- Un voto que `is_valid_vote` acepta tiene su target DENTRO de la ventana:
+    `is_slot_justified` respondio `Ok(false)` sobre el. -/
+theorem is_valid_vote_ventana_spec (st : tipos.State) (d : tipos.AttestationData) :
+    ⦃ ⌜ True ⌝ ⦄ stf.is_valid_vote st d
+    ⦃ PostCond.mayThrow (fun r => ⌜ r = core.result.Result.Ok true →
+        justified_slots_ops.is_slot_justified st.justified_slots
+          st.latest_finalized.slot d.target.slot =
+          ok (core.result.Result.Ok false) ⌝) ⦄ := by
+  unfold stf.is_valid_vote
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | trivial
+    | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+    | grind
+end
+
+/-- Despues de un voto valido, `set_justified` sobre su target no entra en
+    panico. Es la llamada que hace el loop de `process_attestations`, con el
+    mismo estado entre las dos. -/
+theorem set_justified_tras_voto_valido (st : tipos.State) (d : tipos.AttestationData)
+    (h : stf.is_valid_vote st d = ok (core.result.Result.Ok true)) :
+    ∃ slots', justified_slots_ops.set_justified st.justified_slots
+        st.latest_finalized.slot d.target.slot = ok slots' :=
+  set_justified_total _ _ _ false
+    (of_triple_mayThrow (is_valid_vote_ventana_spec st d) h rfl)
+
+end NP
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -3404,3 +3941,10 @@ end JS
 #print axioms JS.shift_window_corre
 #print axioms JS.extend_to_slot_conserva_respuestas
 #print axioms JS.finalizar_conserva_justificados
+#print axioms NP.is_slot_justified_total
+#print axioms NP.set_justified_total
+#print axioms NP.set_justified_panico
+#print axioms NP.set_justified_tras_voto_valido
+#print axioms NP.extend_to_slot_devuelve
+#print axioms NP.shift_window_devuelve
+#print axioms NP.finalizar_conserva_justificados_total

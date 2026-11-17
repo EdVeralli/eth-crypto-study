@@ -24,7 +24,9 @@ it is trivial; which is which is spelled out.
 
 Outside the catalog there are four more, about the justified-slots window: the
 ones we set ourselves on first reading your code. The last says that when
-finality advances and the window shifts, no justified slot is lost.
+finality advances and the window shifts, no justified slot is lost. For that
+module there is also what the rest lacks: that its functions do not panic or
+hang, with the exact condition under which one of them does abort.
 
 Every number here came from a run.
 
@@ -127,12 +129,12 @@ What each step should give:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
-| 6 | `27` — one axiom block per result — and `0` |
+| 6 | `34` — one axiom block per result — and `0` |
 
 There is no separate "run the proofs" step. The theorems are in
 `teoremas/ProofObligations.lean`; step 5 copies that file into the Lean project
 and `lake build` checks all of it. If the build ends green, Lean accepted the
-twenty-seven proofs. At the end it prints which axioms each one depends on, which
+thirty-four proofs. At the end it prints which axioms each one depends on, which
 is what step 6 counts.
 
 To convince yourself the check is real, break a statement by hand. In
@@ -261,10 +263,10 @@ Everything, with line counts as shipped.
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 322 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 3406 | ours — the theorems. |
-| `axiomas.txt` | 397 | ours — the `#print axioms` output, so the trust base can be read without building. |
+| `teoremas/ProofObligations.lean` | 3950 | ours — the theorems. |
+| `axiomas.txt` | 443 | ours — the `#print axioms` output, so the trust base can be read without building. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 790 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 829 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -357,7 +359,7 @@ down.
 
 ## What you get
 
-`teoremas/ProofObligations.lean` holds twenty-seven named results:
+`teoremas/ProofObligations.lean` holds thirty-four named results:
 
 | Result | What it is |
 |---|---|
@@ -387,6 +389,13 @@ down.
 | `JS.extend_to_slot_conserva_respuestas` | whatever `is_slot_justified` answered before extending, it answers after |
 | `JS.shift_window_corre` | after `shift_window`, the bit at `i` is the one that was at `i + delta` |
 | `JS.finalizar_conserva_justificados` | **when finality advances and the window shifts, every slot above the new boundary is reported as before** |
+| `NP.is_slot_justified_total` | `is_slot_justified` never panics |
+| `NP.set_justified_total` | if `is_slot_justified` answers `Ok`, `set_justified` returns |
+| `NP.set_justified_panico` | if it answers `Err`, `set_justified` panics |
+| `NP.set_justified_tras_voto_valido` | after a valid vote, `set_justified` on its target returns |
+| `NP.extend_to_slot_devuelve` | `extend_to_slot` returns, if the requested slot is no more than 262144 from the finalized one |
+| `NP.shift_window_devuelve` | `shift_window` returns, if the list is no longer than 262144 bits |
+| `NP.finalizar_conserva_justificados_total` | **the composite, with no panic conditional** |
 | `bind_da_ok` | a tool: opens one `RustM` bind |
 
 They were not picked for count. Between them they cover arithmetic, branching
@@ -468,7 +477,8 @@ justified slot does not go backwards on that path either.
 What the statements leave out is the runs that panic or do not terminate. That
 is a real limit and not a matter of shape: a panic in the STF does not reject a
 block, it takes the node down. Absence of panic is a separate and much larger
-theorem, which we did not prove — see **Proving on the output**.
+theorem. It is proved for one module, the justified-slots window — see **The
+window does not panic** — and not for the rest.
 
 This is the property your own test asserts by example, in
 `latest_justified_does_not_regress_within_block`. Its comment says why it
@@ -731,12 +741,68 @@ does `idx as usize`, and the toolchain's model does not fix the width of
 slots 2³² apart would share a bit. Not a live bug, but a precondition the code
 does not state.
 
-**What is not there.** The three `.expect()` and the `.unwrap()` in this module
-(`"index out of bounds"`, `"capacity limit exceeded"`, `"index within
-capacity"`) are still possible panics as far as the model goes. Proving they do
-not fire needs facts about the state — that the window covers the slot being
-marked, that it stays within capacity — and is the natural first step towards
-absence of panic.
+The three `.expect()` and the `.unwrap()` in this module (`"index out of
+bounds"`, `"capacity limit exceeded"`, `"index within capacity"`) are the
+subject of the next section.
+
+### The window does not panic
+
+Everything above says "if the function returns, then…". This is the other
+thing: that it **returns**. It is done for the four functions of
+`justified_slots_ops`, which have three `.expect()`, one `.unwrap()` and two
+additions that could overflow.
+
+| Function | When it returns |
+|---|---|
+| `is_slot_justified` | always |
+| `set_justified` | exactly when `is_slot_justified` answers `Ok` for that slot |
+| `extend_to_slot` | if the requested slot is at most 262144 above the finalized one |
+| `shift_window` | if the list is no longer than 262144 bits |
+
+The `set_justified` one is two lemmas, and together they say when its
+`expect("index out of bounds")` fires:
+
+```lean
+theorem NP.set_justified_total ... :
+    is_slot_justified slots f t = ok (Ok b) →
+    ∃ slots', set_justified slots f t = ok slots'
+
+theorem NP.set_justified_panico ... :
+    is_slot_justified slots f t = ok (Err e) →
+    set_justified slots f t = fail Error.panic
+```
+
+The second is not a working hypothesis: it proves the panic happens. If the
+slot is outside the window, `set_justified` aborts.
+
+**At the call site that panic cannot fire.** The `process_attestations` loop
+calls `set_justified` on a vote's target only after `is_valid_vote` accepted
+it, with the same state between the two calls.
+`NP.set_justified_tras_voto_valido` proves that is enough: `is_valid_vote`
+returns `Ok(true)` only if `is_slot_justified` answered `Ok(false)` for the
+target, that is, the target is inside the window.
+
+**The composite becomes unconditional.** With `shift_window` returning,
+`NP.finalizar_conserva_justificados_total` says that when finality advances the
+window shifts *and* every slot above the new boundary is reported as before.
+
+How the technique changes. The earlier triples use `PostCond.mayThrow`, which
+tolerates panic and divergence. These use `⇓`, which tolerates neither, so every
+point where the code could abort shows up as a goal to prove: that the index is
+in range, that the addition does not overflow, that what is asked for fits the
+capacity. The loop has to be given a real termination measure (`end − start`)
+instead of the constant that was enough before. The rest is the same: the same
+list invariants and the same step lemmas.
+
+As a negative control we ran the `shift_window` proof without the capacity
+hypothesis. It stops at one goal, the `expect` on `with_length`: it cannot show
+that what remains fits in 262144.
+
+**What is not there.** That the capacity hypotheses hold on every reachable
+state: that the window never exceeds 262144 bits and that no slot ends up
+further than that from the finalized one. Those are invariants of the whole
+state, not of this module. And the other functions of the STF keep their
+conditional.
 
 ### What this is against the catalog, stated exactly
 
@@ -802,6 +868,9 @@ own properties makes the exercise circular.
 | `state_transition` (`ST-4`, `ST-6`, `ST-7`, header preservation) | 23 | 3 | 9 | 11 |
 | the window: round trip, `shift_window`, the composite | 5 | 3 | 1 | 1 |
 | the window: `extend_to_slot`, both results | 6 | 3 | 2 | 1 |
+| no panic: `is_slot_justified` | 3 | 3 | — | — |
+| no panic: `set_justified` (all three), `shift_window`, the composite | 5 | 3 | 1 | 1 |
+| no panic: `extend_to_slot` | 6 | 3 | 2 | 1 |
 
 Three categories, with three different weights.
 
