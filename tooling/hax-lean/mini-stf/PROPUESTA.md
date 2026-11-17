@@ -41,7 +41,7 @@ Lean las acepta sin `sorry`. Eso dice que el programa quedó escrito en Lean. No
 dice que sea correcto.
 
 **Las demostraciones son de propiedades puntuales.** Un programa no "se
-demuestra": se demuestran afirmaciones sobre él. Acá hay cincuenta y una,
+demuestra": se demuestran afirmaciones sobre él. Acá hay cincuenta y cuatro,
 listadas en **Qué recibe**. Cada una dice una cosa precisa, con sus hipótesis a
 la vista.
 
@@ -168,12 +168,12 @@ Qué tiene que dar cada paso:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` y después `=== listo ===` (1743 jobs la primera vez sobre un checkout limpio) |
-| 6 | `51` — un bloque de axiomas por resultado — y `0` |
+| 6 | `54` — un bloque de axiomas por resultado — y `0` |
 
 No hay un paso aparte de "correr las pruebas". Los teoremas están en
 `teoremas/ProofObligations.lean`; el paso 5 copia ese archivo adentro del
 proyecto Lean y `lake build` lo chequea entero. Si el build termina en verde,
-Lean aceptó las cincuenta y una demostraciones. Al final imprime de qué axiomas
+Lean aceptó las cincuenta y cuatro demostraciones. Al final imprime de qué axiomas
 depende cada una, que es lo que cuenta el paso 6.
 
 Para convencerse de que el chequeo es real, rompan un enunciado a mano. En
@@ -302,10 +302,10 @@ Todo, con las líneas tal como se entrega.
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 336 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 6335 | nuestro — los teoremas. |
-| `axiomas.txt` | 593 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
+| `teoremas/ProofObligations.lean` | 7114 | nuestro — los teoremas. |
+| `axiomas.txt` | 632 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 1051 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 1093 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -401,7 +401,7 @@ más abajo.
 
 ## Qué recibe
 
-`teoremas/ProofObligations.lean` tiene cincuenta y un resultados con nombre:
+`teoremas/ProofObligations.lean` tiene cincuenta y cuatro resultados con nombre:
 
 | Resultado | Qué es |
 |---|---|
@@ -455,6 +455,9 @@ más abajo.
 | `NP3.process_block_header_devuelve` | **`process_block_header` no entra en pánico**, con un hash por slot en el historial y si sus dos hashes devuelven |
 | `NP4.claves_ordenadas_devuelve` | el ordenamiento de raíces escrito a mano termina y no cambia cuántas hay, si la comparación de `H256` devuelve |
 | `NP4.serialize_justifications_devuelve` | **`serialize_justifications` no entra en pánico**, con el mapa de votos dentro de los límites y si la comparación de `H256` devuelve |
+| `MV.construir_mapa_acotado` | el mapa de votos que se arma desde el estado no tiene listas más largas que `validator_count` |
+| `MV.loop_conserva_acotado` | el loop de attestations conserva esa cota |
+| `MV.serialize_tras_attestations_devuelve` | con el mapa que deja `process_attestations`, `serialize_justifications` devuelve con una hipótesis menos |
 | `bind_da_ok` | una herramienta: abre un bind de `RustM` |
 
 No se eligieron por cantidad. Entre todos cubren aritmética, ramificación y
@@ -1166,10 +1169,57 @@ ocho: esos cuatro, tres nativos, y la firma de `fmt` del error que formatean
 los `expect`.
 
 **Lo que no está.** Que el mapa que arma `process_attestations` cumpla esas
-hipótesis; hace falta para juntar las dos. Y las otras cuatro funciones de
-`stf.rs`: `try_finalize`, `process_attestations`, `process_block` y
-`state_transition`. Las dos primeras usan el `HashMap`, que acá es una firma
-sin contenido; las dos últimas llaman a las anteriores.
+hipótesis: una está en la sección que sigue, las otras no.
+
+### El mapa de votos cumple una de esas hipótesis
+
+De las cuatro hipótesis de `serialize_justifications`, una habla de las listas
+de votos: que ninguna sea más larga que `validator_count`. El mapa lo arma
+`process_attestations`, y acá queda demostrado que lo arma así.
+
+| Resultado | Qué dice |
+|---|---|
+| `MV.construir_mapa_acotado` | el mapa que sale de `construir_mapa_de_votos` cumple la cota |
+| `MV.loop_conserva_acotado` | el loop de attestations la conserva |
+| `MV.serialize_tras_attestations_devuelve` | con ese mapa, `serialize_justifications` devuelve pidiendo sólo las otras tres hipótesis |
+
+Por qué vale:
+
+- `construir_mapa_de_votos` arma cada lista con el tramo de una raíz, que mide
+  exactamente `validator_count`.
+- En el loop, lo único que agrega una lista es un voto nuevo, y la agrega con
+  `validator_count` votos en falso.
+- Marcar un voto cambia un bit, no el largo.
+- Sacar una raíz ya justificada, y filtrar al finalizar, sólo copian listas que
+  ya estaban.
+
+Son resultados del tipo "si devuelve": no dicen que el loop termine, dicen qué
+mapa deja cuando termina. Es lo que hace falta para descargar una hipótesis.
+
+Como control negativo le sacamos al loop el dato de que la lista nueva mide
+`validator_count`. La prueba deja de cerrar.
+
+**Lo que se sigue pidiendo.** Tres hipótesis:
+
+- Que la comparación de `H256` devuelva.
+- A lo sumo 4096 validadores. `validator_count` es `state.validators.len()` y
+  4096 es el límite de ese tipo, pero el `SszList` de este crate no lleva el
+  límite como invariante.
+- A lo sumo 262144 raíces en el mapa. Esta es la difícil. El loop puede agregar
+  una raíz por attestation, así que la cuenta fácil da "las raíces del estado
+  más las attestations", que no alcanza. La cota de verdad sale de otro lado:
+  las raíces del mapa son todas distintas y todas están en el historial, que
+  tiene a lo sumo 262144 entradas. Ese invariante no está demostrado.
+
+`MV.construir_mapa_acotado` depende sólo de los tres axiomas de Lean.
+`MV.loop_conserva_acotado` depende de catorce y
+`MV.serialize_tras_attestations_devuelve` de dieciocho; el detalle está en la
+tabla de **La base de confianza**.
+
+**Lo que no está.** Las otras cuatro funciones de `stf.rs`: `try_finalize`,
+`process_attestations`, `process_block` y `state_transition`. Las dos primeras
+usan el `HashMap`, que acá es una firma sin contenido; las dos últimas llaman a
+las anteriores.
 
 ### Qué es esto contra el catálogo, dicho exacto
 
@@ -1247,6 +1297,9 @@ importa: elegir las propias propiedades vuelve el ejercicio circular.
 | sin pánico: `process_block_header` | 7 | 3 | 3 | 1 |
 | sin pánico: `claves_ordenadas` | 4 | 3 | — | 1 |
 | sin pánico: `serialize_justifications` | 8 | 3 | 3 | 2 |
+| el mapa de votos que se arma desde el estado | 3 | 3 | — | — |
+| el mapa de votos a lo largo del loop de attestations | 14 | 3 | 4 | 7 |
+| `serialize_justifications` con el mapa de `process_attestations` | 18 | 3 | 7 | 8 |
 
 Tres categorías, con tres pesos distintos.
 

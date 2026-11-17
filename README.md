@@ -93,14 +93,15 @@ hax + Charon + Aeneas, de Rust a Lean. Se entra por
 [`RESTAURAR.md`](RESTAURAR.md) explica cómo reconstruir el entorno desde cero.
 
 Al 17 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
-`sorry` y cincuenta y un resultados demostrados encima. Veinte son sobre la
+`sorry` y cincuenta y cuatro resultados demostrados encima. Veinte son sobre la
 ventana de slots justificados: los cuatro teoremas que se habían propuesto al
 principio, el 22 de octubre, la demostración de que ese módulo no entra en
 pánico, un comentario del código de ethlambda sobre esa ventana, verificado, el
 invariante de dónde termina la ventana a lo largo de la transición, y que nunca
 pasa de su capacidad. Ocho dicen que ocho de las doce funciones de la
-transición no entran en pánico, tres de ellas con hipótesis escritas, y uno más
-que el ordenamiento de raíces termina. Los demás cubren las siete
+transición no entran en pánico, tres de ellas con hipótesis escritas, uno más
+que el ordenamiento de raíces termina, y tres que el mapa de votos cumple una de
+esas hipótesis. Los demás cubren las siete
 proposiciones de transición de estado del catálogo de `formal-leanSpec` (`ST-1`
 a `ST-7`), con dos salvedades que la propuesta detalla: `ST-4` está en su paso
 inductivo y `ST-7` vale bajo una hipótesis extra. Esa hipótesis no es un
@@ -256,7 +257,10 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    con el `HashMap`, que es una firma sin contenido. Las cinco chicas,
    `process_slots`, `process_block_header` y `serialize_justifications`
    quedaron hechas el 17 nov (las tres últimas con hipótesis escritas: que
-   el hash y la comparación de `H256` devuelvan), y también el tema de la ventana de slots
+   el hash y la comparación de `H256` devuelvan). De las hipótesis de
+   `serialize_justifications` sobre el mapa de votos, la de las listas ya
+   está demostrada; falta la de la cantidad de raíces, que pide un invariante
+   más hondo. Quedó hecho también el tema de la ventana de slots
    justificados: dónde termina y que no pasa de su capacidad son invariantes de
    la transición.
 

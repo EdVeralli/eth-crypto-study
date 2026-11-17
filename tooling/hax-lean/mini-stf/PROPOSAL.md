@@ -40,7 +40,7 @@ and Lean accepts them with no `sorry`. That says the program got written in
 Lean. It does not say it is correct.
 
 **The proofs are of specific properties.** A program is not "proved": statements
-about it are. There are fifty-one here, listed under **What you get**. Each
+about it are. There are fifty-four here, listed under **What you get**. Each
 says one precise thing, with its hypotheses in plain sight.
 
 What is **not** proved, said once:
@@ -162,12 +162,12 @@ What each step should give:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
-| 6 | `51` — one axiom block per result — and `0` |
+| 6 | `54` — one axiom block per result — and `0` |
 
 There is no separate "run the proofs" step. The theorems are in
 `teoremas/ProofObligations.lean`; step 5 copies that file into the Lean project
 and `lake build` checks all of it. If the build ends green, Lean accepted the
-fifty-one proofs. At the end it prints which axioms each one depends on, which
+fifty-four proofs. At the end it prints which axioms each one depends on, which
 is what step 6 counts.
 
 To convince yourself the check is real, break a statement by hand. In
@@ -296,10 +296,10 @@ Everything, with line counts as shipped.
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 336 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 6335 | ours — the theorems. |
-| `axiomas.txt` | 593 | ours — the `#print axioms` output, so the trust base can be read without building. |
+| `teoremas/ProofObligations.lean` | 7114 | ours — the theorems. |
+| `axiomas.txt` | 632 | ours — the `#print axioms` output, so the trust base can be read without building. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 1051 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 1093 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -392,7 +392,7 @@ down.
 
 ## What you get
 
-`teoremas/ProofObligations.lean` holds fifty-one named results:
+`teoremas/ProofObligations.lean` holds fifty-four named results:
 
 | Result | What it is |
 |---|---|
@@ -446,6 +446,9 @@ down.
 | `NP3.process_block_header_devuelve` | **`process_block_header` does not panic**, with one hash per slot in the history and if its two hashes return |
 | `NP4.claves_ordenadas_devuelve` | the hand-written sort of the roots terminates and does not change how many there are, if `H256` comparison returns |
 | `NP4.serialize_justifications_devuelve` | **`serialize_justifications` does not panic**, with the vote map within the limits and if `H256` comparison returns |
+| `MV.construir_mapa_acotado` | the vote map built from the state has no list longer than `validator_count` |
+| `MV.loop_conserva_acotado` | the attestation loop preserves that bound |
+| `MV.serialize_tras_attestations_devuelve` | with the map `process_attestations` leaves, `serialize_justifications` returns with one hypothesis fewer |
 | `bind_da_ok` | a tool: opens one `RustM` bind |
 
 They were not picked for count. Between them they cover arithmetic, branching
@@ -1158,10 +1161,58 @@ those four, three native ones, and the `fmt` signature of the error that the
 `expect`s format.
 
 **What is not there.** That the map `process_attestations` builds meets those
-hypotheses; that is needed to put the two together. And the other four
-functions of `stf.rs`: `try_finalize`, `process_attestations`, `process_block`
-and `state_transition`. The first two use the `HashMap`, which here is a
-contentless signature; the last two call the previous ones.
+hypotheses: one is in the next section, the others are not.
+
+### The vote map meets one of those hypotheses
+
+Of the four hypotheses of `serialize_justifications`, one is about the vote
+lists: that none is longer than `validator_count`. The map is built by
+`process_attestations`, and here it is proved that it builds it that way.
+
+| Result | What it says |
+|---|---|
+| `MV.construir_mapa_acotado` | the map that comes out of `construir_mapa_de_votos` meets the bound |
+| `MV.loop_conserva_acotado` | the attestation loop preserves it |
+| `MV.serialize_tras_attestations_devuelve` | with that map, `serialize_justifications` returns asking only for the other three hypotheses |
+
+Why it holds:
+
+- `construir_mapa_de_votos` builds each list from one root's stretch, which is
+  exactly `validator_count` long.
+- In the loop, the only thing that adds a list is a new vote, and it adds it
+  with `validator_count` votes set to false.
+- Marking a vote changes a bit, not the length.
+- Dropping an already justified root, and filtering on finalization, only copy
+  lists that were already there.
+
+These are "if it returns" results: they do not say the loop terminates, they
+say what map it leaves when it does. That is what discharging a hypothesis
+needs.
+
+As a negative control we took away from the loop the fact that the new list is
+`validator_count` long. The proof stops closing.
+
+**What is still asked for.** Three hypotheses:
+
+- That `H256` comparison returns.
+- At most 4096 validators. `validator_count` is `state.validators.len()` and
+  4096 is that type's limit, but the `SszList` in this crate does not carry the
+  limit as an invariant.
+- At most 262144 roots in the map. This is the hard one. The loop can add one
+  root per attestation, so the easy count gives "the state's roots plus the
+  attestations", which is not enough. The real bound comes from elsewhere: the
+  map's roots are all distinct and all in the history, which has at most 262144
+  entries. That invariant is not proved.
+
+`MV.construir_mapa_acotado` depends only on Lean's three axioms.
+`MV.loop_conserva_acotado` depends on fourteen and
+`MV.serialize_tras_attestations_devuelve` on eighteen; the breakdown is in the
+table under **The trust base**.
+
+**What is not there.** The other four functions of `stf.rs`: `try_finalize`,
+`process_attestations`, `process_block` and `state_transition`. The first two
+use the `HashMap`, which here is a contentless signature; the last two call
+the previous ones.
 
 ### What this is against the catalog, stated exactly
 
@@ -1240,6 +1291,9 @@ own properties makes the exercise circular.
 | no panic: `process_block_header` | 7 | 3 | 3 | 1 |
 | no panic: `claves_ordenadas` | 4 | 3 | — | 1 |
 | no panic: `serialize_justifications` | 8 | 3 | 3 | 2 |
+| the vote map built from the state | 3 | 3 | — | — |
+| the vote map along the attestation loop | 14 | 3 | 4 | 7 |
+| `serialize_justifications` with the map from `process_attestations` | 18 | 3 | 7 | 8 |
 
 Three categories, with three different weights.
 

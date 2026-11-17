@@ -565,6 +565,45 @@ NP4.serialize_justifications_devuelve
     ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
     ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
 
+MV.construir_mapa_acotado
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+MV.loop_conserva_acotado
+  TOTAL 14 = 3 estandar + 4 nativos + 7 modelos
+  modelos:
+    - core.borrow.Borrow
+    - core.hash.BuildHasher
+    - core.borrow.Borrow.Blanket
+    - core.Array.Insts.CoreHashHash.hash
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+    - std.collections.hash.map.HashMap.get
+    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+    ~ mini_stf.stf.try_finalize._native.decide.ax_1
+    ~ mini_stf.stf.try_finalize._native.decide.ax_2
+
+MV.serialize_tras_attestations_devuelve
+  TOTAL 18 = 3 estandar + 7 nativos + 8 modelos
+  modelos:
+    - core.borrow.Borrow
+    - core.hash.BuildHasher
+    - core.borrow.Borrow.Blanket
+    - core.Array.Insts.CoreCmpOrd.cmp
+    - core.Array.Insts.CoreHashHash.hash
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+    - std.collections.hash.map.HashMap.get
+    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
+    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
+    ~ mini_stf.stf.try_finalize._native.decide.ax_1
+    ~ mini_stf.stf.try_finalize._native.decide.ax_2
+    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+
 ========================================================================
 
 NATIVOS DISTINTOS EN TODO EL BUILD: 9

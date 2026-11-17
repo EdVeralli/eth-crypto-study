@@ -6284,6 +6284,782 @@ theorem claves_ordenadas_devuelve (m : mapa.MapaVotos)
 
 end NP4
 
+/- ===========================================================================
+   Teorema 17 — el mapa de votos que arma `process_attestations` cumple la
+   hipotesis de `serialize_justifications` sobre las listas de votos
+
+   El teorema 16 pide que ninguna lista de votos sea mas larga que
+   `validator_count`. Aca se prueba que eso se cumple solo en el lugar donde
+   la funcion se llama de verdad:
+
+   - `construir_mapa_de_votos` arma cada lista con `votos_del_segmento`, que
+     devuelve exactamente `validator_count` votos.
+   - en el loop de attestations, lo unico que agrega una lista es
+     `poner_si_falta`, con `votos_vacios(validator_count)`. `marcar_votos`
+     cambia bits, no largos. `sin` y `try_finalize` (por `filtrado`) solo
+     copian listas que ya estaban, o las sacan.
+
+   La cota se lleva como invariante del loop (`VotosAcotados`). Los lemas de
+   cada operacion dicen "para toda cota `c`, si valia antes vale despues",
+   que es la forma que `hax_mvcgen` acepta: un lema `@[spec]` no puede tener
+   una variable libre que no este en el programa.
+
+   Son resultados parciales ("si devuelve"), como los de los teoremas 6 a 8.
+   Alcanza: se usan para descargar una hipotesis, no para afirmar que el loop
+   termina.
+
+   Lo que NO descarga: que el mapa tenga a lo sumo 262144 raices. El loop
+   puede agregar una raiz por attestation, asi que la cota facil es
+   "raices del estado + attestations", que no alcanza. La cota de verdad
+   pide un invariante mas hondo: que las raices del mapa son todas distintas
+   y estan en el historial. Queda escrita como hipotesis.
+   =========================================================================== -/
+
+namespace MV
+open mini_stf
+open Std.Tactic
+open ST3 JS NP NP2 NP3 NP4 VC VI HC
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+/-- Ninguna lista de votos del mapa es mas larga que `c`. -/
+def VotosAcotados (c : Nat) (m : mapa.MapaVotos) : Prop :=
+  ∀ v ∈ m.valores.val, v.val.length ≤ c
+
+theorem iter_next_spec {T : Type} (it : core.slice.iter.Iter T) :
+    ⦃ ⌜ True ⌝ ⦄
+    core.slice.iter.Iter.Insts.CoreIterTraitsIteratorIteratorSharedAT.next it
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ ∀ x, r.1 = some x → r.2.val.length + 1 ≤ it.val.length ⌝) ⦄ :=
+  triple_mayThrow_of (fun r hr => by
+    unfold core.slice.iter.Iter.Insts.CoreIterTraitsIteratorIteratorSharedAT.next at hr
+    simp [rust_primitives.sequence.seq_len, rust_primitives.sequence.seq_remove] at hr
+    by_cases h0 : Slice.len it = 0#usize
+    · simp [h0] at hr
+      subst hr
+      intro x hx
+      cases hx
+    · by_cases h : 0 < it.val.length
+      · simp [h0, h] at hr
+        subst hr
+        intro x _
+        simp
+        omega
+      · simp [h0, h] at hr)
+
+theorem seq_push_largo_spec {T : Type} (s : rust_primitives.sequence.Seq T) (x : T) :
+    ⦃ ⌜ True ⌝ ⦄ rust_primitives.sequence.seq_push s x
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.val.length = s.val.length + 1 ⌝) ⦄ :=
+  triple_mayThrow_of (fun r hr => by
+    unfold rust_primitives.sequence.seq_push at hr
+    dsimp only at hr
+    split at hr
+    · simp only [RustM.ok.injEq] at hr
+      subst hr
+      simp
+    · cases hr)
+
+theorem push_largo_spec {T : Type} (v : alloc.vec.Vec T) (x : T) :
+    ⦃ ⌜ True ⌝ ⦄ alloc.vec.Vec.push v x
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.val = v.val ++ [x] ⌝) ⦄ :=
+  triple_mayThrow_of (fun r hr => by
+    unfold alloc.vec.Vec.push at hr
+    obtain ⟨s, hs, hr⟩ := bind_da_ok hr
+    simp only [RustM.ok.injEq] at hr
+    subst hr
+    unfold rust_primitives.sequence.seq_push at hs
+    dsimp only at hs
+    split at hs
+    · simp only [RustM.ok.injEq] at hs
+      subst hs
+      rfl
+    · cases hs)
+
+/-- `get_mut` por indice, con contenido: lo que se lee, y que lo que se
+    escribe de vuelta solo cambia esa posicion. -/
+theorem slice_get_mut_contenido {T : Type} (s : Slice T) (i : Std.Usize) :
+    ∃ r, core.slice.Slice.get_mut (core.Usize.Insts.CoreSliceIndexSliceIndexSliceT T) s i
+        = ok r ∧
+      r.1 = s.val[i.val]? ∧
+      (∀ o, (r.2 o).val.length = s.val.length) ∧
+      ∀ o, ∀ y ∈ (r.2 o).val, y ∈ s.val ∨ o = some y := by
+  obtain ⟨r0, hr0, hlen0⟩ := slice_get_mut_eq s i
+  suffices h : ∃ r, core.slice.Slice.get_mut
+      (core.Usize.Insts.CoreSliceIndexSliceIndexSliceT T) s i = ok r ∧
+      r.1 = s.val[i.val]? ∧ ∀ o, ∀ y ∈ (r.2 o).val, y ∈ s.val ∨ o = some y by
+    obtain ⟨r, hr, h1, h2⟩ := h
+    rw [hr0] at hr
+    simp only [RustM.ok.injEq] at hr
+    subst hr
+    exact ⟨r0, hr0, h1, hlen0, h2⟩
+  simp [core.slice.Slice.get_mut,
+    core.Usize.Insts.CoreSliceIndexSliceIndexSliceT.get_mut,
+    rust_primitives.slice.slice_length]
+  by_cases h : i.val < s.val.length
+  · simp [h, rust_primitives.slice.slice_index_mut, Slice.index_mut_usize,
+      Slice.index_usize]
+    intro o y hy
+    rcases List.mem_or_eq_of_mem_set hy with h1 | h1
+    · exact Or.inl h1
+    · cases o with
+      | none =>
+        left
+        simp at h1
+        rw [h1]
+        exact List.getElem_mem _
+      | some t =>
+        right
+        simp at h1
+        rw [h1]
+  · simp [h]
+    intro o y hy
+    exact Or.inl hy
+
+theorem slice_get_mut_contenido_spec {T : Type} (s : Slice T) (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄
+    core.slice.Slice.get_mut (core.Usize.Insts.CoreSliceIndexSliceIndexSliceT T) s i
+    ⦃ ⇓ r => ⌜ r.1 = s.val[i.val]? ∧
+        (∀ o, (r.2 o).val.length = s.val.length) ∧
+        ∀ o, ∀ y ∈ (r.2 o).val, y ∈ s.val ∨ o = some y ⌝ ⦄ :=
+  triple_total_of (slice_get_mut_contenido s i)
+
+theorem bool_clone_spec (b : Bool) :
+    ⦃ ⌜ True ⌝ ⦄ core.Bool.Insts.CoreCloneClone.clone b
+    ⦃ PostCond.mayThrow (fun _ => ⌜ True ⌝) ⦄ := trivial_spec _
+
+section
+attribute [local spec] iter_next_spec seq_push_largo_spec bool_clone_spec
+
+theorem clone_loop_largo_spec (it : core.slice.iter.Iter Bool)
+    (nv : rust_primitives.sequence.Seq Bool) :
+    ⦃ ⌜ True ⌝ ⦄
+    alloc.vec.Vec.Insts.CoreCloneClone.clone_loop core.Bool.Insts.CoreCloneClone it nv
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ r.val.length ≤ nv.val.length + it.val.length ⌝) ⦄ := by
+  unfold alloc.vec.Vec.Insts.CoreCloneClone.clone_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.slice.iter.Iter Bool) × (rust_primitives.sequence.Seq Bool) =>
+       x.2.val.length + x.1.val.length ≤ nv.val.length + it.val.length)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · exact Nat.le_refl _
+  · intro x hinv
+    obtain ⟨it1, nv1⟩ := x
+    simp only at hinv
+    unfold alloc.vec.Vec.Insts.CoreCloneClone.clone_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | trivial
+      | simp [PostCond.mayThrow]
+    -- se termino el iterador.
+    · show nv1.val.length ≤ nv.val.length + it.val.length
+      omega
+    -- se copio un elemento: el destino crece uno y el iterador baja uno.
+    · rename_i r b hb hnext c ext hext
+      have h1 := hnext b hb
+      have h2 : ext.length = nv1.val.length + 1 := by simp [ext]
+      omega
+end
+
+theorem seq_empty_spec (T : Type) :
+    ⦃ ⌜ True ⌝ ⦄ rust_primitives.sequence.seq_empty T
+    ⦃ ⇓ r => ⌜ r.val.length = 0 ⌝ ⦄ :=
+  triple_total_of (by
+    refine ⟨Slice.new T, ?_, rfl⟩
+    simp [rust_primitives.sequence.seq_empty])
+
+theorem slice_iter_spec {T : Type} (s : Slice T) :
+    ⦃ ⌜ True ⌝ ⦄ core.slice.Slice.iter s ⦃ ⇓ r => ⌜ r.val = s.val ⌝ ⦄ :=
+  triple_total_of (by
+    simp [core.slice.Slice.iter, rust_primitives.sequence.seq_from_slice])
+
+section
+attribute [local spec] seq_empty_spec vec_deref_total slice_iter_spec
+  clone_loop_largo_spec
+
+/-- Copiar una lista de votos no la alarga. -/
+theorem clone_largo_spec (v : alloc.vec.Vec Bool) :
+    ⦃ ⌜ True ⌝ ⦄
+    alloc.vec.Vec.Insts.CoreCloneClone.clone core.Bool.Insts.CoreCloneClone v
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.val.length ≤ v.val.length ⌝) ⦄ := by
+  unfold alloc.vec.Vec.Insts.CoreCloneClone.clone
+  hax_mvcgen
+  rename_i e he s hs it hit r hr
+  rw [hit, hs] at hr
+  omega
+end
+
+section
+attribute [local spec] vec_deref_total slice_get_total vec_new_total
+  clone_largo_spec
+
+/-- Los votos que devuelve `votos` no son mas largos que los del mapa. -/
+theorem votos_acotados_spec (m : mapa.MapaVotos) (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.votos m i
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ ∀ c, VotosAcotados c m → r.val.length ≤ c ⌝) ⦄ := by
+  unfold mapa.MapaVotos.votos
+  hax_mvcgen
+  -- no hay entrada `i`: una lista vacia.
+  · omega
+  -- la copia de una lista del mapa.
+  · rename_i s hs o v ho hget r hr c hc
+    have hmem : v ∈ m.valores.val := by
+      rw [← hs]
+      exact List.mem_of_getElem? hget.symm
+    have := hc v hmem
+    omega
+end
+
+section
+attribute [local spec] vec_deref_mut_total slice_get_mut_contenido_spec
+
+/-- `votar` no alarga ninguna lista de votos. -/
+theorem votar_acotados_spec (m : mapa.MapaVotos) (p j : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.votar m p j
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ ∀ c, VotosAcotados c m → VotosAcotados c r ⌝) ⦄ := by
+  unfold mapa.MapaVotos.votar
+  hax_mvcgen
+  -- 1. No hay entrada `p`: no cambia nada.
+  · rename_i a ha b hbx hb c hc
+    intro y hy
+    simp only at hy
+    rw [ha.2] at hy
+    rcases hb.2.2 _ y hy with h | h
+    · rw [ha.1] at h
+      exact hc y h
+    · cases h
+  -- 2. Hay entrada pero no posicion `j`: la lista vuelve igual de larga.
+  · rename_i a ha b v hbv hb e he f hfx hf c hc
+    intro y hy
+    simp only at hy
+    rw [ha.2] at hy
+    have hmem : v ∈ m.valores.val := by
+      rw [← ha.1]
+      exact List.mem_of_getElem? (hb.1.symm.trans hbv)
+    rcases hb.2.2 _ y hy with h | h
+    · rw [ha.1] at h
+      exact hc y h
+    · cases h
+      rw [he.2, hf.2.1, he.1]
+      exact hc v hmem
+  -- 3. Se marca el voto: la lista vuelve igual de larga.
+  · rename_i a ha b v hbv hb e he f w hfx hf c hc
+    intro y hy
+    simp only at hy
+    rw [ha.2] at hy
+    have hmem : v ∈ m.valores.val := by
+      rw [← ha.1]
+      exact List.mem_of_getElem? (hb.1.symm.trans hbv)
+    rcases hb.2.2 _ y hy with h | h
+    · rw [ha.1] at h
+      exact hc y h
+    · cases h
+      rw [he.2, hf.2.1, he.1]
+      exact hc v hmem
+end
+
+theorem push_numerico_spec {T : Type} (v : alloc.vec.Vec T) (x : T) :
+    ⦃ ⌜ True ⌝ ⦄ alloc.vec.Vec.push v x
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.val.length = v.val.length + 1 ⌝) ⦄ :=
+  triple_mayThrow_of (fun r hr => by
+    have h := of_triple_mayThrow (push_largo_spec v x) hr
+    rw [h]
+    simp)
+
+section
+attribute [local spec] posicion_loop_total push_largo_spec vec_len_total
+
+/-- `poner_si_falta` agrega a lo sumo una lista, la que le pasan. -/
+theorem poner_si_falta_acotados_spec (m : mapa.MapaVotos) (k : tipos.H256)
+    (v : alloc.vec.Vec Bool) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.poner_si_falta m k v
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ ∀ c, VotosAcotados c m → v.val.length ≤ c → VotosAcotados c r.2 ⌝) ⦄ := by
+  unfold mapa.MapaVotos.poner_si_falta
+  hax_mvcgen
+  -- no estaba: se agrega la lista que pasaron.
+  · rename_i o ho cl hcl vl hvl n hn p hp hp1 c hc hv
+    intro y hy
+    simp only at hy
+    rw [hvl] at hy
+    rcases List.mem_append.mp hy with h | h
+    · exact hc y h
+    · simp at h
+      rw [h]
+      exact hv
+  -- ya estaba: no se toca.
+  · assumption
+end
+
+/-- Agregar al final una lista acotada conserva la cota. -/
+theorem acotados_push (c : Nat) (m : mapa.MapaVotos)
+    (cl' : alloc.vec.Vec tipos.H256) (vl' : alloc.vec.Vec (alloc.vec.Vec Bool))
+    (w : alloc.vec.Vec Bool)
+    (hm : VotosAcotados c m) (hw : w.val.length ≤ c)
+    (h : vl'.val = m.valores.val ++ [w]) :
+    VotosAcotados c { claves := cl', valores := vl' } := by
+  intro y hy
+  simp only at hy
+  rw [h] at hy
+  rcases List.mem_append.mp hy with h1 | h1
+  · exact hm y h1
+  · simp at h1
+    rw [h1]
+    exact hw
+
+theorem acotados_vacio (c : Nat) (m : mapa.MapaVotos)
+    (h : m.valores.val = []) : VotosAcotados c m := by
+  intro y hy
+  rw [h] at hy
+  cases hy
+
+theorem nuevo_spec :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.nuevo
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.valores.val = [] ⌝) ⦄ :=
+  triple_mayThrow_of (fun r hr => by
+    unfold mapa.MapaVotos.nuevo at hr
+    simp [alloc.vec.Vec.new, rust_primitives.sequence.seq_empty] at hr
+    subst hr
+    rfl)
+
+section
+attribute [local spec] push_numerico_spec vec_new_total
+
+/-- El loop de `votos_vacios` agrega un voto por cada vuelta. -/
+theorem votos_vacios_loop_spec (a b : Std.Usize) (v0 : alloc.vec.Vec Bool) :
+    ⦃ ⌜ True ⌝ ⦄ stf.votos_vacios_loop { start := a, «end» := b } v0
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ r.val.length = v0.val.length + (b.val - a.val) ⌝) ⦄ := by
+  unfold stf.votos_vacios_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × (alloc.vec.Vec Bool) =>
+       x.1.«end» = b ∧
+       x.2.val.length + (b.val - x.1.start.val) = v0.val.length + (b.val - a.val))
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, rfl⟩
+  · intro x hinv
+    obtain ⟨iter, v⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hlen⟩ := hinv
+    simp only at hend hlen
+    subst hend
+    unfold stf.votos_vacios_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | trivial
+      | simp [PostCond.mayThrow]
+    · omega
+    · show v.val.length = v0.val.length + (hasta.val - a.val)
+      omega
+
+theorem votos_vacios_largo_spec (n : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.votos_vacios n
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.val.length = n.val ⌝) ⦄ := by
+  unfold stf.votos_vacios
+  hax_mvcgen [votos_vacios_loop_spec]
+  rename_i r hr r2 hr2
+  simp at hr2
+  omega
+end
+
+section
+attribute [local spec] push_numerico_spec vec_new_total bl_get_total
+  opt_eq_true_total
+
+/-- El loop de `votos_del_segmento` agrega un voto por cada vuelta. -/
+theorem segmento_loop_spec (a b : Std.Usize) (st : tipos.State)
+    (v0 : alloc.vec.Vec Bool) :
+    ⦃ ⌜ True ⌝ ⦄ stf.votos_del_segmento_loop { start := a, «end» := b } st v0
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ r.val.length = v0.val.length + (b.val - a.val) ⌝) ⦄ := by
+  unfold stf.votos_del_segmento_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × (alloc.vec.Vec Bool) =>
+       x.1.«end» = b ∧
+       x.2.val.length + (b.val - x.1.start.val) = v0.val.length + (b.val - a.val))
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, rfl⟩
+  · intro x hinv
+    obtain ⟨iter, v⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hlen⟩ := hinv
+    simp only at hend hlen
+    subst hend
+    unfold stf.votos_del_segmento_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | trivial
+      | simp [PostCond.mayThrow]
+    · omega
+    · show v.val.length = v0.val.length + (hasta.val - a.val)
+      omega
+
+/-- El segmento de votos de una raiz mide `validator_count`. -/
+theorem votos_del_segmento_largo_spec (st : tipos.State) (i vc : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.votos_del_segmento st i vc
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.val.length = vc.val ⌝) ⦄ := by
+  unfold stf.votos_del_segmento
+  hax_mvcgen [segmento_loop_spec]
+  rename_i r0 h0 i1 hi1 i2 hi2 i3 hi3 r hr
+  simp at hi2
+  rw [hi3, hi2, hi1, h0] at hr
+  rw [hr, Nat.add_mul, Nat.one_mul]
+  omega
+end
+
+section
+attribute [local spec] clave_total ne_default_total push_largo_spec
+  votos_acotados_spec
+
+/-- El loop de `sin` solo agrega copias de listas que ya estaban. -/
+theorem sin_loop_spec (it : core.ops.range.Range Std.Usize)
+    (cl : alloc.vec.Vec tipos.H256) (vl : alloc.vec.Vec (alloc.vec.Vec Bool))
+    (k : tipos.H256) (m0 : mapa.MapaVotos) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.sin_loop it cl vl k m0
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ ∀ c, VotosAcotados c { claves := cl, valores := vl } →
+            VotosAcotados c m0 → VotosAcotados c r ⌝) ⦄ := by
+  unfold mapa.MapaVotos.sin_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × mapa.MapaVotos =>
+       ∀ c, VotosAcotados c { claves := cl, valores := vl } →
+            VotosAcotados c m0 → VotosAcotados c x.2)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · intro c _ h
+    exact h
+  · intro x hinv
+    obtain ⟨iter, m⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    simp only at hinv
+    unfold mapa.MapaVotos.sin_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | trivial
+      | assumption
+      | simp [PostCond.mayThrow]
+    rename_i hlt s hs c0 b hb cl2 hcl2 w hw vl2 hvl2
+    intro c h1 h2
+    exact acotados_push c m cl2 vl2 w (hinv c h1 h2) (hw c h1) hvl2
+end
+
+section
+attribute [local spec] nuevo_spec vec_len_total sin_loop_spec
+
+/-- `sin` no alarga ninguna lista de votos. -/
+theorem sin_acotados_spec (m : mapa.MapaVotos) (k : tipos.H256) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.sin m k
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ ∀ c, VotosAcotados c m → VotosAcotados c r ⌝) ⦄ := by
+  unfold mapa.MapaVotos.sin
+  hax_mvcgen
+  rename_i n hn i hi r hr c hc
+  exact hr c hc (acotados_vacio c n hn)
+end
+
+theorem bandera_spec (v : Slice Bool) (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.bandera v i
+    ⦃ PostCond.mayThrow (fun _ => ⌜ True ⌝) ⦄ := trivial_spec _
+
+section
+attribute [local spec] bandera_spec clave_total push_largo_spec
+  votos_acotados_spec
+
+/-- El loop de `filtrado` solo agrega copias de listas que ya estaban. -/
+theorem filtrado_loop_spec (it : core.ops.range.Range Std.Usize)
+    (cl : alloc.vec.Vec tipos.H256) (vl : alloc.vec.Vec (alloc.vec.Vec Bool))
+    (cons : Slice Bool) (m0 : mapa.MapaVotos) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.filtrado_loop it cl vl cons m0
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ ∀ c, VotosAcotados c { claves := cl, valores := vl } →
+            VotosAcotados c m0 → VotosAcotados c r ⌝) ⦄ := by
+  unfold mapa.MapaVotos.filtrado_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × mapa.MapaVotos =>
+       ∀ c, VotosAcotados c { claves := cl, valores := vl } →
+            VotosAcotados c m0 → VotosAcotados c x.2)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · intro c _ h
+    exact h
+  · intro x hinv
+    obtain ⟨iter, m⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    simp only at hinv
+    unfold mapa.MapaVotos.filtrado_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | trivial
+      | assumption
+      | simp [PostCond.mayThrow]
+    rename_i hlt s hs b hb c0 cl2 hcl2 w hw vl2 hvl2
+    intro c h1 h2
+    exact acotados_push c m cl2 vl2 w (hinv c h1 h2) (hw c h1) hvl2
+end
+
+section
+attribute [local spec] nuevo_spec vec_len_total filtrado_loop_spec
+
+/-- `filtrado` no alarga ninguna lista de votos. -/
+theorem filtrado_acotados_spec (m : mapa.MapaVotos) (cons : Slice Bool) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.filtrado m cons
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ ∀ c, VotosAcotados c m → VotosAcotados c r ⌝) ⦄ := by
+  unfold mapa.MapaVotos.filtrado
+  hax_mvcgen
+  rename_i n hn i hi r hr c hc
+  exact hr c hc (acotados_vacio c n hn)
+end
+
+theorem bit_en_trivial_spec
+    (a : ssz.SszList tipos.AggregatedAttestation 4096#usize) (i j : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.bit_en a i j
+    ⦃ PostCond.mayThrow (fun _ => ⌜ True ⌝) ⦄ := trivial_spec _
+
+theorem bits_largo_trivial_spec
+    (a : ssz.SszList tipos.AggregatedAttestation 4096#usize) (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.bits_largo_en a i
+    ⦃ PostCond.mayThrow (fun _ => ⌜ True ⌝) ⦄ := trivial_spec _
+
+section
+attribute [local spec] bit_en_trivial_spec votar_acotados_spec
+
+theorem marcar_votos_loop_spec (it : core.ops.range.Range Std.Usize)
+    (m0 : mapa.MapaVotos) (p : Std.Usize)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) (idx : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.marcar_votos_loop it m0 p atts idx
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ ∀ c, VotosAcotados c m0 → VotosAcotados c r ⌝) ⦄ := by
+  unfold stf.marcar_votos_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × mapa.MapaVotos =>
+       ∀ c, VotosAcotados c m0 → VotosAcotados c x.2)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · intro c h
+    exact h
+  · intro x hinv
+    obtain ⟨iter, m⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    simp only at hinv
+    unfold stf.marcar_votos_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | trivial
+      | assumption
+      | simp [PostCond.mayThrow]
+    rename_i hlt s hs b hb r hr
+    intro c hc
+    exact hr c (hinv c hc)
+end
+
+section
+attribute [local spec] bits_largo_trivial_spec marcar_votos_loop_spec
+
+/-- `marcar_votos` no alarga ninguna lista de votos. -/
+theorem marcar_votos_acotados_spec (m : mapa.MapaVotos) (p : Std.Usize)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) (idx : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.marcar_votos m p atts idx
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ ∀ c, VotosAcotados c m → VotosAcotados c r ⌝) ⦄ := by
+  unfold stf.marcar_votos
+  hax_mvcgen
+end
+
+theorem shift_trivial_spec (b : ssz.SszBitlist 262144#usize) (d : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ justified_slots_ops.shift_window b d
+    ⦃ PostCond.mayThrow (fun _ => ⌜ True ⌝) ⦄ := trivial_spec _
+
+section
+attribute [local spec] hay_slot_spec inc_fin_spec vec_new_spec largo_spec
+  tf_loop_spec vec_deref_spec filtrado_acotados_spec shift_trivial_spec
+
+/-- `try_finalize` no alarga ninguna lista de votos: o deja el mapa como
+    estaba, o lo filtra. -/
+theorem try_finalize_acotados_spec (state : tipos.State)
+    (source target : tipos.Checkpoint) (j : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global) :
+    ⦃ ⌜ True ⌝ ⦄ stf.try_finalize state source target j rts
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ ∀ c, VotosAcotados c j → VotosAcotados c r.2 ⌝) ⦄ := by
+  unfold stf.try_finalize
+  hax_mvcgen
+  -- el source no avanza, o hay un slot justificable en el medio: el mapa
+  -- queda como estaba. Si se finaliza, es el `filtrado`.
+  all_goals assumption
+end
+
+theorem raiz_just_trivial_spec (r : ssz.SszList tipos.H256 262144#usize)
+    (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.raiz_justificacion_en r i
+    ⦃ PostCond.mayThrow (fun _ => ⌜ True ⌝) ⦄ := trivial_spec _
+
+section
+attribute [local spec] raiz_just_trivial_spec votos_del_segmento_largo_spec
+  poner_si_falta_acotados_spec
+
+theorem construir_mapa_loop_spec (it : core.ops.range.Range Std.Usize)
+    (sc : tipos.StateConfig) (i : Std.U64) (bh : tipos.BlockHeader)
+    (c c1 : tipos.Checkpoint) (sl : ssz.SszList tipos.H256 262144#usize)
+    (sb : ssz.SszBitlist 262144#usize)
+    (sl1 : ssz.SszList tipos.Validator 4096#usize)
+    (sl2 : ssz.SszList tipos.H256 262144#usize)
+    (sb1 : ssz.SszBitlist 1073741824#usize) (vc : Std.Usize)
+    (m0 : mapa.MapaVotos) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.construir_mapa_de_votos_loop it sc i bh c c1 sl sb sl1 sl2 sb1 vc m0
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ VotosAcotados vc.val m0 → VotosAcotados vc.val r ⌝) ⦄ := by
+  unfold stf.construir_mapa_de_votos_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × mapa.MapaVotos =>
+       VotosAcotados vc.val m0 → VotosAcotados vc.val x.2)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · intro h
+    exact h
+  · intro x hinv
+    obtain ⟨iter, m⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    simp only at hinv
+    unfold stf.construir_mapa_de_votos_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | trivial
+      | assumption
+      | simp [PostCond.mayThrow]
+    rename_i hlt s hs r v hv p hp
+    intro h0
+    exact hp vc.val (hinv h0) (by omega)
+end
+
+section
+attribute [local spec] nuevo_spec ssz_len_spec construir_mapa_loop_spec
+
+/-- El mapa que arma `construir_mapa_de_votos` tiene todas sus listas de
+    votos del largo `validator_count`, o menos. -/
+theorem construir_mapa_acotados_spec (st : tipos.State) (vc : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.construir_mapa_de_votos st vc
+    ⦃ PostCond.mayThrow (fun r => ⌜ VotosAcotados vc.val r ⌝) ⦄ := by
+  unfold stf.construir_mapa_de_votos
+  hax_mvcgen
+  rename_i n hn i r hr
+  exact hr (acotados_vacio _ n hn)
+end
+
+section
+attribute [local spec] is_none_spec dato_en_spec bits_en_uno_en_spec
+  is_valid_vote_spec primer_bit_spec votos_vacios_largo_spec
+  poner_si_falta_acotados_spec marcar_votos_acotados_spec cuenta_votos_spec
+  sin_acotados_spec div_ceil_spec set_justified_spec try_finalize_acotados_spec
+
+/-- El loop de attestations conserva la cota de las listas de votos. -/
+theorem process_attestations_loop_acotados_spec
+    (s0 : tipos.State)
+    (attestations : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (validator_count n : Std.Usize)
+    (j0 : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations_loop { start := 0#usize, «end» := n } s0
+      attestations validator_count 0#u64 j0 rts core.option.Option.None
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ VotosAcotados validator_count.val j0 →
+          VotosAcotados validator_count.val r.2.2.1 ⌝) ⦄ := by
+  unfold stf.process_attestations_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × Acc =>
+              VotosAcotados validator_count.val j0 →
+              VotosAcotados validator_count.val x.2.2.2.1)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · intro h
+    exact h
+  · intro x hinv
+    obtain ⟨iter, st, ap, jj, fl⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    simp only at hinv
+    unfold stf.process_attestations_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | assumption
+      | trivial
+      | simp [PostCond.div, PostCond.mayThrow]
+    -- Lo que queda son las vueltas que tocan el mapa: `poner_si_falta` con
+    -- una lista de `validator_count` votos, `marcar_votos`, y a veces `sin`
+    -- y `try_finalize`. Cada paso conserva la cota.
+    all_goals (
+      intro h0
+      have hj := hinv h0
+      grind)
+end
+
+/-- El mapa que arma `construir_mapa_de_votos` cumple la cota. -/
+theorem construir_mapa_acotado (st : tipos.State) (vc : Std.Usize)
+    (m : mapa.MapaVotos)
+    (h : stf.construir_mapa_de_votos st vc = ok m) :
+    VotosAcotados vc.val m :=
+  of_triple_mayThrow (construir_mapa_acotados_spec st vc) h
+
+/-- El loop de attestations la conserva. -/
+theorem loop_conserva_acotado (s0 : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (vc n : Std.Usize) (j0 : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global)
+    (r : Acc)
+    (h : stf.process_attestations_loop { start := 0#usize, «end» := n } s0
+           atts vc 0#u64 j0 rts core.option.Option.None = ok r)
+    (hj : VotosAcotados vc.val j0) :
+    VotosAcotados vc.val r.2.2.1 :=
+  of_triple_mayThrow
+    (process_attestations_loop_acotados_spec s0 atts vc n j0 rts) h hj
+
+/-- Las dos juntas, contra `serialize_justifications`: con el mapa que arma
+    `process_attestations` y que deja su loop, la hipotesis sobre las listas
+    de votos se cumple sola. Quedan las otras tres. -/
+theorem serialize_tras_attestations_devuelve (st : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (vc n : Std.Usize) (j0 : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global)
+    (r : Acc)
+    (hmapa : stf.construir_mapa_de_votos st vc = ok j0)
+    (hloop : stf.process_attestations_loop { start := 0#usize, «end» := n } st
+               atts vc 0#u64 j0 rts core.option.Option.None = ok r)
+    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
+    (hroots : r.2.2.1.claves.val.length ≤ 262144)
+    (hvc : vc.val ≤ 4096) :
+    ∃ s', stf.serialize_justifications r.1 r.2.2.1 vc = ok s' :=
+  serialize_justifications_devuelve r.1 r.2.2.1 vc hcmp hroots hvc
+    (loop_conserva_acotado st atts vc n j0 rts r hloop
+      (construir_mapa_acotado st vc j0 hmapa))
+
+end MV
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -6333,3 +7109,6 @@ end NP4
 #print axioms NP3.process_block_header_devuelve
 #print axioms NP4.claves_ordenadas_devuelve
 #print axioms NP4.serialize_justifications_devuelve
+#print axioms MV.construir_mapa_acotado
+#print axioms MV.loop_conserva_acotado
+#print axioms MV.serialize_tras_attestations_devuelve

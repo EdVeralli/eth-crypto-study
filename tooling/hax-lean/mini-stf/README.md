@@ -1047,5 +1047,47 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    > Lo que sigue: `try_finalize`, `process_attestations`, `process_block`
    > y `state_transition`. Para juntar con `process_attestations` falta
    > probar que el mapa que arma cumple las hipotesis de arriba.
+
+   > Novena nota del 17 nov 2026: **el mapa de votos cumple la hipotesis de
+   > las listas** (teorema 17, namespace `MV`). Tres resultados:
+   > `construir_mapa_acotado`, `loop_conserva_acotado` y
+   > `serialize_tras_attestations_devuelve`.
+   >
+   > - De las tres hipotesis de `serialize_justifications` que hablan de
+   >   datos, se descarga UNA: ninguna lista de votos mas larga que
+   >   `validator_count`. Las otras dos quedan pedidas. La de 4096
+   >   validadores, porque nuestro `SszList` no lleva el limite como
+   >   invariante. La de 262144 raices es la dificil: el loop agrega hasta
+   >   una raiz por attestation, y la cota real pide probar que las raices
+   >   del mapa son distintas y estan en el historial.
+   > - `VotosAcotados c m := ∀ v ∈ m.valores, largo v ≤ c`. Con `≤` y no
+   >   con `=`: `votos(i)` devuelve una lista VACIA si no hay entrada `i`,
+   >   y con `=` eso rompe el invariante en `sin` y en `filtrado`.
+   > - Forma de los lemas: "para toda cota `c`, si valia antes vale
+   >   despues". Asi no queda una variable libre en el `@[spec]`.
+   > - Son parciales (`PostCond.mayThrow`), con `termination := fun _ => 0`
+   >   y `Or.inr` para la divergencia, como los loops del teorema 6.
+   > - `Vec::clone` esta modelado como un LOOP sobre un iterador de slice
+   >   (`clone_loop`). Hizo falta su lema: el iterador pierde un elemento
+   >   por vuelta y el destino gana uno, asi que la copia no es mas larga.
+   > - `Slice::get_mut` con contenido: lo que se lee, que el largo no
+   >   cambia, y que todo elemento de lo que se escribe de vuelta ya
+   >   estaba o es el que se escribio. Con eso sale `votar`.
+   > - Un loop con el iterador sin desarmar NO avanza en `hax_mvcgen`: hay
+   >   que hacer `obtain ⟨desde, hasta⟩ := iter` antes.
+   > - Los lemas totales (`⇓`) del teorema 16 se pueden usar adentro de
+   >   pruebas parciales sin tocarlos.
+   > - Las 28 metas del loop de attestations son cadenas de implicaciones
+   >   y cierran todas con `grind`.
+   >
+   > Control negativo: con `votos_vacios` sin decir cuanto mide lo que
+   > devuelve, `grind` falla en el loop.
+   >
+   > Axiomas: `construir_mapa_acotado` 3; `loop_conserva_acotado` 14 (3 de
+   > Lean, 4 nativos, 7 declaraciones); `serialize_tras_attestations_devuelve`
+   > 18 (3, 7 y 8).
+   >
+   > Lo que sigue: la cota de raices (el invariante hondo), o
+   > `try_finalize` con el `HashMap`.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.
