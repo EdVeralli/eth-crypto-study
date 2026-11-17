@@ -3916,6 +3916,274 @@ theorem set_justified_tras_voto_valido (st : tipos.State) (d : tipos.Attestation
 
 end NP
 
+/- ===========================================================================
+   Teorema 11: que cubre la ventana despues del header (17 nov 2026)
+
+   El comentario de `is_valid_vote` en el codigo de ethlambda dice:
+
+       After `process_block_header` the window covers up to
+       `block.slot - 1`, so this is exactly a vote whose source or target
+       slot is at or beyond the importing block's own slot.
+
+   Es una afirmacion sobre el codigo que nadie habia verificado. Aca esta,
+   en dos mitades:
+
+     - `tras_header_cubre`: si `process_block_header` acepta, sobre todo
+       slot anterior al del bloque `is_slot_justified` responde `Ok`. Vale
+       para cualquier estado de entrada.
+     - `tras_header_rechaza`: y del slot del bloque en adelante responde
+       `Err` (es el `JustifiedSlotOutOfRange`). Esta es la mitad del
+       "exactly", y NO vale para cualquier estado: pide que la ventana de
+       entrada no llegara ya mas alla del slot anterior al bloque. Con una
+       ventana mas larga de lo debido, un voto con slot posterior al bloque
+       no se rechazaria.
+
+   Lo que hizo falta: el largo EXACTO que deja `extend_to_slot` (el maximo
+   entre el que tenia y el pedido), que no estaba en el teorema 9, y que
+   ventana deja `process_block_header`: la de entrada pasada por
+   `extend_to_slot` hasta `block.slot - 1`, con el mismo slot finalizado.
+
+   Las dos piden que las distancias entren en un `usize`, por el mismo
+   `as usize` del teorema 9.
+
+   Lo que NO esta: que la hipotesis de `tras_header_rechaza` se conserve a
+   lo largo de la transicion. Es el invariante "la ventana llega exactamente
+   hasta el ultimo slot materializado", y hay que seguirlo a traves de
+   `process_attestations`, donde `shift_window` la acorta.
+   =========================================================================== -/
+
+namespace VC
+open mini_stf
+open Std.Tactic
+open ST3 JS NP
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+section
+attribute [local spec] bl_get_spec bl_set_spec opt_eq_true_spec
+  ST7.expect_modelo_spec
+
+/-- El loop de copia de `extend_to_slot` no cambia el largo de la lista
+    nueva. -/
+theorem extend_loop_largo_spec (slots ext0 : ssz.SszBitlist 262144#usize)
+    (n : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄
+    justified_slots_ops.extend_to_slot_loop { start := 0#usize, «end» := n } slots ext0
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ r.bits.val.length = ext0.bits.val.length ⌝) ⦄ := by
+  unfold justified_slots_ops.extend_to_slot_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × (ssz.SszBitlist 262144#usize) =>
+       x.2.bits.val.length = ext0.bits.val.length)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · rfl
+  · intro x hinv
+    obtain ⟨iter, ext⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    simp only at hinv
+    unfold justified_slots_ops.extend_to_slot_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | trivial
+      | assumption
+      | simp [PostCond.div, PostCond.mayThrow]
+      | (simp_all [PostCond.okAssertion]; done)
+end
+
+theorem relative_index_eco_spec (t f : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ justified_slots_ops.relative_index t f
+    ⦃ PostCond.mayThrow (fun o =>
+        ⌜ justified_slots_ops.relative_index t f = ok o ⌝) ⦄ :=
+  triple_mayThrow_of (fun _ hv => hv)
+
+section
+attribute [local spec] relative_index_eco_spec bl_len_spec bl_with_length_spec
+  ST7.expect_modelo_spec extend_loop_largo_spec
+
+/-- El largo exacto que deja `extend_to_slot`. -/
+theorem extend_to_slot_largo_spec (slots : ssz.SszBitlist 262144#usize)
+    (f t : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄
+    justified_slots_ops.extend_to_slot slots f t
+    ⦃ PostCond.mayThrow (fun r => ⌜
+        (justified_slots_ops.relative_index t f = ok none → r = slots) ∧
+        (∀ idx : Std.Usize,
+           justified_slots_ops.relative_index t f = ok (some idx) →
+           r.bits.val.length = max slots.bits.val.length (idx.val + 1)) ⌝) ⦄ := by
+  unfold justified_slots_ops.extend_to_slot
+  hax_mvcgen
+  -- el slot ya esta finalizado: no se toca nada.
+  · rename_i o ho hri
+    exact ⟨fun _ => trivial, fun idx h => by rw [hri] at h; simp at h⟩
+  -- la lista ya alcanza: no se toca nada, y ya era mas larga.
+  · rename_i o idx ho hri rc hrc n hge hn
+    refine ⟨fun _ => trivial, fun idx' h => ?_⟩
+    rw [hri] at h
+    simp at h
+    subst h
+    have hle : idx.val + 1 ≤ slots.bits.val.length := by scalar_tac
+    omega
+  -- se arma la lista nueva: queda del largo pedido.
+  · rename_i o idx ho hri rc hrc n hnge hn r hwl ext hext res hlen
+    refine ⟨fun h => by rw [hri] at h; simp at h, fun idx' h => ?_⟩
+    rw [hri] at h
+    simp at h
+    subst h
+    have hbits := hwl ext hext
+    have hext_len : ext.bits.val.length = rc.val := by rw [hbits]; simp
+    have hlt : slots.bits.val.length < idx.val + 1 := by scalar_tac
+    rw [hlen, hext_len]
+    scalar_tac
+end
+
+theorem extend_eco_spec (b : ssz.SszBitlist 262144#usize) (x y : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ justified_slots_ops.extend_to_slot b x y
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ justified_slots_ops.extend_to_slot b x y = ok r ⌝) ⦄ :=
+  triple_mayThrow_of (fun _ hv => hv)
+
+section
+attribute [local spec] ssz_len_spec ST3H.current_proposer_spec ST3H.ok_or_spec
+  ST3H.branch_spec ST3H.header_hash_spec ST3H.ne_default_spec ST3H.take_spec
+  ST3H.into_inner_spec ST3H.push_spec ST3H.header_loop_spec ST3H.try_from_spec
+  ST3H.expect_spec ST3H.body_hash_spec ST7.from_residual_err_spec
+  extend_eco_spec
+
+/-- Que ventana deja `process_block_header` cuando acepta: la que tenia,
+    pasada por `extend_to_slot` hasta `block.slot - 1`, con el mismo slot
+    finalizado. -/
+theorem header_ventana_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_block_header state block
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.1 = core.result.Result.Ok () →
+        ∃ ultimo : Std.U64, ultimo.val + 1 = block.slot.val ∧
+          justified_slots_ops.extend_to_slot state.justified_slots
+            state.latest_finalized.slot ultimo = ok r.2.justified_slots ∧
+          r.2.latest_finalized.slot = state.latest_finalized.slot ⌝) ⦄ := by
+  unfold stf.process_block_header
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | trivial
+    | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+  -- Las dos ramas que llegan al final (con y sin anclaje del genesis):
+  -- el testigo es `block.slot - 1`.
+  all_goals (
+    refine ⟨_, ?_, by assumption⟩
+    scalar_tac)
+end
+
+/-- Indice dentro de la lista: `is_slot_justified` responde. -/
+theorem is_slot_justified_dentro (slots : ssz.SszBitlist 262144#usize)
+    (f s : Std.U64) (idx : Std.Usize)
+    (ho : justified_slots_ops.relative_index s f = ok (some idx))
+    (hlt : idx.val < slots.bits.val.length) :
+    ∃ b, justified_slots_ops.is_slot_justified slots f s =
+      ok (core.result.Result.Ok b) :=
+  ⟨_, is_slot_justified_de_bit slots f s idx _ ho (List.getElem?_eq_getElem hlt)⟩
+
+/-- Indice fuera de la lista: `is_slot_justified` rechaza. -/
+theorem is_slot_justified_fuera (slots : ssz.SszBitlist 262144#usize)
+    (f s : Std.U64) (idx : Std.Usize)
+    (ho : justified_slots_ops.relative_index s f = ok (some idx))
+    (hge : slots.bits.val.length ≤ idx.val) :
+    ∃ e, justified_slots_ops.is_slot_justified slots f s =
+      ok (core.result.Result.Err e) := by
+  unfold justified_slots_ops.is_slot_justified
+  rw [ho]
+  obtain ⟨n, hn, -⟩ := len_eq slots
+  simp [get_eq, hn, List.getElem?_eq_none hge, core.option.Option.ok_or]
+
+/-- Despues de `process_block_header`, la ventana cubre todos los slots
+    anteriores al del bloque: `is_slot_justified` responde `Ok` sobre cada
+    uno. Es la primera mitad del comentario de `is_valid_vote`. -/
+theorem tras_header_cubre (state state' : tipos.State) (block : tipos.Block)
+    (s : Std.U64)
+    (h : stf.process_block_header state block =
+           ok (core.result.Result.Ok (), state'))
+    (hs : s.val < block.slot.val)
+    (hfit : block.slot.val - state.latest_finalized.slot.val <
+              2 ^ UScalarTy.Usize.numBits) :
+    ∃ b, justified_slots_ops.is_slot_justified state'.justified_slots
+        state'.latest_finalized.slot s = ok (core.result.Result.Ok b) := by
+  obtain ⟨ult, hult, hext, hfin⟩ :=
+    of_triple_mayThrow (header_ventana_spec state block) h rfl
+  rw [hfin]
+  obtain ⟨-, hsome⟩ := of_triple_mayThrow
+    (extend_to_slot_largo_spec state.justified_slots state.latest_finalized.slot ult) hext
+  obtain ⟨os, hos, hosnone, hosval⟩ :=
+    relative_index_eq s state.latest_finalized.slot
+  cases os with
+  | none =>
+    refine ⟨true, ?_⟩
+    unfold justified_slots_ops.is_slot_justified
+    rw [hos]
+    rfl
+  | some idx =>
+    have hsf : state.latest_finalized.slot.val < s.val := by
+      by_contra hle
+      have := hosnone.mpr (by omega)
+      simp at this
+    have hidx : idx.val ≤ s.val - state.latest_finalized.slot.val - 1 := by
+      rw [hosval idx rfl]; exact Nat.mod_le _ _
+    obtain ⟨ou, hou, hounone, houval⟩ :=
+      relative_index_eq ult state.latest_finalized.slot
+    cases ou with
+    | none => have := hounone.mp rfl; omega
+    | some iu =>
+      have hiu : iu.val = ult.val - state.latest_finalized.slot.val - 1 := by
+        rw [houval iu rfl]; exact Nat.mod_eq_of_lt (by omega)
+      have hlen := hsome iu hou
+      have hge : iu.val + 1 ≤ state'.justified_slots.bits.val.length := by
+        rw [hlen]; exact Nat.le_max_right _ _
+      exact is_slot_justified_dentro _ _ _ idx hos (by omega)
+
+/-- Y si la ventana de entrada no llegaba mas alla del slot anterior al
+    bloque, del slot del bloque en adelante `is_slot_justified` rechaza. Es
+    la segunda mitad: "exactamente". -/
+theorem tras_header_rechaza (state state' : tipos.State) (block : tipos.Block)
+    (s : Std.U64)
+    (h : stf.process_block_header state block =
+           ok (core.result.Result.Ok (), state'))
+    (hlen : state.justified_slots.bits.val.length +
+              state.latest_finalized.slot.val + 1 ≤ block.slot.val)
+    (hs : block.slot.val ≤ s.val)
+    (hfit : s.val - state.latest_finalized.slot.val - 1 <
+              2 ^ UScalarTy.Usize.numBits) :
+    ∃ e, justified_slots_ops.is_slot_justified state'.justified_slots
+        state'.latest_finalized.slot s = ok (core.result.Result.Err e) := by
+  obtain ⟨ult, hult, hext, hfin⟩ :=
+    of_triple_mayThrow (header_ventana_spec state block) h rfl
+  rw [hfin]
+  obtain ⟨hnone, hsome⟩ := of_triple_mayThrow
+    (extend_to_slot_largo_spec state.justified_slots state.latest_finalized.slot ult) hext
+  obtain ⟨idx, hos, hidx⟩ :=
+    relative_index_arriba s state.latest_finalized.slot (by omega) hfit
+  obtain ⟨ou, hou, hounone, houval⟩ :=
+    relative_index_eq ult state.latest_finalized.slot
+  cases ou with
+  | none =>
+    have hule := hounone.mp rfl
+    rw [hnone hou]
+    exact is_slot_justified_fuera _ _ _ idx hos (by omega)
+  | some iu =>
+    have hfu : state.latest_finalized.slot.val < ult.val := by
+      by_contra hle
+      have := hounone.mpr (by omega)
+      simp at this
+    have hiu : iu.val = ult.val - state.latest_finalized.slot.val - 1 := by
+      rw [houval iu rfl]; exact Nat.mod_eq_of_lt (by omega)
+    have hle : state.justified_slots.bits.val.length ≤ iu.val + 1 := by omega
+    have hl' : state'.justified_slots.bits.val.length = iu.val + 1 := by
+      rw [hsome iu hou]; exact Nat.max_eq_right hle
+    exact is_slot_justified_fuera _ _ _ idx hos (by omega)
+
+end VC
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -3948,3 +4216,5 @@ end NP
 #print axioms NP.extend_to_slot_devuelve
 #print axioms NP.shift_window_devuelve
 #print axioms NP.finalizar_conserva_justificados_total
+#print axioms VC.tras_header_cubre
+#print axioms VC.tras_header_rechaza

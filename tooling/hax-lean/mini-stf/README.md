@@ -825,5 +825,34 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    > Lo que sigue: las hipotesis de capacidad como invariantes del estado
    > (que `justified_slots` nunca pase de 262144), y la ausencia de panico
    > del resto de la STF, funcion por funcion, con esta misma receta.
+
+   > Tercera nota del 17 nov 2026: **el comentario de `is_valid_vote`**
+   > (teorema 11, namespace `VC`). El codigo de ethlambda dice que despues de
+   > `process_block_header` la ventana cubre hasta `block.slot - 1`, y que
+   > por eso se rechaza "exactamente" el voto con slot igual o posterior al
+   > del bloque. Son dos teoremas:
+   >
+   > - `tras_header_cubre`: sobre todo slot anterior al del bloque,
+   >   `is_slot_justified` responde `Ok`. Vale para cualquier estado.
+   > - `tras_header_rechaza`: del slot del bloque en adelante responde `Err`.
+   >   NO vale para cualquier estado: pide que la ventana de entrada no
+   >   llegara ya mas alla del slot anterior al bloque (`hlen`). El "exactly"
+   >   del comentario depende de un invariante que el comentario no dice.
+   >
+   > Lo que hizo falta: el largo exacto de `extend_to_slot` (otro loop, con
+   > el invariante "el largo no cambia") y un lema "eco" para el header, que
+   > devuelve como postcondicion la propia llamada a `extend_to_slot`.
+   >
+   > Tropiezo: `omega` no cierra objetivos con un `max` en el contexto si el
+   > `max` tiene adentro una suma de naturales coercionados. Hay que sacar
+   > el hecho limpio antes (`Nat.le_max_right`, `Nat.max_eq_right`) y no
+   > dejar el `max` a la vista.
+   >
+   > Control negativo: sin `hlen` la demostracion falla en los dos lugares
+   > donde se usa.
+   >
+   > Lo que sigue: que `hlen` se conserve a lo largo de la transicion. Es el
+   > invariante "la ventana llega justo hasta el ultimo slot materializado",
+   > y de el salen tambien las hipotesis de capacidad del teorema 10.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

@@ -93,10 +93,11 @@ hax + Charon + Aeneas, de Rust a Lean. Se entra por
 [`RESTAURAR.md`](RESTAURAR.md) explica cómo reconstruir el entorno desde cero.
 
 Al 17 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
-`sorry` y treinta y cuatro resultados demostrados encima. Los últimos doce son
+`sorry` y treinta y seis resultados demostrados encima. Los últimos catorce son
 sobre la ventana de slots justificados: los cuatro teoremas que se habían
-propuesto al principio, el 22 de octubre, y la demostración de que ese módulo
-no entra en pánico. Los demás cubren las siete
+propuesto al principio, el 22 de octubre, la demostración de que ese módulo no
+entra en pánico, y un comentario del código de ethlambda sobre esa ventana,
+verificado. Los demás cubren las siete
 proposiciones de transición de estado del catálogo de `formal-leanSpec` (`ST-1`
 a `ST-7`), con dos salvedades que la propuesta detalla: `ST-4` está en su paso
 inductivo y `ST-7` vale bajo una hipótesis extra. Esa hipótesis no es un

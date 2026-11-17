@@ -27,7 +27,8 @@ que nos propusimos al mirar su código por primera vez. El último dice que cuan
 la finalidad avanza y la ventana se corre, ningún slot justificado se pierde.
 Para ese módulo está además lo que al resto le falta: que sus funciones no
 entran en pánico ni se cuelgan, con la condición exacta bajo la que una de ellas
-sí aborta.
+sí aborta. Y un comentario de su código sobre esa ventana queda verificado, con
+la hipótesis que le hacía falta.
 
 Cada número de acá salió de una corrida.
 
@@ -134,12 +135,12 @@ Qué tiene que dar cada paso:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` y después `=== listo ===` (1743 jobs la primera vez sobre un checkout limpio) |
-| 6 | `34` — un bloque de axiomas por resultado — y `0` |
+| 6 | `36` — un bloque de axiomas por resultado — y `0` |
 
 No hay un paso aparte de "correr las pruebas". Los teoremas están en
 `teoremas/ProofObligations.lean`; el paso 5 copia ese archivo adentro del
 proyecto Lean y `lake build` lo chequea entero. Si el build termina en verde,
-Lean aceptó las treinta y cuatro demostraciones. Al final imprime de qué axiomas
+Lean aceptó las treinta y seis demostraciones. Al final imprime de qué axiomas
 depende cada una, que es lo que cuenta el paso 6.
 
 Para convencerse de que el chequeo es real, rompan un enunciado a mano. En
@@ -268,10 +269,10 @@ Todo, con las líneas tal como se entrega.
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 322 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 3950 | nuestro — los teoremas. |
-| `axiomas.txt` | 443 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
+| `teoremas/ProofObligations.lean` | 4220 | nuestro — los teoremas. |
+| `axiomas.txt` | 463 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 829 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 858 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -367,7 +368,7 @@ más abajo.
 
 ## Qué recibe
 
-`teoremas/ProofObligations.lean` tiene treinta y cuatro resultados con nombre:
+`teoremas/ProofObligations.lean` tiene treinta y seis resultados con nombre:
 
 | Resultado | Qué es |
 |---|---|
@@ -404,6 +405,8 @@ más abajo.
 | `NP.extend_to_slot_devuelve` | `extend_to_slot` devuelve, si el slot pedido no está a más de 262144 del finalizado |
 | `NP.shift_window_devuelve` | `shift_window` devuelve, si la lista no pasa de 262144 bits |
 | `NP.finalizar_conserva_justificados_total` | **el compuesto, sin condicional de pánico** |
+| `VC.tras_header_cubre` | después de `process_block_header`, `is_slot_justified` responde `Ok` sobre todo slot anterior al del bloque |
+| `VC.tras_header_rechaza` | y responde `Err` del slot del bloque en adelante, si la ventana de entrada no era más larga de lo debido |
 | `bind_da_ok` | una herramienta: abre un bind de `RustM` |
 
 No se eligieron por cantidad. Entre todos cubren aritmética, ramificación y
@@ -812,6 +815,53 @@ alcanzable: que la ventana nunca pase de 262144 bits y que ningún slot quede m�
 lejos que eso del finalizado. Son invariantes del estado entero, no de este
 módulo. Y las otras funciones de la STF siguen con su condicional.
 
+### Un comentario de ustedes sobre la ventana, verificado
+
+El comentario de `is_valid_vote` dice:
+
+```rust
+/// After `process_block_header` the window covers up to
+/// `block.slot - 1`, so this is exactly a vote whose source or target slot is
+/// at or beyond the importing block's own slot.
+```
+
+Es una afirmación sobre lo que hacen juntas `process_block_header`,
+`extend_to_slot` e `is_slot_justified`. Ahora son dos teoremas, uno por cada
+mitad de la frase.
+
+**"Covers up to `block.slot − 1`".** Si `process_block_header` acepta, sobre todo
+slot anterior al del bloque `is_slot_justified` responde `Ok`
+(`VC.tras_header_cubre`). Vale para cualquier estado de entrada.
+
+**"Exactly".** Del slot del bloque en adelante responde `Err`, que es el
+`JustifiedSlotOutOfRange` (`VC.tras_header_rechaza`). Esta mitad **no vale para
+cualquier estado**: pide que la ventana de entrada no llegara ya más allá del
+slot anterior al bloque.
+
+```lean
+(hlen : state.justified_slots.bits.val.length +
+          state.latest_finalized.slot.val + 1 ≤ block.slot.val)
+```
+
+Con una ventana más larga de lo debido, un voto con slot posterior al bloque no
+se rechazaría por fuera de rango. O sea que el "exactly" del comentario es
+cierto bajo un invariante que el comentario no menciona: que la ventana termina
+justo en el último slot materializado. No demostramos que ese invariante se
+conserve a lo largo de la transición; ver abajo.
+
+Como control negativo corrimos la segunda demostración sin `hlen`. Falla en los
+dos lugares donde se la usa, y en ninguno más.
+
+Lo que hizo falta fue el largo exacto que deja `extend_to_slot` —el máximo
+entre el que tenía y el pedido—, que no estaba entre los resultados de la
+ventana, y qué ventana deja `process_block_header`: la de entrada pasada por
+`extend_to_slot` hasta `block.slot − 1`, con el mismo slot finalizado.
+
+**Lo que no está.** Que `hlen` se conserve de un bloque al siguiente. Hay que
+seguirla a través de `process_attestations`, donde `shift_window` acorta la
+ventana cada vez que la finalidad avanza. Con ese invariante quedarían cubiertas
+también las hipótesis de capacidad de la sección anterior.
+
 ### Qué es esto contra el catálogo, dicho exacto
 
 `ST-3` en
@@ -878,6 +928,7 @@ importa: elegir las propias propiedades vuelve el ejercicio circular.
 | sin pánico: `is_slot_justified` | 3 | 3 | — | — |
 | sin pánico: `set_justified` (los tres), `shift_window`, el compuesto | 5 | 3 | 1 | 1 |
 | sin pánico: `extend_to_slot` | 6 | 3 | 2 | 1 |
+| la ventana después del header, los dos resultados | 8 | 3 | 3 | 2 |
 
 Tres categorías, con tres pesos distintos.
 

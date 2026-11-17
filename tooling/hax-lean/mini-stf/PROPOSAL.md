@@ -26,7 +26,8 @@ Outside the catalog there are four more, about the justified-slots window: the
 ones we set ourselves on first reading your code. The last says that when
 finality advances and the window shifts, no justified slot is lost. For that
 module there is also what the rest lacks: that its functions do not panic or
-hang, with the exact condition under which one of them does abort.
+hang, with the exact condition under which one of them does abort. And a comment
+in your code about that window is checked, with the hypothesis it was missing.
 
 Every number here came from a run.
 
@@ -129,12 +130,12 @@ What each step should give:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
-| 6 | `34` — one axiom block per result — and `0` |
+| 6 | `36` — one axiom block per result — and `0` |
 
 There is no separate "run the proofs" step. The theorems are in
 `teoremas/ProofObligations.lean`; step 5 copies that file into the Lean project
 and `lake build` checks all of it. If the build ends green, Lean accepted the
-thirty-four proofs. At the end it prints which axioms each one depends on, which
+thirty-six proofs. At the end it prints which axioms each one depends on, which
 is what step 6 counts.
 
 To convince yourself the check is real, break a statement by hand. In
@@ -263,10 +264,10 @@ Everything, with line counts as shipped.
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 322 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 3950 | ours — the theorems. |
-| `axiomas.txt` | 443 | ours — the `#print axioms` output, so the trust base can be read without building. |
+| `teoremas/ProofObligations.lean` | 4220 | ours — the theorems. |
+| `axiomas.txt` | 463 | ours — the `#print axioms` output, so the trust base can be read without building. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 829 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 858 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -359,7 +360,7 @@ down.
 
 ## What you get
 
-`teoremas/ProofObligations.lean` holds thirty-four named results:
+`teoremas/ProofObligations.lean` holds thirty-six named results:
 
 | Result | What it is |
 |---|---|
@@ -396,6 +397,8 @@ down.
 | `NP.extend_to_slot_devuelve` | `extend_to_slot` returns, if the requested slot is no more than 262144 from the finalized one |
 | `NP.shift_window_devuelve` | `shift_window` returns, if the list is no longer than 262144 bits |
 | `NP.finalizar_conserva_justificados_total` | **the composite, with no panic conditional** |
+| `VC.tras_header_cubre` | after `process_block_header`, `is_slot_justified` answers `Ok` for every slot before the block's |
+| `VC.tras_header_rechaza` | and answers `Err` from the block's slot onwards, if the input window was not longer than it should be |
 | `bind_da_ok` | a tool: opens one `RustM` bind |
 
 They were not picked for count. Between them they cover arithmetic, branching
@@ -804,6 +807,53 @@ further than that from the finalized one. Those are invariants of the whole
 state, not of this module. And the other functions of the STF keep their
 conditional.
 
+### A comment of yours about the window, checked
+
+The comment on `is_valid_vote` says:
+
+```rust
+/// After `process_block_header` the window covers up to
+/// `block.slot - 1`, so this is exactly a vote whose source or target slot is
+/// at or beyond the importing block's own slot.
+```
+
+It is a claim about what `process_block_header`, `extend_to_slot` and
+`is_slot_justified` do together. It is now two theorems, one per half of the
+sentence.
+
+**"Covers up to `block.slot − 1`".** If `process_block_header` accepts, then for
+every slot before the block's `is_slot_justified` answers `Ok`
+(`VC.tras_header_cubre`). It holds for any input state.
+
+**"Exactly".** From the block's slot onwards it answers `Err`, which is
+`JustifiedSlotOutOfRange` (`VC.tras_header_rechaza`). This half **does not hold
+for every state**: it asks that the input window did not already reach past the
+slot before the block.
+
+```lean
+(hlen : state.justified_slots.bits.val.length +
+          state.latest_finalized.slot.val + 1 ≤ block.slot.val)
+```
+
+With a window longer than it should be, a vote with a slot after the block
+would not be rejected as out of range. So the comment's "exactly" is true under
+an invariant the comment does not mention: that the window ends right at the
+last materialized slot. We did not prove that invariant is preserved across the
+transition; see below.
+
+As a negative control we ran the second proof without `hlen`. It fails at the
+two places where it is used, and nowhere else.
+
+What it took was the exact length `extend_to_slot` leaves — the maximum of what
+it had and what was asked for — which was not among the window results, and
+which window `process_block_header` leaves: the input one passed through
+`extend_to_slot` up to `block.slot − 1`, with the same finalized slot.
+
+**What is not there.** That `hlen` is preserved from one block to the next. It
+has to be followed through `process_attestations`, where `shift_window` shortens
+the window each time finality advances. With that invariant the capacity
+hypotheses of the previous section would be covered too.
+
 ### What this is against the catalog, stated exactly
 
 `ST-3` in
@@ -871,6 +921,7 @@ own properties makes the exercise circular.
 | no panic: `is_slot_justified` | 3 | 3 | — | — |
 | no panic: `set_justified` (all three), `shift_window`, the composite | 5 | 3 | 1 | 1 |
 | no panic: `extend_to_slot` | 6 | 3 | 2 | 1 |
+| the window after the header, both results | 8 | 3 | 3 | 2 |
 
 Three categories, with three different weights.
 

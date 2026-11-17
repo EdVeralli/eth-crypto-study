@@ -417,6 +417,26 @@ NP.finalizar_conserva_justificados_total
   nativos:
     ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
 
+VC.tras_header_cubre
+  TOTAL 8 = 3 estandar + 3 nativos + 2 modelos
+  modelos:
+    - core.bool.Bool.then
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+    ~ mini_stf.stf.process_block_header._native.decide.ax_3
+
+VC.tras_header_rechaza
+  TOTAL 8 = 3 estandar + 3 nativos + 2 modelos
+  modelos:
+    - core.bool.Bool.then
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+    ~ mini_stf.stf.process_block_header._native.decide.ax_3
+
 ========================================================================
 
 NATIVOS DISTINTOS EN TODO EL BUILD: 9

@@ -19,7 +19,8 @@ _Ultima actualizacion: 2026-11-15_
 >
 > El 17 nov se demostraron los cuatro teoremas originales sobre la ventana de slots
 > justificados (`justified_slots_ops`), los del analisis del 22 oct, y que ese modulo no
-> entra en panico. El paquete queda con treinta y cuatro resultados.
+> entra en panico, y se verifico un comentario de su codigo sobre esa ventana. El paquete
+> queda con treinta y seis resultados.
 
 ## Como retomar en otra computadora (Windows)
 
