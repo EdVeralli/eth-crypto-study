@@ -41,7 +41,7 @@ Lean las acepta sin `sorry`. Eso dice que el programa quedó escrito en Lean. No
 dice que sea correcto.
 
 **Las demostraciones son de propiedades puntuales.** Un programa no "se
-demuestra": se demuestran afirmaciones sobre él. Acá hay cuarenta y nueve,
+demuestra": se demuestran afirmaciones sobre él. Acá hay cincuenta y una,
 listadas en **Qué recibe**. Cada una dice una cosa precisa, con sus hipótesis a
 la vista.
 
@@ -49,8 +49,8 @@ Lo que **no** está demostrado, dicho de una vez:
 
 - **Que el código nunca entre en pánico.** Está para las cuatro funciones de un
   módulo auxiliar, la ventana de slots justificados (`justified_slots_ops.rs`),
-  y para siete de las doce de la transición propiamente dicha (`stf.rs`), dos
-  de ellas con hipótesis escritas. Las otras cinco conservan el condicional
+  y para ocho de las doce de la transición propiamente dicha (`stf.rs`), tres
+  de ellas con hipótesis escritas. Las otras cuatro conservan el condicional
   "si la función devuelve".
 - **Que el código sea equivalente a la especificación.** Sobre estados
   arbitrarios no lo es: encontramos dos puntos donde se comportan distinto, y
@@ -168,12 +168,12 @@ Qué tiene que dar cada paso:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` y después `=== listo ===` (1743 jobs la primera vez sobre un checkout limpio) |
-| 6 | `49` — un bloque de axiomas por resultado — y `0` |
+| 6 | `51` — un bloque de axiomas por resultado — y `0` |
 
 No hay un paso aparte de "correr las pruebas". Los teoremas están en
 `teoremas/ProofObligations.lean`; el paso 5 copia ese archivo adentro del
 proyecto Lean y `lake build` lo chequea entero. Si el build termina en verde,
-Lean aceptó las cuarenta y nueve demostraciones. Al final imprime de qué axiomas
+Lean aceptó las cincuenta y una demostraciones. Al final imprime de qué axiomas
 depende cada una, que es lo que cuenta el paso 6.
 
 Para convencerse de que el chequeo es real, rompan un enunciado a mano. En
@@ -302,10 +302,10 @@ Todo, con las líneas tal como se entrega.
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 336 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 5827 | nuestro — los teoremas. |
-| `axiomas.txt` | 578 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
+| `teoremas/ProofObligations.lean` | 6335 | nuestro — los teoremas. |
+| `axiomas.txt` | 593 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 1008 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 1051 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -401,7 +401,7 @@ más abajo.
 
 ## Qué recibe
 
-`teoremas/ProofObligations.lean` tiene cuarenta y nueve resultados con nombre:
+`teoremas/ProofObligations.lean` tiene cincuenta y un resultados con nombre:
 
 | Resultado | Qué es |
 |---|---|
@@ -453,6 +453,8 @@ más abajo.
 | `NP2.is_valid_vote_total` | **`is_valid_vote` nunca entra en pánico, para cualquier estado y cualquier voto** |
 | `NP3.process_slots_devuelve` | `process_slots` no entra en pánico, si el hash del estado devuelve |
 | `NP3.process_block_header_devuelve` | **`process_block_header` no entra en pánico**, con un hash por slot en el historial y si sus dos hashes devuelven |
+| `NP4.claves_ordenadas_devuelve` | el ordenamiento de raíces escrito a mano termina y no cambia cuántas hay, si la comparación de `H256` devuelve |
+| `NP4.serialize_justifications_devuelve` | **`serialize_justifications` no entra en pánico**, con el mapa de votos dentro de los límites y si la comparación de `H256` devuelve |
 | `bind_da_ok` | una herramienta: abre un bind de `RustM` |
 
 No se eligieron por cantidad. Entre todos cubren aritmética, ramificación y
@@ -1124,11 +1126,50 @@ sin chequeos de desborde no lo modela este paquete.
 `NP3.process_block_header_devuelve` depende de siete: esos tres, tres nativos,
 y la firma de `fmt` del error que formatea el `expect`.
 
-**Lo que no está.** Las otras cinco funciones de `stf.rs`:
-`serialize_justifications`, `try_finalize`, `process_attestations`,
-`process_block` y `state_transition`. `try_finalize` y `process_attestations`
-usan el `HashMap`, que acá es una firma sin contenido; `process_block` y
-`state_transition` llaman a las anteriores.
+### `serialize_justifications` no entra en pánico
+
+Es la función que vuelve a escribir el mapa de votos en los dos campos del
+estado. Ordena las raíces, pide un bitlist de `raíces * validator_count` bits,
+vuelca los votos de cada raíz en su tramo, y guarda las raíces.
+
+Tiene tres `expect`, y cada uno queda atado a una hipótesis del enunciado:
+
+| `expect` | Qué lo hace cierto |
+|---|---|
+| `"maximum validator justifications reached"` | a lo sumo 262144 raíces y a lo sumo 4096 validadores: son los dos límites de sus tipos, y su producto es justo la capacidad del bitlist |
+| `"we just updated the capacity"` | que ninguna lista de votos sea más larga que `validator_count`: así el bit de cada voto cae adentro del tramo de su raíz |
+| `"justifications_roots limit exceeded"` | a lo sumo 262144 raíces |
+
+Con los dos límites tampoco desborda `raíces * validator_count`, ni el `base`
+que avanza de a un tramo por raíz.
+
+**La comparación de `H256` va como hipótesis.** El ordenamiento compara raíces
+con `<`. Esa comparación de arrays es una de las veintiséis declaraciones sin
+contenido de este paquete, así que no se puede demostrar que devuelva: el
+enunciado lo pide, igual que con el hash. Es la primera vez que un resultado
+nombra una de esas declaraciones en sus hipótesis.
+
+**El ordenamiento escrito a mano termina.** `claves_ordenadas` reemplaza al
+`sort()` de ustedes por una inserción escrita con loops explícitos.
+`NP4.claves_ordenadas_devuelve` dice que termina, que no aborta y que
+devuelve tantas raíces como claves tiene el mapa. Que además las deje ordenadas
+no está demostrado, ni se podría con la comparación como declaración sin
+contenido.
+
+Controles negativos, dos. Sin la hipótesis sobre las listas de votos aparece
+una meta que no cierra: que el voto entre en su tramo. Sin la cota de
+validadores quedan abiertas la capacidad del bitlist y el producto.
+
+`NP4.claves_ordenadas_devuelve` depende de cuatro axiomas: los tres de Lean y
+la comparación de arrays. `NP4.serialize_justifications_devuelve` depende de
+ocho: esos cuatro, tres nativos, y la firma de `fmt` del error que formatean
+los `expect`.
+
+**Lo que no está.** Que el mapa que arma `process_attestations` cumpla esas
+hipótesis; hace falta para juntar las dos. Y las otras cuatro funciones de
+`stf.rs`: `try_finalize`, `process_attestations`, `process_block` y
+`state_transition`. Las dos primeras usan el `HashMap`, que acá es una firma
+sin contenido; las dos últimas llaman a las anteriores.
 
 ### Qué es esto contra el catálogo, dicho exacto
 
@@ -1204,6 +1245,8 @@ importa: elegir las propias propiedades vuelve el ejercicio circular.
 | sin pánico: las cinco funciones chicas de `stf.rs` | 3 | 3 | — | — |
 | sin pánico: `process_slots` | 3 | 3 | — | — |
 | sin pánico: `process_block_header` | 7 | 3 | 3 | 1 |
+| sin pánico: `claves_ordenadas` | 4 | 3 | — | 1 |
+| sin pánico: `serialize_justifications` | 8 | 3 | 3 | 2 |
 
 Tres categorías, con tres pesos distintos.
 
@@ -1266,7 +1309,9 @@ comportamiento.
 
 Ninguna de las veintiséis carga peso en los teoremas de arriba: las
 propiedades salen de las guardas, de las asignaciones y del historial de hashes,
-no de lo que haga el mapa, el hash o el formateador. De las tres afirmaciones de
+no de lo que haga el mapa, el hash o el formateador. Hay una excepción, y está
+escrita: el resultado sobre `serialize_justifications` le pide a la comparación
+de arrays que devuelva, como hipótesis. De las tres afirmaciones de
 modelado, `ST-3` no se apoya en ninguna; `ST-7` sobre la transición entera y los
 invariantes del historial se apoyan en la de `mem::take`, porque necesitan que
 el historial sobreviva a `process_block_header`; la ausencia de pánico de
@@ -1472,10 +1517,10 @@ entrada dada son los tests de Rust.
 
 **La ausencia de pánico no cubre toda la transición.** Las cuatro funciones de
 `justified_slots_ops` devuelven, bajo hipótesis de capacidad; cinco de las doce
-de `stf.rs` devuelven sin hipótesis; y `process_slots` y `process_block_header`
-devuelven con las hipótesis de su sección, entre ellas que el hash devuelva.
-Las otras cinco, entre ellas `state_transition`, conservan el condicional "si
-la función devuelve".
+de `stf.rs` devuelven sin hipótesis; y `process_slots`, `process_block_header`
+y `serialize_justifications` devuelven con las hipótesis de su sección, entre
+ellas que el hash y la comparación de `H256` devuelvan. Las otras cuatro, entre
+ellas `state_transition`, conservan el condicional "si la función devuelve".
 
 **La capacidad de la ventana está demostrada, pero no armada dentro de cada
 función.** Que la ventana no pasa de 262144 bits es un invariante de la

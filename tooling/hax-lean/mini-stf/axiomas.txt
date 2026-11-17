@@ -550,6 +550,21 @@ NP3.process_block_header_devuelve
     ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
     ~ mini_stf.stf.process_block_header._native.decide.ax_3
 
+NP4.claves_ordenadas_devuelve
+  TOTAL 4 = 3 estandar + 0 nativos + 1 modelos
+  modelos:
+    - core.Array.Insts.CoreCmpOrd.cmp
+
+NP4.serialize_justifications_devuelve
+  TOTAL 8 = 3 estandar + 3 nativos + 2 modelos
+  modelos:
+    - core.Array.Insts.CoreCmpOrd.cmp
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  nativos:
+    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
+    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
+    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+
 ========================================================================
 
 NATIVOS DISTINTOS EN TODO EL BUILD: 9

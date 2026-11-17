@@ -1004,5 +1004,48 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    > `process_attestations` usan `HashMap.get/insert/new`, que siguen
    > siendo axiomas sin contenido: hay que decidir si se modelan o si se
    > toma "devuelven" como hipotesis, igual que con el hash.
+
+   > Octava nota del 17 nov 2026: **`serialize_justifications` no entra en
+   > panico** (teorema 16, namespace `NP4`), y de paso `claves_ordenadas`.
+   >
+   > - SORPRESA: yo habia dicho que esta no pedia ninguna decision previa, y
+   >   no era asi. El ordenamiento compara `H256` con `<`, que baja a
+   >   `core.Array.Insts.CoreCmpOrd.cmp`, una de las 26 declaraciones sin
+   >   contenido. No se puede probar que devuelve. Se tomo como hipotesis
+   >   escrita (`hcmp : ∀ x y, ∃ o, cmp x y = ok o`), igual que el hash. La
+   >   alternativa, modelar la comparacion lexicografica, queda abierta:
+   >   seria la cuarta afirmacion de modelado y permitiria probar que
+   >   ademas ORDENA.
+   > - Hipotesis del resultado: `hcmp`; a lo sumo 262144 raices; a lo sumo
+   >   4096 validadores; ninguna lista de votos mas larga que
+   >   `validator_count`. Cada `expect` de la funcion queda atado a una.
+   > - Lemas base nuevos, con ecuacion y con terna total: `Vec::deref`,
+   >   `Slice::get`, `deref_mut`, `Slice::get_mut` (solo el largo),
+   >   `Vec::len`, `Vec::new`, `Option::is_none`.
+   > - `burbujear` (el loop interno de la insercion): medida de terminacion
+   >   `2 * j + seguir`. Si intercambia baja `j`; si no, apaga `seguir`.
+   > - `posicion` (busqueda lineal): medida `largo - i`.
+   > - Un lema `@[spec]` NO puede tener una variable libre que no este en
+   >   el programa, tampoco en una hipotesis. `largo_votos` con cota `c` no
+   >   servia; quedo como "devuelve cero, o el largo de alguna lista de
+   >   votos". Y `volcar_votos` pide "cada lista, puesta a partir de
+   >   `base`, entra en el destino", sin nombrar la cota.
+   > - Las cuentas con producto (`base = i * vc`, destino de `n * vc` bits):
+   >   un lema `tramo : a < b → a * c + c ≤ b * c` y despues `omega`, que
+   >   trata `i * vc` como atomo.
+   > - Cerrar con `first | (exfalso; scalar_tac) | (refine ...; scalar_tac)`
+   >   sin `by` anidados.
+   >
+   > Controles negativos: sin la hipotesis de los votos aparece la meta
+   > `largo ≤ validator_count` sin cerrar; sin la cota de validadores
+   > fallan la capacidad del bitlist y el producto.
+   >
+   > Axiomas: `claves_ordenadas_devuelve` 4 (3 de Lean y la comparacion de
+   > arrays); `serialize_justifications_devuelve` 8 (esos 4, 3 nativos y el
+   > `fmt` de `FueraDeCapacidad`).
+   >
+   > Lo que sigue: `try_finalize`, `process_attestations`, `process_block`
+   > y `state_transition`. Para juntar con `process_attestations` falta
+   > probar que el mapa que arma cumple las hipotesis de arriba.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.
