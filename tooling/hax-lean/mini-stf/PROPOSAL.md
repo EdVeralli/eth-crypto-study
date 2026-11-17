@@ -46,8 +46,9 @@ says one precise thing, with its hypotheses in plain sight.
 What is **not** proved, said once:
 
 - **That the code never panics.** It is proved for the four functions of one
-  module, the justified-slots window. The other eight keep the "if the function
-  returns" conditional.
+  helper module, the justified-slots window (`justified_slots_ops.rs`). The
+  twelve of the transition proper (`stf.rs`) keep the "if the function returns"
+  conditional.
 - **That the code is equivalent to the spec.** On arbitrary states it is not:
   we found two points where they behave differently, and they are set out
   below.
@@ -1202,8 +1203,9 @@ build it.
 on a given input is the Rust tests.
 
 **Absence of panic is proved for one module only.** The four functions of
-`justified_slots_ops` return, under capacity hypotheses. The other eight of the
-STF keep the "if the function returns" conditional.
+`justified_slots_ops` return, under capacity hypotheses. The twelve in
+`stf.rs`, which are the transition proper, keep the "if the function returns"
+conditional.
 
 **Three hypotheses about the slot window are not established as invariants.**
 That it does not exceed 262144 bits, that no slot ends up further than that

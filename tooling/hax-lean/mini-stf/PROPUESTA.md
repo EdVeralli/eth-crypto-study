@@ -48,7 +48,8 @@ la vista.
 Lo que **no** está demostrado, dicho de una vez:
 
 - **Que el código nunca entre en pánico.** Está para las cuatro funciones de un
-  módulo, la ventana de slots justificados. Las otras ocho conservan el
+  módulo auxiliar, la ventana de slots justificados (`justified_slots_ops.rs`).
+  Las doce de la transición propiamente dicha (`stf.rs`) conservan el
   condicional "si la función devuelve".
 - **Que el código sea equivalente a la especificación.** Sobre estados
   arbitrarios no lo es: encontramos dos puntos donde se comportan distinto, y
@@ -1218,7 +1219,8 @@ entrada dada son los tests de Rust.
 
 **La ausencia de pánico está demostrada para un solo módulo.** Las cuatro
 funciones de `justified_slots_ops` devuelven, bajo hipótesis de capacidad. Las
-otras ocho de la STF conservan el condicional "si la función devuelve".
+doce de `stf.rs`, que son la transición propiamente dicha, conservan el
+condicional "si la función devuelve".
 
 **Tres hipótesis sobre la ventana de slots no están establecidas como
 invariantes.** Que no pase de 262144 bits, que ningún slot quede a más de eso
