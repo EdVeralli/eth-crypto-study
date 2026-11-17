@@ -41,7 +41,7 @@ Lean las acepta sin `sorry`. Eso dice que el programa quedó escrito en Lean. No
 dice que sea correcto.
 
 **Las demostraciones son de propiedades puntuales.** Un programa no "se
-demuestra": se demuestran afirmaciones sobre él. Acá hay cuarenta y siete,
+demuestra": se demuestran afirmaciones sobre él. Acá hay cuarenta y nueve,
 listadas en **Qué recibe**. Cada una dice una cosa precisa, con sus hipótesis a
 la vista.
 
@@ -49,8 +49,9 @@ Lo que **no** está demostrado, dicho de una vez:
 
 - **Que el código nunca entre en pánico.** Está para las cuatro funciones de un
   módulo auxiliar, la ventana de slots justificados (`justified_slots_ops.rs`),
-  y para cinco de las doce de la transición propiamente dicha (`stf.rs`). Las
-  otras siete conservan el condicional "si la función devuelve".
+  y para siete de las doce de la transición propiamente dicha (`stf.rs`), dos
+  de ellas con hipótesis escritas. Las otras cinco conservan el condicional
+  "si la función devuelve".
 - **Que el código sea equivalente a la especificación.** Sobre estados
   arbitrarios no lo es: encontramos dos puntos donde se comportan distinto, y
   están contados más abajo.
@@ -167,12 +168,12 @@ Qué tiene que dar cada paso:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` y después `=== listo ===` (1743 jobs la primera vez sobre un checkout limpio) |
-| 6 | `47` — un bloque de axiomas por resultado — y `0` |
+| 6 | `49` — un bloque de axiomas por resultado — y `0` |
 
 No hay un paso aparte de "correr las pruebas". Los teoremas están en
 `teoremas/ProofObligations.lean`; el paso 5 copia ese archivo adentro del
 proyecto Lean y `lake build` lo chequea entero. Si el build termina en verde,
-Lean aceptó las cuarenta y siete demostraciones. Al final imprime de qué axiomas
+Lean aceptó las cuarenta y nueve demostraciones. Al final imprime de qué axiomas
 depende cada una, que es lo que cuenta el paso 6.
 
 Para convencerse de que el chequeo es real, rompan un enunciado a mano. En
@@ -301,10 +302,10 @@ Todo, con las líneas tal como se entrega.
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 336 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 5587 | nuestro — los teoremas. |
-| `axiomas.txt` | 566 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
+| `teoremas/ProofObligations.lean` | 5827 | nuestro — los teoremas. |
+| `axiomas.txt` | 578 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 962 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 1008 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -400,7 +401,7 @@ más abajo.
 
 ## Qué recibe
 
-`teoremas/ProofObligations.lean` tiene cuarenta y siete resultados con nombre:
+`teoremas/ProofObligations.lean` tiene cuarenta y nueve resultados con nombre:
 
 | Resultado | Qué es |
 |---|---|
@@ -450,6 +451,8 @@ más abajo.
 | `NP2.slot_is_justifiable_total` | `slot_is_justifiable_after` nunca entra en pánico |
 | `NP2.matches_chain_total` | `attestation_data_matches_chain` nunca entra en pánico |
 | `NP2.is_valid_vote_total` | **`is_valid_vote` nunca entra en pánico, para cualquier estado y cualquier voto** |
+| `NP3.process_slots_devuelve` | `process_slots` no entra en pánico, si el hash del estado devuelve |
+| `NP3.process_block_header_devuelve` | **`process_block_header` no entra en pánico**, con un hash por slot en el historial y si sus dos hashes devuelven |
 | `bind_da_ok` | una herramienta: abre un bind de `RustM` |
 
 No se eligieron por cantidad. Entre todos cubren aritmética, ramificación y
@@ -1011,10 +1014,9 @@ Hizo falta el largo exacto que deja el loop que rellena los slots vacíos —ant
 sólo estaba que agrega al final— y que `process_attestations` no toca el
 historial, sin ninguna hipótesis.
 
-**Lo que no está.** Juntar todo esto en la ausencia de pánico de las funciones
-de `stf.rs`. Las piezas para `try_finalize` y `process_block_header` ya están:
-que sus llamadas a `shift_window` y `extend_to_slot` no abortan. Falta el resto
-de cada función.
+**Lo que no está.** Juntar todo esto en la ausencia de pánico de `try_finalize`.
+La pieza ya está: que su llamada a `shift_window` no aborta. Falta el resto de
+la función. Para `process_block_header` sí está armado, más abajo.
 
 ### Cinco funciones de la transición no entran en pánico
 
@@ -1061,9 +1063,72 @@ más. Eso no quiere decir que no supongan nada. Siguen apoyándose en dos de
 nuestras afirmaciones de modelado, `bool::then` e `isqrt`, que son definiciones
 y por eso no aparecen como axiomas.
 
-**Lo que no está.** Las otras siete funciones de `stf.rs`: `process_slots`,
-`process_block_header`, `serialize_justifications`, `try_finalize`,
-`process_attestations`, `process_block` y `state_transition`.
+### `process_slots` y `process_block_header` no entran en pánico
+
+Siguen las dos funciones de `stf.rs` que hashean.
+
+| Función | Resultado | Hipótesis |
+|---|---|---|
+| `process_slots` | devuelve siempre | que el hash del estado devuelva |
+| `process_block_header` | devuelve siempre | `usize` de 64 bits; un hash por slot en el historial; que el hash del header anterior y el del cuerpo del bloque devuelvan |
+
+**El hash va como hipótesis, a propósito.** El `hash_tree_root` de este crate es
+un sustituto del de ustedes. Demostrar que el sustituto termina no diría nada
+sobre el suyo, así que cada enunciado lleva escrito "esta llamada al hash
+devuelve", una vez por llamada. Es lo único que estos dos resultados le piden
+al hash.
+
+Dónde podía haber un pánico y por qué no lo hay:
+
+- En `process_slots`, la resta `target_slot - state.slot`. El chequeo de arriba
+  ya descartó `state.slot >= target_slot`.
+- En `process_block_header`, `block.slot - parent_header.slot - 1`. El chequeo
+  de `ParentSlotIsNewer` garantiza que la diferencia es al menos uno.
+- `current_len + 1 + num_empty_slots`. Con un hash por slot en el historial esa
+  suma vale exactamente `block.slot`, que entra en un `u64`.
+- Los `push` y el loop que rellena los slots vacíos. El loop termina —ahora con
+  medida de terminación— y deja exactamente `new_total` entradas.
+- El `expect("pre-validated: total does not exceed limit")`. El comentario
+  tiene razón: a esa altura el vector mide `new_total`, que ya pasó el chequeo
+  contra `HISTORICAL_ROOTS_LIMIT`, y el `try_from` da `Ok`.
+- `block.slot - 1`. El slot del bloque es mayor que el del header anterior.
+- `extend_to_slot`. Recibe una ventana que entra en la capacidad, porque
+  `block.slot` no pasa de 262144.
+
+**Una precondición que el código da por sentada.** `new_total` se calcula antes
+de compararlo contra el límite:
+
+```rust
+let num_empty_slots = (block.slot - parent_header.slot - 1) as usize;
+let current_len = state.historical_block_hashes.len();
+let new_total = current_len + 1 + num_empty_slots; // +1 for parent_root push
+if new_total > HISTORICAL_ROOTS_LIMIT {
+```
+
+Si el historial tuviera más entradas que el slot del header anterior, esa suma
+podría pasar de `usize::MAX` con un `block.slot` muy grande, antes de que el
+chequeo llegue a rechazarlo. La hipótesis "un hash por slot" es la que lo
+impide. No es una hipótesis nueva: es la primera mitad del invariante de **La
+ventana no pasa de su capacidad**, que la transición conserva. No conocemos
+ningún estado alcanzable que la viole, y no lo presentamos como un bug. Es la
+condición bajo la cual vale el resultado, y queda escrita.
+
+Como control negativo sacamos esa hipótesis. La prueba deja de cerrar, y lo
+que queda abierto es exactamente eso: las dos sumas, en las dos ramas, y la
+capacidad de la ventana en la rama que no es la del génesis.
+
+En el modelo de Lean un desborde es un pánico. Qué hace un binario compilado
+sin chequeos de desborde no lo modela este paquete.
+
+`NP3.process_slots_devuelve` depende sólo de los tres axiomas de Lean.
+`NP3.process_block_header_devuelve` depende de siete: esos tres, tres nativos,
+y la firma de `fmt` del error que formatea el `expect`.
+
+**Lo que no está.** Las otras cinco funciones de `stf.rs`:
+`serialize_justifications`, `try_finalize`, `process_attestations`,
+`process_block` y `state_transition`. `try_finalize` y `process_attestations`
+usan el `HashMap`, que acá es una firma sin contenido; `process_block` y
+`state_transition` llaman a las anteriores.
 
 ### Qué es esto contra el catálogo, dicho exacto
 
@@ -1137,6 +1202,8 @@ importa: elegir las propias propiedades vuelve el ejercicio circular.
 | los dos invariantes juntos sobre `state_transition` | 22 | 3 | 9 | 10 |
 | `shift_window` sobre la ventana de un estado con los invariantes | 5 | 3 | 1 | 1 |
 | sin pánico: las cinco funciones chicas de `stf.rs` | 3 | 3 | — | — |
+| sin pánico: `process_slots` | 3 | 3 | — | — |
+| sin pánico: `process_block_header` | 7 | 3 | 3 | 1 |
 
 Tres categorías, con tres pesos distintos.
 
@@ -1202,10 +1269,10 @@ propiedades salen de las guardas, de las asignaciones y del historial de hashes,
 no de lo que haga el mapa, el hash o el formateador. De las tres afirmaciones de
 modelado, `ST-3` no se apoya en ninguna; `ST-7` sobre la transición entera y los
 invariantes del historial se apoyan en la de `mem::take`, porque necesitan que
-el historial sobreviva a `process_block_header`; y la ausencia de pánico de
+el historial sobreviva a `process_block_header`; la ausencia de pánico de
 `current_proposer` y de `slot_is_justifiable_after` se apoya en las de
-`bool::then` e `isqrt`. Eso es una afirmación sobre las demostraciones, leída
-de ellas.
+`bool::then` e `isqrt`; y la de `process_block_header` en las de `mem::take` y
+`bool::then`. Eso es una afirmación sobre las demostraciones, leída de ellas.
 `#print axioms` dice de qué depende un teorema, no si se apoya en el
 comportamiento de esa dependencia, y esa distinción nos toca argumentarla a
 nosotros y no medirla a la herramienta.
@@ -1377,6 +1444,13 @@ realista, y la guarda de arriba exige
 una precondición no enunciada, y pueden preferir `checked_add` o una forma
 saturante.
 
+**`current_len + 1 + num_empty_slots` se suma antes de chequear el límite.** Es
+el mismo tipo de hallazgo, en `process_block_header`, y salió igual: al pedir
+que la función devuelva. Con un hash por slot en el historial la suma vale
+`block.slot` y no desborda; ese invariante la transición lo conserva. Tampoco
+es un bug vivo. Está contado en **`process_slots` y `process_block_header` no
+entran en pánico**.
+
 **La base de confianza no está vacía**, y lo que hay en ella está detallado en
 **La base de confianza**, arriba: nueve axiomas nativos que vienen con la
 traducción, veintiséis declaraciones nuestras que no afirman nada, y tres
@@ -1397,9 +1471,11 @@ para probar un caso concreto: la evidencia de que devuelven lo esperado en una
 entrada dada son los tests de Rust.
 
 **La ausencia de pánico no cubre toda la transición.** Las cuatro funciones de
-`justified_slots_ops` devuelven, bajo hipótesis de capacidad, y cinco de las
-doce de `stf.rs` devuelven sin hipótesis. Las otras siete, entre ellas
-`state_transition`, conservan el condicional "si la función devuelve".
+`justified_slots_ops` devuelven, bajo hipótesis de capacidad; cinco de las doce
+de `stf.rs` devuelven sin hipótesis; y `process_slots` y `process_block_header`
+devuelven con las hipótesis de su sección, entre ellas que el hash devuelva.
+Las otras cinco, entre ellas `state_transition`, conservan el condicional "si
+la función devuelve".
 
 **La capacidad de la ventana está demostrada, pero no armada dentro de cada
 función.** Que la ventana no pasa de 262144 bits es un invariante de la

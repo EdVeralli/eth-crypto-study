@@ -5540,6 +5540,244 @@ theorem is_valid_vote_total (st : tipos.State) (d : tipos.AttestationData) :
 
 end NP2
 
+/- ===========================================================================
+   Teorema 15 — `process_slots` y `process_block_header` no entran en panico
+
+   Siguen las dos funciones de `stf.rs` que hashean. El hash de este crate es
+   un sustituto del de ustedes (ver la propuesta), asi que no probamos que
+   termine: "el hash devuelve" va escrito como hipotesis en cada enunciado,
+   una por cada llamada.
+
+   `process_slots` no lleva ninguna otra hipotesis. Su unica resta,
+   `target_slot - state.slot`, esta protegida por el chequeo de arriba.
+
+   `process_block_header` lleva dos mas:
+
+   - `usize` de 64 bits, por el `as usize` de `num_empty_slots`.
+   - que el historial tenga tantas entradas como el slot del ultimo header.
+     Es la primera mitad de `HC.HistorialAcotado`, que el teorema 13 prueba
+     que la transicion conserva.
+
+   La segunda hace falta de verdad. El largo nuevo se calcula como
+   `current_len + 1 + num_empty_slots` ANTES de compararlo contra
+   `HISTORICAL_ROOTS_LIMIT`. Con el historial alineado esa suma vale
+   exactamente `block.slot` y entra en un `u64`. Sin esa hipotesis la prueba
+   no cierra: quedan abiertas esas dos sumas y la capacidad de la ventana
+   (control negativo en la bitacora). No es un estado alcanzable segun el
+   teorema 13; es la precondicion que el codigo da por sentada.
+
+   Con esas hipotesis, todo lo demas sale: las dos restas, el `push`, el loop
+   que rellena los slots vacios (ahora con medida de terminacion), el
+   `try_from` cuyo `expect` dice "pre-validated", y `extend_to_slot`, que
+   recibe una ventana que entra en la capacidad.
+   =========================================================================== -/
+
+namespace NP3
+open mini_stf
+open Std.Tactic
+open ST3 JS NP NP2 VC VI HC
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+/-- Un lema para usar "esta llamada devuelve" como hipotesis. -/
+theorem devuelve_spec {α : Type} (x : RustM α) (h : ∃ r, x = ok r) :
+    ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  obtain ⟨r, hr⟩ := h
+  exact triple_total_of ⟨r, hr, trivial⟩
+
+theorem state_hash_total (s : tipos.State)
+    (h : ∃ r, tipos.State.Insts.Mini_stfTiposHashTreeRoot.hash_tree_root s = ok r) :
+    ⦃ ⌜ True ⌝ ⦄ tipos.State.Insts.Mini_stfTiposHashTreeRoot.hash_tree_root s
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := devuelve_spec _ h
+
+theorem time_slots_total :
+    ⦃ ⌜ True ⌝ ⦄ stubs.metrics.time_slots_processing ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
+  triple_total_of ⟨(), rfl, trivial⟩
+
+theorem inc_slots_total (c : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ stubs.metrics.inc_slots_processed c ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
+  triple_total_of ⟨(), rfl, trivial⟩
+
+section
+attribute [local spec] h256_eq_total state_hash_total time_slots_total
+  inc_slots_total
+
+/-- `process_slots` no entra en panico, si el hash del estado devuelve. -/
+theorem process_slots_total_spec (state : tipos.State) (t : Std.U64)
+    (hhash : ∃ r, tipos.State.Insts.Mini_stfTiposHashTreeRoot.hash_tree_root state = ok r) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_slots state t ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.process_slots
+  hax_mvcgen
+  -- `target_slot - state.slot` no desborda por abajo: el chequeo de arriba
+  -- ya descarto `state.slot >= target_slot`.
+  all_goals (exfalso; scalar_tac)
+end
+
+theorem process_slots_devuelve (state : tipos.State) (t : Std.U64)
+    (hhash : ∃ r, tipos.State.Insts.Mini_stfTiposHashTreeRoot.hash_tree_root state = ok r) :
+    ∃ r, stf.process_slots state t = ok r := by
+  obtain ⟨r, hr, -⟩ := of_triple_total (process_slots_total_spec state t hhash)
+  exact ⟨r, hr⟩
+
+/- ====================================================================
+   Las piezas de `process_block_header`, ahora totales.
+   ==================================================================== -/
+
+theorem ssz_len_total {T : Type} {N : Std.Usize} (l : ssz.SszList T N) :
+    ⦃ ⌜ True ⌝ ⦄ ssz.SszList.len l ⦃ ⇓ r => ⌜ r.val = l.items.val.length ⌝ ⦄ :=
+  triple_total_of (ssz_len_eq l)
+
+theorem current_proposer_total_spec (a b : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ stf.current_proposer a b ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
+  devuelve_spec _ (current_proposer_total a b)
+
+theorem ok_or_total {T E : Type} (o : core.option.Option T) (e : E) :
+    ⦃ ⌜ True ⌝ ⦄ core.option.Option.ok_or o e ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
+  triple_total_of (by cases o <;> exact ⟨_, rfl, trivial⟩)
+
+theorem ne_default_total (a b : tipos.H256) :
+    ⦃ ⌜ True ⌝ ⦄
+    core.cmp.PartialEq.ne.default tipos.H256.Insts.CoreCmpPartialEqH256 a b
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  obtain ⟨b', hb, -⟩ := of_triple_total (h256_eq_total a b)
+  refine triple_total_of ⟨decide (b' = false), ?_, trivial⟩
+  unfold core.cmp.PartialEq.ne.default
+  show (do let b ← tipos.H256.Insts.CoreCmpPartialEqH256.eq a b
+           ok (decide (b = false))) = _
+  rw [hb]
+  rfl
+
+theorem header_hash_total (h : tipos.BlockHeader)
+    (hd : ∃ r, tipos.BlockHeader.Insts.Mini_stfTiposHashTreeRoot.hash_tree_root h = ok r) :
+    ⦃ ⌜ True ⌝ ⦄ tipos.BlockHeader.Insts.Mini_stfTiposHashTreeRoot.hash_tree_root h
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := devuelve_spec _ hd
+
+theorem body_hash_total (b : tipos.BlockBody)
+    (hd : ∃ r, tipos.BlockBody.Insts.Mini_stfTiposHashTreeRoot.hash_tree_root b = ok r) :
+    ⦃ ⌜ True ⌝ ⦄ tipos.BlockBody.Insts.Mini_stfTiposHashTreeRoot.hash_tree_root b
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := devuelve_spec _ hd
+
+/-- `mem::take` sobre el historial devuelve, y devuelve lo que habia. -/
+theorem take_ssz_total (x : ssz.SszList tipos.H256 262144#usize) :
+    ⦃ ⌜ True ⌝ ⦄
+    core.mem.take (ssz.SszList.Insts.CoreDefaultDefault tipos.H256 262144#usize) x
+    ⦃ ⇓ r => ⌜ r.1.items.val.length = x.items.val.length ⌝ ⦄ :=
+  triple_total_of (by
+    refine ⟨(x, { items := Slice.new tipos.H256 }), ?_, rfl⟩
+    simp [core.mem.take, ssz.SszList.Insts.CoreDefaultDefault.default, ssz.SszList.new,
+      alloc.vec.Vec.new, rust_primitives.sequence.seq_empty])
+
+theorem into_inner_total {T : Type} {N : Std.Usize} (l : ssz.SszList T N) :
+    ⦃ ⌜ True ⌝ ⦄ ssz.SszList.into_inner l ⦃ ⇓ r => ⌜ r = l.items ⌝ ⦄ :=
+  triple_total_of ⟨l.items, rfl, rfl⟩
+
+/-- `Vec::push` devuelve si hay lugar para un elemento mas. -/
+theorem push_total {T : Type} (v : alloc.vec.Vec T) (x : T)
+    (h : v.val.length < Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄ alloc.vec.Vec.push v x
+    ⦃ ⇓ r => ⌜ r.val.length = v.val.length + 1 ⌝ ⦄ := by
+  have hle : (v.val ++ [x]).length ≤ Usize.max := by simp; omega
+  refine triple_total_of ⟨⟨v.val ++ [x], hle⟩, ?_, by simp⟩
+  simp only [alloc.vec.Vec.push, rust_primitives.sequence.seq_push]
+  rw [dif_pos hle]
+  rfl
+
+/-- El `try_from` de un vector que entra en la capacidad da `Ok`. -/
+theorem try_from_total {T : Type} (N : Std.Usize) (v : alloc.vec.Vec T)
+    (h : v.val.length ≤ N.val) :
+    ⦃ ⌜ True ⌝ ⦄
+    ssz.SszList.Insts.CoreConvertTryFromVecFueraDeCapacidad.try_from N v
+    ⦃ ⇓ r => ⌜ ∃ t, r = core.result.Result.Ok t ⌝ ⦄ :=
+  triple_total_of (by
+    refine ⟨core.result.Result.Ok { items := v }, ?_, _, rfl⟩
+    have : ¬ N.val < v.val.length := by omega
+    simp [ssz.SszList.Insts.CoreConvertTryFromVecFueraDeCapacidad.try_from,
+      alloc.vec.Vec.len, rust_primitives.sequence.seq_len, this])
+
+section
+attribute [local spec] push_total
+
+/-- El loop que rellena los slots vacios termina y no entra en panico, si
+    lo que va a quedar entra en un `Vec`. -/
+theorem header_loop_total (n : Std.Usize) (v0 : alloc.vec.Vec tipos.H256)
+    (hcap : v0.val.length + n.val ≤ Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_block_header_loop { start := 0#usize, «end» := n } v0
+    ⦃ ⇓ r => ⌜ r.val.length = v0.val.length + n.val ⌝ ⦄ := by
+  unfold stf.process_block_header_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × (alloc.vec.Vec tipos.H256) =>
+       x.1.«end» = n ∧ x.1.start.val ≤ n.val ∧
+       x.2.val.length = v0.val.length + x.1.start.val)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, by simp, by simp⟩
+  · intro x hinv
+    obtain ⟨iter, v⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hle, hlen⟩ := hinv
+    simp only at hend hle hlen
+    subst hend
+    unfold stf.process_block_header_loop.body
+    hax_mvcgen
+    -- 1. El `push` tiene lugar.
+    · omega
+    -- 2. Se agrego un cero, y el contador baja.
+    · rename_i hlt s hs r hr
+      exact ⟨⟨trivial, by omega, by omega⟩, Or.inl (by omega)⟩
+    -- 3. Se termino el rango.
+    · rename_i hge
+      show v.val.length = v0.val.length + hasta.val
+      omega
+end
+
+section
+attribute [local spec] ssz_len_total current_proposer_total_spec ok_or_total
+  branch_total header_hash_total ne_default_total take_ssz_total
+  into_inner_total push_total header_loop_total try_from_total expect_total
+  extend_to_slot_total_spec body_hash_total from_residual_total
+
+theorem process_block_header_total_spec (state : tipos.State) (block : tipos.Block)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hlen : state.historical_block_hashes.items.val.length =
+      state.latest_block_header.slot.val)
+    (hpadre : ∃ r, tipos.BlockHeader.Insts.Mini_stfTiposHashTreeRoot.hash_tree_root
+      state.latest_block_header = ok r)
+    (hcuerpo : ∃ r, tipos.BlockBody.Insts.Mini_stfTiposHashTreeRoot.hash_tree_root
+      block.body = ok r) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_block_header state block ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.process_block_header
+  hax_mvcgen
+  all_goals (have hlim := limite_val)
+  all_goals try subst_vars
+  all_goals try simp only [cast_usize_64 h64] at *
+  -- Lo que queda es aritmetica: ninguna resta baja de cero, ninguna suma
+  -- desborda, y lo que se arma entra en la capacidad. La ultima meta es el
+  -- error de `ok_or`, que se propaga tal cual.
+  all_goals first
+    | scalar_tac
+    | (exfalso; scalar_tac)
+    | simp_all
+end
+
+/-- `process_block_header` no entra en panico. -/
+theorem process_block_header_devuelve (state : tipos.State) (block : tipos.Block)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hlen : state.historical_block_hashes.items.val.length =
+      state.latest_block_header.slot.val)
+    (hpadre : ∃ r, tipos.BlockHeader.Insts.Mini_stfTiposHashTreeRoot.hash_tree_root
+      state.latest_block_header = ok r)
+    (hcuerpo : ∃ r, tipos.BlockBody.Insts.Mini_stfTiposHashTreeRoot.hash_tree_root
+      block.body = ok r) :
+    ∃ r, stf.process_block_header state block = ok r := by
+  obtain ⟨r, hr, -⟩ := of_triple_total
+    (process_block_header_total_spec state block h64 hlen hpadre hcuerpo)
+  exact ⟨r, hr⟩
+
+end NP3
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -5585,3 +5823,5 @@ end NP2
 #print axioms NP2.slot_is_justifiable_total
 #print axioms NP2.matches_chain_total
 #print axioms NP2.is_valid_vote_total
+#print axioms NP3.process_slots_devuelve
+#print axioms NP3.process_block_header_devuelve

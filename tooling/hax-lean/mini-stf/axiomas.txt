@@ -538,6 +538,18 @@ NP2.matches_chain_total
 NP2.is_valid_vote_total
   TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
 
+NP3.process_slots_devuelve
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+NP3.process_block_header_devuelve
+  TOTAL 7 = 3 estandar + 3 nativos + 1 modelos
+  modelos:
+    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  nativos:
+    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+    ~ mini_stf.stf.process_block_header._native.decide.ax_3
+
 ========================================================================
 
 NATIVOS DISTINTOS EN TODO EL BUILD: 9

@@ -40,15 +40,16 @@ and Lean accepts them with no `sorry`. That says the program got written in
 Lean. It does not say it is correct.
 
 **The proofs are of specific properties.** A program is not "proved": statements
-about it are. There are forty-seven here, listed under **What you get**. Each
+about it are. There are forty-nine here, listed under **What you get**. Each
 says one precise thing, with its hypotheses in plain sight.
 
 What is **not** proved, said once:
 
 - **That the code never panics.** It is proved for the four functions of one
   helper module, the justified-slots window (`justified_slots_ops.rs`), and for
-  five of the twelve of the transition proper (`stf.rs`). The other seven keep
-  the "if the function returns" conditional.
+  seven of the twelve of the transition proper (`stf.rs`), two of them under
+  written hypotheses. The other five keep the "if the function returns"
+  conditional.
 - **That the code is equivalent to the spec.** On arbitrary states it is not:
   we found two points where they behave differently, and they are set out
   below.
@@ -161,12 +162,12 @@ What each step should give:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
-| 6 | `47` — one axiom block per result — and `0` |
+| 6 | `49` — one axiom block per result — and `0` |
 
 There is no separate "run the proofs" step. The theorems are in
 `teoremas/ProofObligations.lean`; step 5 copies that file into the Lean project
 and `lake build` checks all of it. If the build ends green, Lean accepted the
-forty-seven proofs. At the end it prints which axioms each one depends on, which
+forty-nine proofs. At the end it prints which axioms each one depends on, which
 is what step 6 counts.
 
 To convince yourself the check is real, break a statement by hand. In
@@ -295,10 +296,10 @@ Everything, with line counts as shipped.
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 336 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 5587 | ours — the theorems. |
-| `axiomas.txt` | 566 | ours — the `#print axioms` output, so the trust base can be read without building. |
+| `teoremas/ProofObligations.lean` | 5827 | ours — the theorems. |
+| `axiomas.txt` | 578 | ours — the `#print axioms` output, so the trust base can be read without building. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 962 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 1008 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -391,7 +392,7 @@ down.
 
 ## What you get
 
-`teoremas/ProofObligations.lean` holds forty-seven named results:
+`teoremas/ProofObligations.lean` holds forty-nine named results:
 
 | Result | What it is |
 |---|---|
@@ -441,6 +442,8 @@ down.
 | `NP2.slot_is_justifiable_total` | `slot_is_justifiable_after` never panics |
 | `NP2.matches_chain_total` | `attestation_data_matches_chain` never panics |
 | `NP2.is_valid_vote_total` | **`is_valid_vote` never panics, for any state and any vote** |
+| `NP3.process_slots_devuelve` | `process_slots` does not panic, if the state hash returns |
+| `NP3.process_block_header_devuelve` | **`process_block_header` does not panic**, with one hash per slot in the history and if its two hashes return |
 | `bind_da_ok` | a tool: opens one `RustM` bind |
 
 They were not picked for count. Between them they cover arithmetic, branching
@@ -1002,10 +1005,10 @@ What it took was the exact length left by the loop that fills in the empty
 slots — before there was only that it appends — and that
 `process_attestations` leaves the history alone, with no hypothesis.
 
-**What is not there.** Putting all this together into absence of panic for the
-functions in `stf.rs`. The pieces for `try_finalize` and `process_block_header`
-are in place: their calls to `shift_window` and `extend_to_slot` do not abort.
-The rest of each function is still to do.
+**What is not there.** Putting all this together into absence of panic for
+`try_finalize`. The piece is in place: its call to `shift_window` does not
+abort. The rest of the function is still to do. For `process_block_header` it
+is assembled, further down.
 
 ### Five functions of the transition do not panic
 
@@ -1052,9 +1055,73 @@ mean they assume nothing. They still lean on two of our modeling claims,
 `bool::then` and `isqrt`, which are definitions and so do not show up as
 axioms.
 
-**What is not there.** The other seven functions of `stf.rs`: `process_slots`,
-`process_block_header`, `serialize_justifications`, `try_finalize`,
-`process_attestations`, `process_block` and `state_transition`.
+### `process_slots` and `process_block_header` do not panic
+
+Next come the two functions of `stf.rs` that hash.
+
+| Function | Result | Hypotheses |
+|---|---|---|
+| `process_slots` | always returns | that the state hash returns |
+| `process_block_header` | always returns | 64-bit `usize`; one hash per slot in the history; that the hash of the previous header and the hash of the block body return |
+
+**The hash is a hypothesis, on purpose.** The `hash_tree_root` in this crate is
+a stand-in for yours. Proving that the stand-in terminates would say nothing
+about yours, so each statement carries "this call to the hash returns" in
+writing, once per call. It is the only thing these two results ask of the
+hash.
+
+Where a panic could have been and why there is none:
+
+- In `process_slots`, the subtraction `target_slot - state.slot`. The check
+  above has already ruled out `state.slot >= target_slot`.
+- In `process_block_header`, `block.slot - parent_header.slot - 1`. The
+  `ParentSlotIsNewer` check guarantees the difference is at least one.
+- `current_len + 1 + num_empty_slots`. With one hash per slot in the history
+  that sum is exactly `block.slot`, which fits in a `u64`.
+- The `push` calls and the loop that fills in the empty slots. The loop
+  terminates — now with a termination measure — and leaves exactly `new_total`
+  entries.
+- The `expect("pre-validated: total does not exceed limit")`. The comment is
+  right: at that point the vector has `new_total` entries, which already passed
+  the check against `HISTORICAL_ROOTS_LIMIT`, and `try_from` gives `Ok`.
+- `block.slot - 1`. The block's slot is greater than the previous header's.
+- `extend_to_slot`. It receives a window that fits the capacity, because
+  `block.slot` does not exceed 262144.
+
+**A precondition the code takes for granted.** `new_total` is computed before
+it is compared against the limit:
+
+```rust
+let num_empty_slots = (block.slot - parent_header.slot - 1) as usize;
+let current_len = state.historical_block_hashes.len();
+let new_total = current_len + 1 + num_empty_slots; // +1 for parent_root push
+if new_total > HISTORICAL_ROOTS_LIMIT {
+```
+
+If the history had more entries than the previous header's slot, that sum
+could exceed `usize::MAX` for a very large `block.slot`, before the check gets
+to reject it. The "one hash per slot" hypothesis is what prevents it. It is
+not a new hypothesis: it is the first half of the invariant in **The window
+stays within capacity**, which the transition preserves. We know of no
+reachable state that violates it, and we are not presenting it as a bug. It is
+the condition under which the result holds, and it is written down.
+
+As a negative control we removed that hypothesis. The proof stops closing, and
+what stays open is exactly that: the two sums, in both branches, and the
+window's capacity in the branch that is not the genesis one.
+
+In the Lean model an overflow is a panic. What a binary compiled without
+overflow checks does is not modeled by this package.
+
+`NP3.process_slots_devuelve` depends only on Lean's three axioms.
+`NP3.process_block_header_devuelve` depends on seven: those three, three
+native ones, and the `fmt` signature of the error that the `expect` formats.
+
+**What is not there.** The other five functions of `stf.rs`:
+`serialize_justifications`, `try_finalize`, `process_attestations`,
+`process_block` and `state_transition`. `try_finalize` and
+`process_attestations` use the `HashMap`, which here is a contentless
+signature; `process_block` and `state_transition` call the previous ones.
 
 ### What this is against the catalog, stated exactly
 
@@ -1129,6 +1196,8 @@ own properties makes the exercise circular.
 | both invariants together over `state_transition` | 22 | 3 | 9 | 10 |
 | `shift_window` on the window of a state with the invariants | 5 | 3 | 1 | 1 |
 | no panic: the five small functions of `stf.rs` | 3 | 3 | — | — |
+| no panic: `process_slots` | 3 | 3 | — | — |
+| no panic: `process_block_header` | 7 | 3 | 3 | 1 |
 
 Three categories, with three different weights.
 
@@ -1192,9 +1261,10 @@ come from the guards, the assignments and the hash history, not from anything
 the map, the hash or the formatter does. Of the three modeling claims, `ST-3`
 leans on none; `ST-7` over the whole transition and the history invariants lean
 on the `mem::take` one, because they need the history to survive
-`process_block_header`; and absence of panic for `current_proposer` and
-`slot_is_justifiable_after` leans on the `bool::then` and `isqrt` ones. That is a
-claim about the proofs, read off them. `#print
+`process_block_header`; absence of panic for `current_proposer` and
+`slot_is_justifiable_after` leans on the `bool::then` and `isqrt` ones; and
+that of `process_block_header` on the `mem::take` and `bool::then` ones. That
+is a claim about the proofs, read off them. `#print
 axioms` tells you what a theorem depends on, not whether it leans on that
 dependency's behaviour, and that distinction is ours to argue rather than the
 tool's to measure.
@@ -1361,6 +1431,13 @@ No slot will realistically get there, and the guard above requires
 `source.slot > state.latest_finalized.slot`, so it is not a live bug — but it is
 an unstated precondition, and you may prefer `checked_add` or a saturating form.
 
+**`current_len + 1 + num_empty_slots` is added before the limit is checked.**
+The same kind of finding, in `process_block_header`, and it surfaced the same
+way: by asking the function to return. With one hash per slot in the history
+the sum is `block.slot` and does not overflow; the transition preserves that
+invariant. It is not a live bug either. It is told under **`process_slots`
+and `process_block_header` do not panic**.
+
 **The trust base is not empty**, and what is in it is set out under **The trust
 base** above: nine native axioms that come with the translation, twenty-six
 declarations of ours that assert nothing, and three modeling claims we do make.
@@ -1381,9 +1458,11 @@ build it.
 on a given input is the Rust tests.
 
 **Absence of panic does not cover the whole transition.** The four functions of
-`justified_slots_ops` return, under capacity hypotheses, and five of the twelve
-in `stf.rs` return with no hypothesis. The other seven, `state_transition`
-among them, keep the "if the function returns" conditional.
+`justified_slots_ops` return, under capacity hypotheses; five of the twelve in
+`stf.rs` return with no hypothesis; and `process_slots` and
+`process_block_header` return under the hypotheses of their section, among
+them that the hash returns. The other five, `state_transition` among them,
+keep the "if the function returns" conditional.
 
 **The window's capacity is proved, but not assembled inside each function.**
 That the window does not exceed 262144 bits is an invariant of the transition.

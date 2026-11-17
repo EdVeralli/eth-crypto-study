@@ -958,5 +958,51 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    >
    > Lo que sigue: las otras siete de `stf.rs`. `process_slots` deberia ser
    > la mas corta (una resta guardada y el hash).
+
+   > Septima nota del 17 nov 2026: **`process_slots` y
+   > `process_block_header` no entran en panico** (teorema 15, namespace
+   > `NP3`). Son las dos que hashean.
+   >
+   > - Decision de Eduardo: NO probar que el hash sustituto termina (son mas
+   >   de diez loops y no diria nada del hash real). "El hash devuelve" va
+   >   como hipotesis escrita, una por llamada. Se usa con `devuelve_spec`:
+   >   de `∃ r, x = ok r` saca la terna total, y como lema `@[spec]` con
+   >   hipotesis `hax_mvcgen` deja la hipotesis como meta lateral.
+   > - `process_slots`: sin mas hipotesis. Quedaron dos `h_fail`, los dos
+   >   de `target_slot - state.slot`, y cierran con `exfalso; scalar_tac`.
+   > - `process_block_header`: pide `usize` de 64 bits y que el historial
+   >   tenga tantas entradas como el slot del ultimo header (la primera
+   >   mitad de `HC.HistorialAcotado`).
+   > - Lemas totales NUMERICOS, no estructurales: `take` da el largo, `push`
+   >   da `largo + 1`, el loop da el largo final, `try_from` con la
+   >   hipotesis "entra" da `∃ t, r = Ok t`. Con eso las 19 metas que deja
+   >   `hax_mvcgen` son aritmetica pura y cierran todas con
+   >   `first | scalar_tac | (exfalso; scalar_tac) | simp_all`, despues de
+   >   `subst_vars` y `simp only [cast_usize_64 h64] at *`. Sin `by`
+   >   anidados, por la trampa del `sorry`.
+   > - El `expect("pre-validated: ...")` de ustedes queda verificado: el
+   >   `try_from` da `Ok` porque el vector mide `new_total`.
+   > - `Vec::push` total pide `largo < Usize.max`.
+   >
+   > **La precondicion.** `new_total = current_len + 1 + num_empty_slots` se
+   > calcula ANTES del chequeo contra `HISTORICAL_ROOTS_LIMIT`. Con el
+   > historial alineado vale `block.slot`. Sin esa hipotesis la suma puede
+   > desbordar. No es un estado alcanzable segun el teorema 13, y no se
+   > presenta como bug: es la condicion bajo la que vale el resultado.
+   >
+   > Control negativo: sin la hipotesis del largo quedan abiertas cinco
+   > metas. Las dos sumas en cada una de las dos ramas (genesis y no
+   > genesis) y la capacidad de `extend_to_slot` en la rama no genesis. En
+   > la rama del genesis el slot del header es cero y la capacidad sale
+   > sola del chequeo del limite.
+   >
+   > Axiomas: `process_slots_devuelve` 3 (los de Lean);
+   > `process_block_header_devuelve` 7 (3 de Lean, 3 nativos y el `fmt` de
+   > `FueraDeCapacidad`).
+   >
+   > Lo que sigue: las otras cinco de `stf.rs`. `try_finalize` y
+   > `process_attestations` usan `HashMap.get/insert/new`, que siguen
+   > siendo axiomas sin contenido: hay que decidir si se modelan o si se
+   > toma "devuelven" como hipotesis, igual que con el hash.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.
