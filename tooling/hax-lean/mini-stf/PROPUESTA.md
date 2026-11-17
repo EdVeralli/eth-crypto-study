@@ -1,9 +1,9 @@
 # La transición de estado de ethlambda, en Lean
 
-Este crate es una demostración funcionando. Contiene la función de transición
-de estado de `crates/blockchain/state_transition`, y al correrle la cadena de
-herramientas de Rust a Lean produce un proyecto Lean que chequea: las doce
-funciones traducidas, cero `sorry`.
+Este crate es un ejemplo que funciona de punta a punta. Contiene la función de
+transición de estado de `crates/blockchain/state_transition`, y al correrle la
+cadena de herramientas de Rust a Lean produce un proyecto Lean que chequea: las
+doce funciones traducidas, cero `sorry`.
 
 No es un fork ni una reimplementación. Ocho de las doce funciones están sin
 cambios salvo comentarios; las otras cuatro se reescribieron, y este documento
@@ -31,6 +31,37 @@ sí aborta. Y un comentario de su código sobre esa ventana queda verificado, co
 la hipótesis que le hacía falta.
 
 Cada número de acá salió de una corrida.
+
+## Qué afirma este paquete y qué no
+
+Hay dos cosas distintas, y conviene no mezclarlas.
+
+**La traducción es completa.** Las doce funciones de la STF están en Lean, y
+Lean las acepta sin `sorry`. Eso dice que el programa quedó escrito en Lean. No
+dice que sea correcto.
+
+**Las demostraciones son de propiedades puntuales.** Un programa no "se
+demuestra": se demuestran afirmaciones sobre él. Acá hay treinta y seis,
+listadas en **Qué recibe**. Cada una dice una cosa precisa, con sus hipótesis a
+la vista.
+
+Lo que **no** está demostrado, dicho de una vez:
+
+- **Que el código nunca entre en pánico.** Está para las cuatro funciones de un
+  módulo, la ventana de slots justificados. Las otras ocho conservan el
+  condicional "si la función devuelve".
+- **Que el código sea equivalente a la especificación.** Sobre estados
+  arbitrarios no lo es: encontramos dos puntos donde se comportan distinto, y
+  están contados más abajo.
+- **Que las propiedades valgan desde el génesis.** Varias están como "si valía
+  antes del bloque, vale después", sin el caso inicial.
+- **Que el Lean sea fiel al Rust de ustedes.** Son dos eslabones. Que nuestras
+  cuatro funciones reescritas hacen lo mismo que las originales lo respaldan sus
+  tests, que corren sobre este crate. Que la cadena de herramientas traduce bien
+  se le cree a la cadena de herramientas.
+
+"Cero `sorry`" quiere decir que no hay ningún hueco en lo que sí se afirma. No
+quiere decir que esté todo afirmado.
 
 ## Contra qué versión está
 

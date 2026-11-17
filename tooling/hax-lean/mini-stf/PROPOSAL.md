@@ -31,6 +31,36 @@ in your code about that window is checked, with the hypothesis it was missing.
 
 Every number here came from a run.
 
+## What this package claims and what it does not
+
+There are two different things here, and they should not be mixed up.
+
+**The translation is complete.** All twelve functions of the STF are in Lean,
+and Lean accepts them with no `sorry`. That says the program got written in
+Lean. It does not say it is correct.
+
+**The proofs are of specific properties.** A program is not "proved": statements
+about it are. There are thirty-six here, listed under **What you get**. Each
+says one precise thing, with its hypotheses in plain sight.
+
+What is **not** proved, said once:
+
+- **That the code never panics.** It is proved for the four functions of one
+  module, the justified-slots window. The other eight keep the "if the function
+  returns" conditional.
+- **That the code is equivalent to the spec.** On arbitrary states it is not:
+  we found two points where they behave differently, and they are set out
+  below.
+- **That the properties hold from genesis.** Several are stated as "if it held
+  before the block, it holds after", without the initial case.
+- **That the Lean is faithful to your Rust.** There are two links. That our four
+  rewritten functions do what the originals do is backed by your tests, which
+  run on this crate. That the toolchain translates correctly is taken on trust
+  from the toolchain.
+
+"No `sorry`" means there is no gap in what is claimed. It does not mean
+everything is claimed.
+
 ## Which version this is against
 
 `lambdaclass/ethlambda`, MIT. The file was copied on 28 Oct 2026 from
