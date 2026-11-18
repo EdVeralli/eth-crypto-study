@@ -40,16 +40,16 @@ and Lean accepts them with no `sorry`. That says the program got written in
 Lean. It does not say it is correct.
 
 **The proofs are of specific properties.** A program is not "proved": statements
-about it are. There are sixty-seven here, listed under **What you get**. Each
+about it are. There are sixty-nine here, listed under **What you get**. Each
 says one precise thing, with its hypotheses in plain sight.
 
 What is **not** proved, said once:
 
 - **That the code never panics.** It is proved for the four functions of one
   helper module, the justified-slots window (`justified_slots_ops.rs`), and for
-  nine of the twelve of the transition proper (`stf.rs`), four of them under
-  written hypotheses. The other three keep the "if the function returns"
-  conditional.
+  ten of the twelve of the transition proper (`stf.rs`), five of them under
+  written hypotheses. The other two, `process_block` and `state_transition`,
+  keep the "if the function returns" conditional.
 - **That the code is equivalent to the spec.** On arbitrary states it is not:
   we found two points where they behave differently, and they are set out
   below.
@@ -162,12 +162,12 @@ What each step should give:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
-| 6 | `67` — one axiom block per result — and `0` |
+| 6 | `69` — one axiom block per result — and `0` |
 
 There is no separate "run the proofs" step. The theorems are in
 `teoremas/ProofObligations.lean`; step 5 copies that file into the Lean project
 and `lake build` checks all of it. If the build ends green, Lean accepted the
-sixty-seven proofs. At the end it prints which axioms each one depends on, which
+sixty-nine proofs. At the end it prints which axioms each one depends on, which
 is what step 6 counts.
 
 To convince yourself the check is real, break a statement by hand. In
@@ -296,10 +296,10 @@ Everything, with line counts as shipped.
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 336 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 8278 | ours — the theorems. |
-| `axiomas.txt` | 704 | ours — the `#print axioms` output, so the trust base can be read without building. |
+| `teoremas/ProofObligations.lean` | 8657 | ours — the theorems. |
+| `axiomas.txt` | 748 | ours — the `#print axioms` output, so the trust base can be read without building. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 1176 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 1227 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -392,7 +392,7 @@ down.
 
 ## What you get
 
-`teoremas/ProofObligations.lean` holds sixty-seven named results:
+`teoremas/ProofObligations.lean` holds sixty-nine named results:
 
 | Result | What it is |
 |---|---|
@@ -462,6 +462,8 @@ down.
 | `NP6.sin_devuelve` | dropping a root from the map does not panic nor leave more entries |
 | `NP6.construir_mapa_devuelve` | building the vote map from the state does not panic, if `roots * validator_count` does not overflow |
 | `NP6.construir_rts_devuelve` | building the root-to-slot `HashMap` does not panic, if the `HashMap` returns |
+| `NP7.process_attestations_devuelve` | **`process_attestations` does not panic**, with the limits of its types and if the `HashMap` and `H256` comparison return |
+| `NP7.process_attestations_devuelve_inv` | the same, with the window and finality taken from the transition's invariants |
 | `bind_da_ok` | a tool: opens one `RustM` bind |
 
 They were not picked for count. Between them they cover arithmetic, branching
@@ -1307,9 +1309,62 @@ Nine of the ten depend only on Lean's three axioms. The one on
 `construir_root_to_slot` depends on eleven: those three and eight
 declarations, the `HashMap` ones.
 
-**What is not there.** Putting them together: the `process_attestations` loop
-and the whole function. And then `process_block` and `state_transition`, which
-call it.
+**Where they are used.** In the next section, which puts them together.
+
+### `process_attestations` does not panic
+
+This is the big function of the transition: it goes through the block's
+attestations, counts votes, justifies and finalizes, and at the end writes the
+vote map back into the state.
+
+| Hypothesis | What for |
+|---|---|
+| the `HashMap` returns (`new`, `get`, `insert`) | they are contentless signatures |
+| `H256` comparison returns | used by the sort when serializing; also a contentless signature |
+| at most 4096 validators | so that `3 * votes` and `2 * validator_count` do not overflow, and the vote bitlist fits its capacity |
+| the state's roots plus the block's attestations do not exceed 262144 | so that there is room in the vote map and in `justifications_roots` |
+| the window does not exceed 262144 bits | so that `shift_window` does not abort |
+| `finalized + 1` does not overflow | used by `construir_root_to_slot` |
+
+`NP7.process_attestations_devuelve_inv` is the same result, with the last two
+taken from the invariants the transition preserves.
+
+**What is carried along the loop.** Four things: the window does not grow; no
+vote list is longer than `validator_count`; the map grows by at most one entry
+per iteration; and the processed-attestations counter does not exceed the
+number traversed.
+
+**The delicate point is `set_justified`.** It aborts if the target falls
+outside the window. That does not happen, because it is only called after an
+`is_valid_vote` that returned `true` on the same state, and that check has
+already read that slot. This is a result from **The window does not panic**,
+put to use. The same vote gives that the source is before
+the target, which is what `try_finalize` asks for.
+
+**The bound on roots is stronger than needed, and we say so.** "The state's
+roots plus the block's attestations" is a sufficient condition on what goes
+into the function: the loop adds at most one root per attestation. It is not
+an invariant of reachable states. A state with many pending roots and a full
+block falls outside this result, which does not mean it aborts: it means it is
+not proved here. The fine bound, that the map's roots are distinct and in the
+history, is not there.
+
+The loop body leaves 170 conditions to check, one for each point where
+something could fail on each possible path. They fall into eight classes and
+are closed by class.
+
+Negative controls, three. Without the bound on validators, the two products
+stay open. Without the bound on roots, the product `roots * validator_count`,
+the room in the map and the roots limit stay open. Without what
+`is_valid_vote` says, `set_justified` and the order between source and target
+stay open.
+
+Both results depend on twenty axioms: Lean's three, seven native ones and ten
+declarations.
+
+**What is not there.** `process_block` and `state_transition`. Both only chain
+functions that are already done, but it remains to show that the state
+`process_block_header` leaves meets the hypotheses of `process_attestations`.
 
 ### What this is against the catalog, stated exactly
 
@@ -1395,6 +1450,7 @@ own properties makes the exercise circular.
 | no panic: `try_finalize`, both results | 13 | 3 | 3 | 7 |
 | no panic: nine helpers of `process_attestations` | 3 | 3 | — | — |
 | no panic: `construir_root_to_slot` | 11 | 3 | — | 8 |
+| no panic: `process_attestations`, both results | 20 | 3 | 7 | 10 |
 
 Three categories, with three different weights.
 
@@ -1457,8 +1513,9 @@ None of the twenty-six carries weight in the theorems above: the properties
 come from the guards, the assignments and the hash history, not from anything
 the map, the hash or the formatter does. There are exceptions, and they are
 written down: the result on `serialize_justifications` asks the array
-comparison to return, and the ones on `try_finalize` and
-`construir_root_to_slot` ask the same of the `HashMap`, always as hypotheses.
+comparison to return, and the ones on `try_finalize`,
+`construir_root_to_slot` and `process_attestations` ask the same of the
+`HashMap`, always as hypotheses.
 Of the three modeling claims, `ST-3`
 leans on none; `ST-7` over the whole transition and the history invariants lean
 on the `mem::take` one, because they need the history to survive
@@ -1663,17 +1720,16 @@ on a given input is the Rust tests.
 **Absence of panic does not cover the whole transition.** The four functions of
 `justified_slots_ops` return, under capacity hypotheses; five of the twelve in
 `stf.rs` return with no hypothesis; and `process_slots`,
-`process_block_header`, `serialize_justifications` and `try_finalize` return
-under the hypotheses of their section, among them that the hash, `H256`
-comparison and the `HashMap` lookup return. The other three,
-`state_transition` among them, keep the "if the function returns"
+`process_block_header`, `serialize_justifications`, `try_finalize` and
+`process_attestations` return under the hypotheses of their section, among
+them that the hash, `H256` comparison and the `HashMap` return. The other two,
+`process_block` and `state_transition`, keep the "if the function returns"
 conditional.
 
-**The window's capacity is assembled in two of the three functions that use
-it.** That the window does not exceed 262144 bits is an invariant of the
-transition, and absence of panic for `process_block_header` and for
-`try_finalize` already leans on it. `process_attestations`, which writes to
-the window through `set_justified`, is still to do.
+**The bound on roots in `process_attestations` is a sufficient condition, not
+an invariant.** It asks that the state's roots plus the block's attestations
+do not exceed 262144. The fine bound, that the vote map's roots are distinct
+and in the history, is not proved.
 
 **The window invariant assumes a 64-bit `usize`.** The results about where the
 window ends carry that hypothesis explicitly. On 32 bits the `as usize` casts

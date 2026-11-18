@@ -8211,6 +8211,383 @@ theorem construir_rts_devuelve (st : tipos.State) (hm : HashMapDevuelve)
 
 end NP6
 
+/- ===========================================================================
+   Teorema 20 — `process_attestations` no entra en panico
+
+   Es la funcion grande de la transicion: recorre las attestations del
+   bloque, cuenta votos, justifica y finaliza, y al final vuelve a escribir
+   el mapa de votos en el estado. Junta las piezas de los teoremas 14 y 16 a
+   19.
+
+   Hipotesis, todas escritas en el enunciado:
+
+   - las tres operaciones del `HashMap` devuelven, y la comparacion de `H256`
+     devuelve. Son declaraciones sin contenido en este paquete.
+   - a lo sumo 4096 validadores. Con eso `3 * votos` y `2 * validator_count`
+     no desbordan, y el bitlist de votos entra en su capacidad.
+   - las raices del estado mas las attestations del bloque no pasan de
+     262144. Es lo que hace que haya lugar en el mapa de votos y en
+     `justifications_roots`. Es una condicion SUFICIENTE sobre las entradas,
+     mas fuerte de lo necesario: el loop agrega a lo sumo una raiz por
+     attestation. La cota fina (raices distintas y en el historial) no esta.
+   - la ventana no pasa de 262144 bits, y `finalizado + 1` no desborda.
+     `process_attestations_devuelve_inv` saca las dos de los invariantes que
+     la transicion conserva (teorema 13).
+
+   El invariante del loop lleva cuatro cosas: la ventana no crece; ninguna
+   lista de votos es mas larga que `validator_count`; el mapa crece a lo sumo
+   una entrada por vuelta; y el contador de attestations no pasa de las
+   recorridas.
+
+   El punto delicado es `set_justified`, que aborta si el target cae fuera
+   de la ventana. No pasa, porque solo se llama despues de un
+   `is_valid_vote` que dio `true` sobre el mismo estado, y ese chequeo ya
+   leyo ese slot (teorema 10). Del mismo voto sale que el source es anterior
+   al target, que es lo que pide `try_finalize` (teorema 18).
+
+   `hax_mvcgen` deja 170 metas para el cuerpo del loop, de ocho clases, y
+   cierran con una misma receta por clases. La prueba tarda unos tres
+   minutos.
+
+   Controles negativos, en la bitacora: sin la cota de validadores quedan
+   abiertos los dos productos; sin la cota de raices quedan el producto
+   `raices * validator_count`, el lugar en el mapa y el limite de raices;
+   sin lo que dice `is_valid_vote` quedan `set_justified` y el orden
+   source/target.
+   =========================================================================== -/
+
+namespace NP7
+open mini_stf
+open Std.Tactic
+open ST3 JS NP NP2 NP3 NP4 NP5 NP6 MV VC VI HC
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+/-- Juntar lo que dice un lema total con lo que dice uno parcial. -/
+theorem total_con {α : Type} {x : RustM α} {P Q : α → Prop}
+    (ht : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄)
+    (hm : ⦃ ⌜ True ⌝ ⦄ x ⦃ PostCond.mayThrow (fun r => ⌜ Q r ⌝) ⦄) :
+    ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ∧ Q r ⌝ ⦄ := by
+  obtain ⟨r, hr, hp⟩ := of_triple_total ht
+  exact triple_total_of ⟨r, hr, hp, of_triple_mayThrow hm hr⟩
+
+/-- Lo que el loop necesita saber de un voto valido: el source es anterior
+    al target, y `set_justified` sobre ese target devuelve sin cambiar el
+    largo de la ventana. -/
+theorem is_valid_vote_loop_spec (st : tipos.State) (d : tipos.AttestationData) :
+    ⦃ ⌜ True ⌝ ⦄ stf.is_valid_vote st d
+    ⦃ ⇓ r => ⌜ r = core.result.Result.Ok true →
+        d.source.slot.val < d.target.slot.val ∧
+        ∃ sb, justified_slots_ops.set_justified st.justified_slots
+                st.latest_finalized.slot d.target.slot = ok sb ∧
+              sb.bits.val.length = st.justified_slots.bits.val.length ⌝ ⦄ := by
+  obtain ⟨r, hr⟩ := is_valid_vote_total st d
+  refine triple_total_of ⟨r, hr, fun h => ?_⟩
+  subst h
+  have horden := of_triple_mayThrow (ST4.is_valid_vote_orden_spec st d) hr rfl
+  obtain ⟨sb, hsb⟩ := set_justified_tras_voto_valido st d hr
+  exact ⟨by scalar_tac, sb, hsb,
+    of_triple_mayThrow (set_justified_largo_spec _ _ _) hsb⟩
+
+theorem set_justified_dado (slots : ssz.SszBitlist 262144#usize) (f t : Std.U64)
+    (h : ∃ sb, justified_slots_ops.set_justified slots f t = ok sb ∧
+           sb.bits.val.length = slots.bits.val.length) :
+    ⦃ ⌜ True ⌝ ⦄ justified_slots_ops.set_justified slots f t
+    ⦃ ⇓ r => ⌜ r.bits.val.length = slots.bits.val.length ⌝ ⦄ :=
+  triple_total_of h
+
+theorem div_ceil_total (a : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ core.num.Usize.div_ceil a 3#usize ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold core.num.Usize.div_ceil
+  hax_mvcgen
+  all_goals (exfalso; scalar_tac)
+
+section
+attribute [local spec] bandera_total clave_total push_total votos_total
+  nuevo_total vec_len_total
+
+theorem filtrado_loop_tam (n : Std.Usize)
+    (cl : alloc.vec.Vec tipos.H256) (vl : alloc.vec.Vec (alloc.vec.Vec Bool))
+    (cons : Slice Bool) (m0 : mapa.MapaVotos)
+    (hc : m0.claves.val.length + n.val ≤ Usize.max)
+    (hv : m0.valores.val.length + n.val ≤ Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄
+    mapa.MapaVotos.filtrado_loop { start := 0#usize, «end» := n } cl vl cons m0
+    ⦃ ⇓ r => ⌜ r.claves.val.length ≤ m0.claves.val.length + n.val ∧
+                r.valores.val.length ≤ m0.valores.val.length + n.val ⌝ ⦄ := by
+  unfold mapa.MapaVotos.filtrado_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × mapa.MapaVotos =>
+       x.1.«end» = n ∧ x.1.start.val ≤ n.val ∧
+       x.2.claves.val.length ≤ m0.claves.val.length + x.1.start.val ∧
+       x.2.valores.val.length ≤ m0.valores.val.length + x.1.start.val)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, by simp, by simp, by simp⟩
+  · intro x hinv
+    obtain ⟨iter, m⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hle, h1, h2⟩ := hinv
+    simp only at hend hle h1 h2
+    subst hend
+    unfold mapa.MapaVotos.filtrado_loop.body
+    hax_mvcgen
+    all_goals first
+      | omega
+      | (refine ⟨⟨trivial, ?_, ?_, ?_⟩, Or.inl ?_⟩ <;> omega)
+      | (refine ⟨?_, ?_⟩ <;> omega)
+
+/-- `filtrado` no deja mas entradas que las que habia. -/
+theorem filtrado_tam (m : mapa.MapaVotos) (cons : Slice Bool) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.filtrado m cons
+    ⦃ ⇓ r => ⌜ r.claves.val.length ≤ m.claves.val.length ∧
+                r.valores.val.length ≤ m.claves.val.length ⌝ ⦄ := by
+  have hprop := m.claves.property
+  unfold mapa.MapaVotos.filtrado
+  hax_mvcgen [filtrado_loop_tam]
+  all_goals first
+    | omega
+    | (rename_i n hn i hi; obtain ⟨ha, hb⟩ := hn; omega)
+    | (rename_i n hn i hi r hr; obtain ⟨ha, hb⟩ := hn; obtain ⟨hr1, hr2⟩ := hr;
+       refine ⟨?_, ?_⟩ <;> omega)
+end
+
+section
+attribute [local spec] hay_slot_loop_total inc_fin_total shift_window_total_spec
+  vec_new_total largo_total tf_loop_total vec_deref_total filtrado_tam
+
+/-- `try_finalize`, con lo que el loop necesita saber de lo que devuelve: la
+    ventana no crece, y el mapa no crece. -/
+theorem try_finalize_tam_spec (state : tipos.State)
+    (source target : tipos.Checkpoint) (j : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global)
+    (horden : source.slot.val < target.slot.val)
+    (hcap : state.justified_slots.bits.val.length ≤ 262144)
+    (hget : ∀ r : tipos.H256, ∃ o, stf.slot_de_raiz rts r = ok o) :
+    ⦃ ⌜ True ⌝ ⦄ stf.try_finalize state source target j rts
+    ⦃ ⇓ r => ⌜ r.1.justified_slots.bits.val.length ≤
+                  state.justified_slots.bits.val.length ∧
+                ∀ c, j.claves.val.length ≤ c → j.valores.val.length ≤ c →
+                  r.2.claves.val.length ≤ c ∧ r.2.valores.val.length ≤ c ⌝ ⦄ := by
+  unfold stf.try_finalize
+  hax_mvcgen
+  all_goals first
+    | scalar_tac
+    | (refine ⟨Nat.le_refl _, ?_⟩; intro c h1 h2; exact ⟨h1, h2⟩)
+    | (refine ⟨?_, ?_⟩
+       · simp [*, List.length_drop]
+       · intro c h1 h2
+         omega)
+end
+
+/- Los lemas de cada operacion del mapa, juntando lo total (devuelve, y de
+   que tamano queda) con lo parcial (la cota de las listas de votos). -/
+
+theorem poner_si_falta_loop_spec (m : mapa.MapaVotos) (k : tipos.H256)
+    (v : alloc.vec.Vec Bool)
+    (hc : m.claves.val.length < Usize.max)
+    (hv : m.valores.val.length < Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.poner_si_falta m k v
+    ⦃ ⇓ r => ⌜ (r.2.claves.val.length ≤ m.claves.val.length + 1 ∧
+                 r.2.valores.val.length ≤ m.valores.val.length + 1) ∧
+                ∀ c, VotosAcotados c m → v.val.length ≤ c → VotosAcotados c r.2 ⌝ ⦄ :=
+  total_con (poner_si_falta_total m k v hc hv) (poner_si_falta_acotados_spec m k v)
+
+theorem marcar_votos_loop_spec (m : mapa.MapaVotos) (p : Std.Usize)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) (idx : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.marcar_votos m p atts idx
+    ⦃ ⇓ r => ⌜ (r.claves = m.claves ∧
+                 r.valores.val.length = m.valores.val.length) ∧
+                ∀ c, VotosAcotados c m → VotosAcotados c r ⌝ ⦄ :=
+  total_con (marcar_votos_total m p atts idx) (marcar_votos_acotados_spec m p atts idx)
+
+theorem sin_loop_spec' (m : mapa.MapaVotos) (k : tipos.H256) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.sin m k
+    ⦃ ⇓ r => ⌜ (r.claves.val.length ≤ m.claves.val.length ∧
+                 r.valores.val.length ≤ m.claves.val.length) ∧
+                ∀ c, VotosAcotados c m → VotosAcotados c r ⌝ ⦄ :=
+  total_con (sin_total m k) (sin_acotados_spec m k)
+
+theorem try_finalize_loop_spec (state : tipos.State)
+    (source target : tipos.Checkpoint) (j : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global)
+    (horden : source.slot.val < target.slot.val)
+    (hcap : state.justified_slots.bits.val.length ≤ 262144)
+    (hget : ∀ r : tipos.H256, ∃ o, stf.slot_de_raiz rts r = ok o) :
+    ⦃ ⌜ True ⌝ ⦄ stf.try_finalize state source target j rts
+    ⦃ ⇓ r => ⌜ (r.1.justified_slots.bits.val.length ≤
+                   state.justified_slots.bits.val.length ∧
+                 ∀ c, j.claves.val.length ≤ c → j.valores.val.length ≤ c →
+                   r.2.claves.val.length ≤ c ∧ r.2.valores.val.length ≤ c) ∧
+                ∀ c, VotosAcotados c j → VotosAcotados c r.2 ⌝ ⦄ :=
+  total_con (try_finalize_tam_spec state source target j rts horden hcap hget)
+    (try_finalize_acotados_spec state source target j rts)
+
+section
+attribute [local spec] is_none_spec dato_en_total bits_en_uno_total
+  is_valid_vote_loop_spec primer_bit_total votos_vacios_total
+  poner_si_falta_loop_spec marcar_votos_loop_spec cuenta_votos_total
+  set_justified_dado div_ceil_total sin_loop_spec' try_finalize_loop_spec
+
+set_option maxHeartbeats 0 in
+/-- El loop de attestations termina y no entra en panico. -/
+theorem process_attestations_loop_total
+    (s0 : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (vc n : Std.Usize) (j0 : mapa.MapaVotos) (rts : MapaSlots) (C : Nat)
+    (hm : HashMapDevuelve)
+    (hvc : vc.val ≤ 4096)
+    (hcap : s0.justified_slots.bits.val.length ≤ 262144)
+    (hj : VotosAcotados vc.val j0)
+    (hc1 : j0.claves.val.length ≤ C) (hc2 : j0.valores.val.length ≤ C)
+    (hC : C + n.val < Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations_loop { start := 0#usize, «end» := n } s0
+      atts vc 0#u64 j0 rts core.option.Option.None
+    ⦃ ⇓ r => ⌜ VotosAcotados vc.val r.2.2.1 ∧
+                r.2.2.1.claves.val.length ≤ C + n.val ⌝ ⦄ := by
+  unfold stf.process_attestations_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × Acc =>
+       x.1.«end» = n ∧ x.1.start.val ≤ n.val ∧
+       x.2.2.1.val ≤ x.1.start.val ∧
+       x.2.1.justified_slots.bits.val.length ≤ 262144 ∧
+       VotosAcotados vc.val x.2.2.2.1 ∧
+       x.2.2.2.1.claves.val.length ≤ C + x.1.start.val ∧
+       x.2.2.2.1.valores.val.length ≤ C + x.1.start.val)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, by simp, by simp, hcap, hj, by simpa using hc1, by simpa using hc2⟩
+  · intro x hinv
+    obtain ⟨iter, st, ap, jj, fl⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hle, hap, hcap', hjj, hk1, hk2⟩ := hinv
+    simp only at hend hle hap hcap' hjj hk1 hk2
+    subst hend
+    have hmax : (1073741824 : Nat) ≤ Usize.max := by scalar_tac
+    have h3 : (3#usize).val = 3 := by simp
+    have h2 : (2#usize).val = 2 := by simp
+    unfold stf.process_attestations_loop.body
+    hax_mvcgen
+    all_goals first
+      | omega
+      | exact hm.consulta rts _
+      | grind [VotosAcotados]
+      | (scalar_tac_preprocess; grind [VotosAcotados])
+      | (exfalso; scalar_tac_preprocess; grind [VotosAcotados])
+      | scalar_tac
+      | (exfalso; scalar_tac)
+end
+
+/-- El mismo, sin la cota `C` suelta: la toma del mapa inicial. -/
+theorem process_attestations_loop_spec
+    (s0 : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (vc n : Std.Usize) (j0 : mapa.MapaVotos) (rts : MapaSlots)
+    (hm : HashMapDevuelve)
+    (hvc : vc.val ≤ 4096)
+    (hcap : s0.justified_slots.bits.val.length ≤ 262144)
+    (hj : VotosAcotados vc.val j0)
+    (hC : max j0.claves.val.length j0.valores.val.length + n.val < Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations_loop { start := 0#usize, «end» := n } s0
+      atts vc 0#u64 j0 rts core.option.Option.None
+    ⦃ ⇓ r => ⌜ VotosAcotados vc.val r.2.2.1 ∧
+                r.2.2.1.claves.val.length ≤
+                  max j0.claves.val.length j0.valores.val.length + n.val ⌝ ⦄ :=
+  process_attestations_loop_total s0 atts vc n j0 rts _ hm hvc hcap hj
+    (Nat.le_max_left _ _) (Nat.le_max_right _ _) hC
+
+theorem time_att_total :
+    ⦃ ⌜ True ⌝ ⦄ stubs.metrics.time_attestations_processing ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
+  triple_total_of ⟨(), rfl, trivial⟩
+
+theorem inc_att_total (c : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ stubs.metrics.inc_attestations_processed c ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
+  triple_total_of ⟨(), rfl, trivial⟩
+
+theorem construir_mapa_loop_spec' (st : tipos.State) (vc : Std.Usize)
+    (hprod : st.justifications_roots.items.val.length * vc.val ≤ Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄ stf.construir_mapa_de_votos st vc
+    ⦃ ⇓ r => ⌜ (r.claves.val.length ≤ st.justifications_roots.items.val.length ∧
+                 r.valores.val.length ≤ st.justifications_roots.items.val.length) ∧
+                VotosAcotados vc.val r ⌝ ⦄ :=
+  total_con (construir_mapa_total st vc hprod) (construir_mapa_acotados_spec st vc)
+
+section
+attribute [local spec] time_att_total contar_datos_total ssz_len_total bl_len_total
+  hay_raiz_cero_total construir_mapa_loop_spec' construir_rts_total
+  process_attestations_loop_spec serialize_justifications_total_spec
+  inc_att_total
+
+theorem process_attestations_total_spec (state : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (hm : HashMapDevuelve)
+    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
+    (hval : state.validators.items.val.length ≤ 4096)
+    (hraices : state.justifications_roots.items.val.length +
+                 atts.items.val.length ≤ 262144)
+    (hfin : state.latest_finalized.slot.val < U64.max)
+    (hcap : state.justified_slots.bits.val.length ≤ 262144) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_attestations state atts ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  have hprod : ∀ a b : Nat, a ≤ 262144 → b ≤ 4096 → a * b ≤ 1073741824 := by
+    intro a b ha hb
+    have := Nat.mul_le_mul ha hb
+    omega
+  have hp : state.justifications_roots.items.val.length *
+      state.validators.items.val.length ≤ 1073741824 :=
+    hprod _ _ (by omega) hval
+  have hmax : (1073741824 : Nat) ≤ Usize.max := by scalar_tac
+  unfold stf.process_attestations
+  hax_mvcgen
+  all_goals first
+    | omega
+    | grind [VotosAcotados]
+    | (exfalso; grind [VotosAcotados])
+    | scalar_tac
+    | (exfalso; scalar_tac)
+end
+
+/-- `process_attestations` no entra en panico. -/
+theorem process_attestations_devuelve (state : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (hm : HashMapDevuelve)
+    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
+    (hval : state.validators.items.val.length ≤ 4096)
+    (hraices : state.justifications_roots.items.val.length +
+                 atts.items.val.length ≤ 262144)
+    (hfin : state.latest_finalized.slot.val < U64.max)
+    (hcap : state.justified_slots.bits.val.length ≤ 262144) :
+    ∃ r, stf.process_attestations state atts = ok r := by
+  obtain ⟨r, hr, -⟩ := of_triple_total
+    (process_attestations_total_spec state atts hm hcmp hval hraices hfin hcap)
+  exact ⟨r, hr⟩
+
+/-- Lo mismo, con las dos hipotesis sobre la ventana y la finalidad sacadas
+    de los invariantes que la transicion conserva. -/
+theorem process_attestations_devuelve_inv (state : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (hm : HashMapDevuelve)
+    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
+    (hval : state.validators.items.val.length ≤ 4096)
+    (hraices : state.justifications_roots.items.val.length +
+                 atts.items.val.length ≤ 262144)
+    (hv : VentanaNoPasa state) (hh : HistorialAcotado state) :
+    ∃ r, stf.process_attestations state atts = ok r := by
+  have hcap := ventana_en_capacidad state hv hh
+  have hfin : state.latest_finalized.slot.val < U64.max := by
+    unfold VentanaNoPasa at hv
+    have := hh.2
+    scalar_tac
+  exact process_attestations_devuelve state atts hm hcmp hval hraices hfin hcap
+
+end NP7
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -8276,3 +8653,5 @@ end NP6
 #print axioms NP6.sin_devuelve
 #print axioms NP6.construir_mapa_devuelve
 #print axioms NP6.construir_rts_devuelve
+#print axioms NP7.process_attestations_devuelve
+#print axioms NP7.process_attestations_devuelve_inv

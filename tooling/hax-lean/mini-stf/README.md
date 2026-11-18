@@ -1172,5 +1172,56 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    > Lo que sigue: la etapa B. Hace falta un invariante del loop que junte
    > la ventana, el historial, la cota de las listas de votos y el tamano
    > del mapa.
+
+   > Segunda nota del 18 nov 2026: **`process_attestations` no entra en
+   > panico** (teorema 20, namespace `NP7`). Es la etapa B. Dos resultados:
+   > `process_attestations_devuelve` y `process_attestations_devuelve_inv`.
+   >
+   > - Invariante del loop, mas simple de lo temido: ventana ≤ 262144;
+   >   `VotosAcotados vc`; claves y valores del mapa ≤ `C + recorridas`;
+   >   contador ≤ recorridas. No hizo falta llevar el historial.
+   > - `total_con`: junta un lema total con uno parcial sobre la misma
+   >   llamada. Asi se reusaron los lemas `VotosAcotados` del teorema 17
+   >   (parciales) con los "devuelve" del 19 (totales) sin reprobar nada.
+   > - Hubo que rehacer `filtrado` y `try_finalize` con postcondicion de
+   >   TAMANO (el del teorema 18 decia solo "devuelve"): la ventana no
+   >   crece y el mapa no crece. Forma sin variable libre: "para toda cota
+   >   `c`, si claves y valores ≤ `c`, lo que devuelve tambien".
+   > - `is_valid_vote_loop_spec`: de `Ok true` saca source < target y que
+   >   `set_justified` devuelve sin cambiar el largo. `set_justified_dado`
+   >   lleva eso como hipotesis del lema, y `hax_mvcgen` la deja como meta.
+   > - El lema del loop tenia una cota `C` suelta y no servia como
+   >   `@[spec]`. Version para usar: `C := max claves valores` del mapa
+   >   inicial.
+   > - 170 metas, ocho clases. Receta:
+   >   `first | omega | exact hm.consulta rts _ | grind [VotosAcotados] |
+   >   (scalar_tac_preprocess; grind [VotosAcotados]) | (exfalso; ...) |
+   >   scalar_tac | (exfalso; scalar_tac)`.
+   >   `scalar_tac_preprocess` existe como tactica suelta y sirve para que
+   >   `grind` vea los escalares.
+   > - Quedaba UNA meta: `Usize.max < 3 * votos`. Cerro al dejar escrito
+   >   antes del `hax_mvcgen` que `1073741824 ≤ Usize.max` y que
+   >   `(3#usize).val = 3`.
+   > - `set_option maxHeartbeats 0 in` sobre el teorema del loop. Tarda
+   >   unos dos minutos y medio.
+   > - Para iterar: se desarrollo la funcion entera en otro archivo, con
+   >   el loop como `sorry`, mientras el loop corria en segundo plano.
+   >
+   > Controles negativos: sin `vc ≤ 4096` quedan `Usize.max < 2 * vc` y
+   > `Usize.max < 3 * votos`; sin la cota de raices quedan el producto
+   > `raices * vc`, el lugar en el mapa y el limite de raices; con
+   > `is_valid_vote` sin contenido quedan cuatro metas, las de
+   > `set_justified` y las del orden source/target.
+   >
+   > Axiomas: los dos resultados 20 (3 de Lean, 7 nativos, 10
+   > declaraciones).
+   >
+   > OJO, para no sobrevender: la hipotesis "raices + attestations ≤
+   > 262144" es suficiente, no un invariante. La cota fina sigue pendiente.
+   >
+   > Lo que sigue: `process_block` y `state_transition`. Hay que mostrar
+   > que el estado que deja `process_block_header` cumple las hipotesis de
+   > `process_attestations` (validadores y raices no cambian; la ventana y
+   > el historial ya estan).
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

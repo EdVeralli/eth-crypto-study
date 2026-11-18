@@ -41,7 +41,7 @@ Lean las acepta sin `sorry`. Eso dice que el programa quedó escrito en Lean. No
 dice que sea correcto.
 
 **Las demostraciones son de propiedades puntuales.** Un programa no "se
-demuestra": se demuestran afirmaciones sobre él. Acá hay sesenta y siete,
+demuestra": se demuestran afirmaciones sobre él. Acá hay sesenta y nueve,
 listadas en **Qué recibe**. Cada una dice una cosa precisa, con sus hipótesis a
 la vista.
 
@@ -49,9 +49,9 @@ Lo que **no** está demostrado, dicho de una vez:
 
 - **Que el código nunca entre en pánico.** Está para las cuatro funciones de un
   módulo auxiliar, la ventana de slots justificados (`justified_slots_ops.rs`),
-  y para nueve de las doce de la transición propiamente dicha (`stf.rs`),
-  cuatro de ellas con hipótesis escritas. Las otras tres conservan el
-  condicional "si la función devuelve".
+  y para diez de las doce de la transición propiamente dicha (`stf.rs`),
+  cinco de ellas con hipótesis escritas. Las otras dos, `process_block` y
+  `state_transition`, conservan el condicional "si la función devuelve".
 - **Que el código sea equivalente a la especificación.** Sobre estados
   arbitrarios no lo es: encontramos dos puntos donde se comportan distinto, y
   están contados más abajo.
@@ -168,12 +168,12 @@ Qué tiene que dar cada paso:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` y después `=== listo ===` (1743 jobs la primera vez sobre un checkout limpio) |
-| 6 | `67` — un bloque de axiomas por resultado — y `0` |
+| 6 | `69` — un bloque de axiomas por resultado — y `0` |
 
 No hay un paso aparte de "correr las pruebas". Los teoremas están en
 `teoremas/ProofObligations.lean`; el paso 5 copia ese archivo adentro del
 proyecto Lean y `lake build` lo chequea entero. Si el build termina en verde,
-Lean aceptó las sesenta y siete demostraciones. Al final imprime de qué axiomas
+Lean aceptó las sesenta y nueve demostraciones. Al final imprime de qué axiomas
 depende cada una, que es lo que cuenta el paso 6.
 
 Para convencerse de que el chequeo es real, rompan un enunciado a mano. En
@@ -302,10 +302,10 @@ Todo, con las líneas tal como se entrega.
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 336 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 8278 | nuestro — los teoremas. |
-| `axiomas.txt` | 704 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
+| `teoremas/ProofObligations.lean` | 8657 | nuestro — los teoremas. |
+| `axiomas.txt` | 748 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 1176 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 1227 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -401,7 +401,7 @@ más abajo.
 
 ## Qué recibe
 
-`teoremas/ProofObligations.lean` tiene sesenta y siete resultados con nombre:
+`teoremas/ProofObligations.lean` tiene sesenta y nueve resultados con nombre:
 
 | Resultado | Qué es |
 |---|---|
@@ -471,6 +471,8 @@ más abajo.
 | `NP6.sin_devuelve` | sacar una raíz del mapa no entra en pánico ni deja más entradas |
 | `NP6.construir_mapa_devuelve` | armar el mapa de votos desde el estado no entra en pánico, si `raíces * validator_count` no desborda |
 | `NP6.construir_rts_devuelve` | armar el `HashMap` de raíces a slots no entra en pánico, si el `HashMap` devuelve |
+| `NP7.process_attestations_devuelve` | **`process_attestations` no entra en pánico**, con los límites de sus tipos y si el `HashMap` y la comparación de `H256` devuelven |
+| `NP7.process_attestations_devuelve_inv` | lo mismo, con la ventana y la finalidad sacadas de los invariantes de la transición |
 | `bind_da_ok` | una herramienta: abre un bind de `RustM` |
 
 No se eligieron por cantidad. Entre todos cubren aritmética, ramificación y
@@ -1315,8 +1317,60 @@ Nueve de los diez dependen sólo de los tres axiomas de Lean. El de
 `construir_root_to_slot` depende de once: esos tres y ocho declaraciones, las
 del `HashMap`.
 
-**Lo que no está.** Juntarlas: el loop de `process_attestations` y la función
-entera. Y después `process_block` y `state_transition`, que la llaman.
+**Dónde se usan.** En la sección que sigue, que las junta.
+
+### `process_attestations` no entra en pánico
+
+Es la función grande de la transición: recorre las attestations del bloque,
+cuenta votos, justifica y finaliza, y al final vuelve a escribir el mapa de
+votos en el estado.
+
+| Hipótesis | Para qué |
+|---|---|
+| el `HashMap` devuelve (`new`, `get`, `insert`) | son firmas sin contenido |
+| la comparación de `H256` devuelve | la usa el ordenamiento al serializar; también es una firma sin contenido |
+| a lo sumo 4096 validadores | que `3 * votos` y `2 * validator_count` no desborden, y que el bitlist de votos entre en su capacidad |
+| las raíces del estado más las attestations del bloque no pasan de 262144 | que haya lugar en el mapa de votos y en `justifications_roots` |
+| la ventana no pasa de 262144 bits | que `shift_window` no aborte |
+| `finalizado + 1` no desborda | lo usa `construir_root_to_slot` |
+
+`NP7.process_attestations_devuelve_inv` es el mismo resultado, con las dos
+últimas sacadas de los invariantes que la transición conserva.
+
+**Qué se lleva a lo largo del loop.** Cuatro cosas: la ventana no crece; ninguna
+lista de votos es más larga que `validator_count`; el mapa crece a lo sumo una
+entrada por vuelta; y el contador de attestations procesadas no pasa de las
+recorridas.
+
+**El punto delicado es `set_justified`.** Aborta si el target cae fuera de la
+ventana. No pasa, porque sólo se llama después de un `is_valid_vote` que dio
+`true` sobre el mismo estado, y ese chequeo ya leyó ese slot. Es un resultado
+de **La ventana no entra en pánico**, usado acá. Del mismo voto sale que el source es anterior al target, que es lo que pide
+`try_finalize`.
+
+**La cota de raíces es más fuerte de lo necesario, y lo decimos.** "Raíces del
+estado más attestations del bloque" es una condición suficiente sobre lo que
+entra a la función: el loop agrega a lo sumo una raíz por attestation. No es un
+invariante de los estados alcanzables. Un estado con muchas raíces pendientes y
+un bloque lleno queda afuera de este resultado, lo cual no quiere decir que
+aborte: quiere decir que acá no está demostrado. La cota fina, que las raíces
+del mapa son distintas y están en el historial, no está.
+
+El cuerpo del loop deja 170 condiciones que verificar, una por cada punto donde
+algo podría fallar en cada camino posible. Son de ocho clases y se cierran por
+clase.
+
+Controles negativos, tres. Sin la cota de validadores quedan abiertos los dos
+productos. Sin la cota de raíces quedan el producto `raíces * validator_count`,
+el lugar en el mapa y el límite de raíces. Sin lo que dice `is_valid_vote`
+quedan `set_justified` y el orden entre source y target.
+
+Los dos resultados dependen de veinte axiomas: los tres de Lean, siete nativos
+y diez declaraciones.
+
+**Lo que no está.** `process_block` y `state_transition`. Las dos sólo
+encadenan funciones que ya están, pero falta mostrar que el estado que deja
+`process_block_header` cumple las hipótesis de `process_attestations`.
 
 ### Qué es esto contra el catálogo, dicho exacto
 
@@ -1401,6 +1455,7 @@ importa: elegir las propias propiedades vuelve el ejercicio circular.
 | sin pánico: `try_finalize`, los dos resultados | 13 | 3 | 3 | 7 |
 | sin pánico: nueve auxiliares de `process_attestations` | 3 | 3 | — | — |
 | sin pánico: `construir_root_to_slot` | 11 | 3 | — | 8 |
+| sin pánico: `process_attestations`, los dos resultados | 20 | 3 | 7 | 10 |
 
 Tres categorías, con tres pesos distintos.
 
@@ -1465,9 +1520,9 @@ Ninguna de las veintiséis carga peso en los teoremas de arriba: las
 propiedades salen de las guardas, de las asignaciones y del historial de hashes,
 no de lo que haga el mapa, el hash o el formateador. Hay excepciones, y están
 escritas: el resultado sobre `serialize_justifications` le pide a la
-comparación de arrays que devuelva, y los de `try_finalize` y
-`construir_root_to_slot` le piden lo mismo al `HashMap`, siempre como
-hipótesis. De las tres afirmaciones de
+comparación de arrays que devuelva, y los de `try_finalize`,
+`construir_root_to_slot` y `process_attestations` le piden lo mismo al
+`HashMap`, siempre como hipótesis. De las tres afirmaciones de
 modelado, `ST-3` no se apoya en ninguna; `ST-7` sobre la transición entera y los
 invariantes del historial se apoyan en la de `mem::take`, porque necesitan que
 el historial sobreviva a `process_block_header`; la ausencia de pánico de
@@ -1675,16 +1730,15 @@ entrada dada son los tests de Rust.
 **La ausencia de pánico no cubre toda la transición.** Las cuatro funciones de
 `justified_slots_ops` devuelven, bajo hipótesis de capacidad; cinco de las doce
 de `stf.rs` devuelven sin hipótesis; y `process_slots`, `process_block_header`,
-`serialize_justifications` y `try_finalize` devuelven con las hipótesis de su
-sección, entre ellas que el hash, la comparación de `H256` y la consulta al
-`HashMap` devuelvan. Las otras tres, entre ellas `state_transition`, conservan
-el condicional "si la función devuelve".
+`serialize_justifications`, `try_finalize` y `process_attestations` devuelven
+con las hipótesis de su sección, entre ellas que el hash, la comparación de
+`H256` y el `HashMap` devuelvan. Las otras dos, `process_block` y
+`state_transition`, conservan el condicional "si la función devuelve".
 
-**La capacidad de la ventana está armada en dos de las tres funciones que la
-usan.** Que la ventana no pasa de 262144 bits es un invariante de la
-transición, y la ausencia de pánico de `process_block_header` y de
-`try_finalize` ya se apoya en él. Falta `process_attestations`, que escribe en
-la ventana con `set_justified`.
+**La cota de raíces de `process_attestations` es una condición suficiente, no
+un invariante.** Pide que las raíces del estado más las attestations del bloque
+no pasen de 262144. La cota fina, que las raíces del mapa de votos son
+distintas y están en el historial, no está demostrada.
 
 **El invariante de la ventana supone `usize` de 64 bits.** Los resultados sobre
 dónde termina la ventana llevan esa hipótesis explícita. En 32 bits los
