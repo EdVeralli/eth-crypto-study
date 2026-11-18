@@ -1,12 +1,17 @@
 BASE DE AXIOMAS DE CADA TEOREMA
 
-Salida de los `#print axioms` de teoremas/ProofObligations.lean, generada
-por `lake build` el 18 nov 2026. Se entrega para que la base de confianza se
-pueda leer sin tener que compilar.
+Salida de los `#print axioms` de teoremas/ProofObligations.lean. La arma
+axiomas.py a partir del log de `lake build`. Se entrega para que la base
+de confianza se pueda leer sin tener que compilar.
 
-Tres categorias:
+Son 71 teoremas. Tiene dos partes:
 
-  ESTANDAR   los tres de Lean (propext, Classical.choice, Quot.sound). Los
+  PARTE 1   cada teorema, con los axiomas que utiliza.
+  PARTE 2   cada axioma, con los teoremas donde aparece.
+
+Los axiomas son de tres clases:
+
+  DE LEAN    los tres estandar (propext, Classical.choice, Quot.sound). Los
              usa cualquier demostracion clasica; no dicen nada sobre este
              codigo.
   NATIVOS    `_native.decide.ax_*`: el nucleo NO los chequeo, los computo el
@@ -15,758 +20,1350 @@ Tres categorias:
              (Tactic/Simproc/BvSimprocs.lean, Tactic/Step/StepArraySpec.lean),
              descargando cotas de arrays y escalares. No hay flag para
              apagarlos.
-  MODELOS    declaraciones que existen solo para que las firmas chequeen, y
-             modelos escritos a mano de operaciones de core/std que CoreModels
-             no cubre.
+  MODELOS    declaraciones que existen solo para que las firmas chequeen.
+             No tienen contenido: Lean no sabe que hacen.
+
+Ningun teorema usa `sorryAx`, que es lo que apareceria si una demostracion
+hubiera quedado incompleta.
 
 ========================================================================
-
-pronic_iff_cuadrado
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-chequeo_de_paridad_redundante
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-bind_da_ok
-  TOTAL 1 = 1 estandar + 0 nativos + 0 modelos
-
-try_finalize_no_retrocede
-  TOTAL 13 = 3 estandar + 3 nativos + 7 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-
-try_finalize_no_toca_justified
-  TOTAL 13 = 3 estandar + 3 nativos + 7 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-
-ST3.process_attestations_loop_no_retrocede
-  TOTAL 14 = 3 estandar + 4 nativos + 7 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-
-ST3.process_attestations_no_retrocede
-  TOTAL 20 = 3 estandar + 7 nativos + 10 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreCmpOrd.cmp
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.collections.hash.map.HashMap.insert
-    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-
-ST3.process_slots_no_toca_checkpoints
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-ST3F.process_attestations_fin_no_retrocede
-  TOTAL 20 = 3 estandar + 7 nativos + 10 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreCmpOrd.cmp
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.collections.hash.map.HashMap.insert
-    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-
-ST3H.process_block_header_no_mueve_slots
-  TOTAL 7 = 3 estandar + 3 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-    ~ mini_stf.stf.process_block_header._native.decide.ax_3
-
-ST3T.process_block_no_retrocede
-  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreCmpOrd.cmp
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.collections.hash.map.HashMap.insert
-    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-    ~ mini_stf.stf.process_block_header._native.decide.ax_3
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-
-ST3.state_transition_no_retrocede
-  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreCmpOrd.cmp
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.collections.hash.map.HashMap.insert
-    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-    ~ mini_stf.stf.process_block_header._native.decide.ax_3
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-
-ST7.h256_eq_true
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-ST7.process_attestations_adelante
-  TOTAL 20 = 3 estandar + 7 nativos + 10 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreCmpOrd.cmp
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.collections.hash.map.HashMap.insert
-    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-
-ST7.process_block_header_no_toca_checkpoints
-  TOTAL 7 = 3 estandar + 3 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-    ~ mini_stf.stf.process_block_header._native.decide.ax_3
-
-ST7.state_transition_adelante
-  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreCmpOrd.cmp
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.collections.hash.map.HashMap.insert
-    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-    ~ mini_stf.stf.process_block_header._native.decide.ax_3
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-
-ST1.process_slots_avanza
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-ST1.process_slots_rechaza
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-ST2.process_block_header_slot
-  TOTAL 7 = 3 estandar + 3 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-    ~ mini_stf.stf.process_block_header._native.decide.ax_3
-
-ST2.state_transition_conserva_no_genesis
-  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreCmpOrd.cmp
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.collections.hash.map.HashMap.insert
-    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-    ~ mini_stf.stf.process_block_header._native.decide.ax_3
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-
-ST4.state_transition_justificado_ge_finalizado
-  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreCmpOrd.cmp
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.collections.hash.map.HashMap.insert
-    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-    ~ mini_stf.stf.process_block_header._native.decide.ax_3
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-
-ST6.finalizacion_irreversible
-  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreCmpOrd.cmp
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.collections.hash.map.HashMap.insert
-    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-    ~ mini_stf.stf.process_block_header._native.decide.ax_3
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-
-JS.set_luego_is_justified
-  TOTAL 5 = 3 estandar + 1 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-
-JS.extend_to_slot_no_pierde_bits
-  TOTAL 6 = 3 estandar + 2 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-
-JS.shift_window_corre
-  TOTAL 5 = 3 estandar + 1 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-
-JS.extend_to_slot_conserva_respuestas
-  TOTAL 6 = 3 estandar + 2 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-
-JS.finalizar_conserva_justificados
-  TOTAL 5 = 3 estandar + 1 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-
-NP.is_slot_justified_total
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-NP.set_justified_total
-  TOTAL 5 = 3 estandar + 1 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-
-NP.set_justified_panico
-  TOTAL 5 = 3 estandar + 1 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-
-NP.set_justified_tras_voto_valido
-  TOTAL 5 = 3 estandar + 1 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-
-NP.extend_to_slot_devuelve
-  TOTAL 6 = 3 estandar + 2 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-
-NP.shift_window_devuelve
-  TOTAL 5 = 3 estandar + 1 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-
-NP.finalizar_conserva_justificados_total
-  TOTAL 5 = 3 estandar + 1 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-
-VC.tras_header_cubre
-  TOTAL 7 = 3 estandar + 3 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-    ~ mini_stf.stf.process_block_header._native.decide.ax_3
-
-VC.tras_header_rechaza
-  TOTAL 7 = 3 estandar + 3 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-    ~ mini_stf.stf.process_block_header._native.decide.ax_3
-
-VI.state_transition_conserva_ventana
-  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreCmpOrd.cmp
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.collections.hash.map.HashMap.insert
-    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-    ~ mini_stf.stf.process_block_header._native.decide.ax_3
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-
-VI.state_transition_ventana_justa
-  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreCmpOrd.cmp
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.collections.hash.map.HashMap.insert
-    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-    ~ mini_stf.stf.process_block_header._native.decide.ax_3
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-
-VI.tras_header_rechaza_inv
-  TOTAL 7 = 3 estandar + 3 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-    ~ mini_stf.stf.process_block_header._native.decide.ax_3
-
-HC.header_acepta_slot_acotado
-  TOTAL 7 = 3 estandar + 3 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-    ~ mini_stf.stf.process_block_header._native.decide.ax_3
-
-HC.state_transition_conserva_acotado
-  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreCmpOrd.cmp
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.collections.hash.map.HashMap.insert
-    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-    ~ mini_stf.stf.process_block_header._native.decide.ax_3
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-
-HC.shift_window_no_falla
-  TOTAL 5 = 3 estandar + 1 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-
-NP2.current_proposer_eq
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-NP2.is_proposer_total
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-NP2.slot_is_justifiable_total
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-NP2.matches_chain_total
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-NP2.is_valid_vote_total
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-NP3.process_slots_devuelve
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-NP3.process_block_header_devuelve
-  TOTAL 7 = 3 estandar + 3 nativos + 1 modelos
-  modelos:
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-    ~ mini_stf.stf.process_block_header._native.decide.ax_3
-
-NP4.claves_ordenadas_devuelve
-  TOTAL 4 = 3 estandar + 0 nativos + 1 modelos
-  modelos:
-    - core.Array.Insts.CoreCmpOrd.cmp
-
-NP4.serialize_justifications_devuelve
-  TOTAL 8 = 3 estandar + 3 nativos + 2 modelos
-  modelos:
-    - core.Array.Insts.CoreCmpOrd.cmp
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  nativos:
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
-    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-
-MV.construir_mapa_acotado
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-MV.loop_conserva_acotado
-  TOTAL 14 = 3 estandar + 4 nativos + 7 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-
-MV.serialize_tras_attestations_devuelve
-  TOTAL 18 = 3 estandar + 7 nativos + 8 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreCmpOrd.cmp
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-
-NP5.filtrado_devuelve
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-NP5.try_finalize_devuelve
-  TOTAL 13 = 3 estandar + 3 nativos + 7 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-
-NP5.try_finalize_devuelve_inv
-  TOTAL 13 = 3 estandar + 3 nativos + 7 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-
-NP6.contar_datos_devuelve
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-NP6.hay_raiz_cero_devuelve
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-NP6.primer_bit_devuelve
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-NP6.votos_vacios_devuelve
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-NP6.poner_si_falta_devuelve
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-NP6.marcar_votos_devuelve
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-NP6.cuenta_votos_devuelve
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-NP6.sin_devuelve
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-NP6.construir_mapa_devuelve
-  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
-
-NP6.construir_rts_devuelve
-  TOTAL 11 = 3 estandar + 0 nativos + 8 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreHashHash.hash
-    - std.collections.hash.map.HashMap.get
-    - std.collections.hash.map.HashMap.insert
-    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-
-NP7.process_attestations_devuelve
-  TOTAL 20 = 3 estandar + 7 nativos + 10 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreCmpOrd.cmp
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.collections.hash.map.HashMap.insert
-    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-
-NP7.process_attestations_devuelve_inv
-  TOTAL 20 = 3 estandar + 7 nativos + 10 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreCmpOrd.cmp
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.collections.hash.map.HashMap.insert
-    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-
-NP8.process_block_devuelve
-  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreCmpOrd.cmp
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.collections.hash.map.HashMap.insert
-    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-    ~ mini_stf.stf.process_block_header._native.decide.ax_3
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-
-NP8.state_transition_devuelve
-  TOTAL 22 = 3 estandar + 9 nativos + 10 modelos
-  modelos:
-    - core.borrow.Borrow
-    - core.hash.BuildHasher
-    - core.borrow.Borrow.Blanket
-    - core.Array.Insts.CoreCmpOrd.cmp
-    - core.Array.Insts.CoreHashHash.hash
-    - ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-    - std.collections.hash.map.HashMap.get
-    - std.collections.hash.map.HashMap.insert
-    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
-    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  nativos:
-    ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-    ~ mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-    ~ mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-    ~ mini_stf.stf.process_block_header._native.decide.ax_3
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_1
-    ~ mini_stf.stf.serialize_justifications._native.decide.ax_2
-    ~ mini_stf.stf.try_finalize._native.decide.ax_1
-    ~ mini_stf.stf.try_finalize._native.decide.ax_2
-    ~ mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+PARTE 1 — QUE AXIOMAS UTILIZA CADA TEOREMA
+========================================================================
+
+TEOREMA pronic_iff_cuadrado
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA chequeo_de_paridad_redundante
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA bind_da_ok
+  utiliza 1 axioma:
+    de Lean (1): propext
+
+TEOREMA try_finalize_no_retrocede
+  utiliza 13 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (3):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+    modelos (7):
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA try_finalize_no_toca_justified
+  utiliza 13 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (3):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+    modelos (7):
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA ST3.process_attestations_loop_no_retrocede
+  utiliza 14 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (4):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+    modelos (7):
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA ST3.process_attestations_no_retrocede
+  utiliza 20 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (7):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (10):
+      core.Array.Insts.CoreCmpOrd.cmp
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.collections.hash.map.HashMap.insert
+      std.collections.hash.map.HashMapKVRandomStateGlobal.new
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA ST3.process_slots_no_toca_checkpoints
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA ST3F.process_attestations_fin_no_retrocede
+  utiliza 20 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (7):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (10):
+      core.Array.Insts.CoreCmpOrd.cmp
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.collections.hash.map.HashMap.insert
+      std.collections.hash.map.HashMapKVRandomStateGlobal.new
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA ST3H.process_block_header_no_mueve_slots
+  utiliza 7 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (3):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+      mini_stf.stf.process_block_header._native.decide.ax_3
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA ST3T.process_block_no_retrocede
+  utiliza 22 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (9):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+      mini_stf.stf.process_block_header._native.decide.ax_3
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (10):
+      core.Array.Insts.CoreCmpOrd.cmp
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.collections.hash.map.HashMap.insert
+      std.collections.hash.map.HashMapKVRandomStateGlobal.new
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA ST3.state_transition_no_retrocede
+  utiliza 22 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (9):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+      mini_stf.stf.process_block_header._native.decide.ax_3
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (10):
+      core.Array.Insts.CoreCmpOrd.cmp
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.collections.hash.map.HashMap.insert
+      std.collections.hash.map.HashMapKVRandomStateGlobal.new
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA ST7.h256_eq_true
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA ST7.process_attestations_adelante
+  utiliza 20 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (7):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (10):
+      core.Array.Insts.CoreCmpOrd.cmp
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.collections.hash.map.HashMap.insert
+      std.collections.hash.map.HashMapKVRandomStateGlobal.new
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA ST7.process_block_header_no_toca_checkpoints
+  utiliza 7 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (3):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+      mini_stf.stf.process_block_header._native.decide.ax_3
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA ST7.state_transition_adelante
+  utiliza 22 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (9):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+      mini_stf.stf.process_block_header._native.decide.ax_3
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (10):
+      core.Array.Insts.CoreCmpOrd.cmp
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.collections.hash.map.HashMap.insert
+      std.collections.hash.map.HashMapKVRandomStateGlobal.new
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA ST1.process_slots_avanza
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA ST1.process_slots_rechaza
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA ST2.process_block_header_slot
+  utiliza 7 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (3):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+      mini_stf.stf.process_block_header._native.decide.ax_3
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA ST2.state_transition_conserva_no_genesis
+  utiliza 22 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (9):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+      mini_stf.stf.process_block_header._native.decide.ax_3
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (10):
+      core.Array.Insts.CoreCmpOrd.cmp
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.collections.hash.map.HashMap.insert
+      std.collections.hash.map.HashMapKVRandomStateGlobal.new
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA ST4.state_transition_justificado_ge_finalizado
+  utiliza 22 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (9):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+      mini_stf.stf.process_block_header._native.decide.ax_3
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (10):
+      core.Array.Insts.CoreCmpOrd.cmp
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.collections.hash.map.HashMap.insert
+      std.collections.hash.map.HashMapKVRandomStateGlobal.new
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA ST6.finalizacion_irreversible
+  utiliza 22 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (9):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+      mini_stf.stf.process_block_header._native.decide.ax_3
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (10):
+      core.Array.Insts.CoreCmpOrd.cmp
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.collections.hash.map.HashMap.insert
+      std.collections.hash.map.HashMapKVRandomStateGlobal.new
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA JS.set_luego_is_justified
+  utiliza 5 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (1):
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA JS.extend_to_slot_no_pierde_bits
+  utiliza 6 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (2):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA JS.shift_window_corre
+  utiliza 5 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (1):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA JS.extend_to_slot_conserva_respuestas
+  utiliza 6 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (2):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA JS.finalizar_conserva_justificados
+  utiliza 5 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (1):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA NP.is_slot_justified_total
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA NP.set_justified_total
+  utiliza 5 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (1):
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA NP.set_justified_panico
+  utiliza 5 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (1):
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA NP.set_justified_tras_voto_valido
+  utiliza 5 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (1):
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA NP.extend_to_slot_devuelve
+  utiliza 6 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (2):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA NP.shift_window_devuelve
+  utiliza 5 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (1):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA NP.finalizar_conserva_justificados_total
+  utiliza 5 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (1):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA VC.tras_header_cubre
+  utiliza 7 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (3):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+      mini_stf.stf.process_block_header._native.decide.ax_3
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA VC.tras_header_rechaza
+  utiliza 7 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (3):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+      mini_stf.stf.process_block_header._native.decide.ax_3
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA VI.state_transition_conserva_ventana
+  utiliza 22 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (9):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+      mini_stf.stf.process_block_header._native.decide.ax_3
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (10):
+      core.Array.Insts.CoreCmpOrd.cmp
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.collections.hash.map.HashMap.insert
+      std.collections.hash.map.HashMapKVRandomStateGlobal.new
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA VI.state_transition_ventana_justa
+  utiliza 22 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (9):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+      mini_stf.stf.process_block_header._native.decide.ax_3
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (10):
+      core.Array.Insts.CoreCmpOrd.cmp
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.collections.hash.map.HashMap.insert
+      std.collections.hash.map.HashMapKVRandomStateGlobal.new
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA VI.tras_header_rechaza_inv
+  utiliza 7 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (3):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+      mini_stf.stf.process_block_header._native.decide.ax_3
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA HC.header_acepta_slot_acotado
+  utiliza 7 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (3):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+      mini_stf.stf.process_block_header._native.decide.ax_3
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA HC.state_transition_conserva_acotado
+  utiliza 22 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (9):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+      mini_stf.stf.process_block_header._native.decide.ax_3
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (10):
+      core.Array.Insts.CoreCmpOrd.cmp
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.collections.hash.map.HashMap.insert
+      std.collections.hash.map.HashMapKVRandomStateGlobal.new
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA HC.shift_window_no_falla
+  utiliza 5 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (1):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA NP2.current_proposer_eq
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA NP2.is_proposer_total
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA NP2.slot_is_justifiable_total
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA NP2.matches_chain_total
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA NP2.is_valid_vote_total
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA NP3.process_slots_devuelve
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA NP3.process_block_header_devuelve
+  utiliza 7 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (3):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+      mini_stf.stf.process_block_header._native.decide.ax_3
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA NP4.claves_ordenadas_devuelve
+  utiliza 4 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    modelos (1):
+      core.Array.Insts.CoreCmpOrd.cmp
+
+TEOREMA NP4.serialize_justifications_devuelve
+  utiliza 8 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (3):
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (2):
+      core.Array.Insts.CoreCmpOrd.cmp
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA MV.construir_mapa_acotado
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA MV.loop_conserva_acotado
+  utiliza 14 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (4):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+    modelos (7):
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA MV.serialize_tras_attestations_devuelve
+  utiliza 18 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (7):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (8):
+      core.Array.Insts.CoreCmpOrd.cmp
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA NP5.filtrado_devuelve
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA NP5.try_finalize_devuelve
+  utiliza 13 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (3):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+    modelos (7):
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA NP5.try_finalize_devuelve_inv
+  utiliza 13 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (3):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+    modelos (7):
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA NP6.contar_datos_devuelve
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA NP6.hay_raiz_cero_devuelve
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA NP6.primer_bit_devuelve
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA NP6.votos_vacios_devuelve
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA NP6.poner_si_falta_devuelve
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA NP6.marcar_votos_devuelve
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA NP6.cuenta_votos_devuelve
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA NP6.sin_devuelve
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA NP6.construir_mapa_devuelve
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA NP6.construir_rts_devuelve
+  utiliza 11 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    modelos (8):
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      std.collections.hash.map.HashMap.get
+      std.collections.hash.map.HashMap.insert
+      std.collections.hash.map.HashMapKVRandomStateGlobal.new
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA NP7.process_attestations_devuelve
+  utiliza 20 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (7):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (10):
+      core.Array.Insts.CoreCmpOrd.cmp
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.collections.hash.map.HashMap.insert
+      std.collections.hash.map.HashMapKVRandomStateGlobal.new
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA NP7.process_attestations_devuelve_inv
+  utiliza 20 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (7):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (10):
+      core.Array.Insts.CoreCmpOrd.cmp
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.collections.hash.map.HashMap.insert
+      std.collections.hash.map.HashMapKVRandomStateGlobal.new
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA NP8.process_block_devuelve
+  utiliza 22 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (9):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+      mini_stf.stf.process_block_header._native.decide.ax_3
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (10):
+      core.Array.Insts.CoreCmpOrd.cmp
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.collections.hash.map.HashMap.insert
+      std.collections.hash.map.HashMapKVRandomStateGlobal.new
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA NP8.state_transition_devuelve
+  utiliza 22 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (9):
+      mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+      mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+      mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+      mini_stf.stf.process_block_header._native.decide.ax_3
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.try_finalize._native.decide.ax_1
+      mini_stf.stf.try_finalize._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (10):
+      core.Array.Insts.CoreCmpOrd.cmp
+      core.Array.Insts.CoreHashHash.hash
+      core.borrow.Borrow
+      core.borrow.Borrow.Blanket
+      core.hash.BuildHasher
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+      std.collections.hash.map.HashMap.get
+      std.collections.hash.map.HashMap.insert
+      std.collections.hash.map.HashMapKVRandomStateGlobal.new
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+========================================================================
+PARTE 2 — EN QUE TEOREMAS APARECE CADA AXIOMA
+========================================================================
+
+Lo mismo que la parte 1, dado vuelta.
+
+OJO con como leerlo. Que un axioma aparezca en un teorema quiere decir
+que la demostracion pasa por codigo que lo NOMBRA. No quiere decir que la
+demostracion se apoye en lo que ese axioma hace. La diferencia esta
+explicada en la seccion "La base de confianza" de la propuesta.
+
+------------------------------------------------------------------------
+DE LEAN
+------------------------------------------------------------------------
+
+AXIOMA propext
+  aparece en los 71 teoremas
+
+AXIOMA Classical.choice
+  aparece en 70 de 71 teoremas: todos menos bind_da_ok
+
+AXIOMA Quot.sound
+  aparece en 70 de 71 teoremas: todos menos bind_da_ok
+
+------------------------------------------------------------------------
+MODELOS (declaraciones sin contenido)
+------------------------------------------------------------------------
+
+AXIOMA ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+  aparece en 44 de 71 teoremas
+  que es: la firma de `Debug::fmt` del error `FueraDeCapacidad`. La
+    nombra cada `.expect()` sobre un `SszList` o un `SszBitlist`, para
+    formatear el mensaje si aborta.
+  teoremas donde aparece:
+    try_finalize_no_retrocede, try_finalize_no_toca_justified,
+    ST3.process_attestations_loop_no_retrocede,
+    ST3.process_attestations_no_retrocede,
+    ST3F.process_attestations_fin_no_retrocede,
+    ST3H.process_block_header_no_mueve_slots,
+    ST3T.process_block_no_retrocede,
+    ST3.state_transition_no_retrocede,
+    ST7.process_attestations_adelante,
+    ST7.process_block_header_no_toca_checkpoints,
+    ST7.state_transition_adelante, ST2.process_block_header_slot,
+    ST2.state_transition_conserva_no_genesis,
+    ST4.state_transition_justificado_ge_finalizado,
+    ST6.finalizacion_irreversible, JS.set_luego_is_justified,
+    JS.extend_to_slot_no_pierde_bits, JS.shift_window_corre,
+    JS.extend_to_slot_conserva_respuestas,
+    JS.finalizar_conserva_justificados, NP.set_justified_total,
+    NP.set_justified_panico, NP.set_justified_tras_voto_valido,
+    NP.extend_to_slot_devuelve, NP.shift_window_devuelve,
+    NP.finalizar_conserva_justificados_total, VC.tras_header_cubre,
+    VC.tras_header_rechaza, VI.state_transition_conserva_ventana,
+    VI.state_transition_ventana_justa, VI.tras_header_rechaza_inv,
+    HC.header_acepta_slot_acotado,
+    HC.state_transition_conserva_acotado, HC.shift_window_no_falla,
+    NP3.process_block_header_devuelve,
+    NP4.serialize_justifications_devuelve, MV.loop_conserva_acotado,
+    MV.serialize_tras_attestations_devuelve,
+    NP5.try_finalize_devuelve, NP5.try_finalize_devuelve_inv,
+    NP7.process_attestations_devuelve,
+    NP7.process_attestations_devuelve_inv,
+    NP8.process_block_devuelve, NP8.state_transition_devuelve
+
+AXIOMA core.Array.Insts.CoreHashHash.hash
+  aparece en 24 de 71 teoremas
+  que es: el hash de un array. Hace falta para usar `H256` como clave
+    del `HashMap`.
+  teoremas donde aparece:
+    try_finalize_no_retrocede, try_finalize_no_toca_justified,
+    ST3.process_attestations_loop_no_retrocede,
+    ST3.process_attestations_no_retrocede,
+    ST3F.process_attestations_fin_no_retrocede,
+    ST3T.process_block_no_retrocede,
+    ST3.state_transition_no_retrocede,
+    ST7.process_attestations_adelante,
+    ST7.state_transition_adelante,
+    ST2.state_transition_conserva_no_genesis,
+    ST4.state_transition_justificado_ge_finalizado,
+    ST6.finalizacion_irreversible,
+    VI.state_transition_conserva_ventana,
+    VI.state_transition_ventana_justa,
+    HC.state_transition_conserva_acotado, MV.loop_conserva_acotado,
+    MV.serialize_tras_attestations_devuelve,
+    NP5.try_finalize_devuelve, NP5.try_finalize_devuelve_inv,
+    NP6.construir_rts_devuelve, NP7.process_attestations_devuelve,
+    NP7.process_attestations_devuelve_inv,
+    NP8.process_block_devuelve, NP8.state_transition_devuelve
+
+AXIOMA core.borrow.Borrow
+  aparece en 24 de 71 teoremas
+  que es: el trait `Borrow`, que pide la firma de `HashMap::get`.
+  teoremas donde aparece:
+    try_finalize_no_retrocede, try_finalize_no_toca_justified,
+    ST3.process_attestations_loop_no_retrocede,
+    ST3.process_attestations_no_retrocede,
+    ST3F.process_attestations_fin_no_retrocede,
+    ST3T.process_block_no_retrocede,
+    ST3.state_transition_no_retrocede,
+    ST7.process_attestations_adelante,
+    ST7.state_transition_adelante,
+    ST2.state_transition_conserva_no_genesis,
+    ST4.state_transition_justificado_ge_finalizado,
+    ST6.finalizacion_irreversible,
+    VI.state_transition_conserva_ventana,
+    VI.state_transition_ventana_justa,
+    HC.state_transition_conserva_acotado, MV.loop_conserva_acotado,
+    MV.serialize_tras_attestations_devuelve,
+    NP5.try_finalize_devuelve, NP5.try_finalize_devuelve_inv,
+    NP6.construir_rts_devuelve, NP7.process_attestations_devuelve,
+    NP7.process_attestations_devuelve_inv,
+    NP8.process_block_devuelve, NP8.state_transition_devuelve
+
+AXIOMA core.borrow.Borrow.Blanket
+  aparece en 24 de 71 teoremas
+  que es: la instancia general de `Borrow` (todo tipo se presta a si
+    mismo).
+  teoremas donde aparece:
+    try_finalize_no_retrocede, try_finalize_no_toca_justified,
+    ST3.process_attestations_loop_no_retrocede,
+    ST3.process_attestations_no_retrocede,
+    ST3F.process_attestations_fin_no_retrocede,
+    ST3T.process_block_no_retrocede,
+    ST3.state_transition_no_retrocede,
+    ST7.process_attestations_adelante,
+    ST7.state_transition_adelante,
+    ST2.state_transition_conserva_no_genesis,
+    ST4.state_transition_justificado_ge_finalizado,
+    ST6.finalizacion_irreversible,
+    VI.state_transition_conserva_ventana,
+    VI.state_transition_ventana_justa,
+    HC.state_transition_conserva_acotado, MV.loop_conserva_acotado,
+    MV.serialize_tras_attestations_devuelve,
+    NP5.try_finalize_devuelve, NP5.try_finalize_devuelve_inv,
+    NP6.construir_rts_devuelve, NP7.process_attestations_devuelve,
+    NP7.process_attestations_devuelve_inv,
+    NP8.process_block_devuelve, NP8.state_transition_devuelve
+
+AXIOMA core.hash.BuildHasher
+  aparece en 24 de 71 teoremas
+  que es: el trait del fabricante de hashers del `HashMap`.
+  teoremas donde aparece:
+    try_finalize_no_retrocede, try_finalize_no_toca_justified,
+    ST3.process_attestations_loop_no_retrocede,
+    ST3.process_attestations_no_retrocede,
+    ST3F.process_attestations_fin_no_retrocede,
+    ST3T.process_block_no_retrocede,
+    ST3.state_transition_no_retrocede,
+    ST7.process_attestations_adelante,
+    ST7.state_transition_adelante,
+    ST2.state_transition_conserva_no_genesis,
+    ST4.state_transition_justificado_ge_finalizado,
+    ST6.finalizacion_irreversible,
+    VI.state_transition_conserva_ventana,
+    VI.state_transition_ventana_justa,
+    HC.state_transition_conserva_acotado, MV.loop_conserva_acotado,
+    MV.serialize_tras_attestations_devuelve,
+    NP5.try_finalize_devuelve, NP5.try_finalize_devuelve_inv,
+    NP6.construir_rts_devuelve, NP7.process_attestations_devuelve,
+    NP7.process_attestations_devuelve_inv,
+    NP8.process_block_devuelve, NP8.state_transition_devuelve
+
+AXIOMA std.collections.hash.map.HashMap.get
+  aparece en 24 de 71 teoremas
+  que es: la consulta al `HashMap` de raices a slots.
+  teoremas donde aparece:
+    try_finalize_no_retrocede, try_finalize_no_toca_justified,
+    ST3.process_attestations_loop_no_retrocede,
+    ST3.process_attestations_no_retrocede,
+    ST3F.process_attestations_fin_no_retrocede,
+    ST3T.process_block_no_retrocede,
+    ST3.state_transition_no_retrocede,
+    ST7.process_attestations_adelante,
+    ST7.state_transition_adelante,
+    ST2.state_transition_conserva_no_genesis,
+    ST4.state_transition_justificado_ge_finalizado,
+    ST6.finalizacion_irreversible,
+    VI.state_transition_conserva_ventana,
+    VI.state_transition_ventana_justa,
+    HC.state_transition_conserva_acotado, MV.loop_conserva_acotado,
+    MV.serialize_tras_attestations_devuelve,
+    NP5.try_finalize_devuelve, NP5.try_finalize_devuelve_inv,
+    NP6.construir_rts_devuelve, NP7.process_attestations_devuelve,
+    NP7.process_attestations_devuelve_inv,
+    NP8.process_block_devuelve, NP8.state_transition_devuelve
+
+AXIOMA std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+  aparece en 24 de 71 teoremas
+  que es: el hasher por defecto del `HashMap`.
+  teoremas donde aparece:
+    try_finalize_no_retrocede, try_finalize_no_toca_justified,
+    ST3.process_attestations_loop_no_retrocede,
+    ST3.process_attestations_no_retrocede,
+    ST3F.process_attestations_fin_no_retrocede,
+    ST3T.process_block_no_retrocede,
+    ST3.state_transition_no_retrocede,
+    ST7.process_attestations_adelante,
+    ST7.state_transition_adelante,
+    ST2.state_transition_conserva_no_genesis,
+    ST4.state_transition_justificado_ge_finalizado,
+    ST6.finalizacion_irreversible,
+    VI.state_transition_conserva_ventana,
+    VI.state_transition_ventana_justa,
+    HC.state_transition_conserva_acotado, MV.loop_conserva_acotado,
+    MV.serialize_tras_attestations_devuelve,
+    NP5.try_finalize_devuelve, NP5.try_finalize_devuelve_inv,
+    NP6.construir_rts_devuelve, NP7.process_attestations_devuelve,
+    NP7.process_attestations_devuelve_inv,
+    NP8.process_block_devuelve, NP8.state_transition_devuelve
+
+AXIOMA core.Array.Insts.CoreCmpOrd.cmp
+  aparece en 19 de 71 teoremas
+  que es: la comparacion de arrays: es el `<` entre dos `H256` que usa
+    el ordenamiento de raices.
+  teoremas donde aparece:
+    ST3.process_attestations_no_retrocede,
+    ST3F.process_attestations_fin_no_retrocede,
+    ST3T.process_block_no_retrocede,
+    ST3.state_transition_no_retrocede,
+    ST7.process_attestations_adelante,
+    ST7.state_transition_adelante,
+    ST2.state_transition_conserva_no_genesis,
+    ST4.state_transition_justificado_ge_finalizado,
+    ST6.finalizacion_irreversible,
+    VI.state_transition_conserva_ventana,
+    VI.state_transition_ventana_justa,
+    HC.state_transition_conserva_acotado,
+    NP4.claves_ordenadas_devuelve,
+    NP4.serialize_justifications_devuelve,
+    MV.serialize_tras_attestations_devuelve,
+    NP7.process_attestations_devuelve,
+    NP7.process_attestations_devuelve_inv,
+    NP8.process_block_devuelve, NP8.state_transition_devuelve
+
+AXIOMA std.collections.hash.map.HashMap.insert
+  aparece en 17 de 71 teoremas
+  que es: la insercion en el `HashMap` de raices a slots.
+  teoremas donde aparece:
+    ST3.process_attestations_no_retrocede,
+    ST3F.process_attestations_fin_no_retrocede,
+    ST3T.process_block_no_retrocede,
+    ST3.state_transition_no_retrocede,
+    ST7.process_attestations_adelante,
+    ST7.state_transition_adelante,
+    ST2.state_transition_conserva_no_genesis,
+    ST4.state_transition_justificado_ge_finalizado,
+    ST6.finalizacion_irreversible,
+    VI.state_transition_conserva_ventana,
+    VI.state_transition_ventana_justa,
+    HC.state_transition_conserva_acotado,
+    NP6.construir_rts_devuelve, NP7.process_attestations_devuelve,
+    NP7.process_attestations_devuelve_inv,
+    NP8.process_block_devuelve, NP8.state_transition_devuelve
+
+AXIOMA std.collections.hash.map.HashMapKVRandomStateGlobal.new
+  aparece en 17 de 71 teoremas
+  que es: la creacion del `HashMap` de raices a slots.
+  teoremas donde aparece:
+    ST3.process_attestations_no_retrocede,
+    ST3F.process_attestations_fin_no_retrocede,
+    ST3T.process_block_no_retrocede,
+    ST3.state_transition_no_retrocede,
+    ST7.process_attestations_adelante,
+    ST7.state_transition_adelante,
+    ST2.state_transition_conserva_no_genesis,
+    ST4.state_transition_justificado_ge_finalizado,
+    ST6.finalizacion_irreversible,
+    VI.state_transition_conserva_ventana,
+    VI.state_transition_ventana_justa,
+    HC.state_transition_conserva_acotado,
+    NP6.construir_rts_devuelve, NP7.process_attestations_devuelve,
+    NP7.process_attestations_devuelve_inv,
+    NP8.process_block_devuelve, NP8.state_transition_devuelve
+
+------------------------------------------------------------------------
+NATIVOS (cuentas que hizo el compilador)
+------------------------------------------------------------------------
+
+AXIOMA mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
+  aparece en 39 de 71 teoremas
+  que es: una cota que el compilador calculo al traducir
+    `justified_slots_ops.extend_to_slot`.
+  teoremas donde aparece:
+    try_finalize_no_retrocede, try_finalize_no_toca_justified,
+    ST3.process_attestations_loop_no_retrocede,
+    ST3.process_attestations_no_retrocede,
+    ST3F.process_attestations_fin_no_retrocede,
+    ST3H.process_block_header_no_mueve_slots,
+    ST3T.process_block_no_retrocede,
+    ST3.state_transition_no_retrocede,
+    ST7.process_attestations_adelante,
+    ST7.process_block_header_no_toca_checkpoints,
+    ST7.state_transition_adelante, ST2.process_block_header_slot,
+    ST2.state_transition_conserva_no_genesis,
+    ST4.state_transition_justificado_ge_finalizado,
+    ST6.finalizacion_irreversible, JS.extend_to_slot_no_pierde_bits,
+    JS.shift_window_corre, JS.extend_to_slot_conserva_respuestas,
+    JS.finalizar_conserva_justificados, NP.extend_to_slot_devuelve,
+    NP.shift_window_devuelve,
+    NP.finalizar_conserva_justificados_total, VC.tras_header_cubre,
+    VC.tras_header_rechaza, VI.state_transition_conserva_ventana,
+    VI.state_transition_ventana_justa, VI.tras_header_rechaza_inv,
+    HC.header_acepta_slot_acotado,
+    HC.state_transition_conserva_acotado, HC.shift_window_no_falla,
+    NP3.process_block_header_devuelve, MV.loop_conserva_acotado,
+    MV.serialize_tras_attestations_devuelve,
+    NP5.try_finalize_devuelve, NP5.try_finalize_devuelve_inv,
+    NP7.process_attestations_devuelve,
+    NP7.process_attestations_devuelve_inv,
+    NP8.process_block_devuelve, NP8.state_transition_devuelve
+
+AXIOMA mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
+  aparece en 23 de 71 teoremas
+  que es: una cota que el compilador calculo al traducir
+    `justified_slots_ops.set_justified`.
+  teoremas donde aparece:
+    ST3.process_attestations_loop_no_retrocede,
+    ST3.process_attestations_no_retrocede,
+    ST3F.process_attestations_fin_no_retrocede,
+    ST3T.process_block_no_retrocede,
+    ST3.state_transition_no_retrocede,
+    ST7.process_attestations_adelante,
+    ST7.state_transition_adelante,
+    ST2.state_transition_conserva_no_genesis,
+    ST4.state_transition_justificado_ge_finalizado,
+    ST6.finalizacion_irreversible, JS.set_luego_is_justified,
+    NP.set_justified_total, NP.set_justified_panico,
+    NP.set_justified_tras_voto_valido,
+    VI.state_transition_conserva_ventana,
+    VI.state_transition_ventana_justa,
+    HC.state_transition_conserva_acotado, MV.loop_conserva_acotado,
+    MV.serialize_tras_attestations_devuelve,
+    NP7.process_attestations_devuelve,
+    NP7.process_attestations_devuelve_inv,
+    NP8.process_block_devuelve, NP8.state_transition_devuelve
+
+AXIOMA mini_stf.stf.try_finalize._native.decide.ax_1
+  aparece en 23 de 71 teoremas
+  que es: una cota que el compilador calculo al traducir
+    `stf.try_finalize`.
+  teoremas donde aparece:
+    try_finalize_no_retrocede, try_finalize_no_toca_justified,
+    ST3.process_attestations_loop_no_retrocede,
+    ST3.process_attestations_no_retrocede,
+    ST3F.process_attestations_fin_no_retrocede,
+    ST3T.process_block_no_retrocede,
+    ST3.state_transition_no_retrocede,
+    ST7.process_attestations_adelante,
+    ST7.state_transition_adelante,
+    ST2.state_transition_conserva_no_genesis,
+    ST4.state_transition_justificado_ge_finalizado,
+    ST6.finalizacion_irreversible,
+    VI.state_transition_conserva_ventana,
+    VI.state_transition_ventana_justa,
+    HC.state_transition_conserva_acotado, MV.loop_conserva_acotado,
+    MV.serialize_tras_attestations_devuelve,
+    NP5.try_finalize_devuelve, NP5.try_finalize_devuelve_inv,
+    NP7.process_attestations_devuelve,
+    NP7.process_attestations_devuelve_inv,
+    NP8.process_block_devuelve, NP8.state_transition_devuelve
+
+AXIOMA mini_stf.stf.try_finalize._native.decide.ax_2
+  aparece en 23 de 71 teoremas
+  que es: una cota que el compilador calculo al traducir
+    `stf.try_finalize`.
+  teoremas donde aparece:
+    try_finalize_no_retrocede, try_finalize_no_toca_justified,
+    ST3.process_attestations_loop_no_retrocede,
+    ST3.process_attestations_no_retrocede,
+    ST3F.process_attestations_fin_no_retrocede,
+    ST3T.process_block_no_retrocede,
+    ST3.state_transition_no_retrocede,
+    ST7.process_attestations_adelante,
+    ST7.state_transition_adelante,
+    ST2.state_transition_conserva_no_genesis,
+    ST4.state_transition_justificado_ge_finalizado,
+    ST6.finalizacion_irreversible,
+    VI.state_transition_conserva_ventana,
+    VI.state_transition_ventana_justa,
+    HC.state_transition_conserva_acotado, MV.loop_conserva_acotado,
+    MV.serialize_tras_attestations_devuelve,
+    NP5.try_finalize_devuelve, NP5.try_finalize_devuelve_inv,
+    NP7.process_attestations_devuelve,
+    NP7.process_attestations_devuelve_inv,
+    NP8.process_block_devuelve, NP8.state_transition_devuelve
+
+AXIOMA mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
+  aparece en 22 de 71 teoremas
+  que es: una cota que el compilador calculo al traducir
+    `justified_slots_ops.extend_to_slot_loop.body`.
+  teoremas donde aparece:
+    ST3H.process_block_header_no_mueve_slots,
+    ST3T.process_block_no_retrocede,
+    ST3.state_transition_no_retrocede,
+    ST7.process_block_header_no_toca_checkpoints,
+    ST7.state_transition_adelante, ST2.process_block_header_slot,
+    ST2.state_transition_conserva_no_genesis,
+    ST4.state_transition_justificado_ge_finalizado,
+    ST6.finalizacion_irreversible, JS.extend_to_slot_no_pierde_bits,
+    JS.extend_to_slot_conserva_respuestas,
+    NP.extend_to_slot_devuelve, VC.tras_header_cubre,
+    VC.tras_header_rechaza, VI.state_transition_conserva_ventana,
+    VI.state_transition_ventana_justa, VI.tras_header_rechaza_inv,
+    HC.header_acepta_slot_acotado,
+    HC.state_transition_conserva_acotado,
+    NP3.process_block_header_devuelve, NP8.process_block_devuelve,
+    NP8.state_transition_devuelve
+
+AXIOMA mini_stf.stf.process_block_header._native.decide.ax_3
+  aparece en 19 de 71 teoremas
+  que es: una cota que el compilador calculo al traducir
+    `stf.process_block_header`.
+  teoremas donde aparece:
+    ST3H.process_block_header_no_mueve_slots,
+    ST3T.process_block_no_retrocede,
+    ST3.state_transition_no_retrocede,
+    ST7.process_block_header_no_toca_checkpoints,
+    ST7.state_transition_adelante, ST2.process_block_header_slot,
+    ST2.state_transition_conserva_no_genesis,
+    ST4.state_transition_justificado_ge_finalizado,
+    ST6.finalizacion_irreversible, VC.tras_header_cubre,
+    VC.tras_header_rechaza, VI.state_transition_conserva_ventana,
+    VI.state_transition_ventana_justa, VI.tras_header_rechaza_inv,
+    HC.header_acepta_slot_acotado,
+    HC.state_transition_conserva_acotado,
+    NP3.process_block_header_devuelve, NP8.process_block_devuelve,
+    NP8.state_transition_devuelve
+
+AXIOMA mini_stf.stf.serialize_justifications._native.decide.ax_1
+  aparece en 18 de 71 teoremas
+  que es: una cota que el compilador calculo al traducir
+    `stf.serialize_justifications`.
+  teoremas donde aparece:
+    ST3.process_attestations_no_retrocede,
+    ST3F.process_attestations_fin_no_retrocede,
+    ST3T.process_block_no_retrocede,
+    ST3.state_transition_no_retrocede,
+    ST7.process_attestations_adelante,
+    ST7.state_transition_adelante,
+    ST2.state_transition_conserva_no_genesis,
+    ST4.state_transition_justificado_ge_finalizado,
+    ST6.finalizacion_irreversible,
+    VI.state_transition_conserva_ventana,
+    VI.state_transition_ventana_justa,
+    HC.state_transition_conserva_acotado,
+    NP4.serialize_justifications_devuelve,
+    MV.serialize_tras_attestations_devuelve,
+    NP7.process_attestations_devuelve,
+    NP7.process_attestations_devuelve_inv,
+    NP8.process_block_devuelve, NP8.state_transition_devuelve
+
+AXIOMA mini_stf.stf.serialize_justifications._native.decide.ax_2
+  aparece en 18 de 71 teoremas
+  que es: una cota que el compilador calculo al traducir
+    `stf.serialize_justifications`.
+  teoremas donde aparece:
+    ST3.process_attestations_no_retrocede,
+    ST3F.process_attestations_fin_no_retrocede,
+    ST3T.process_block_no_retrocede,
+    ST3.state_transition_no_retrocede,
+    ST7.process_attestations_adelante,
+    ST7.state_transition_adelante,
+    ST2.state_transition_conserva_no_genesis,
+    ST4.state_transition_justificado_ge_finalizado,
+    ST6.finalizacion_irreversible,
+    VI.state_transition_conserva_ventana,
+    VI.state_transition_ventana_justa,
+    HC.state_transition_conserva_acotado,
+    NP4.serialize_justifications_devuelve,
+    MV.serialize_tras_attestations_devuelve,
+    NP7.process_attestations_devuelve,
+    NP7.process_attestations_devuelve_inv,
+    NP8.process_block_devuelve, NP8.state_transition_devuelve
+
+AXIOMA mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+  aparece en 18 de 71 teoremas
+  que es: una cota que el compilador calculo al traducir
+    `stf.volcar_votos_loop.body`.
+  teoremas donde aparece:
+    ST3.process_attestations_no_retrocede,
+    ST3F.process_attestations_fin_no_retrocede,
+    ST3T.process_block_no_retrocede,
+    ST3.state_transition_no_retrocede,
+    ST7.process_attestations_adelante,
+    ST7.state_transition_adelante,
+    ST2.state_transition_conserva_no_genesis,
+    ST4.state_transition_justificado_ge_finalizado,
+    ST6.finalizacion_irreversible,
+    VI.state_transition_conserva_ventana,
+    VI.state_transition_ventana_justa,
+    HC.state_transition_conserva_acotado,
+    NP4.serialize_justifications_devuelve,
+    MV.serialize_tras_attestations_devuelve,
+    NP7.process_attestations_devuelve,
+    NP7.process_attestations_devuelve_inv,
+    NP8.process_block_devuelve, NP8.state_transition_devuelve
+
+------------------------------------------------------------------------
+TEOREMAS QUE SOLO USAN AXIOMAS DE LEAN
+------------------------------------------------------------------------
+
+Son 25 de 71.
+
+  pronic_iff_cuadrado, chequeo_de_paridad_redundante, bind_da_ok,
+  ST3.process_slots_no_toca_checkpoints, ST7.h256_eq_true,
+  ST1.process_slots_avanza, ST1.process_slots_rechaza,
+  NP.is_slot_justified_total, NP2.current_proposer_eq,
+  NP2.is_proposer_total, NP2.slot_is_justifiable_total,
+  NP2.matches_chain_total, NP2.is_valid_vote_total,
+  NP3.process_slots_devuelve, MV.construir_mapa_acotado,
+  NP5.filtrado_devuelve, NP6.contar_datos_devuelve,
+  NP6.hay_raiz_cero_devuelve, NP6.primer_bit_devuelve,
+  NP6.votos_vacios_devuelve, NP6.poner_si_falta_devuelve,
+  NP6.marcar_votos_devuelve, NP6.cuenta_votos_devuelve,
+  NP6.sin_devuelve, NP6.construir_mapa_devuelve
 
 ========================================================================
 
@@ -782,10 +1379,10 @@ NATIVOS DISTINTOS EN TODO EL BUILD: 9
   mini_stf.stf.try_finalize._native.decide.ax_2
   mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
 
-Los nueve llegan a los resultados sobre `state_transition` entera (`ST-3`,
+Todos llegan a los teoremas sobre `state_transition` entera (`ST-3`,
 `ST-4`, `ST-6`, `ST-7`, la conservacion del header, los invariantes de la
-ventana y del historial, y la ausencia de panico), que dependen
-de exactamente los mismos 22 axiomas que el `def` de `state_transition` sin
+ventana y del historial, y la ausencia de panico), que dependen de
+exactamente los mismos 22 axiomas que el `def` de `state_transition` sin
 teorema de por medio (se ve con supuestos/RevisarAxiomas.lean). Los teoremas
 sobre componentes dependen de menos.
 

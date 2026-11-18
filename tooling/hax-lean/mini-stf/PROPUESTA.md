@@ -309,9 +309,10 @@ Todo, con las líneas tal como se entrega.
 | `supuestos/FunsExternal.lean` | 336 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
 | `teoremas/ProofObligations.lean` | 8890 | nuestro — los teoremas. |
-| `axiomas.txt` | 796 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
+| `axiomas.txt` | 1393 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. En los dos sentidos: cada teorema con los axiomas que utiliza, y cada axioma con los teoremas donde aparece. |
+| `axiomas.py` | 215 | nuestro — arma `axiomas.txt` a partir del log del build. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 1267 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 1294 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 

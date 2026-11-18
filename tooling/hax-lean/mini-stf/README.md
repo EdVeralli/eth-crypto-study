@@ -1263,5 +1263,32 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    >
    > Lo que sigue: modelar la comparacion de `H256` (saca una hipotesis),
    > la cota fina de raices, o el caso inicial del genesis.
+
+   > Cuarta nota del 18 nov 2026: **`axiomas.txt` rehecho, y ahora lo arma
+   > un script.** Eduardo noto dos cosas al leerlo. Una: no decia en que
+   > teoremas participa cada axioma. Dos: tampoco decia con todas las
+   > letras "el teorema X utiliza los axiomas A, B, C": ponia
+   > `TOTAL 13 = 3 estandar + 3 nativos + 7 modelos`, dos listas sueltas, y
+   > los tres de Lean ni los nombraba.
+   >
+   > Ahora tiene dos partes:
+   >
+   > - PARTE 1, un bloque `TEOREMA <nombre>` por teorema, con "utiliza N
+   >   axiomas" y los tres grupos nombrados uno por uno.
+   > - PARTE 2, un bloque `AXIOMA <nombre>` por axioma, con una linea que
+   >   dice que es y la lista de teoremas donde aparece. Al final, los 25
+   >   teoremas que solo usan axiomas de Lean.
+   >
+   > Lo arma `axiomas.py` a partir del log del build
+   > (`python3 axiomas.py /tmp/build.log`, FUERA del contenedor, que no
+   > tiene python). Antes se agregaban los bloques a mano en cada paso. El
+   > script corta si encuentra `sorryAx`. Se verifico que los 71 totales
+   > coinciden con los del archivo anterior.
+   >
+   > De paso: `bind_da_ok` usa UN solo axioma de Lean, `propext`; los otros
+   > 70 usan los tres.
+   >
+   > OJO al leer la parte 2: "aparece en" quiere decir que la demostracion
+   > pasa por codigo que nombra al axioma, no que se apoye en lo que hace.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

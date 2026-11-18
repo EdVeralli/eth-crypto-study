@@ -304,9 +304,10 @@ Everything, with line counts as shipped.
 | `supuestos/FunsExternal.lean` | 336 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
 | `teoremas/ProofObligations.lean` | 8890 | ours — the theorems. |
-| `axiomas.txt` | 796 | ours — the `#print axioms` output, so the trust base can be read without building. |
+| `axiomas.txt` | 1393 | ours — the `#print axioms` output, so the trust base can be read without building. Both ways round: each theorem with the axioms it uses, and each axiom with the theorems it appears in. |
+| `axiomas.py` | 215 | ours — builds `axiomas.txt` from the build log. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 1267 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 1294 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
