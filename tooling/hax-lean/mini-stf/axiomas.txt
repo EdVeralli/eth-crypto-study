@@ -1,7 +1,7 @@
 BASE DE AXIOMAS DE CADA TEOREMA
 
 Salida de los `#print axioms` de teoremas/ProofObligations.lean, generada
-por `lake build` el 17 nov 2026. Se entrega para que la base de confianza se
+por `lake build` el 18 nov 2026. Se entrega para que la base de confianza se
 pueda leer sin tener que compilar.
 
 Tres categorias:
@@ -636,6 +636,45 @@ NP5.try_finalize_devuelve_inv
     ~ mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
     ~ mini_stf.stf.try_finalize._native.decide.ax_1
     ~ mini_stf.stf.try_finalize._native.decide.ax_2
+
+NP6.contar_datos_devuelve
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+NP6.hay_raiz_cero_devuelve
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+NP6.primer_bit_devuelve
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+NP6.votos_vacios_devuelve
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+NP6.poner_si_falta_devuelve
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+NP6.marcar_votos_devuelve
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+NP6.cuenta_votos_devuelve
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+NP6.sin_devuelve
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+NP6.construir_mapa_devuelve
+  TOTAL 3 = 3 estandar + 0 nativos + 0 modelos
+
+NP6.construir_rts_devuelve
+  TOTAL 11 = 3 estandar + 0 nativos + 8 modelos
+  modelos:
+    - core.borrow.Borrow
+    - core.hash.BuildHasher
+    - core.borrow.Borrow.Blanket
+    - core.Array.Insts.CoreHashHash.hash
+    - std.collections.hash.map.HashMap.get
+    - std.collections.hash.map.HashMap.insert
+    - std.collections.hash.map.HashMapKVRandomStateGlobal.new
+    - std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
 
 ========================================================================
 

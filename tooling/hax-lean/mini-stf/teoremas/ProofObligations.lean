@@ -7439,6 +7439,778 @@ theorem filtrado_devuelve (m : mapa.MapaVotos) (cons : Slice Bool) :
 
 end NP5
 
+/- ===========================================================================
+   Teorema 19 — las piezas de `process_attestations` no entran en panico
+
+   `process_attestations` es la funcion grande. Antes de recorrerla entera
+   hace falta saber que cada funcion auxiliar que llama devuelve. Son estas:
+
+   - de lectura y busqueda, sin hipotesis: `contar_datos_distintos`,
+     `hay_raiz_cero`, `primer_bit_fuera_de_rango`, y las chicas que leen un
+     dato o un bit.
+   - sobre el mapa de votos: `votos_vacios`, `poner_si_falta`,
+     `marcar_votos`, `cuenta_votos` y `sin`. La unica con hipotesis es
+     `poner_si_falta`, que pide lugar para una entrada mas.
+   - las dos que arman lo que el loop usa: `construir_mapa_de_votos` y
+     `construir_root_to_slot`.
+
+   Donde aparecen hipotesis, y por que:
+
+   - `construir_mapa_de_votos` pide que `raices * validator_count` no
+     desborde. Cada segmento se lee de `i * validator_count` a
+     `(i + 1) * validator_count`.
+   - `construir_root_to_slot` pide dos cosas. Que `finalizado + 1` no
+     desborde. Y que las tres operaciones del `HashMap` (`new`, `get`,
+     `insert`) devuelvan: son declaraciones sin contenido en este paquete, y
+     van juntas en `HashMapDevuelve`. Aca la hipotesis tiene que valer para
+     todo mapa, no para uno, porque el mapa cambia en cada vuelta.
+
+   Varios resultados dicen ademas algo sobre el tamano de lo que devuelven
+   (cuantas entradas quedan en el mapa, cuanto mide una lista de votos). No
+   es adorno: es lo que va a hacer falta para encadenarlos en el loop.
+
+   Controles negativos, en la bitacora: sin el producto acotado queda abierto
+   el desborde de `(i + 1) * validator_count`; sin `finalizado + 1` acotado
+   queda abierto ese desborde; sin lugar en las claves no cierra el `push`.
+   =========================================================================== -/
+
+namespace NP6
+open mini_stf
+open Std.Tactic
+open ST3 JS NP NP2 NP3 NP4 NP5 MV VC VI HC
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+section
+attribute [local spec] vec_deref_total slice_get_total
+
+theorem ssz_get_total {T : Type} {N : Std.Usize} (l : ssz.SszList T N)
+    (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ ssz.SszList.get l i
+    ⦃ ⇓ r => ⌜ r = l.items.val[i.val]? ⌝ ⦄ := by
+  unfold ssz.SszList.get
+  hax_mvcgen
+  rename_i s hs r hr
+  rw [hr, hs]
+end
+
+theorem attdata_default_total :
+    ⦃ ⌜ True ⌝ ⦄ tipos.AttestationData.Insts.CoreDefaultDefault.default
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold tipos.AttestationData.Insts.CoreDefaultDefault.default
+    tipos.Checkpoint.Insts.CoreDefaultDefault.default
+    tipos.H256.Insts.CoreDefaultDefault.default
+  hax_mvcgen
+
+section
+attribute [local spec] ssz_get_total bl_get_total opt_eq_true_total bl_len_total
+  attdata_default_total
+
+theorem bit_en_total
+    (a : ssz.SszList tipos.AggregatedAttestation 4096#usize) (i j : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.bit_en a i j ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.bit_en
+  hax_mvcgen
+
+theorem bits_largo_total
+    (a : ssz.SszList tipos.AggregatedAttestation 4096#usize) (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.bits_largo_en a i ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.bits_largo_en
+  hax_mvcgen
+
+theorem raiz_justificacion_total (r : ssz.SszList tipos.H256 262144#usize)
+    (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.raiz_justificacion_en r i ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.raiz_justificacion_en
+  hax_mvcgen
+
+theorem hash_historico_total (st : tipos.State) (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.hash_historico_en st i ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.hash_historico_en
+  hax_mvcgen
+
+theorem dato_en_total
+    (a : ssz.SszList tipos.AggregatedAttestation 4096#usize) (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.dato_en a i ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.dato_en
+  hax_mvcgen
+end
+
+section
+attribute [local spec] h256_eq_total
+
+theorem checkpoint_eq_total (a b : tipos.Checkpoint) :
+    ⦃ ⌜ True ⌝ ⦄ tipos.Checkpoint.Insts.CoreCmpPartialEqCheckpoint.eq a b
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold tipos.Checkpoint.Insts.CoreCmpPartialEqCheckpoint.eq
+  hax_mvcgen
+
+theorem attdata_eq_total (a b : tipos.AttestationData) :
+    ⦃ ⌜ True ⌝ ⦄
+    tipos.AttestationData.Insts.CoreCmpPartialEqAttestationData.eq a b
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold tipos.AttestationData.Insts.CoreCmpPartialEqAttestationData.eq
+  hax_mvcgen [checkpoint_eq_total]
+end
+
+/-- Leer un `Vec` por indice, con el indice en rango. -/
+theorem vec_index_total {T : Type} (v : alloc.vec.Vec T) (i : Std.Usize)
+    (h : i.val < v.val.length) :
+    ⦃ ⌜ True ⌝ ⦄
+    alloc.vec.Vec.Insts.CoreOpsIndexIndex.index
+      (core.Usize.Insts.CoreSliceIndexSliceIndexSliceT T) v i
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
+  triple_total_of (by
+    simp [alloc.vec.Vec.Insts.CoreOpsIndexIndex.index,
+      alloc.vec.Vec.Insts.CoreOpsDerefDerefSlice.deref, alloc.vec.Vec.as_slice,
+      rust_primitives.sequence.seq_to_slice,
+      core.Slice.Insts.CoreOpsIndexIndex.index]
+    simp [h, core.Usize.Insts.CoreSliceIndexSliceIndexSliceT.get,
+      rust_primitives.slice.slice_length, rust_primitives.slice.slice_index,
+      Slice.index_usize])
+
+section
+attribute [local spec] vec_len_total vec_index_total
+
+theorem count_ones_loop_total (n : Std.Usize) (v : alloc.vec.Vec Bool)
+    (hn : n.val ≤ v.val.length) :
+    ⦃ ⌜ True ⌝ ⦄
+    ssz.SszBitlist.count_ones_loop { start := 0#usize, «end» := n } v 0#usize
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold ssz.SszBitlist.count_ones_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × Std.Usize =>
+       x.1.«end» = n ∧ x.1.start.val ≤ n.val ∧ x.2.val ≤ x.1.start.val)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, by simp, by simp⟩
+  · intro x hinv
+    obtain ⟨iter, c⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hle, hc⟩ := hinv
+    simp only at hend hle hc
+    subst hend
+    have hprop := v.property
+    unfold ssz.SszBitlist.count_ones_loop.body
+    hax_mvcgen
+    -- el indice esta en rango, el contador no pasa de lo recorrido, y por
+    -- eso `n + 1` no desborda.
+    all_goals first
+      | omega
+      | (refine ⟨⟨trivial, ?_, ?_⟩, Or.inl ?_⟩ <;> scalar_tac)
+      | (exfalso; scalar_tac)
+
+theorem count_ones_total {N : Std.Usize} (b : ssz.SszBitlist N) :
+    ⦃ ⌜ True ⌝ ⦄ ssz.SszBitlist.count_ones b ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold ssz.SszBitlist.count_ones
+  hax_mvcgen [count_ones_loop_total]
+  rename_i r hr
+  omega
+end
+
+section
+attribute [local spec] ssz_get_total count_ones_total
+
+theorem bits_en_uno_total
+    (a : ssz.SszList tipos.AggregatedAttestation 4096#usize) (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.bits_en_uno_en a i ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.bits_en_uno_en
+  hax_mvcgen
+end
+
+section
+attribute [local spec] ssz_get_total attdata_eq_total
+
+theorem dato_repetido_loop_total (a b : Std.Usize)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (actual : tipos.AttestationData) (r0 : Bool) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.dato_repetido_antes_loop { start := a, «end» := b } atts actual r0
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.dato_repetido_antes_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun _ : (core.ops.range.Range Std.Usize) × Bool => True)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · trivial
+  · intro x _
+    obtain ⟨iter, rep⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    unfold stf.dato_repetido_antes_loop.body
+    hax_mvcgen
+    all_goals (refine ⟨trivial, Or.inl ?_⟩; omega)
+
+theorem dato_repetido_total
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.dato_repetido_antes atts i ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.dato_repetido_antes
+  hax_mvcgen [dato_repetido_loop_total]
+end
+
+section
+attribute [local spec] dato_repetido_total ssz_len_total
+
+theorem contar_loop_total (n : Std.Usize)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.contar_datos_distintos_loop { start := 0#usize, «end» := n } atts 0#usize
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.contar_datos_distintos_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × Std.Usize =>
+       x.1.«end» = n ∧ x.1.start.val ≤ n.val ∧ x.2.val ≤ x.1.start.val)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, by simp, by simp⟩
+  · intro x hinv
+    obtain ⟨iter, c⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hle, hc⟩ := hinv
+    simp only at hend hle hc
+    subst hend
+    unfold stf.contar_datos_distintos_loop.body
+    hax_mvcgen
+    all_goals first
+      | omega
+      | (refine ⟨⟨trivial, ?_, ?_⟩, Or.inl ?_⟩ <;> scalar_tac)
+      | (exfalso; scalar_tac)
+
+/-- Contar los datos distintos de un bloque no entra en panico. -/
+theorem contar_datos_total
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.contar_datos_distintos atts ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.contar_datos_distintos
+  hax_mvcgen [contar_loop_total]
+end
+
+section
+attribute [local spec] raiz_justificacion_total h256_eq_total ssz_len_total
+
+theorem hay_raiz_cero_loop_total (a b : Std.Usize)
+    (roots : ssz.SszList tipos.H256 262144#usize) (h0 : Bool) :
+    ⦃ ⌜ True ⌝ ⦄ stf.hay_raiz_cero_loop { start := a, «end» := b } roots h0
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.hay_raiz_cero_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun _ : (core.ops.range.Range Std.Usize) × Bool => True)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · trivial
+  · intro x _
+    obtain ⟨iter, hay⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    unfold stf.hay_raiz_cero_loop.body
+    hax_mvcgen
+    all_goals (refine ⟨trivial, Or.inl ?_⟩; omega)
+
+/-- Buscar la raiz cero no entra en panico. -/
+theorem hay_raiz_cero_total (roots : ssz.SszList tipos.H256 262144#usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.hay_raiz_cero roots ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.hay_raiz_cero
+  hax_mvcgen [hay_raiz_cero_loop_total]
+end
+
+section
+attribute [local spec] is_none_total bit_en_total bits_largo_total
+
+theorem primer_bit_loop_total (a b : Std.Usize)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) (idx : Std.Usize)
+    (e0 : core.option.Option Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.primer_bit_fuera_de_rango_loop { start := a, «end» := b } atts idx e0
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.primer_bit_fuera_de_rango_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun _ : (core.ops.range.Range Std.Usize) ×
+              (core.option.Option Std.Usize) => True)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · trivial
+  · intro x _
+    obtain ⟨iter, enc⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    unfold stf.primer_bit_fuera_de_rango_loop.body
+    hax_mvcgen
+    all_goals (refine ⟨trivial, Or.inl ?_⟩; omega)
+
+/-- Buscar el primer bit fuera de rango no entra en panico. -/
+theorem primer_bit_total
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (idx desde : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.primer_bit_fuera_de_rango atts idx desde
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.primer_bit_fuera_de_rango
+  hax_mvcgen [primer_bit_loop_total]
+end
+
+section
+attribute [local spec] push_total vec_new_total bl_get_total opt_eq_true_total
+
+/-- Un loop que agrega un voto por vuelta, sobre el rango `a..b`. -/
+theorem votos_vacios_loop_total (a b : Std.Usize) (v0 : alloc.vec.Vec Bool)
+    (hcap : v0.val.length + (b.val - a.val) ≤ Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄ stf.votos_vacios_loop { start := a, «end» := b } v0
+    ⦃ ⇓ r => ⌜ r.val.length = v0.val.length + (b.val - a.val) ⌝ ⦄ := by
+  unfold stf.votos_vacios_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × (alloc.vec.Vec Bool) =>
+       x.1.«end» = b ∧
+       x.2.val.length + (b.val - x.1.start.val) = v0.val.length + (b.val - a.val))
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, rfl⟩
+  · intro x hinv
+    obtain ⟨iter, v⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hlen⟩ := hinv
+    simp only at hend hlen
+    subst hend
+    unfold stf.votos_vacios_loop.body
+    hax_mvcgen
+    all_goals first
+      | omega
+      | (refine ⟨⟨trivial, ?_⟩, Or.inl ?_⟩ <;> omega)
+      | (show v.val.length = v0.val.length + (hasta.val - a.val); omega)
+
+/-- `votos_vacios` devuelve `n` votos. -/
+theorem votos_vacios_total (n : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.votos_vacios n ⦃ ⇓ r => ⌜ r.val.length = n.val ⌝ ⦄ := by
+  unfold stf.votos_vacios
+  hax_mvcgen [votos_vacios_loop_total]
+  all_goals scalar_tac
+
+theorem segmento_loop_total (a b : Std.Usize) (st : tipos.State)
+    (v0 : alloc.vec.Vec Bool)
+    (hcap : v0.val.length + (b.val - a.val) ≤ Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄ stf.votos_del_segmento_loop { start := a, «end» := b } st v0
+    ⦃ ⇓ r => ⌜ r.val.length = v0.val.length + (b.val - a.val) ⌝ ⦄ := by
+  unfold stf.votos_del_segmento_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × (alloc.vec.Vec Bool) =>
+       x.1.«end» = b ∧
+       x.2.val.length + (b.val - x.1.start.val) = v0.val.length + (b.val - a.val))
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, rfl⟩
+  · intro x hinv
+    obtain ⟨iter, v⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hlen⟩ := hinv
+    simp only at hend hlen
+    subst hend
+    unfold stf.votos_del_segmento_loop.body
+    hax_mvcgen
+    all_goals first
+      | omega
+      | (refine ⟨⟨trivial, ?_⟩, Or.inl ?_⟩ <;> omega)
+      | (show v.val.length = v0.val.length + (hasta.val - a.val); omega)
+
+/-- El segmento de votos de la raiz `i` mide `validator_count`, si el
+    producto `(i + 1) * validator_count` no desborda. -/
+theorem votos_del_segmento_total (st : tipos.State) (i vc : Std.Usize)
+    (hi : i.val < Usize.max)
+    (hprod : (i.val + 1) * vc.val ≤ Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄ stf.votos_del_segmento st i vc
+    ⦃ ⇓ r => ⌜ r.val.length = vc.val ⌝ ⦄ := by
+  have h1 : i.val * vc.val ≤ (i.val + 1) * vc.val :=
+    Nat.mul_le_mul_right _ (Nat.le_succ _)
+  have h2 : (i.val + 1) * vc.val = i.val * vc.val + vc.val := by
+    rw [Nat.add_mul, Nat.one_mul]
+  unfold stf.votos_del_segmento
+  hax_mvcgen [segmento_loop_total]
+  all_goals first
+    | (simp_all <;> omega)
+    | (exfalso; simp_all <;> omega)
+    | scalar_tac
+    | (exfalso; scalar_tac)
+end
+
+section
+attribute [local spec] posicion_loop_total push_total vec_len_total
+
+/-- `poner_si_falta` no entra en panico si hay lugar para una entrada mas, y
+    agrega a lo sumo una. -/
+theorem poner_si_falta_total (m : mapa.MapaVotos) (k : tipos.H256)
+    (v : alloc.vec.Vec Bool)
+    (hc : m.claves.val.length < Usize.max)
+    (hv : m.valores.val.length < Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.poner_si_falta m k v
+    ⦃ ⇓ r => ⌜ r.2.claves.val.length ≤ m.claves.val.length + 1 ∧
+                r.2.valores.val.length ≤ m.valores.val.length + 1 ⌝ ⦄ := by
+  unfold mapa.MapaVotos.poner_si_falta
+  hax_mvcgen
+  all_goals first
+    | omega
+    | scalar_tac
+    | (exfalso; scalar_tac)
+    | (refine ⟨?_, ?_⟩ <;> simp_all <;> omega)
+end
+
+section
+attribute [local spec] vec_deref_mut_total slice_get_mut_total
+
+/-- `votar` no entra en panico, y no cambia cuantas entradas hay. -/
+theorem votar_total (m : mapa.MapaVotos) (p j : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.votar m p j
+    ⦃ ⇓ r => ⌜ r.claves = m.claves ∧
+                r.valores.val.length = m.valores.val.length ⌝ ⦄ := by
+  unfold mapa.MapaVotos.votar
+  hax_mvcgen
+  all_goals first
+    | (refine ⟨trivial, ?_⟩; simp_all)
+end
+
+section
+attribute [local spec] bit_en_total bits_largo_total votar_total
+
+theorem marcar_votos_loop_total (a b : Std.Usize) (m0 : mapa.MapaVotos)
+    (p : Std.Usize)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) (idx : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.marcar_votos_loop { start := a, «end» := b } m0 p atts idx
+    ⦃ ⇓ r => ⌜ r.claves = m0.claves ∧
+                r.valores.val.length = m0.valores.val.length ⌝ ⦄ := by
+  unfold stf.marcar_votos_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × mapa.MapaVotos =>
+       x.2.claves = m0.claves ∧
+       x.2.valores.val.length = m0.valores.val.length)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, rfl⟩
+  · intro x hinv
+    obtain ⟨iter, m⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨h1, h2⟩ := hinv
+    simp only at h1 h2
+    unfold stf.marcar_votos_loop.body
+    hax_mvcgen
+    all_goals first
+      | exact ⟨h1, h2⟩
+      | (refine ⟨⟨?_, ?_⟩, Or.inl ?_⟩ <;> simp_all <;> omega)
+
+/-- `marcar_votos` no entra en panico, y no cambia cuantas entradas hay. -/
+theorem marcar_votos_total (m : mapa.MapaVotos) (p : Std.Usize)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) (idx : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.marcar_votos m p atts idx
+    ⦃ ⇓ r => ⌜ r.claves = m.claves ∧
+                r.valores.val.length = m.valores.val.length ⌝ ⦄ := by
+  unfold stf.marcar_votos
+  hax_mvcgen [marcar_votos_loop_total]
+end
+
+section
+attribute [local spec] voto_total largo_votos_total
+
+theorem cuenta_votos_loop_total (n : Std.Usize) (m : mapa.MapaVotos)
+    (p : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄
+    mapa.MapaVotos.cuenta_votos_loop { start := 0#usize, «end» := n } m p 0#usize
+    ⦃ ⇓ r => ⌜ r.val ≤ n.val ⌝ ⦄ := by
+  unfold mapa.MapaVotos.cuenta_votos_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × Std.Usize =>
+       x.1.«end» = n ∧ x.1.start.val ≤ n.val ∧ x.2.val ≤ x.1.start.val)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, by simp, by simp⟩
+  · intro x hinv
+    obtain ⟨iter, c⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hle, hc⟩ := hinv
+    simp only at hend hle hc
+    subst hend
+    unfold mapa.MapaVotos.cuenta_votos_loop.body
+    hax_mvcgen
+    all_goals first
+      | omega
+      | (refine ⟨⟨trivial, ?_, ?_⟩, Or.inl ?_⟩ <;> scalar_tac)
+      | (exfalso; scalar_tac)
+      | (show c.val ≤ hasta.val; omega)
+
+/-- `cuenta_votos` no entra en panico, y no cuenta mas votos que los que
+    tiene la lista. -/
+theorem cuenta_votos_total (m : mapa.MapaVotos) (p : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.cuenta_votos m p
+    ⦃ ⇓ r => ⌜ r.val = 0 ∨ ∃ v ∈ m.valores.val, r.val ≤ v.val.length ⌝ ⦄ := by
+  unfold mapa.MapaVotos.cuenta_votos
+  hax_mvcgen [cuenta_votos_loop_total]
+  rename_i n hn r hr
+  rcases hn with h | ⟨v, hv, h⟩
+  · left
+    omega
+  · right
+    exact ⟨v, hv, by omega⟩
+end
+
+section
+attribute [local spec] clave_total ne_default_total push_total votos_total
+  nuevo_total vec_len_total
+
+theorem sin_loop_total (n : Std.Usize)
+    (cl : alloc.vec.Vec tipos.H256) (vl : alloc.vec.Vec (alloc.vec.Vec Bool))
+    (k : tipos.H256) (m0 : mapa.MapaVotos)
+    (hc : m0.claves.val.length + n.val ≤ Usize.max)
+    (hv : m0.valores.val.length + n.val ≤ Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄
+    mapa.MapaVotos.sin_loop { start := 0#usize, «end» := n } cl vl k m0
+    ⦃ ⇓ r => ⌜ r.claves.val.length ≤ m0.claves.val.length + n.val ∧
+                r.valores.val.length ≤ m0.valores.val.length + n.val ⌝ ⦄ := by
+  unfold mapa.MapaVotos.sin_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × mapa.MapaVotos =>
+       x.1.«end» = n ∧ x.1.start.val ≤ n.val ∧
+       x.2.claves.val.length ≤ m0.claves.val.length + x.1.start.val ∧
+       x.2.valores.val.length ≤ m0.valores.val.length + x.1.start.val)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, by simp, by simp, by simp⟩
+  · intro x hinv
+    obtain ⟨iter, m⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hle, h1, h2⟩ := hinv
+    simp only at hend hle h1 h2
+    subst hend
+    unfold mapa.MapaVotos.sin_loop.body
+    hax_mvcgen
+    all_goals first
+      | omega
+      | (refine ⟨⟨trivial, ?_, ?_, ?_⟩, Or.inl ?_⟩ <;> omega)
+      | (refine ⟨?_, ?_⟩ <;> omega)
+
+/-- `sin` no entra en panico, y no deja mas entradas que las que habia. -/
+theorem sin_total (m : mapa.MapaVotos) (k : tipos.H256) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.sin m k
+    ⦃ ⇓ r => ⌜ r.claves.val.length ≤ m.claves.val.length ∧
+                r.valores.val.length ≤ m.claves.val.length ⌝ ⦄ := by
+  have hprop := m.claves.property
+  unfold mapa.MapaVotos.sin
+  hax_mvcgen [sin_loop_total]
+  all_goals first
+    | omega
+    | (rename_i n hn i hi; obtain ⟨ha, hb⟩ := hn; omega)
+    | (rename_i n hn i hi r hr; obtain ⟨ha, hb⟩ := hn; obtain ⟨hr1, hr2⟩ := hr;
+       refine ⟨?_, ?_⟩ <;> omega)
+end
+
+section
+attribute [local spec] raiz_justificacion_total votos_del_segmento_total
+  poner_si_falta_total nuevo_total ssz_len_total
+
+theorem construir_mapa_loop_total (n : Std.Usize)
+    (sc : tipos.StateConfig) (i : Std.U64) (bh : tipos.BlockHeader)
+    (c c1 : tipos.Checkpoint) (sl : ssz.SszList tipos.H256 262144#usize)
+    (sb : ssz.SszBitlist 262144#usize)
+    (sl1 : ssz.SszList tipos.Validator 4096#usize)
+    (sl2 : ssz.SszList tipos.H256 262144#usize)
+    (sb1 : ssz.SszBitlist 1073741824#usize) (vc : Std.Usize)
+    (m0 : mapa.MapaVotos)
+    (hprod : n.val * vc.val ≤ Usize.max)
+    (hc : m0.claves.val.length + n.val ≤ Usize.max)
+    (hv : m0.valores.val.length + n.val ≤ Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.construir_mapa_de_votos_loop { start := 0#usize, «end» := n }
+      sc i bh c c1 sl sb sl1 sl2 sb1 vc m0
+    ⦃ ⇓ r => ⌜ r.claves.val.length ≤ m0.claves.val.length + n.val ∧
+                r.valores.val.length ≤ m0.valores.val.length + n.val ⌝ ⦄ := by
+  have tramo : ∀ a b k : Nat, a < b → (a + 1) * k ≤ b * k := by
+    intro a b k h
+    exact Nat.mul_le_mul_right k (Nat.succ_le_of_lt h)
+  unfold stf.construir_mapa_de_votos_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × mapa.MapaVotos =>
+       x.1.«end» = n ∧ x.1.start.val ≤ n.val ∧
+       x.2.claves.val.length ≤ m0.claves.val.length + x.1.start.val ∧
+       x.2.valores.val.length ≤ m0.valores.val.length + x.1.start.val)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, by simp, by simp, by simp⟩
+  · intro x hinv
+    obtain ⟨iter, m⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hle, h1, h2⟩ := hinv
+    simp only at hend hle h1 h2
+    subst hend
+    unfold stf.construir_mapa_de_votos_loop.body
+    hax_mvcgen
+    all_goals first
+      | omega
+      | (refine ⟨⟨trivial, ?_, ?_, ?_⟩, Or.inl ?_⟩ <;> omega)
+      | (refine ⟨?_, ?_⟩ <;> omega)
+      | (rename_i hlt s hs r; have := tramo _ _ vc.val hlt; omega)
+
+/-- Armar el mapa de votos desde el estado no entra en panico, si
+    `raices * validator_count` no desborda. -/
+theorem construir_mapa_total (st : tipos.State) (vc : Std.Usize)
+    (hprod : st.justifications_roots.items.val.length * vc.val ≤ Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄ stf.construir_mapa_de_votos st vc
+    ⦃ ⇓ r => ⌜ r.claves.val.length ≤ st.justifications_roots.items.val.length ∧
+                r.valores.val.length ≤ st.justifications_roots.items.val.length ⌝ ⦄ := by
+  unfold stf.construir_mapa_de_votos
+  hax_mvcgen [construir_mapa_loop_total]
+  all_goals first
+    | (rename_i n hn i hi; rw [hi]; exact hprod)
+    | (rename_i n hn i hi; obtain ⟨ha, hb⟩ := hn; scalar_tac)
+    | (rename_i n hn i hi r hr; obtain ⟨ha, hb⟩ := hn; obtain ⟨hr1, hr2⟩ := hr;
+       refine ⟨?_, ?_⟩ <;> omega)
+end
+
+/- El `HashMap` de raices a slots. `new`, `get` e `insert` son declaraciones
+   sin contenido en este paquete: que devuelvan va como hipotesis. -/
+
+abbrev MapaSlots := std.collections.hash.map.HashMap tipos.H256 Std.U64
+  std.hash.random.RandomState alloc.alloc.Global
+
+/-- Las tres operaciones del `HashMap` devuelven. -/
+structure HashMapDevuelve : Prop where
+  nuevo : ∃ m : MapaSlots,
+    std.collections.hash.map.HashMapKVRandomStateGlobal.new tipos.H256 Std.U64 = ok m
+  consulta : ∀ (m : MapaSlots) (r : tipos.H256), ∃ o, stf.slot_de_raiz m r = ok o
+  inserta : ∀ (m : MapaSlots) (k : tipos.H256) (v : Std.U64), ∃ r,
+    std.collections.hash.map.HashMap.insert tipos.H256.Insts.CoreCmpEq
+      tipos.H256.Insts.CoreHashHash
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher m k v = ok r
+
+theorem hm_new_total (h : HashMapDevuelve) :
+    ⦃ ⌜ True ⌝ ⦄
+    std.collections.hash.map.HashMapKVRandomStateGlobal.new tipos.H256 Std.U64
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := devuelve_spec _ h.nuevo
+
+theorem hm_get_total (m : MapaSlots) (r : tipos.H256) (h : HashMapDevuelve) :
+    ⦃ ⌜ True ⌝ ⦄ stf.slot_de_raiz m r ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
+  devuelve_spec _ (h.consulta m r)
+
+theorem hm_insert_total (m : MapaSlots) (k : tipos.H256) (v : Std.U64)
+    (h : HashMapDevuelve) :
+    ⦃ ⌜ True ⌝ ⦄
+    std.collections.hash.map.HashMap.insert tipos.H256.Insts.CoreCmpEq
+      tipos.H256.Insts.CoreHashHash
+      std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher m k v
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := devuelve_spec _ (h.inserta m k v)
+
+section
+attribute [local spec] hash_historico_total hm_get_total hm_insert_total
+  hm_new_total IteratorRange_next_spec_u64 ssz_len_total
+
+theorem construir_rts_loop_total (a b : Std.U64)
+    (sc : tipos.StateConfig) (i : Std.U64) (bh : tipos.BlockHeader)
+    (c : tipos.Checkpoint) (h : tipos.H256) (i1 : Std.U64)
+    (sl : ssz.SszList tipos.H256 262144#usize) (sb : ssz.SszBitlist 262144#usize)
+    (sl1 : ssz.SszList tipos.Validator 4096#usize)
+    (sl2 : ssz.SszList tipos.H256 262144#usize)
+    (sb1 : ssz.SszBitlist 1073741824#usize) (m0 : MapaSlots)
+    (hm : HashMapDevuelve) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.construir_root_to_slot_loop { start := a, «end» := b }
+      sc i bh c h i1 sl sb sl1 sl2 sb1 m0
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.construir_root_to_slot_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun _ : (core.ops.range.Range Std.U64) × MapaSlots => True)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · trivial
+  · intro x _
+    obtain ⟨iter, m⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    unfold stf.construir_root_to_slot_loop.body
+    hax_mvcgen
+    all_goals first
+      | exact hm
+      | (refine ⟨trivial, Or.inl ?_⟩; omega)
+
+/-- Armar el `HashMap` de raices a slots no entra en panico, si las tres
+    operaciones del `HashMap` devuelven y `finalizado + 1` no desborda. -/
+theorem construir_rts_total (st : tipos.State) (hm : HashMapDevuelve)
+    (hfin : st.latest_finalized.slot.val < U64.max) :
+    ⦃ ⌜ True ⌝ ⦄ stf.construir_root_to_slot st ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.construir_root_to_slot
+  hax_mvcgen [construir_rts_loop_total]
+  all_goals first
+    | exact hm
+    | scalar_tac
+    | (exfalso; scalar_tac)
+end
+
+/- ====================================================================
+   Los enunciados, en forma de ecuacion.
+   ==================================================================== -/
+
+theorem contar_datos_devuelve
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) :
+    ∃ r, stf.contar_datos_distintos atts = ok r := by
+  obtain ⟨r, hr, -⟩ := of_triple_total (contar_datos_total atts)
+  exact ⟨r, hr⟩
+
+theorem hay_raiz_cero_devuelve (roots : ssz.SszList tipos.H256 262144#usize) :
+    ∃ r, stf.hay_raiz_cero roots = ok r := by
+  obtain ⟨r, hr, -⟩ := of_triple_total (hay_raiz_cero_total roots)
+  exact ⟨r, hr⟩
+
+theorem primer_bit_devuelve
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (idx desde : Std.Usize) :
+    ∃ r, stf.primer_bit_fuera_de_rango atts idx desde = ok r := by
+  obtain ⟨r, hr, -⟩ := of_triple_total (primer_bit_total atts idx desde)
+  exact ⟨r, hr⟩
+
+theorem votos_vacios_devuelve (n : Std.Usize) :
+    ∃ r, stf.votos_vacios n = ok r ∧ r.val.length = n.val :=
+  of_triple_total (votos_vacios_total n)
+
+theorem poner_si_falta_devuelve (m : mapa.MapaVotos) (k : tipos.H256)
+    (v : alloc.vec.Vec Bool)
+    (hc : m.claves.val.length < Usize.max)
+    (hv : m.valores.val.length < Usize.max) :
+    ∃ r, mapa.MapaVotos.poner_si_falta m k v = ok r ∧
+      r.2.claves.val.length ≤ m.claves.val.length + 1 ∧
+      r.2.valores.val.length ≤ m.valores.val.length + 1 :=
+  of_triple_total (poner_si_falta_total m k v hc hv)
+
+theorem marcar_votos_devuelve (m : mapa.MapaVotos) (p : Std.Usize)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) (idx : Std.Usize) :
+    ∃ r, stf.marcar_votos m p atts idx = ok r ∧
+      r.claves = m.claves ∧ r.valores.val.length = m.valores.val.length :=
+  of_triple_total (marcar_votos_total m p atts idx)
+
+theorem cuenta_votos_devuelve (m : mapa.MapaVotos) (p : Std.Usize) :
+    ∃ r, mapa.MapaVotos.cuenta_votos m p = ok r ∧
+      (r.val = 0 ∨ ∃ v ∈ m.valores.val, r.val ≤ v.val.length) :=
+  of_triple_total (cuenta_votos_total m p)
+
+theorem sin_devuelve (m : mapa.MapaVotos) (k : tipos.H256) :
+    ∃ r, mapa.MapaVotos.sin m k = ok r ∧
+      r.claves.val.length ≤ m.claves.val.length ∧
+      r.valores.val.length ≤ m.claves.val.length :=
+  of_triple_total (sin_total m k)
+
+theorem construir_mapa_devuelve (st : tipos.State) (vc : Std.Usize)
+    (hprod : st.justifications_roots.items.val.length * vc.val ≤ Usize.max) :
+    ∃ r, stf.construir_mapa_de_votos st vc = ok r ∧
+      r.claves.val.length ≤ st.justifications_roots.items.val.length ∧
+      r.valores.val.length ≤ st.justifications_roots.items.val.length :=
+  of_triple_total (construir_mapa_total st vc hprod)
+
+theorem construir_rts_devuelve (st : tipos.State) (hm : HashMapDevuelve)
+    (hfin : st.latest_finalized.slot.val < U64.max) :
+    ∃ r, stf.construir_root_to_slot st = ok r := by
+  obtain ⟨r, hr, -⟩ := of_triple_total (construir_rts_total st hm hfin)
+  exact ⟨r, hr⟩
+
+end NP6
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -7494,3 +8266,13 @@ end NP5
 #print axioms NP5.filtrado_devuelve
 #print axioms NP5.try_finalize_devuelve
 #print axioms NP5.try_finalize_devuelve_inv
+#print axioms NP6.contar_datos_devuelve
+#print axioms NP6.hay_raiz_cero_devuelve
+#print axioms NP6.primer_bit_devuelve
+#print axioms NP6.votos_vacios_devuelve
+#print axioms NP6.poner_si_falta_devuelve
+#print axioms NP6.marcar_votos_devuelve
+#print axioms NP6.cuenta_votos_devuelve
+#print axioms NP6.sin_devuelve
+#print axioms NP6.construir_mapa_devuelve
+#print axioms NP6.construir_rts_devuelve

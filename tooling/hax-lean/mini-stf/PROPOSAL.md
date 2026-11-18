@@ -40,7 +40,7 @@ and Lean accepts them with no `sorry`. That says the program got written in
 Lean. It does not say it is correct.
 
 **The proofs are of specific properties.** A program is not "proved": statements
-about it are. There are fifty-seven here, listed under **What you get**. Each
+about it are. There are sixty-seven here, listed under **What you get**. Each
 says one precise thing, with its hypotheses in plain sight.
 
 What is **not** proved, said once:
@@ -162,12 +162,12 @@ What each step should give:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
-| 6 | `57` — one axiom block per result — and `0` |
+| 6 | `67` — one axiom block per result — and `0` |
 
 There is no separate "run the proofs" step. The theorems are in
 `teoremas/ProofObligations.lean`; step 5 copies that file into the Lean project
 and `lake build` checks all of it. If the build ends green, Lean accepted the
-fifty-seven proofs. At the end it prints which axioms each one depends on, which
+sixty-seven proofs. At the end it prints which axioms each one depends on, which
 is what step 6 counts.
 
 To convince yourself the check is real, break a statement by hand. In
@@ -296,10 +296,10 @@ Everything, with line counts as shipped.
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 336 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 7496 | ours — the theorems. |
-| `axiomas.txt` | 665 | ours — the `#print axioms` output, so the trust base can be read without building. |
+| `teoremas/ProofObligations.lean` | 8278 | ours — the theorems. |
+| `axiomas.txt` | 704 | ours — the `#print axioms` output, so the trust base can be read without building. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 1132 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 1176 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -392,7 +392,7 @@ down.
 
 ## What you get
 
-`teoremas/ProofObligations.lean` holds fifty-seven named results:
+`teoremas/ProofObligations.lean` holds sixty-seven named results:
 
 | Result | What it is |
 |---|---|
@@ -452,6 +452,16 @@ down.
 | `NP5.filtrado_devuelve` | `filtrado`, the replacement for `retain`, does not panic |
 | `NP5.try_finalize_devuelve` | **`try_finalize` does not panic**, with the source before the target, the window within capacity and if the `HashMap` lookup returns |
 | `NP5.try_finalize_devuelve_inv` | the same, with the window's capacity taken from the transition's invariants |
+| `NP6.contar_datos_devuelve` | counting a block's distinct attestation data does not panic |
+| `NP6.hay_raiz_cero_devuelve` | looking for the zero root does not panic |
+| `NP6.primer_bit_devuelve` | looking for the first out-of-range bit does not panic |
+| `NP6.votos_vacios_devuelve` | `votos_vacios(n)` returns, and returns `n` votes |
+| `NP6.poner_si_falta_devuelve` | adding a root to the map does not panic if there is room, and adds at most one |
+| `NP6.marcar_votos_devuelve` | marking an aggregation's votes does not panic nor change how many entries there are |
+| `NP6.cuenta_votos_devuelve` | counting a root's votes does not panic |
+| `NP6.sin_devuelve` | dropping a root from the map does not panic nor leave more entries |
+| `NP6.construir_mapa_devuelve` | building the vote map from the state does not panic, if `roots * validator_count` does not overflow |
+| `NP6.construir_rts_devuelve` | building the root-to-slot `HashMap` does not panic, if the `HashMap` returns |
 | `bind_da_ok` | a tool: opens one `RustM` bind |
 
 They were not picked for count. Between them they cover arithmetic, branching
@@ -1254,9 +1264,52 @@ The two results on `try_finalize` depend on thirteen axioms: Lean's three,
 three native ones and seven declarations. `NP5.filtrado_devuelve` depends only
 on Lean's three.
 
-**What is not there.** The other three functions of `stf.rs`:
-`process_attestations`, `process_block` and `state_transition`. The first is
-the big loop; the other two call it.
+### The pieces of `process_attestations` do not panic
+
+`process_attestations` is the big function, and the one we rewrote the most:
+its iterators and closures became helper functions with explicit loops. Before
+going through all of it, each of those helpers has to be known to return. Ten
+results:
+
+| Function | Hypotheses |
+|---|---|
+| `contar_datos_distintos` | none |
+| `hay_raiz_cero` | none |
+| `primer_bit_fuera_de_rango` | none |
+| `votos_vacios` | none |
+| `marcar_votos` | none |
+| `cuenta_votos` | none |
+| `sin` (drop a root from the map) | none |
+| `poner_si_falta` (add a root) | that there is room for one more entry |
+| `construir_mapa_de_votos` | that `roots * validator_count` does not overflow |
+| `construir_root_to_slot` | that `finalized + 1` does not overflow, and that the `HashMap` returns |
+
+Seven ask for nothing. The ones that count carry a counter that never exceeds
+what has been traversed, which is why their `+ 1` does not overflow. The ones
+that read do so with `get`, which returns `None` out of range instead of
+aborting.
+
+**The `HashMap`, now all of it.** `try_finalize` only looked it up.
+`construir_root_to_slot` creates it and fills it, so the hypothesis covers all
+three operations, `new`, `get` and `insert`, and has to hold for every map
+rather than for one, because the map changes on each iteration. All three
+remain contentless declarations.
+
+**Several results also say how big what they return is**: how many entries
+are left in the map, how many votes a list has. That is what chaining them in
+the loop needs, where each `push` has to know there is room.
+
+Negative controls, three. Without the bounded product, the overflow of
+`(i + 1) * validator_count` stays open. Without `finalized + 1` bounded, that
+overflow stays open. Without room in the keys, the `push` does not close.
+
+Nine of the ten depend only on Lean's three axioms. The one on
+`construir_root_to_slot` depends on eleven: those three and eight
+declarations, the `HashMap` ones.
+
+**What is not there.** Putting them together: the `process_attestations` loop
+and the whole function. And then `process_block` and `state_transition`, which
+call it.
 
 ### What this is against the catalog, stated exactly
 
@@ -1340,6 +1393,8 @@ own properties makes the exercise circular.
 | `serialize_justifications` with the map from `process_attestations` | 18 | 3 | 7 | 8 |
 | no panic: `filtrado` | 3 | 3 | — | — |
 | no panic: `try_finalize`, both results | 13 | 3 | 3 | 7 |
+| no panic: nine helpers of `process_attestations` | 3 | 3 | — | — |
+| no panic: `construir_root_to_slot` | 11 | 3 | — | 8 |
 
 Three categories, with three different weights.
 
@@ -1400,10 +1455,11 @@ it, so no behaviour is asserted there.
 
 None of the twenty-six carries weight in the theorems above: the properties
 come from the guards, the assignments and the hash history, not from anything
-the map, the hash or the formatter does. There are two exceptions, and they
-are written down: the result on `serialize_justifications` asks the array
-comparison to return, and the one on `try_finalize` asks the same of the
-`HashMap` lookup, both as hypotheses. Of the three modeling claims, `ST-3`
+the map, the hash or the formatter does. There are exceptions, and they are
+written down: the result on `serialize_justifications` asks the array
+comparison to return, and the ones on `try_finalize` and
+`construir_root_to_slot` ask the same of the `HashMap`, always as hypotheses.
+Of the three modeling claims, `ST-3`
 leans on none; `ST-7` over the whole transition and the history invariants lean
 on the `mem::take` one, because they need the history to survive
 `process_block_header`; absence of panic for `current_proposer` and

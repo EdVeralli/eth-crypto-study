@@ -41,7 +41,7 @@ Lean las acepta sin `sorry`. Eso dice que el programa quedó escrito en Lean. No
 dice que sea correcto.
 
 **Las demostraciones son de propiedades puntuales.** Un programa no "se
-demuestra": se demuestran afirmaciones sobre él. Acá hay cincuenta y siete,
+demuestra": se demuestran afirmaciones sobre él. Acá hay sesenta y siete,
 listadas en **Qué recibe**. Cada una dice una cosa precisa, con sus hipótesis a
 la vista.
 
@@ -168,12 +168,12 @@ Qué tiene que dar cada paso:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` y después `=== listo ===` (1743 jobs la primera vez sobre un checkout limpio) |
-| 6 | `57` — un bloque de axiomas por resultado — y `0` |
+| 6 | `67` — un bloque de axiomas por resultado — y `0` |
 
 No hay un paso aparte de "correr las pruebas". Los teoremas están en
 `teoremas/ProofObligations.lean`; el paso 5 copia ese archivo adentro del
 proyecto Lean y `lake build` lo chequea entero. Si el build termina en verde,
-Lean aceptó las cincuenta y siete demostraciones. Al final imprime de qué axiomas
+Lean aceptó las sesenta y siete demostraciones. Al final imprime de qué axiomas
 depende cada una, que es lo que cuenta el paso 6.
 
 Para convencerse de que el chequeo es real, rompan un enunciado a mano. En
@@ -302,10 +302,10 @@ Todo, con las líneas tal como se entrega.
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 336 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 7496 | nuestro — los teoremas. |
-| `axiomas.txt` | 665 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
+| `teoremas/ProofObligations.lean` | 8278 | nuestro — los teoremas. |
+| `axiomas.txt` | 704 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 1132 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 1176 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -401,7 +401,7 @@ más abajo.
 
 ## Qué recibe
 
-`teoremas/ProofObligations.lean` tiene cincuenta y siete resultados con nombre:
+`teoremas/ProofObligations.lean` tiene sesenta y siete resultados con nombre:
 
 | Resultado | Qué es |
 |---|---|
@@ -461,6 +461,16 @@ más abajo.
 | `NP5.filtrado_devuelve` | `filtrado`, el reemplazo del `retain`, no entra en pánico |
 | `NP5.try_finalize_devuelve` | **`try_finalize` no entra en pánico**, con el source anterior al target, la ventana en capacidad y si la consulta al `HashMap` devuelve |
 | `NP5.try_finalize_devuelve_inv` | lo mismo, con la capacidad de la ventana sacada de los invariantes de la transición |
+| `NP6.contar_datos_devuelve` | contar los datos distintos de un bloque no entra en pánico |
+| `NP6.hay_raiz_cero_devuelve` | buscar la raíz cero no entra en pánico |
+| `NP6.primer_bit_devuelve` | buscar el primer bit fuera de rango no entra en pánico |
+| `NP6.votos_vacios_devuelve` | `votos_vacios(n)` devuelve, y devuelve `n` votos |
+| `NP6.poner_si_falta_devuelve` | agregar una raíz al mapa no entra en pánico si hay lugar, y agrega a lo sumo una |
+| `NP6.marcar_votos_devuelve` | marcar los votos de una agregación no entra en pánico ni cambia cuántas entradas hay |
+| `NP6.cuenta_votos_devuelve` | contar los votos de una raíz no entra en pánico |
+| `NP6.sin_devuelve` | sacar una raíz del mapa no entra en pánico ni deja más entradas |
+| `NP6.construir_mapa_devuelve` | armar el mapa de votos desde el estado no entra en pánico, si `raíces * validator_count` no desborda |
+| `NP6.construir_rts_devuelve` | armar el `HashMap` de raíces a slots no entra en pánico, si el `HashMap` devuelve |
 | `bind_da_ok` | una herramienta: abre un bind de `RustM` |
 
 No se eligieron por cantidad. Entre todos cubren aritmética, ramificación y
@@ -1263,9 +1273,50 @@ Los dos resultados sobre `try_finalize` dependen de trece axiomas: los tres de
 Lean, tres nativos y siete declaraciones. `NP5.filtrado_devuelve` depende sólo
 de los tres de Lean.
 
-**Lo que no está.** Las otras tres funciones de `stf.rs`:
-`process_attestations`, `process_block` y `state_transition`. La primera es el
-loop grande; las otras dos la llaman.
+### Las piezas de `process_attestations` no entran en pánico
+
+`process_attestations` es la función grande, y es la que más reescribimos: sus
+iteradores y closures quedaron como funciones auxiliares con loops explícitos.
+Antes de recorrerla entera hace falta saber que cada una de esas auxiliares
+devuelve. Son diez resultados:
+
+| Función | Hipótesis |
+|---|---|
+| `contar_datos_distintos` | ninguna |
+| `hay_raiz_cero` | ninguna |
+| `primer_bit_fuera_de_rango` | ninguna |
+| `votos_vacios` | ninguna |
+| `marcar_votos` | ninguna |
+| `cuenta_votos` | ninguna |
+| `sin` (sacar una raíz del mapa) | ninguna |
+| `poner_si_falta` (agregar una raíz) | que haya lugar para una entrada más |
+| `construir_mapa_de_votos` | que `raíces * validator_count` no desborde |
+| `construir_root_to_slot` | que `finalizado + 1` no desborde, y que el `HashMap` devuelva |
+
+Siete no piden nada. Las que cuentan llevan un contador que nunca pasa de lo
+recorrido, y por eso su `+ 1` no desborda. Las que leen lo hacen con `get`, que
+devuelve `None` fuera de rango en vez de abortar.
+
+**El `HashMap`, ahora entero.** `try_finalize` sólo lo consultaba.
+`construir_root_to_slot` lo crea y lo llena, así que la hipótesis cubre las
+tres operaciones, `new`, `get` e `insert`, y tiene que valer para todo mapa y
+no para uno, porque el mapa cambia en cada vuelta. Las tres siguen siendo
+declaraciones sin contenido.
+
+**Varios resultados dicen además cuánto mide lo que devuelven**: cuántas
+entradas quedan en el mapa, cuántos votos tiene una lista. Es lo que hace falta
+para encadenarlos en el loop, donde cada `push` necesita saber que hay lugar.
+
+Controles negativos, tres. Sin el producto acotado queda abierto el desborde
+de `(i + 1) * validator_count`. Sin `finalizado + 1` acotado queda abierto ese
+desborde. Sin lugar en las claves no cierra el `push`.
+
+Nueve de los diez dependen sólo de los tres axiomas de Lean. El de
+`construir_root_to_slot` depende de once: esos tres y ocho declaraciones, las
+del `HashMap`.
+
+**Lo que no está.** Juntarlas: el loop de `process_attestations` y la función
+entera. Y después `process_block` y `state_transition`, que la llaman.
 
 ### Qué es esto contra el catálogo, dicho exacto
 
@@ -1348,6 +1399,8 @@ importa: elegir las propias propiedades vuelve el ejercicio circular.
 | `serialize_justifications` con el mapa de `process_attestations` | 18 | 3 | 7 | 8 |
 | sin pánico: `filtrado` | 3 | 3 | — | — |
 | sin pánico: `try_finalize`, los dos resultados | 13 | 3 | 3 | 7 |
+| sin pánico: nueve auxiliares de `process_attestations` | 3 | 3 | — | — |
+| sin pánico: `construir_root_to_slot` | 11 | 3 | — | 8 |
 
 Tres categorías, con tres pesos distintos.
 
@@ -1410,10 +1463,11 @@ comportamiento.
 
 Ninguna de las veintiséis carga peso en los teoremas de arriba: las
 propiedades salen de las guardas, de las asignaciones y del historial de hashes,
-no de lo que haga el mapa, el hash o el formateador. Hay dos excepciones, y
-están escritas: el resultado sobre `serialize_justifications` le pide a la
-comparación de arrays que devuelva, y el de `try_finalize` le pide lo mismo a
-la consulta al `HashMap`, los dos como hipótesis. De las tres afirmaciones de
+no de lo que haga el mapa, el hash o el formateador. Hay excepciones, y están
+escritas: el resultado sobre `serialize_justifications` le pide a la
+comparación de arrays que devuelva, y los de `try_finalize` y
+`construir_root_to_slot` le piden lo mismo al `HashMap`, siempre como
+hipótesis. De las tres afirmaciones de
 modelado, `ST-3` no se apoya en ninguna; `ST-7` sobre la transición entera y los
 invariantes del historial se apoyan en la de `mem::take`, porque necesitan que
 el historial sobreviva a `process_block_header`; la ausencia de pánico de

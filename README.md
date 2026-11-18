@@ -92,16 +92,17 @@ hax + Charon + Aeneas, de Rust a Lean. Se entra por
 [`PROPOSAL.md`](tooling/hax-lean/mini-stf/PROPOSAL.md) (en inglés), y
 [`RESTAURAR.md`](RESTAURAR.md) explica cómo reconstruir el entorno desde cero.
 
-Al 17 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
-`sorry` y cincuenta y siete resultados demostrados encima. Veinte son sobre la
+Al 18 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
+`sorry` y sesenta y siete resultados demostrados encima. Veinte son sobre la
 ventana de slots justificados: los cuatro teoremas que se habían propuesto al
 principio, el 22 de octubre, la demostración de que ese módulo no entra en
 pánico, un comentario del código de ethlambda sobre esa ventana, verificado, el
 invariante de dónde termina la ventana a lo largo de la transición, y que nunca
 pasa de su capacidad. Nueve dicen que nueve de las doce funciones de la
 transición no entran en pánico, cuatro de ellas con hipótesis escritas, dos más
-que el ordenamiento de raíces y el filtrado del mapa terminan, y tres que el mapa de votos cumple una de
-esas hipótesis. Los demás cubren las siete
+que el ordenamiento de raíces y el filtrado del mapa terminan, tres que el mapa
+de votos cumple una de esas hipótesis, y diez que las funciones auxiliares de
+`process_attestations` tampoco entran en pánico. Los demás cubren las siete
 proposiciones de transición de estado del catálogo de `formal-leanSpec` (`ST-1`
 a `ST-7`), con dos salvedades que la propuesta detalla: `ST-4` está en su paso
 inductivo y `ST-7` vale bajo una hipótesis extra. Esa hipótesis no es un
@@ -253,7 +254,8 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
 9. **El paso siguiente más útil del paquete**: la ausencia de pánico de las
    tres funciones de `stf.rs` que faltan: `process_attestations`,
    `process_block` y `state_transition`. La primera es el loop grande y las
-   otras dos la llaman. Las cinco chicas, `process_slots`,
+   otras dos la llaman. De `process_attestations` ya están las piezas (sus
+   diez funciones auxiliares, 18 nov); falta juntarlas en el loop. Las cinco chicas, `process_slots`,
    `process_block_header`, `serialize_justifications` y `try_finalize`
    quedaron hechas el 17 nov (las cuatro últimas con hipótesis escritas: que
    el hash, la comparación de `H256` y la consulta al `HashMap` devuelvan). De las hipótesis de

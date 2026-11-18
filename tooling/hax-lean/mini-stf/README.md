@@ -1128,5 +1128,49 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    >
    > Lo que sigue: `process_attestations`, que es el loop grande, y
    > despues `process_block` y `state_transition`.
+
+   > Nota del 18 nov 2026: **las piezas de `process_attestations` no entran
+   > en panico** (teorema 19, namespace `NP6`). Es la etapa A de dos: las
+   > funciones auxiliares sueltas. La etapa B es el loop y la funcion
+   > entera. Diez resultados con nombre, sobre unas dieciocho funciones.
+   >
+   > - Sin hipotesis: `contar_datos_distintos`, `hay_raiz_cero`,
+   >   `primer_bit_fuera_de_rango`, `votos_vacios`, `marcar_votos`,
+   >   `cuenta_votos`, `sin`.
+   > - Con hipotesis: `poner_si_falta` (lugar para una entrada mas),
+   >   `construir_mapa_de_votos` (`raices * validator_count` no desborda),
+   >   `construir_root_to_slot` (`finalizado + 1` no desborda y el
+   >   `HashMap` devuelve).
+   > - `HashMapDevuelve` es una estructura con las tres hipotesis del
+   >   `HashMap` (`new`, `get` para TODO mapa, `insert` para todo mapa).
+   >   El `get` de `try_finalize` era para un mapa fijo; aca cambia en
+   >   cada vuelta.
+   > - `Vec[i]` (`CoreOpsIndexIndex.index`) no tenia lema: hay que
+   >   desplegarlo en DOS `simp`, como en `JS.get_eq`. Con uno solo no
+   >   llega al `get` de adentro.
+   > - Cerrar loops que cuentan: `refine ⟨⟨trivial, ?_, ?_⟩, Or.inl ?_⟩ <;>
+   >   scalar_tac`, NO `omega`. `omega` no sabe que `↑1#usize` es 1 y la
+   >   alternativa cae al `exfalso`, que falla con un mensaje engañoso.
+   > - `votos_del_segmento` necesita ADEMAS `i < Usize.max`: con
+   >   `validator_count = 0` el producto no acota a `i + 1`.
+   > - Un comentario de documentacion (`/-- ... -/`) justo antes de
+   >   `section` es un error de sintaxis.
+   > - El `Default` de `AttestationData` (arrays de 32 bytes incluidos)
+   >   cerro solo con `hax_mvcgen`.
+   > - Las cuentas con producto: `simp_all <;> omega`, despues de dejar
+   >   escrito `(i + 1) * vc = i * vc + vc`.
+   >
+   > Controles negativos: sin el producto acotado quedan
+   > `Usize.max < i * vc` y `Usize.max < (i + 1) * vc`; sin `hfin` queda
+   > `U64.max < finalizado + 1`; sin lugar en las claves no cierra el
+   > `push`.
+   >
+   > Axiomas: nueve resultados con 3 (los de Lean);
+   > `construir_rts_devuelve` 11 (3 y ocho declaraciones, las del
+   > `HashMap`).
+   >
+   > Lo que sigue: la etapa B. Hace falta un invariante del loop que junte
+   > la ventana, el historial, la cota de las listas de votos y el tamano
+   > del mapa.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.
