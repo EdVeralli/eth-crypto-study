@@ -93,13 +93,13 @@ hax + Charon + Aeneas, de Rust a Lean. Se entra por
 [`RESTAURAR.md`](RESTAURAR.md) explica cómo reconstruir el entorno desde cero.
 
 Al 18 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
-`sorry` y sesenta y nueve resultados demostrados encima. Veinte son sobre la
+`sorry` y setenta y un resultados demostrados encima. Veinte son sobre la
 ventana de slots justificados: los cuatro teoremas que se habían propuesto al
 principio, el 22 de octubre, la demostración de que ese módulo no entra en
 pánico, un comentario del código de ethlambda sobre esa ventana, verificado, el
 invariante de dónde termina la ventana a lo largo de la transición, y que nunca
-pasa de su capacidad. Once dicen que diez de las doce funciones de la
-transición no entran en pánico, cinco de ellas con hipótesis escritas, dos más
+pasa de su capacidad. Trece dicen que las doce funciones de la
+transición no entran en pánico, siete de ellas con hipótesis escritas, dos más
 que el ordenamiento de raíces y el filtrado del mapa terminan, tres que el mapa
 de votos cumple una de esas hipótesis, y diez que las funciones auxiliares de
 `process_attestations` tampoco entran en pánico. Los demás cubren las siete
@@ -250,20 +250,17 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    hipótesis del historial de `ST-7`. Las dos piden construir el estado del
    génesis, que el crate no tiene. Y queda el condicional de casi todos los
    teoremas: la ausencia de pánico está demostrada para
-   `justified_slots_ops` y para diez de las doce funciones de `stf.rs`.
-9. **El paso siguiente más útil del paquete**: la ausencia de pánico de las
-   dos funciones de `stf.rs` que faltan: `process_block` y
-   `state_transition`. Sólo encadenan funciones ya demostradas; falta mostrar
-   que el estado que deja `process_block_header` cumple las hipótesis de
-   `process_attestations`, que quedó hecha el 18 nov. Las cinco chicas, `process_slots`,
-   `process_block_header`, `serialize_justifications` y `try_finalize`
-   quedaron hechas el 17 nov (las cuatro últimas con hipótesis escritas: que
-   el hash, la comparación de `H256` y la consulta al `HashMap` devuelvan). De las hipótesis de
-   `serialize_justifications` sobre el mapa de votos, la de las listas ya
-   está demostrada; falta la de la cantidad de raíces, que pide un invariante
-   más hondo. Quedó hecho también el tema de la ventana de slots
-   justificados: dónde termina y que no pasa de su capacidad son invariantes de
-   la transición.
+   `justified_slots_ops` y para las doce funciones de `stf.rs`, pero bajo
+   hipótesis escritas, que no están descargadas.
+9. **El paso siguiente más útil del paquete**: descargar hipótesis de la
+   ausencia de pánico, que desde el 18 nov cubre las doce funciones de
+   `stf.rs` (`state_transition` incluida). Por orden de costo: modelar la
+   comparación de `H256`, que hoy es una firma sin contenido; la cota fina de
+   raíces del mapa de votos (distintas y en el historial) en lugar de "raíces
+   más attestations ≤ 262144"; y el caso inicial del pendiente 8. Lo que ya
+   está, para no rehacerlo: las doce funciones (17 y 18 nov), la cota de las
+   listas de votos del mapa, y los dos invariantes de la ventana de slots
+   justificados (dónde termina y que no pasa de su capacidad).
 
 ## Entorno
 

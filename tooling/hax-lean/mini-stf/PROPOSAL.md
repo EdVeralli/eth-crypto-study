@@ -25,9 +25,14 @@ it is trivial; which is which is spelled out.
 Outside the catalog there are four more, about the justified-slots window: the
 ones we set ourselves on first reading your code. The last says that when
 finality advances and the window shifts, no justified slot is lost. For that
-module there is also what the rest lacks: that its functions do not panic or
-hang, with the exact condition under which one of them does abort. And a comment
-in your code about that window is checked, with the hypothesis it was missing.
+module there is also the exact condition under which one of its functions
+aborts. And a comment in your code about that window is checked, with the
+hypothesis it was missing.
+
+And there is a third end-to-end result: the whole transition does not panic or
+hang, under hypotheses written out one by one. Some are the limits of your
+types. Others are things this package cannot prove and so asks for: that the
+hash, the `HashMap` and root comparison return.
 
 Every number here came from a run.
 
@@ -40,16 +45,18 @@ and Lean accepts them with no `sorry`. That says the program got written in
 Lean. It does not say it is correct.
 
 **The proofs are of specific properties.** A program is not "proved": statements
-about it are. There are sixty-nine here, listed under **What you get**. Each
+about it are. There are seventy-one here, listed under **What you get**. Each
 says one precise thing, with its hypotheses in plain sight.
 
 What is **not** proved, said once:
 
-- **That the code never panics.** It is proved for the four functions of one
-  helper module, the justified-slots window (`justified_slots_ops.rs`), and for
-  ten of the twelve of the transition proper (`stf.rs`), five of them under
-  written hypotheses. The other two, `process_block` and `state_transition`,
-  keep the "if the function returns" conditional.
+- **That the code never panics, unconditionally.** Absence of panic is proved
+  for the twelve functions of the transition (`stf.rs`) and for the four of the
+  window (`justified_slots_ops.rs`), but under written hypotheses. Three cannot
+  be proved in this package and are asked for: that the hash, the `HashMap` and
+  `H256` comparison return. Another is a condition on the inputs and not an
+  invariant: that the pending roots plus the block's attestations do not exceed
+  262144.
 - **That the code is equivalent to the spec.** On arbitrary states it is not:
   we found two points where they behave differently, and they are set out
   below.
@@ -162,12 +169,12 @@ What each step should give:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
-| 6 | `69` — one axiom block per result — and `0` |
+| 6 | `71` — one axiom block per result — and `0` |
 
 There is no separate "run the proofs" step. The theorems are in
 `teoremas/ProofObligations.lean`; step 5 copies that file into the Lean project
 and `lake build` checks all of it. If the build ends green, Lean accepted the
-sixty-nine proofs. At the end it prints which axioms each one depends on, which
+seventy-one proofs. At the end it prints which axioms each one depends on, which
 is what step 6 counts.
 
 To convince yourself the check is real, break a statement by hand. In
@@ -296,10 +303,10 @@ Everything, with line counts as shipped.
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 336 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 8657 | ours — the theorems. |
-| `axiomas.txt` | 748 | ours — the `#print axioms` output, so the trust base can be read without building. |
+| `teoremas/ProofObligations.lean` | 8890 | ours — the theorems. |
+| `axiomas.txt` | 796 | ours — the `#print axioms` output, so the trust base can be read without building. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 1227 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 1267 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -392,7 +399,7 @@ down.
 
 ## What you get
 
-`teoremas/ProofObligations.lean` holds sixty-nine named results:
+`teoremas/ProofObligations.lean` holds seventy-one named results:
 
 | Result | What it is |
 |---|---|
@@ -464,6 +471,8 @@ down.
 | `NP6.construir_rts_devuelve` | building the root-to-slot `HashMap` does not panic, if the `HashMap` returns |
 | `NP7.process_attestations_devuelve` | **`process_attestations` does not panic**, with the limits of its types and if the `HashMap` and `H256` comparison return |
 | `NP7.process_attestations_devuelve_inv` | the same, with the window and finality taken from the transition's invariants |
+| `NP8.process_block_devuelve` | `process_block` does not panic, with the hypotheses put together |
+| `NP8.state_transition_devuelve` | **the whole state transition does not panic**, under written hypotheses |
 | `bind_da_ok` | a tool: opens one `RustM` bind |
 
 They were not picked for count. Between them they cover arithmetic, branching
@@ -1362,9 +1371,51 @@ stay open.
 Both results depend on twenty axioms: Lean's three, seven native ones and ten
 declarations.
 
-**What is not there.** `process_block` and `state_transition`. Both only chain
-functions that are already done, but it remains to show that the state
-`process_block_header` leaves meets the hypotheses of `process_attestations`.
+**Where it is used.** In the next section, which closes the transition.
+
+### The whole transition does not panic
+
+`process_block` and `state_transition` are the last two of the twelve. With
+them the result is about the function you export:
+
+> For every state and every block that meet the hypotheses below,
+> `state_transition` returns.
+
+"Returns" includes returning an error. An invalid block is rejected with
+`Err`. What the result rules out is a panic, and the function not terminating.
+
+| Hypothesis | What it is |
+|---|---|
+| 64-bit `usize` | the platform |
+| the window does not go past the last header; one hash per slot in the history | two invariants, which the transition preserves |
+| at most 4096 validators | the limit of its type |
+| the pending roots plus the block's attestations do not exceed 262144 | a sufficient condition on what goes in |
+| the three `hash_tree_root`s return | the hash in this crate is a stand-in |
+| the `HashMap` returns; `H256` comparison returns | contentless signatures in this package |
+
+The two functions only chain others that were already done. What is new is the
+glue, that what each step asks for still holds after the previous one:
+
+- `process_slots` and `process_block_header` do not touch the validators or
+  the pending roots. So the hypotheses of `process_attestations` about the
+  registry hold on the state it receives.
+- Both preserve the window and history invariants. That is where
+  `process_block_header` gets that the history is aligned, and
+  `process_attestations` the window's capacity.
+
+**What it does not say.** That those hypotheses hold in every reachable state.
+The two invariants are preserved from one block to the next, but their initial
+case, genesis, is not proved. The bound on roots is a condition on the inputs,
+not an invariant. And that the hash, the `HashMap` and the comparison return
+cannot be proved here.
+
+Negative controls, two. Without the history invariant, the header's
+precondition stays open. If the header does not say it leaves the registry as
+it was, the two hypotheses of `process_attestations` about validators and
+roots stay open.
+
+Both results depend on twenty-two axioms, exactly the same ones as the
+definition of `state_transition` with no theorem in between.
 
 ### What this is against the catalog, stated exactly
 
@@ -1451,6 +1502,7 @@ own properties makes the exercise circular.
 | no panic: nine helpers of `process_attestations` | 3 | 3 | — | — |
 | no panic: `construir_root_to_slot` | 11 | 3 | — | 8 |
 | no panic: `process_attestations`, both results | 20 | 3 | 7 | 10 |
+| no panic: `process_block` and `state_transition` | 22 | 3 | 9 | 10 |
 
 Three categories, with three different weights.
 
@@ -1515,7 +1567,8 @@ the map, the hash or the formatter does. There are exceptions, and they are
 written down: the result on `serialize_justifications` asks the array
 comparison to return, and the ones on `try_finalize`,
 `construir_root_to_slot` and `process_attestations` ask the same of the
-`HashMap`, always as hypotheses.
+`HashMap`, always as hypotheses. The result on `state_transition` carries all
+of them.
 Of the three modeling claims, `ST-3`
 leans on none; `ST-7` over the whole transition and the history invariants lean
 on the `mem::take` one, because they need the history to survive
@@ -1717,14 +1770,12 @@ build it.
 `#eval` to try a concrete case: the evidence that they return what is expected
 on a given input is the Rust tests.
 
-**Absence of panic does not cover the whole transition.** The four functions of
-`justified_slots_ops` return, under capacity hypotheses; five of the twelve in
-`stf.rs` return with no hypothesis; and `process_slots`,
-`process_block_header`, `serialize_justifications`, `try_finalize` and
-`process_attestations` return under the hypotheses of their section, among
-them that the hash, `H256` comparison and the `HashMap` return. The other two,
-`process_block` and `state_transition`, keep the "if the function returns"
-conditional.
+**Absence of panic is conditional.** It is proved for the twelve functions of
+`stf.rs` and the four of `justified_slots_ops`. Five of the twelve return with
+no hypothesis at all. The other seven, `state_transition` among them, return
+under the hypotheses of their section. Three of those hypotheses cannot be
+proved in this package: that the hash, `H256` comparison and the `HashMap`
+return.
 
 **The bound on roots in `process_attestations` is a sufficient condition, not
 an invariant.** It asks that the state's roots plus the block's attestations

@@ -8588,6 +8588,237 @@ theorem process_attestations_devuelve_inv (state : tipos.State)
 
 end NP7
 
+/- ===========================================================================
+   Teorema 21 — `process_block` y `state_transition` no entran en panico
+
+   Son las dos ultimas de las doce funciones de `stf.rs`. Con ellas, la
+   transicion de estado entera no entra en panico, bajo hipotesis escritas.
+
+   Las dos solo encadenan funciones que ya estaban (teoremas 15 y 20). Lo
+   nuevo es el pegamento: que lo que pide cada paso siga valiendo despues
+   del anterior.
+
+   - `process_slots` y `process_block_header` no tocan los validadores ni
+     las raices pendientes. Con eso las hipotesis de `process_attestations`
+     sobre el registro valen sobre el estado que le llega.
+   - las dos conservan los invariantes de la ventana y del historial
+     (teoremas 12 y 13), que es de donde `process_block_header` saca que el
+     historial esta alineado y `process_attestations` saca la capacidad.
+
+   Hipotesis del resultado final, todas escritas en el enunciado:
+
+   - `usize` de 64 bits.
+   - los dos invariantes sobre el estado de entrada: `VentanaNoPasa` y
+     `HistorialAcotado`. Los dos se conservan a lo largo de la transicion.
+   - a lo sumo 4096 validadores.
+   - las raices pendientes del estado mas las attestations del bloque no
+     pasan de 262144. Es la condicion suficiente del teorema 20.
+   - `HashDevuelve`: los tres `hash_tree_root` devuelven. Es un sustituto.
+   - `HashMapDevuelve` y la comparacion de `H256`: declaraciones sin
+     contenido.
+
+   Lo que NO dice: que estas hipotesis valgan en todo estado alcanzable.
+   Los dos invariantes se conservan, pero su caso inicial (el genesis) no
+   esta probado, y la cota de raices es una condicion sobre las entradas.
+
+   Controles negativos, en la bitacora: sin el invariante del historial
+   queda abierta la precondicion del header; si el header no dice que deja
+   el registro como estaba, quedan abiertas las dos hipotesis de
+   `process_attestations` sobre validadores y raices.
+   =========================================================================== -/
+
+namespace NP8
+open mini_stf
+open Std.Tactic
+open ST3 JS NP NP2 NP3 NP4 NP5 NP6 NP7 MV VC VI HC
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+/-- `process_slots` no toca los validadores ni las raices pendientes. -/
+theorem process_slots_no_toca_registro
+    (state state' : tipos.State) (t : Std.U64)
+    (res : core.result.Result Unit stf.Error)
+    (h : stf.process_slots state t = ok (res, state')) :
+    state'.validators = state.validators ∧
+    state'.justifications_roots = state.justifications_roots := by
+  unfold stf.process_slots at h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  split at h
+  · simp only [RustM.ok.injEq, Prod.mk.injEq] at h
+    obtain ⟨-, hst⟩ := h
+    subst hst
+    exact ⟨rfl, rfl⟩
+  · obtain ⟨_, _, h⟩ := bind_da_ok h
+    obtain ⟨_, _, h⟩ := bind_da_ok h
+    obtain ⟨_, _, h⟩ := bind_da_ok h
+    obtain ⟨_, _, h⟩ := bind_da_ok h
+    simp only [RustM.ok.injEq, Prod.mk.injEq] at h
+    obtain ⟨-, hst⟩ := h
+    subst hst
+    exact ⟨rfl, rfl⟩
+
+section
+attribute [local spec] ssz_len_modelo_spec ST3H.current_proposer_spec
+  ST3H.ok_or_spec ST3H.branch_spec ST3H.header_hash_spec ST3H.ne_default_spec
+  ST7.take_modelo_spec ST7.into_inner_modelo_spec push_exacto_spec
+  header_loop_largo_spec ST7.try_from_modelo_spec ST7.expect_modelo_spec
+  ST3H.extend_spec ST3H.body_hash_spec ST7.from_residual_err_spec
+
+/-- `process_block_header` no toca los validadores ni las raices pendientes. -/
+theorem header_registro_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_block_header state block
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ r.2.validators = state.validators ∧
+          r.2.justifications_roots = state.justifications_roots ⌝) ⦄ := by
+  unfold stf.process_block_header
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | trivial
+    | exact ⟨rfl, rfl⟩
+    | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+end
+
+/-- Los tres hashes devuelven. El `hash_tree_root` de este crate es un
+    sustituto; no se prueba que termine, se pide. -/
+structure HashDevuelve : Prop where
+  estado : ∀ s : tipos.State,
+    ∃ r, tipos.State.Insts.Mini_stfTiposHashTreeRoot.hash_tree_root s = ok r
+  header : ∀ h : tipos.BlockHeader,
+    ∃ r, tipos.BlockHeader.Insts.Mini_stfTiposHashTreeRoot.hash_tree_root h = ok r
+  cuerpo : ∀ b : tipos.BlockBody,
+    ∃ r, tipos.BlockBody.Insts.Mini_stfTiposHashTreeRoot.hash_tree_root b = ok r
+
+/-- `process_slots` devuelve, conserva los dos invariantes y no toca el
+    registro. -/
+theorem slots_transicion_spec (state : tipos.State) (t : Std.U64)
+    (hd : HashDevuelve) (hv : VentanaNoPasa state) (hh : HistorialAcotado state) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_slots state t
+    ⦃ ⇓ r => ⌜ VentanaNoPasa r.2 ∧ HistorialAcotado r.2 ∧
+                r.2.validators = state.validators ∧
+                r.2.justifications_roots = state.justifications_roots ⌝ ⦄ := by
+  obtain ⟨r, hr⟩ := process_slots_devuelve state t (hd.estado state)
+  obtain ⟨res, st'⟩ := r
+  have e := process_slots_no_toca_registro state st' t res hr
+  exact triple_total_of ⟨(res, st'), hr,
+    slots_ventana state st' t res hv hr, slots_historial state st' t res hh hr,
+    e.1, e.2⟩
+
+/-- `process_block_header` devuelve, conserva los dos invariantes y no toca
+    el registro. -/
+theorem header_transicion_spec (state : tipos.State) (block : tipos.Block)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hd : HashDevuelve) (hv : VentanaNoPasa state) (hh : HistorialAcotado state) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_block_header state block
+    ⦃ ⇓ r => ⌜ VentanaNoPasa r.2 ∧ HistorialAcotado r.2 ∧
+                r.2.validators = state.validators ∧
+                r.2.justifications_roots = state.justifications_roots ⌝ ⦄ := by
+  obtain ⟨r, hr⟩ := process_block_header_devuelve state block h64 hh.1
+    (hd.header _) (hd.cuerpo _)
+  obtain ⟨res, st'⟩ := r
+  have e := of_triple_mayThrow (header_registro_spec state block) hr
+  exact triple_total_of ⟨(res, st'), hr,
+    (header_ventana state st' block res h64 hv hr).1,
+    header_historial state st' block res h64 hh hr, e.1, e.2⟩
+
+theorem atts_transicion_spec (state : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (hm : HashMapDevuelve)
+    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
+    (hval : state.validators.items.val.length ≤ 4096)
+    (hraices : state.justifications_roots.items.val.length +
+                 atts.items.val.length ≤ 262144)
+    (hv : VentanaNoPasa state) (hh : HistorialAcotado state) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_attestations state atts ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
+  devuelve_spec _
+    (process_attestations_devuelve_inv state atts hm hcmp hval hraices hv hh)
+
+theorem time_block_total :
+    ⦃ ⌜ True ⌝ ⦄ stubs.metrics.time_block_processing ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
+  triple_total_of ⟨(), rfl, trivial⟩
+
+theorem time_transition_total :
+    ⦃ ⌜ True ⌝ ⦄ stubs.metrics.time_state_transition ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
+  triple_total_of ⟨(), rfl, trivial⟩
+
+theorem hash_estado_total (s : tipos.State) (hd : HashDevuelve) :
+    ⦃ ⌜ True ⌝ ⦄ tipos.State.Insts.Mini_stfTiposHashTreeRoot.hash_tree_root s
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := devuelve_spec _ (hd.estado s)
+
+section
+attribute [local spec] time_block_total header_transicion_spec
+  atts_transicion_spec branch_total from_residual_total
+
+theorem process_block_total_spec (state : tipos.State) (block : tipos.Block)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hd : HashDevuelve) (hm : HashMapDevuelve)
+    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
+    (hval : state.validators.items.val.length ≤ 4096)
+    (hraices : state.justifications_roots.items.val.length +
+                 block.body.attestations.items.val.length ≤ 262144)
+    (hv : VentanaNoPasa state) (hh : HistorialAcotado state) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_block state block ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.process_block
+  hax_mvcgen
+  all_goals first
+    | assumption
+    | grind
+    | (simp_all; done)
+end
+
+section
+attribute [local spec] time_transition_total slots_transicion_spec
+  process_block_total_spec hash_estado_total ne_default_total branch_total
+  from_residual_total
+
+theorem state_transition_total_spec (state : tipos.State) (block : tipos.Block)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hd : HashDevuelve) (hm : HashMapDevuelve)
+    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
+    (hval : state.validators.items.val.length ≤ 4096)
+    (hraices : state.justifications_roots.items.val.length +
+                 block.body.attestations.items.val.length ≤ 262144)
+    (hv : VentanaNoPasa state) (hh : HistorialAcotado state) :
+    ⦃ ⌜ True ⌝ ⦄ stf.state_transition state block ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.state_transition
+  hax_mvcgen
+  all_goals first
+    | assumption
+    | grind
+    | (simp_all; done)
+end
+
+/-- `process_block` no entra en panico. -/
+theorem process_block_devuelve (state : tipos.State) (block : tipos.Block)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hd : HashDevuelve) (hm : HashMapDevuelve)
+    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
+    (hval : state.validators.items.val.length ≤ 4096)
+    (hraices : state.justifications_roots.items.val.length +
+                 block.body.attestations.items.val.length ≤ 262144)
+    (hv : VentanaNoPasa state) (hh : HistorialAcotado state) :
+    ∃ r, stf.process_block state block = ok r := by
+  obtain ⟨r, hr, -⟩ := of_triple_total
+    (process_block_total_spec state block h64 hd hm hcmp hval hraices hv hh)
+  exact ⟨r, hr⟩
+
+/-- La transicion de estado entera no entra en panico. -/
+theorem state_transition_devuelve (state : tipos.State) (block : tipos.Block)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hd : HashDevuelve) (hm : HashMapDevuelve)
+    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
+    (hval : state.validators.items.val.length ≤ 4096)
+    (hraices : state.justifications_roots.items.val.length +
+                 block.body.attestations.items.val.length ≤ 262144)
+    (hv : VentanaNoPasa state) (hh : HistorialAcotado state) :
+    ∃ r, stf.state_transition state block = ok r := by
+  obtain ⟨r, hr, -⟩ := of_triple_total
+    (state_transition_total_spec state block h64 hd hm hcmp hval hraices hv hh)
+  exact ⟨r, hr⟩
+
+end NP8
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -8655,3 +8886,5 @@ end NP7
 #print axioms NP6.construir_rts_devuelve
 #print axioms NP7.process_attestations_devuelve
 #print axioms NP7.process_attestations_devuelve_inv
+#print axioms NP8.process_block_devuelve
+#print axioms NP8.state_transition_devuelve

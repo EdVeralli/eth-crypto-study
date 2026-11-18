@@ -1223,5 +1223,45 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    > que el estado que deja `process_block_header` cumple las hipotesis de
    > `process_attestations` (validadores y raices no cambian; la ventana y
    > el historial ya estan).
+
+   > Tercera nota del 18 nov 2026: **`process_block` y `state_transition` no
+   > entran en panico** (teorema 21, namespace `NP8`). Con esto la ausencia
+   > de panico cubre las doce funciones de `stf.rs`. Dos resultados:
+   > `process_block_devuelve` y `state_transition_devuelve`.
+   >
+   > - Salio en una pasada. Las dos funciones cerraron con
+   >   `first | assumption | grind | (simp_all; done)`.
+   > - El pegamento: `process_slots_no_toca_registro` (ecuacional, con
+   >   `bind_da_ok`, copiando `ST7.process_slots_no_toca`) y
+   >   `header_registro_spec` (parcial, con la misma lista de lemas que
+   >   `HC.header_historial_spec`). Dicen que validadores y raices
+   >   pendientes no cambian.
+   > - Lemas de cada paso para la transicion (`*_transicion_spec`):
+   >   devuelve, conserva `VentanaNoPasa` y `HistorialAcotado`, y no toca
+   >   el registro. Se arman a mano con `triple_total_of`, juntando el
+   >   "devuelve" con los lemas de conservacion que ya estaban.
+   > - `HashDevuelve`: los tres `hash_tree_root` devuelven, para todo
+   >   argumento. Tiene que ser "para todo" porque el hash se aplica a
+   >   estados intermedios.
+   >
+   > Hipotesis del resultado final: `usize` de 64 bits, `VentanaNoPasa`,
+   > `HistorialAcotado`, validadores ≤ 4096, raices + attestations ≤
+   > 262144, `HashDevuelve`, `HashMapDevuelve` y la comparacion de `H256`.
+   >
+   > Controles negativos: sin `HistorialAcotado` queda abierta esa misma
+   > meta para el header; si el lema del header no dice que deja el
+   > registro, quedan `validadores ≤ 4096` y `raices + attestations ≤
+   > 262144` sobre el estado posterior.
+   >
+   > Axiomas: los dos resultados 22 (3 de Lean, 9 nativos, 10
+   > declaraciones), los mismos que el `def` de `state_transition`.
+   >
+   > OJO, para no sobrevender: "la transicion no entra en panico" es BAJO
+   > HIPOTESIS. No esta que valgan en todo estado alcanzable: falta el
+   > genesis, la cota de raices es sobre las entradas, y tres hipotesis
+   > (hash, `HashMap`, comparacion) no se pueden probar aca.
+   >
+   > Lo que sigue: modelar la comparacion de `H256` (saca una hipotesis),
+   > la cota fina de raices, o el caso inicial del genesis.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.
