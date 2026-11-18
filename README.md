@@ -93,14 +93,14 @@ hax + Charon + Aeneas, de Rust a Lean. Se entra por
 [`RESTAURAR.md`](RESTAURAR.md) explica cómo reconstruir el entorno desde cero.
 
 Al 17 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
-`sorry` y cincuenta y cuatro resultados demostrados encima. Veinte son sobre la
+`sorry` y cincuenta y siete resultados demostrados encima. Veinte son sobre la
 ventana de slots justificados: los cuatro teoremas que se habían propuesto al
 principio, el 22 de octubre, la demostración de que ese módulo no entra en
 pánico, un comentario del código de ethlambda sobre esa ventana, verificado, el
 invariante de dónde termina la ventana a lo largo de la transición, y que nunca
-pasa de su capacidad. Ocho dicen que ocho de las doce funciones de la
-transición no entran en pánico, tres de ellas con hipótesis escritas, uno más
-que el ordenamiento de raíces termina, y tres que el mapa de votos cumple una de
+pasa de su capacidad. Nueve dicen que nueve de las doce funciones de la
+transición no entran en pánico, cuatro de ellas con hipótesis escritas, dos más
+que el ordenamiento de raíces y el filtrado del mapa terminan, y tres que el mapa de votos cumple una de
 esas hipótesis. Los demás cubren las siete
 proposiciones de transición de estado del catálogo de `formal-leanSpec` (`ST-1`
 a `ST-7`), con dos salvedades que la propuesta detalla: `ST-4` está en su paso
@@ -249,15 +249,14 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    hipótesis del historial de `ST-7`. Las dos piden construir el estado del
    génesis, que el crate no tiene. Y queda el condicional de casi todos los
    teoremas: la ausencia de pánico está demostrada para
-   `justified_slots_ops` y para ocho de las doce funciones de `stf.rs`.
+   `justified_slots_ops` y para nueve de las doce funciones de `stf.rs`.
 9. **El paso siguiente más útil del paquete**: la ausencia de pánico de las
-   cuatro funciones de `stf.rs` que faltan: `try_finalize`,
-   `process_attestations`, `process_block` y `state_transition`. Para
-   `try_finalize` y `process_attestations` hay que decidir antes qué hacer
-   con el `HashMap`, que es una firma sin contenido. Las cinco chicas,
-   `process_slots`, `process_block_header` y `serialize_justifications`
-   quedaron hechas el 17 nov (las tres últimas con hipótesis escritas: que
-   el hash y la comparación de `H256` devuelvan). De las hipótesis de
+   tres funciones de `stf.rs` que faltan: `process_attestations`,
+   `process_block` y `state_transition`. La primera es el loop grande y las
+   otras dos la llaman. Las cinco chicas, `process_slots`,
+   `process_block_header`, `serialize_justifications` y `try_finalize`
+   quedaron hechas el 17 nov (las cuatro últimas con hipótesis escritas: que
+   el hash, la comparación de `H256` y la consulta al `HashMap` devuelvan). De las hipótesis de
    `serialize_justifications` sobre el mapa de votos, la de las listas ya
    está demostrada; falta la de la cantidad de raíces, que pide un invariante
    más hondo. Quedó hecho también el tema de la ventana de slots

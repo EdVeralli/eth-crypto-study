@@ -7060,6 +7060,385 @@ theorem serialize_tras_attestations_devuelve (st : tipos.State)
 
 end MV
 
+/- ===========================================================================
+   Teorema 18 — `try_finalize` no entra en panico
+
+   Es la funcion que, cuando una justificacion cierra un tramo sin slots
+   justificables en el medio, avanza la finalidad, corre la ventana y saca
+   del mapa de votos las raices que quedaron atras.
+
+   Lleva tres hipotesis, todas escritas en el enunciado:
+
+   - que el `source` sea anterior al `target`. Es lo que impide que desborde
+     `source.slot + 1`, la precondicion no enunciada que la propuesta ya
+     listaba en sus limites. El llamador lo garantiza: `is_valid_vote` lo
+     chequea (teorema 8, `ST4.is_valid_vote_orden_spec`).
+   - que la ventana no pase de 262144 bits. Con eso `shift_window` no aborta
+     (teorema 10). `try_finalize_devuelve_inv` la saca de los dos invariantes
+     que la transicion conserva (teorema 13).
+   - que la consulta al `HashMap` devuelva. `HashMap::get` es una declaracion
+     sin contenido en este paquete, asi que no se puede probar: se pide,
+     igual que el hash y la comparacion de `H256`.
+
+   Lo nuevo que hizo falta:
+
+   - `filtrado` termina y no aborta, sin hipotesis. Sus dos `push` tienen
+     lugar porque lo copiado no pasa de lo recorrido.
+   - `Vec::clone` termina y no aborta. Esta modelado como un loop sobre un
+     iterador de slice; la medida de terminacion es lo que le queda al
+     iterador.
+   - el avance de un rango de `u64`. La biblioteca de hax trae ese lema para
+     `usize` y para `i32`, no para `u64`, y `hay_slot_justificable` recorre
+     slots. El de `u64` tiene un paso mas: convierte el `1` de `usize`.
+
+   Controles negativos, en la bitacora: sin "source anterior al target" queda
+   abierto el desborde de `source.slot + 1`; sin la capacidad de la ventana
+   queda abierta la precondicion de `shift_window`.
+   =========================================================================== -/
+
+namespace NP5
+open mini_stf
+open Std.Tactic
+open ST3 JS NP NP2 NP3 NP4 MV VC VI HC
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+/-- El iterador de slice devuelve siempre, y si entrega un elemento queda
+    uno mas corto. -/
+theorem iter_next_total {T : Type} (it : core.slice.iter.Iter T) :
+    ⦃ ⌜ True ⌝ ⦄
+    core.slice.iter.Iter.Insts.CoreIterTraitsIteratorIteratorSharedAT.next it
+    ⦃ ⇓ r => ⌜ ∀ x, r.1 = some x → r.2.val.length + 1 ≤ it.val.length ⌝ ⦄ :=
+  triple_total_of (by
+    unfold core.slice.iter.Iter.Insts.CoreIterTraitsIteratorIteratorSharedAT.next
+    simp [rust_primitives.sequence.seq_len, rust_primitives.sequence.seq_remove]
+    by_cases h0 : Slice.len it = 0#usize
+    · simp [h0]
+    · have h : 0 < it.val.length := by
+        rcases Nat.eq_zero_or_pos it.val.length with hz | hp
+        · exfalso
+          apply h0
+          scalar_tac
+        · exact hp
+      simp [h0, h])
+
+theorem bool_clone_total (b : Bool) :
+    ⦃ ⌜ True ⌝ ⦄ core.Bool.Insts.CoreCloneClone.clone b ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
+  triple_total_of ⟨b, rfl, trivial⟩
+
+section
+attribute [local spec] iter_next_total bool_clone_total
+
+/-- El loop de `clone` termina y no entra en panico. -/
+theorem clone_loop_total (it : core.slice.iter.Iter Bool)
+    (nv : rust_primitives.sequence.Seq Bool)
+    (hcap : nv.val.length + it.val.length ≤ Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄
+    alloc.vec.Vec.Insts.CoreCloneClone.clone_loop core.Bool.Insts.CoreCloneClone it nv
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold alloc.vec.Vec.Insts.CoreCloneClone.clone_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.slice.iter.Iter Bool) × (rust_primitives.sequence.Seq Bool) =>
+       x.2.val.length + x.1.val.length ≤ Usize.max)
+    (γ := Nat) (rel := (· < ·)) (termination := fun x => x.1.val.length)
+  · exact Nat.lt_wfRel.wf
+  · exact hcap
+  · intro x hinv
+    obtain ⟨it1, nv1⟩ := x
+    simp only at hinv
+    unfold alloc.vec.Vec.Insts.CoreCloneClone.clone_loop.body
+    hax_mvcgen
+    -- se copio un elemento: el destino crece uno, el iterador baja uno.
+    · rename_i r b hb hnext c ext hext
+      have h1 := hnext b hb
+      have h2 : ext.length = nv1.val.length + 1 := by simp [ext]
+      exact ⟨by omega, Or.inl (by omega)⟩
+    -- el `push` tiene lugar: lo copiado mas lo que falta no pasa del original.
+    · rename_i r b hb hnext c ext hext
+      have h1 := hnext b hb
+      have h2 : ext.length = nv1.val.length + 1 := by simp [ext]
+      exfalso
+      omega
+end
+
+section
+attribute [local spec] seq_empty_spec vec_deref_total slice_iter_spec
+  clone_loop_total
+
+/-- Copiar una lista de votos no entra en panico. -/
+theorem clone_total (v : alloc.vec.Vec Bool) :
+    ⦃ ⌜ True ⌝ ⦄
+    alloc.vec.Vec.Insts.CoreCloneClone.clone core.Bool.Insts.CoreCloneClone v
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  have hprop := v.property
+  unfold alloc.vec.Vec.Insts.CoreCloneClone.clone
+  hax_mvcgen
+  rename_i e he s hs it hit
+  rw [he, hit, hs]
+  omega
+end
+
+section
+attribute [local spec] vec_deref_total slice_get_total vec_new_total clone_total
+
+theorem votos_total (m : mapa.MapaVotos) (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.votos m i ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold mapa.MapaVotos.votos
+  hax_mvcgen
+
+theorem bandera_total (v : Slice Bool) (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.bandera v i ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold mapa.bandera
+  hax_mvcgen
+end
+
+theorem nuevo_total :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.nuevo
+    ⦃ ⇓ r => ⌜ r.claves.val.length = 0 ∧ r.valores.val.length = 0 ⌝ ⦄ :=
+  triple_total_of (by
+    refine ⟨{ claves := Slice.new tipos.H256,
+              valores := Slice.new (alloc.vec.Vec Bool) }, ?_, rfl, rfl⟩
+    simp [mapa.MapaVotos.nuevo, alloc.vec.Vec.new,
+      rust_primitives.sequence.seq_empty])
+
+section
+attribute [local spec] bandera_total clave_total push_total votos_total
+
+/-- El loop de `filtrado` termina y no entra en panico. -/
+theorem filtrado_loop_total (n : Std.Usize)
+    (cl : alloc.vec.Vec tipos.H256) (vl : alloc.vec.Vec (alloc.vec.Vec Bool))
+    (cons : Slice Bool) (m0 : mapa.MapaVotos)
+    (hc : m0.claves.val.length + n.val ≤ Usize.max)
+    (hv : m0.valores.val.length + n.val ≤ Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄
+    mapa.MapaVotos.filtrado_loop { start := 0#usize, «end» := n } cl vl cons m0
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold mapa.MapaVotos.filtrado_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × mapa.MapaVotos =>
+       x.1.«end» = n ∧ x.1.start.val ≤ n.val ∧
+       x.2.claves.val.length ≤ m0.claves.val.length + x.1.start.val ∧
+       x.2.valores.val.length ≤ m0.valores.val.length + x.1.start.val)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, by simp, by simp, by simp⟩
+  · intro x hinv
+    obtain ⟨iter, m⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hle, h1, h2⟩ := hinv
+    simp only at hend hle h1 h2
+    subst hend
+    unfold mapa.MapaVotos.filtrado_loop.body
+    hax_mvcgen
+    -- Los dos `push` tienen lugar, porque lo copiado no pasa de lo recorrido;
+    -- y el contador baja en cada vuelta.
+    all_goals first
+      | omega
+      | (refine ⟨⟨trivial, ?_, ?_, ?_⟩, Or.inl ?_⟩ <;> omega)
+end
+
+section
+attribute [local spec] nuevo_total vec_len_total filtrado_loop_total
+
+/-- `filtrado` no entra en panico. -/
+theorem filtrado_total (m : mapa.MapaVotos) (cons : Slice Bool) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.filtrado m cons ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  have hprop := m.claves.property
+  unfold mapa.MapaVotos.filtrado
+  hax_mvcgen
+  all_goals (
+    rename_i n hn i hi
+    obtain ⟨ha, hb⟩ := hn
+    omega)
+end
+
+/-- La consulta al `HashMap`, tomada como hipotesis. -/
+theorem slot_de_raiz_total
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global)
+    (root : tipos.H256)
+    (hget : ∀ r : tipos.H256, ∃ o, stf.slot_de_raiz rts r = ok o) :
+    ⦃ ⌜ True ⌝ ⦄ stf.slot_de_raiz rts root ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
+  devuelve_spec _ (hget root)
+
+section
+attribute [local spec] clave_total slot_de_raiz_total push_total
+
+/-- El loop que decide que raices quedan. -/
+theorem tf_loop_total (n : Std.Usize) (fs : Std.U64) (j : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global)
+    (c0 : alloc.vec.Vec Bool)
+    (hget : ∀ r : tipos.H256, ∃ o, stf.slot_de_raiz rts r = ok o)
+    (hcap : c0.val.length + n.val ≤ Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.try_finalize_loop { start := 0#usize, «end» := n } fs j rts c0
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.try_finalize_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × (alloc.vec.Vec Bool) =>
+       x.1.«end» = n ∧ x.1.start.val ≤ n.val ∧
+       x.2.val.length = c0.val.length + x.1.start.val)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, by simp, by simp⟩
+  · intro x hinv
+    obtain ⟨iter, v⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hle, hlen⟩ := hinv
+    simp only at hend hle hlen
+    subst hend
+    unfold stf.try_finalize_loop.body
+    hax_mvcgen
+    all_goals first
+      | omega
+      | (refine ⟨⟨trivial, ?_, ?_⟩, Or.inl ?_⟩ <;> omega)
+end
+
+/- El rango de `u64`. La biblioteca de hax trae este lema para `usize` y
+   para `i32`; para `u64` no, y `hay_slot_justificable` recorre slots. -/
+
+theorem u64_max_en_usize : (UScalar.cast UScalarTy.Usize core.num.U64.MAX).val ≠ 0 := by
+  rw [UScalar.cast_val_eq]
+  simp [core.num.U64.MAX]
+  rcases System.Platform.numBits_eq with h | h <;> simp [h, U64.rMax]
+
+theorem u64_min_en_usize : (UScalar.cast UScalarTy.Usize core.num.U64.MIN).val = 0 := by
+  rw [UScalar.cast_val_eq]
+  simp [core.num.U64.MIN]
+
+theorem uno_en_u64 : (UScalar.cast UScalarTy.U64 (1#usize)).val = 1 := by
+  rw [UScalar.cast_val_eq]
+  simp
+
+theorem IteratorRange_next_spec_u64 (i e : Std.U64) {Q}
+    (h_lt : (h : i.val < e.val) →
+      ∀ (s : Std.U64), s.val = i.val + 1 →
+        (Q.1 (some i, { start := s, «end» := e })).down)
+    (h_ge : i.val ≥ e.val →
+      (Q.1 (none, { start := i, «end» := e })).down) :
+    ⦃ ⌜ True ⌝ ⦄
+    core.IteratorRange.next core.U64.Insts.CoreIterRangeStep
+      { start := i, «end» := e }
+    ⦃ Q ⦄ := by
+  unfold core.IteratorRange.next core.U64.Insts.CoreIterRangeStep
+  have hmax := u64_max_en_usize
+  have hmin := u64_min_en_usize
+  have hone := uno_en_u64
+  by_cases h : i.val < e.val
+  · simp_all [compare, compareOfLessAndEq,
+      core.U64.Insts.CoreCmpPartialOrdU64, core.mkUPartialOrd,
+      core.U64.Insts.CoreCloneClone.clone,
+      core.U64.Insts.CoreIterRangeStep.forward_checked,
+      core.U64.Insts.CoreConvertTryFromUsizeTryFromIntError.try_from,
+      core.num.U64.checked_add, core.num.U64.overflowing_add,
+      rust_primitives.arithmetic.overflowing_add_u64]
+    mvcgen [uncurry]
+    all_goals (
+      have hmax' := u64_max_en_usize
+      have hmin' := u64_min_en_usize
+      have hone' := uno_en_u64
+      subst_vars
+      first
+        | (exfalso; omega)
+        | grind [UScalar.overflowing_add_eq i (UScalar.cast UScalarTy.U64 (1#usize))])
+  · have h_ge' := h_ge (Nat.le_of_not_lt h)
+    simp_all [core.U64.Insts.CoreCmpPartialOrdU64, core.mkUPartialOrd]
+    mvcgen; grind
+
+
+section
+attribute [local spec] slot_is_justifiable_total_spec IteratorRange_next_spec_u64
+
+/-- El loop que busca un slot justificable en el medio. -/
+theorem hay_slot_loop_total (a b f : Std.U64) (h0 : Bool) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.hay_slot_justificable_loop { start := a, «end» := b } f h0
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.hay_slot_justificable_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun _ : (core.ops.range.Range Std.U64) × Bool => True)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · trivial
+  · intro x _
+    obtain ⟨iter, hay⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    unfold stf.hay_slot_justificable_loop.body
+    hax_mvcgen
+    all_goals (refine ⟨trivial, Or.inl ?_⟩; omega)
+end
+
+theorem inc_fin_total (s : Str) :
+    ⦃ ⌜ True ⌝ ⦄ stubs.metrics.inc_finalizations s ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
+  triple_total_of ⟨(), rfl, trivial⟩
+
+theorem largo_total (m : mapa.MapaVotos) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.largo m
+    ⦃ ⇓ r => ⌜ r.val = m.claves.val.length ⌝ ⦄ := by
+  unfold mapa.MapaVotos.largo
+  exact vec_len_total m.claves
+
+section
+attribute [local spec] hay_slot_loop_total inc_fin_total shift_window_total_spec
+  vec_new_total largo_total tf_loop_total vec_deref_total filtrado_total
+
+theorem try_finalize_total_spec (state : tipos.State)
+    (source target : tipos.Checkpoint) (j : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global)
+    (horden : source.slot.val < target.slot.val)
+    (hcap : state.justified_slots.bits.val.length ≤ 262144)
+    (hget : ∀ r : tipos.H256, ∃ o, stf.slot_de_raiz rts r = ok o) :
+    ⦃ ⌜ True ⌝ ⦄ stf.try_finalize state source target j rts
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.try_finalize
+  hax_mvcgen
+  -- Tres cuentas: la lista de banderas entra en un `Vec`; la resta
+  -- `source.slot - finalizado` esta protegida por el chequeo de arriba; y
+  -- `source.slot + 1` no desborda porque el source es anterior al target.
+  all_goals scalar_tac
+end
+
+/-- `try_finalize` no entra en panico. -/
+theorem try_finalize_devuelve (state : tipos.State)
+    (source target : tipos.Checkpoint) (j : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global)
+    (horden : source.slot.val < target.slot.val)
+    (hcap : state.justified_slots.bits.val.length ≤ 262144)
+    (hget : ∀ r : tipos.H256, ∃ o, stf.slot_de_raiz rts r = ok o) :
+    ∃ r, stf.try_finalize state source target j rts = ok r := by
+  obtain ⟨r, hr, -⟩ := of_triple_total
+    (try_finalize_total_spec state source target j rts horden hcap hget)
+  exact ⟨r, hr⟩
+
+/-- Lo mismo, con la capacidad de la ventana sacada de los dos invariantes
+    que la transicion conserva. -/
+theorem try_finalize_devuelve_inv (state : tipos.State)
+    (source target : tipos.Checkpoint) (j : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global)
+    (horden : source.slot.val < target.slot.val)
+    (hv : VentanaNoPasa state) (hh : HistorialAcotado state)
+    (hget : ∀ r : tipos.H256, ∃ o, stf.slot_de_raiz rts r = ok o) :
+    ∃ r, stf.try_finalize state source target j rts = ok r :=
+  try_finalize_devuelve state source target j rts horden
+    (ventana_en_capacidad state hv hh) hget
+
+/-- `filtrado` no entra en panico, para cualquier mapa y cualquier lista de
+    banderas. -/
+theorem filtrado_devuelve (m : mapa.MapaVotos) (cons : Slice Bool) :
+    ∃ r, mapa.MapaVotos.filtrado m cons = ok r := by
+  obtain ⟨r, hr, -⟩ := of_triple_total (filtrado_total m cons)
+  exact ⟨r, hr⟩
+
+end NP5
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -7112,3 +7491,6 @@ end MV
 #print axioms MV.construir_mapa_acotado
 #print axioms MV.loop_conserva_acotado
 #print axioms MV.serialize_tras_attestations_devuelve
+#print axioms NP5.filtrado_devuelve
+#print axioms NP5.try_finalize_devuelve
+#print axioms NP5.try_finalize_devuelve_inv

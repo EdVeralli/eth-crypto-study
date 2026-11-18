@@ -40,15 +40,15 @@ and Lean accepts them with no `sorry`. That says the program got written in
 Lean. It does not say it is correct.
 
 **The proofs are of specific properties.** A program is not "proved": statements
-about it are. There are fifty-four here, listed under **What you get**. Each
+about it are. There are fifty-seven here, listed under **What you get**. Each
 says one precise thing, with its hypotheses in plain sight.
 
 What is **not** proved, said once:
 
 - **That the code never panics.** It is proved for the four functions of one
   helper module, the justified-slots window (`justified_slots_ops.rs`), and for
-  eight of the twelve of the transition proper (`stf.rs`), three of them under
-  written hypotheses. The other four keep the "if the function returns"
+  nine of the twelve of the transition proper (`stf.rs`), four of them under
+  written hypotheses. The other three keep the "if the function returns"
   conditional.
 - **That the code is equivalent to the spec.** On arbitrary states it is not:
   we found two points where they behave differently, and they are set out
@@ -162,12 +162,12 @@ What each step should give:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
-| 6 | `54` — one axiom block per result — and `0` |
+| 6 | `57` — one axiom block per result — and `0` |
 
 There is no separate "run the proofs" step. The theorems are in
 `teoremas/ProofObligations.lean`; step 5 copies that file into the Lean project
 and `lake build` checks all of it. If the build ends green, Lean accepted the
-fifty-four proofs. At the end it prints which axioms each one depends on, which
+fifty-seven proofs. At the end it prints which axioms each one depends on, which
 is what step 6 counts.
 
 To convince yourself the check is real, break a statement by hand. In
@@ -296,10 +296,10 @@ Everything, with line counts as shipped.
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 336 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 7114 | ours — the theorems. |
-| `axiomas.txt` | 632 | ours — the `#print axioms` output, so the trust base can be read without building. |
+| `teoremas/ProofObligations.lean` | 7496 | ours — the theorems. |
+| `axiomas.txt` | 665 | ours — the `#print axioms` output, so the trust base can be read without building. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 1093 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 1132 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -392,7 +392,7 @@ down.
 
 ## What you get
 
-`teoremas/ProofObligations.lean` holds fifty-four named results:
+`teoremas/ProofObligations.lean` holds fifty-seven named results:
 
 | Result | What it is |
 |---|---|
@@ -449,6 +449,9 @@ down.
 | `MV.construir_mapa_acotado` | the vote map built from the state has no list longer than `validator_count` |
 | `MV.loop_conserva_acotado` | the attestation loop preserves that bound |
 | `MV.serialize_tras_attestations_devuelve` | with the map `process_attestations` leaves, `serialize_justifications` returns with one hypothesis fewer |
+| `NP5.filtrado_devuelve` | `filtrado`, the replacement for `retain`, does not panic |
+| `NP5.try_finalize_devuelve` | **`try_finalize` does not panic**, with the source before the target, the window within capacity and if the `HashMap` lookup returns |
+| `NP5.try_finalize_devuelve_inv` | the same, with the window's capacity taken from the transition's invariants |
 | `bind_da_ok` | a tool: opens one `RustM` bind |
 
 They were not picked for count. Between them they cover arithmetic, branching
@@ -1010,10 +1013,9 @@ What it took was the exact length left by the loop that fills in the empty
 slots — before there was only that it appends — and that
 `process_attestations` leaves the history alone, with no hypothesis.
 
-**What is not there.** Putting all this together into absence of panic for
-`try_finalize`. The piece is in place: its call to `shift_window` does not
-abort. The rest of the function is still to do. For `process_block_header` it
-is assembled, further down.
+**Where it is used.** In absence of panic for `try_finalize` and for
+`process_block_header`, further down: they are the two functions that call
+`shift_window` and `extend_to_slot`.
 
 ### Five functions of the transition do not panic
 
@@ -1209,10 +1211,52 @@ As a negative control we took away from the loop the fact that the new list is
 `MV.serialize_tras_attestations_devuelve` on eighteen; the breakdown is in the
 table under **The trust base**.
 
-**What is not there.** The other four functions of `stf.rs`: `try_finalize`,
-`process_attestations`, `process_block` and `state_transition`. The first two
-use the `HashMap`, which here is a contentless signature; the last two call
-the previous ones.
+### `try_finalize` does not panic
+
+This is the function that, when a justification closes a stretch with no
+justifiable slots in between, advances finality, shifts the window and drops
+from the vote map the roots left behind.
+
+| Hypothesis | What for |
+|---|---|
+| the `source` is before the `target` | so that `source.slot + 1` does not overflow |
+| the window does not exceed 262144 bits | so that `shift_window` does not abort |
+| the `HashMap` lookup returns | cannot be proved here: `HashMap::get` is a contentless signature |
+
+**`source.slot + 1` stops being an unstated precondition.** It has been under
+**Honest limits** from the start: with `source.slot = u64::MAX` the increment
+overflows. It is now written as a hypothesis, and a natural one: that the
+source is before the target. In the one place where `try_finalize` is called
+that is already guaranteed, because `is_valid_vote` checks it, and that check
+is proved further up.
+
+**The window's capacity comes from the invariants.**
+`NP5.try_finalize_devuelve_inv` is the same result, asking for the two
+invariants the transition preserves instead of the capacity.
+
+**The `HashMap` is a hypothesis.** As with the hash and `H256` comparison: the
+lookup is a contentless declaration, so the statement asks that it return.
+
+What had to be proved anew:
+
+- `filtrado`, the replacement for your `retain`, terminates and does not
+  abort, with no hypothesis. That is `NP5.filtrado_devuelve`.
+- Copying a vote list terminates and does not abort. In the translation
+  `Vec::clone` is a loop.
+- Stepping a `u64` range. The hax library ships that lemma for `usize` and for
+  `i32`, not for `u64`, and slots are iterated here.
+
+Negative controls, two. Without "the source is before the target", exactly the
+`source.slot + 1` overflow stays open. Without the capacity, the precondition
+of `shift_window` stays open.
+
+The two results on `try_finalize` depend on thirteen axioms: Lean's three,
+three native ones and seven declarations. `NP5.filtrado_devuelve` depends only
+on Lean's three.
+
+**What is not there.** The other three functions of `stf.rs`:
+`process_attestations`, `process_block` and `state_transition`. The first is
+the big loop; the other two call it.
 
 ### What this is against the catalog, stated exactly
 
@@ -1294,6 +1338,8 @@ own properties makes the exercise circular.
 | the vote map built from the state | 3 | 3 | — | — |
 | the vote map along the attestation loop | 14 | 3 | 4 | 7 |
 | `serialize_justifications` with the map from `process_attestations` | 18 | 3 | 7 | 8 |
+| no panic: `filtrado` | 3 | 3 | — | — |
+| no panic: `try_finalize`, both results | 13 | 3 | 3 | 7 |
 
 Three categories, with three different weights.
 
@@ -1354,9 +1400,10 @@ it, so no behaviour is asserted there.
 
 None of the twenty-six carries weight in the theorems above: the properties
 come from the guards, the assignments and the hash history, not from anything
-the map, the hash or the formatter does. There is one exception, and it is
-written down: the result on `serialize_justifications` asks the array
-comparison to return, as a hypothesis. Of the three modeling claims, `ST-3`
+the map, the hash or the formatter does. There are two exceptions, and they
+are written down: the result on `serialize_justifications` asks the array
+comparison to return, and the one on `try_finalize` asks the same of the
+`HashMap` lookup, both as hypotheses. Of the three modeling claims, `ST-3`
 leans on none; `ST-7` over the whole transition and the history invariants lean
 on the `mem::take` one, because they need the history to survive
 `process_block_header`; absence of panic for `current_proposer` and
@@ -1528,6 +1575,8 @@ build. The equational form hides it, because it assumes the call returned `ok`.
 No slot will realistically get there, and the guard above requires
 `source.slot > state.latest_finalized.slot`, so it is not a live bug — but it is
 an unstated precondition, and you may prefer `checked_add` or a saturating form.
+On the Lean side it is now stated: `NP5.try_finalize_devuelve` carries it as a
+hypothesis, in the form "the source is before the target".
 
 **`current_len + 1 + num_empty_slots` is added before the limit is checked.**
 The same kind of finding, in `process_block_header`, and it surfaced the same
@@ -1558,15 +1607,17 @@ on a given input is the Rust tests.
 **Absence of panic does not cover the whole transition.** The four functions of
 `justified_slots_ops` return, under capacity hypotheses; five of the twelve in
 `stf.rs` return with no hypothesis; and `process_slots`,
-`process_block_header` and `serialize_justifications` return under the
-hypotheses of their section, among them that the hash and `H256` comparison
-return. The other four, `state_transition` among them, keep the "if the
-function returns" conditional.
+`process_block_header`, `serialize_justifications` and `try_finalize` return
+under the hypotheses of their section, among them that the hash, `H256`
+comparison and the `HashMap` lookup return. The other three,
+`state_transition` among them, keep the "if the function returns"
+conditional.
 
-**The window's capacity is proved, but not assembled inside each function.**
-That the window does not exceed 262144 bits is an invariant of the transition.
-What is not there is absence of panic for the functions in `stf.rs` that use
-it: that needs going through the rest of each function.
+**The window's capacity is assembled in two of the three functions that use
+it.** That the window does not exceed 262144 bits is an invariant of the
+transition, and absence of panic for `process_block_header` and for
+`try_finalize` already leans on it. `process_attestations`, which writes to
+the window through `set_justified`, is still to do.
 
 **The window invariant assumes a 64-bit `usize`.** The results about where the
 window ends carry that hypothesis explicitly. On 32 bits the `as usize` casts

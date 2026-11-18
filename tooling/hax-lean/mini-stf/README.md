@@ -1089,5 +1089,44 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    >
    > Lo que sigue: la cota de raices (el invariante hondo), o
    > `try_finalize` con el `HashMap`.
+
+   > Decima nota del 17 nov 2026: **`try_finalize` no entra en panico**
+   > (teorema 18, namespace `NP5`). Tres resultados: `filtrado_devuelve`,
+   > `try_finalize_devuelve` y `try_finalize_devuelve_inv`.
+   >
+   > - Hipotesis: source anterior al target (cierra el `source.slot + 1`
+   >   que estaba en los limites desde el 5 nov); ventana ≤ 262144 bits
+   >   (o los dos invariantes, en la version `_inv`); y que
+   >   `slot_de_raiz` devuelva, porque `HashMap::get` es un axioma sin
+   >   contenido. Decision: hipotesis escrita, igual que el hash.
+   > - El avance de un rango de `u64` NO viene en la biblioteca de hax
+   >   (trae `IteratorRange_next_spec` para `i32` y `_usize`). Se copio la
+   >   forma del de `usize`. Diferencia: `forward_checked` de `u64`
+   >   convierte el paso `1#usize` con `try_from`, que compara contra
+   >   `U64.MAX` y `U64.MIN` casteados a `usize`. Tres lemas chicos:
+   >   `u64_max_en_usize` (no es cero; se parte en
+   >   `System.Platform.numBits_eq`), `u64_min_en_usize` y `uno_en_u64`.
+   >   OJO: no dejarlos como `have` antes del `simp_all`, que los reescribe
+   >   y los deja inservibles; meterlos DESPUES del `mvcgen`.
+   > - `Vec::clone` total: medida de terminacion, el largo del iterador.
+   >   Invariante `copiado + pendiente ≤ Usize.max`. `hax_mvcgen`
+   >   despliega solo el `seq_push` y deja la rama del panico como meta.
+   > - `filtrado` total: invariante "claves y valores copiados ≤ lo
+   >   recorrido", para que los dos `push` tengan lugar.
+   > - La funcion entera cierra con `all_goals scalar_tac`: tres cuentas.
+   >
+   > Controles negativos: sin `horden` queda `U64.max < source.slot + 1`;
+   > sin `hcap` queda la precondicion de `shift_window`.
+   >
+   > Axiomas: `try_finalize_devuelve` y `_inv` 13 (3 de Lean, 3 nativos, 7
+   > declaraciones); `filtrado_devuelve` 3.
+   >
+   > INCIDENTE: a mitad de sesion el motor de Docker se colgo (error 500 y
+   > despues sin respuesta, con la VM reiniciada sola). Se arreglo cerrando
+   > Docker Desktop del todo y abriendolo de nuevo. Los volumenes
+   > `hax-elan`, `hax-cargo` y `hax-cache` y la imagen no se perdieron.
+   >
+   > Lo que sigue: `process_attestations`, que es el loop grande, y
+   > despues `process_block` y `state_transition`.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.
