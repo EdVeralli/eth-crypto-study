@@ -160,9 +160,9 @@ trabajo necesaria.
 
 El clon del repo original vivía en `~/cryptography-specs` y era **solo lectura**:
 su `origin` apuntaba a `ethereum/cryptography-specs`, así que ahí no se pusheaba
-nada. Solo se usaba para traer commits nuevos de upstream. Desde que se formateó
-la Mac el 12 nov 2026 ese clon ya no existe: si se quieren commits de upstream hay
-que volver a clonarlo, siempre como solo lectura.
+nada. Solo se usaba para traer commits nuevos de upstream. Desde el 12 nov 2026
+ese clon ya no existe: si se quieren commits de upstream hay que volver a
+clonarlo, siempre como solo lectura.
 
 Base: upstream `09deaff` (23 sept 2026). El README original del proyecto quedó
 en [`docs/README-upstream.md`](docs/README-upstream.md).
@@ -189,7 +189,7 @@ revisa, nunca ejecuta; se apoyan en Mathlib, la biblioteca matemática de Lean).
 | `pip install -e '.[test]'` | Completo — extensión C compilada y enlazada |
 | BLS desde Python | Funciona (`from eth_cryptography_specs import bls`) |
 | Verificación cruzada contra `py_ecc` | Pasa — agregación coincide byte a byte (`docs/bls_smoke.py`) |
-| Suite completa de 364 vectores | **Pasó — 0 diferencias contra git** (2:57:50 el 28 sep; 2:08:52 el 15 nov, en la Mac formateada) |
+| Suite completa de 364 vectores | **Pasó — 0 diferencias contra git** (2:57:50 el 28 sep; 2:08:52 el 15 nov) |
 | Documentación del repo | Notas + mapa interactivo en `docs/` |
 
 El `git status` limpio después de correr la suite es el resultado importante:
@@ -241,8 +241,8 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    está en `09deaff` y upstream ya va por `d1331f0` (8 commits, todos de XMSS:
    +6 archivos de spec, +8 de teoremas, unos 425 teoremas escritos a mano en
    vez de 357). Traer los commits nuevos acá (merge desde el clon de lectura), nunca
-   al revés. El clon de lectura `~/cryptography-specs` no sobrevivió al formateo
-   del 12 nov 2026: antes hay que volver a clonarlo. Al hacerlo hay que recompilar y volver a correr
+   al revés. El clon de lectura `~/cryptography-specs` ya no existe: antes hay
+   que volver a clonarlo. Al hacerlo hay que recompilar y volver a correr
    `docs/native_axioms.lean`, porque los conteos de esta documentación son de
    `09deaff`.
 7. **Enviar el paquete `mini-stf` a LambdaClass**: el paquete de
@@ -291,10 +291,9 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
 
 ## Entorno
 
-Todo vive en esta carpeta. El build se rehízo el 12 nov 2026, después de
-formatear la Mac, con `elan` (Lean) y `uv` (Python 3.12, porque el `python3` del
-sistema es 3.9.6 y el repo pide >= 3.10). `~/.elan/bin` y `~/.local/bin` no están
-en el `PATH` por defecto.
+Todo vive en esta carpeta. El build se rehízo el 12 nov 2026 con `elan` (Lean)
+y `uv` (Python 3.12; el repo pide >= 3.10). `~/.elan/bin` y `~/.local/bin` no
+están en el `PATH` por defecto.
 
 ```bash
 cd ~/eth-crypto-study
@@ -307,8 +306,8 @@ lake env lean docs/native_axioms.lean               # qué teoremas dependen de 
 
 Si se borra `.lake/`: `lake exe cache get && lake build` (lo primero baja
 Mathlib ya compilado; sin eso, compilarlo lleva horas).
-Si se borra `.venv/` (el `python3 -m venv` de antes ya no sirve: el Python del
-sistema es 3.9.6):
+Si se borra `.venv/` (el `python3 -m venv` de antes ya no sirve: hace falta
+Python >= 3.10):
 
 ```bash
 uv venv --python 3.12 .venv
@@ -318,8 +317,8 @@ PATH="$HOME/.elan/bin:$PATH" uv pip install --python .venv --no-build-isolation 
 
 El último paso dispara `lake build` vía `setup.py`.
 
-Para correr la suite de vectores, dos cosas aprendidas a golpes —enchufada, con
-la tapa abierta y con `caffeinate`, o la Mac duerme y no avanza; y no extrapolar
+Para correr la suite de vectores, dos cosas aprendidas a golpes —con
+`caffeinate` y sin que el equipo se suspenda, o no avanza; y no extrapolar
 el ritmo, porque los datos de prueba se comparten en una caché (`lru_cache`) y
 los primeros casos de
 cada handler pagan todo el cómputo:

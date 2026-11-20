@@ -174,7 +174,7 @@ cuadro sinoptico en markdown:
 |---|---|
 | Encabezado e intro ("Que corre y que se demuestra") | Repasado: sin "upstream"; la bajada explica spec vs teoremas |
 | Leyenda de colores (las dos filas) | Repasado: mismos nombres que el diagrama 1 (spec / teoremas / binding, con su mundo) |
-| Bloque de pisos de estudio ("El mapa es la vista de arriba...") | Repasado: explica que es un piso; "en el repo" en vez de "en tu Mac" |
+| Bloque de pisos de estudio ("El mapa es la vista de arriba...") | Repasado: explica que es un piso; dice "en el repo" |
 | Diagrama 1: las capas | Repasado: cada caja dice en que mundo esta (Python, C, Lean); nota del lakefile en criollo |
 | Diagrama 2: build y verificaciones | Repasado: "teoremas" en vez de "pruebas"; verificaciones numeradas 1-2-3 |
 | Que es un vector de prueba | Nueva: dos `data.yaml` reales (valido vs adulterado) y el test invertido |

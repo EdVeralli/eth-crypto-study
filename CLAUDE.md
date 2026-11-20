@@ -15,19 +15,19 @@
 | Directorio | Qué es | Qué se puede hacer |
 |---|---|---|
 | `~/eth-crypto-study` | Repo propio y **autocontenido**: fuentes, build, venv, vectores, notas | Todo: leer, escribir, compilar, correr, commitear, pushear |
-| `~/cryptography-specs` | Clon de `ethereum/cryptography-specs`. **No existe desde el formateo del 12 nov 2026**; si hace falta, se vuelve a clonar | **Solo lectura**; únicamente para traer commits de upstream |
+| `~/cryptography-specs` | Clon de `ethereum/cryptography-specs`. **Hoy no existe**; si hace falta, se vuelve a clonar | **Solo lectura**; únicamente para traer commits de upstream |
 
 Esta carpeta es la única carpeta de trabajo necesaria. Tiene `lake build` en
 verde (3444 jobs), su propio `.venv` con los bindings de Python compilados y los
 364 vectores de prueba. No hace falta agregar el clon de lectura a la sesión.
 
-**Ojo con la máquina.** Lo de arriba vale en la Mac. `.lake/` y `.venv/` están en
-el `.gitignore`, así que en un clon nuevo **no existen**: ahí solo se puede trabajar
-sobre la documentación, salvo que se instale `elan` y se rehaga el build. El clon de
-solo lectura de `cryptography-specs` tampoco está en otra máquina, y para los docs no
-hace falta.
+**Ojo con los clones nuevos.** Lo de arriba vale en la carpeta de trabajo de
+siempre. `.lake/` y `.venv/` están en el `.gitignore`, así que en un clon nuevo
+**no existen**: ahí solo se puede trabajar sobre la documentación, salvo que se
+instale `elan` y se rehaga el build. El clon de solo lectura de
+`cryptography-specs` tampoco está, y para los docs no hace falta.
 
-La Mac se formateó el 12 nov 2026 y el entorno se rehízo ese día: Lean con `elan`
+El entorno se rehízo el 12 nov 2026: Lean con `elan`
 (en `~/.elan/bin`), Python 3.12 con `uv` (en `~/.local/bin`) y el `.venv` nuevo.
 Ninguna de esas dos carpetas está en el `PATH` por defecto. Los comandos
 están en la sección "Entorno" del `README.md`.
@@ -42,8 +42,8 @@ lake build                            # verde
 caffeinate -i -s .venv/bin/python -m pytest -q   # suite completa, ~3 h
 ```
 
-La suite hay que correrla **con la Mac enchufada**: `caffeinate -s` sólo la
-mantiene despierta con corriente. Con batería se duerme y la corrida no avanza.
+La suite hay que correrla **con el equipo enchufado**: `caffeinate -s` sólo lo
+mantiene despierto con corriente. Con batería se duerme y la corrida no avanza.
 
 ## Dónde está el estado
 
