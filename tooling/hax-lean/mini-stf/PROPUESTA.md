@@ -19,8 +19,8 @@ la propiedad que un test de ustedes afirma por ejemplo después del congelamient
 del devnet en el slot 27984. La otra: ningún checkpoint cambia de raíz sin subir
 de slot — que sobre su código vale por un motivo distinto al de la
 especificación y sólo bajo una hipótesis, porque ante un empate de slots su
-código y la especificación eligen distinto. De las otras cinco, una queda en su
-paso inductivo y una no se enuncia porque es trivial; está dicho cuál es cuál.
+código y la especificación eligen distinto. De las otras cinco, una no se
+enuncia porque es trivial; está dicho cuál.
 
 Fuera del catálogo hay cuatro más, sobre la ventana de slots justificados: los
 que nos propusimos al mirar su código por primera vez. El último dice que cuando
@@ -30,9 +30,9 @@ funciones aborta. Y un comentario de su código sobre esa ventana queda
 verificado, con la hipótesis que le hacía falta.
 
 Y hay un tercer resultado de punta a punta: la transición entera no entra en
-pánico ni se cuelga, bajo hipótesis escritas una por una. Algunas son los
-límites de sus tipos. Otra es algo que este paquete no puede demostrar y por
-eso pide: que el hash devuelva.
+pánico ni se cuelga, en ningún estado al que se llegue desde el génesis. Lo que
+sigue pidiendo está escrito: una condición sobre cada bloque, `usize` de 64
+bits, y algo que este paquete no puede demostrar, que el hash devuelva.
 
 Cada número de acá salió de una corrida.
 
@@ -45,7 +45,7 @@ Lean las acepta sin `sorry`. Eso dice que el programa quedó escrito en Lean. No
 dice que sea correcto.
 
 **Las demostraciones son de propiedades puntuales.** Un programa no "se
-demuestra": se demuestran afirmaciones sobre él. Acá hay setenta y cinco,
+demuestra": se demuestran afirmaciones sobre él. Acá hay ochenta y una,
 listadas en **Qué recibe**. Cada una dice una cosa precisa, con sus hipótesis a
 la vista.
 
@@ -53,16 +53,19 @@ Lo que **no** está demostrado, dicho de una vez:
 
 - **Que el código nunca entre en pánico, sin condiciones.** La ausencia de
   pánico está demostrada para las doce funciones de la transición (`stf.rs`) y
-  para las cuatro de la ventana (`justified_slots_ops.rs`), pero bajo hipótesis
-  escritas. Una no se puede demostrar en este paquete y queda pedida: que el
-  hash devuelva. Otra es una
+  para las cuatro de la ventana (`justified_slots_ops.rs`), y para la
+  transición entera en todo estado alcanzable desde el génesis. Sigue habiendo
+  hipótesis escritas. Una no se puede demostrar en este paquete y queda pedida:
+  que el hash devuelva. Otra es una
   condición sobre las entradas y no un invariante: que las raíces pendientes
   más las attestations del bloque no pasen de 262144.
 - **Que el código sea equivalente a la especificación.** Sobre estados
   arbitrarios no lo es: encontramos dos puntos donde se comportan distinto, y
   están contados más abajo.
-- **Que las propiedades valgan desde el génesis.** Varias están como "si valía
-  antes del bloque, vale después", sin el caso inicial.
+- **Que todas las propiedades valgan desde el génesis.** Los dos invariantes,
+  la cota de validadores, `ST-4` y la ausencia de pánico sí: están demostrados
+  sobre todo estado alcanzable. `ST-7` no: su hipótesis es falsa en el estado
+  inicial, y falta el lema que dice que el primer bloque la establece.
 - **Que el Lean sea fiel al Rust de ustedes.** Son dos eslabones. Que nuestras
   cuatro funciones reescritas hacen lo mismo que las originales lo respaldan sus
   tests, que corren sobre este crate. Que la cadena de herramientas traduce bien
@@ -172,14 +175,14 @@ Qué tiene que dar cada paso:
 
 | Paso | Resultado |
 |---|---|
-| 4 | `test result: ok. 9 passed` |
+| 4 | `test result: ok. 11 passed` |
 | 5 | `Build completed successfully (1742 jobs).` y después `=== listo ===` (1743 jobs la primera vez sobre un checkout limpio) |
-| 6 | `75` — un bloque de axiomas por resultado — y `0` |
+| 6 | `81` — un bloque de axiomas por resultado — y `0` |
 
 No hay un paso aparte de "correr las pruebas". Los teoremas están en
 `teoremas/ProofObligations.lean`; el paso 5 copia ese archivo adentro del
 proyecto Lean y `lake build` lo chequea entero. Si el build termina en verde,
-Lean aceptó las setenta y cinco demostraciones. Al final imprime de qué axiomas
+Lean aceptó las ochenta y una demostraciones. Al final imprime de qué axiomas
 depende cada una, que es lo que cuenta el paso 6.
 
 Para convencerse de que el chequeo es real, rompan un enunciado a mano. En
@@ -281,13 +284,13 @@ con las doce funciones presentes como `def` en
 `proofs/lean/MiniStf/Extraction/Funs.lean`. La cuenta de jobs es 1742; el primer
 build sobre un checkout limpio da 1743, uno más que todos los que le siguen.
 
-Los tests — sus seis más tres nuestros:
+Los tests — sus seis más cinco nuestros:
 
 ```bash
 cargo test
 ```
 
-Pasan nueve.
+Pasan once.
 
 ## Qué contiene el crate
 
@@ -297,7 +300,7 @@ Todo, con las líneas tal como se entrega.
 |---|---|---|
 | `src/stf.rs` | 1585 | **de ustedes** — `state_transition/src/lib.rs`: ocho de doce funciones sin cambios, cuatro reescritas, diecinueve auxiliares nuestras, y su módulo de tests de 437 líneas con tres tests agregados. |
 | `src/justified_slots_ops.rs` | 90 | **de ustedes** — sin cambios salvo las líneas de `use`. |
-| `src/tipos.rs` | 431 | **sus definiciones de tipos**, sin los derives de serialización, más nuestro `hash_tree_root` sustituto. |
+| `src/tipos.rs` | 510 | **sus definiciones de tipos**, sin los derives de serialización, más nuestro `hash_tree_root` sustituto y `State::from_genesis`, copiada sin cambios. |
 | `src/ssz.rs` | 154 | nuestro — sustitutos de `SszList` y `SszBitlist`. |
 | `src/mapa.rs` | 245 | nuestro — una lista de asociación que reemplaza un `HashMap`. |
 | `src/stubs.rs` | 49 | nuestro — `tracing` y métricas que no hacen nada. |
@@ -308,11 +311,11 @@ Todo, con las líneas tal como se entrega.
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 413 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 9159 | nuestro — los teoremas. |
-| `axiomas.txt` | 1209 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. En los dos sentidos: cada teorema con los axiomas que utiliza, y cada axioma con los teoremas donde aparece. |
+| `teoremas/ProofObligations.lean` | 9408 | nuestro — los teoremas. |
+| `axiomas.txt` | 1299 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. En los dos sentidos: cada teorema con los axiomas que utiliza, y cada axioma con los teoremas donde aparece. |
 | `axiomas.py` | 217 | nuestro — arma `axiomas.txt` a partir del log del build. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 1405 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 1453 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -342,6 +345,11 @@ Contado sobre las doce funciones, sin comentarios ni líneas en blanco;
 | **total** | **352** | **337** | **111** | **96** |
 
 Más diecinueve funciones auxiliares nuestras, 179 líneas en total.
+
+Fuera de la STF hay una función más de ustedes: `State::from_genesis`, de
+`crates/common/types/src/state.rs`, copiada sin cambios. Es el estado del que
+la transición parte, y hace falta para enunciar los resultados "desde el
+génesis". Se tradujo sin tocar nada.
 
 ### Las reglas detrás de cada cambio
 
@@ -408,7 +416,7 @@ más abajo.
 
 ## Qué recibe
 
-`teoremas/ProofObligations.lean` tiene setenta y cinco resultados con nombre:
+`teoremas/ProofObligations.lean` tiene ochenta y un resultados con nombre:
 
 | Resultado | Qué es |
 |---|---|
@@ -486,6 +494,12 @@ más abajo.
 | `NP8.state_transition_devuelve` | **la transición de estado entera no entra en pánico**, bajo hipótesis escritas |
 | `RV.state_transition_no_toca_validadores` | la transición no cambia los validadores, acepte el bloque o lo rechace |
 | `RV.state_transition_conserva_hipotesis` | las tres hipótesis sobre el estado se conservan de un bloque al siguiente |
+| `GEN.genesis_devuelve` | `from_genesis` devuelve si hay a lo sumo 4096 validadores, y devuelve el estado inicial |
+| `GEN.genesis_exige_validadores` | al revés: si `from_genesis` devuelve, había a lo sumo 4096 validadores |
+| `GEN.genesis_cumple_hipotesis` | el estado inicial cumple los dos invariantes, la cota de validadores y el caso base de `ST-4` |
+| `GEN.alcanzable_cumple` | en todo estado alcanzable desde el génesis valen los dos invariantes, la cota de validadores y `ST-4` |
+| `GEN.st4_alcanzable` | `ST-4`, completa: paso inductivo y caso base |
+| `GEN.state_transition_devuelve_alcanzable` | **la transición no entra en pánico en ningún estado alcanzable desde el génesis** |
 | `bind_da_ok` | una herramienta: abre un bind de `RustM` |
 
 No se eligieron por cantidad. Entre todos cubren aritmética, ramificación y
@@ -768,8 +782,9 @@ Como control negativo corrimos el mismo script con un lema de `is_valid_vote`
 que no dice nada. Quedan abiertos exactamente los dos casos en que la finalidad
 pasa al `source`, pidiendo `source.slot ≤` el justificado nuevo.
 
-Falta el caso base: que el estado del génesis cumple el invariante. El crate no
-construye ese estado.
+El caso base está más abajo, en **El génesis y los estados alcanzables**:
+`GEN.st4_alcanzable` es `ST-4` completa, sobre todo estado al que se llega
+desde el génesis.
 
 **`ST-6`, la finalización es irreversible.** El catálogo mismo dice que es la
 mitad `latest_finalized` de `ST-3`. `ST6.finalizacion_irreversible` le pone
@@ -1415,10 +1430,11 @@ pegamento, que lo que pide cada paso siga valiendo después del anterior:
   `process_block_header` que el historial está alineado, y
   `process_attestations` la capacidad de la ventana.
 
-**Qué no dice.** Que esas hipótesis valgan en todo estado alcanzable. Las tres
-que hablan del estado se conservan de un bloque al siguiente (sección que
-sigue), pero su caso inicial, el génesis, no está demostrado. La cota de raíces es una condición sobre las
-entradas, no un invariante. Y que el hash devuelva no se puede demostrar acá.
+**Qué no dice.** Que se pueda prescindir de todas las hipótesis. Las tres que
+hablan del estado se conservan de un bloque al siguiente y valen en el génesis
+(las dos secciones que siguen), así que sobre estados alcanzables ya no hay que
+pedirlas. Pero la cota de raíces es una condición sobre las entradas, no un
+invariante. Y que el hash devuelva no se puede demostrar acá.
 
 Controles negativos, dos. Sin el invariante del historial queda abierta la
 precondición del header. Si el header no dice que deja el registro como estaba,
@@ -1450,16 +1466,64 @@ validadores.
 hipótesis una vez, sobre el estado del que se parte, y siguen valiendo bloque
 tras bloque.
 
-**Lo que este encadenamiento no cubre.** Dos cosas. La cota de raíces
-pendientes más attestations, que depende de cada bloque y no es un invariante.
-Y el punto de partida: que las tres hipótesis valgan en el génesis no está
-demostrado.
+**Lo que este encadenamiento no cubre.** La cota de raíces pendientes más
+attestations, que depende de cada bloque y no es un invariante. El punto de
+partida, el génesis, está en la sección que sigue.
 
 Son resultados del tipo "si devuelve". Como control negativo le sacamos al loop
 de attestations lo que sabe de `try_finalize`: quedan abiertas justo las metas
 sobre los validadores.
 
 Los dos dependen de los mismos dieciséis axiomas.
+
+### El génesis y los estados alcanzables
+
+Hasta acá casi todo decía "si valía antes del bloque, vale después". Faltaba el
+punto de partida. Agregamos al crate `State::from_genesis`, copiada sin cambios
+de `crates/common/types/src/state.rs`, y se tradujo sin tocar nada.
+
+Sobre el génesis:
+
+| Resultado | Qué dice |
+|---|---|
+| `GEN.genesis_devuelve` | devuelve si hay a lo sumo 4096 validadores, y lo que devuelve es el estado inicial: slot cero, sin historial, sin ventana, sin raíces pendientes |
+| `GEN.genesis_exige_validadores` | al revés: si devuelve, había a lo sumo 4096 validadores |
+| `GEN.genesis_cumple_hipotesis` | el estado inicial cumple los dos invariantes, la cota de validadores y el caso base de `ST-4` |
+
+**El `unwrap` del génesis.** `from_genesis` hace
+`SszList::try_from(validators).unwrap()`. Con más de 4096 validadores eso
+aborta, y los dos primeros resultados lo dicen de los dos lados. No lo
+presentamos como defecto: es una función de arranque y el límite es el de su
+tipo. Pero es un pánico alcanzable con una entrada mal armada, y queda escrito.
+
+Sobre lo que se alcanza desde ahí. Un estado es *alcanzable* si es el que da
+`from_genesis`, o el que deja `state_transition` aplicada a un estado
+alcanzable. Cuenta también el estado que queda cuando un bloque se rechaza,
+porque la transición modifica el estado en el lugar. Es la lectura más
+exigente.
+
+| Resultado | Qué dice |
+|---|---|
+| `GEN.alcanzable_cumple` | en todo estado alcanzable valen los dos invariantes, la cota de validadores y `ST-4` |
+| `GEN.st4_alcanzable` | `ST-4`, completa |
+| `GEN.state_transition_devuelve_alcanzable` | la transición no entra en pánico en ningún estado alcanzable |
+
+**Lo que cambia.** El resultado de la transición entera pedía tres cosas del
+estado. Sobre estados alcanzables ya no hay que pedirlas: salen del génesis. Lo
+que sigue pidiendo son tres cosas, y ninguna habla del estado: `usize` de 64
+bits; que el hash devuelva; y que las raíces pendientes más las attestations
+del bloque no pasen de 262144.
+
+**Lo que no está.** `ST-7` desde el génesis. Su hipótesis, que el checkpoint
+justificado esté en el historial, es falsa en el estado inicial, que no tiene
+historial. La establece el primer bloque aceptado, y ese lema falta.
+
+Como control negativo le sacamos a `from_genesis` la cota de validadores. Queda
+abierta exactamente esa cota.
+
+Los tres resultados sobre el génesis dependen de cuatro axiomas: los tres de
+Lean y la firma de `fmt` del error del `unwrap`. Los tres sobre estados
+alcanzables dependen de los dieciséis de `state_transition`.
 
 ### Qué es esto contra el catálogo, dicho exacto
 
@@ -1549,6 +1613,8 @@ importa: elegir las propias propiedades vuelve el ejercicio circular.
 | sin pánico: `process_attestations`, los dos resultados | 14 | 3 | 7 | 4 |
 | sin pánico: `process_block` y `state_transition` | 16 | 3 | 9 | 4 |
 | los validadores y las hipótesis a lo largo de `state_transition`, los dos | 16 | 3 | 9 | 4 |
+| el génesis, los tres resultados | 4 | 3 | — | 1 |
+| los estados alcanzables, los tres resultados | 16 | 3 | 9 | 4 |
 
 Tres categorías, con tres pesos distintos.
 
@@ -1815,11 +1881,9 @@ afirmaciones de modelado que sí hacemos.
 
 **`ST-7` vale bajo una hipótesis que no está establecida desde el génesis.** El
 teorema pide que el checkpoint justificado esté en el historial y demuestra que
-eso se conserva, pero no que el primer bloque lo establezca. Y sin esa
-hipótesis el enunciado es falso sobre su código, como muestra el test.
-
-**`ST-4` es un paso inductivo sin caso base.** Falta que el estado del génesis
-cumpla que el finalizado no supera al justificado; el crate no lo construye.
+eso se conserva, pero no que el primer bloque lo establezca. El estado inicial
+ya está en el crate; el lema del primer bloque, no. Y sin esa hipótesis el
+enunciado es falso sobre su código, como muestra el test.
 
 **Las funciones traducidas no se pueden ejecutar en Lean.** Lean las marca
 `noncomputable`; entre otras cosas dependen de los axiomas de `fmt` que usa

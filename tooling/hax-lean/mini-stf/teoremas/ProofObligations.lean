@@ -9084,6 +9084,249 @@ theorem state_transition_conserva_hipotesis
 
 end RV
 
+/- ===========================================================================
+   Teorema 23 — el genesis, y los estados alcanzables
+
+   Hasta aca casi todo decia "si valia antes del bloque, vale despues". Faltaba
+   el punto de partida. `State::from_genesis` de ethlambda se agrego al crate
+   (src/tipos.rs, copiada sin cambios) y se tradujo sin tocar nada.
+
+   Que se prueba del genesis:
+
+   - `genesis_devuelve`: devuelve si los validadores entran en el registro,
+     y lo que devuelve es el estado inicial (`EsGenesis`): slot cero, sin
+     historial, sin ventana, sin raices pendientes, los dos checkpoints
+     iguales y en el slot cero. Pide ademas que el hash del cuerpo vacio
+     devuelva, por la razon de siempre: el hash es un sustituto.
+   - `genesis_exige_validadores`: al reves. Si devuelve, habia a lo sumo 4096
+     validadores. Con mas, el `unwrap` del `try_from` aborta.
+   - `genesis_cumple_hipotesis`: el estado inicial cumple los dos invariantes,
+     la cota de validadores y el caso base de `ST-4`.
+
+   Y con eso, `Alcanzable`: los estados a los que se llega desde el genesis
+   aplicando `state_transition`. Cuenta tambien el estado que queda cuando un
+   bloque se rechaza, que es lo conservador.
+
+   - `alcanzable_cumple`: en todo estado alcanzable valen los dos invariantes,
+     la cota de validadores y `ST-4`. Es induccion: el genesis da el caso
+     base, y los teoremas 12, 13, 22 y 8 dan el paso.
+   - `st4_alcanzable`: `ST-4`, que estaba solo en su paso inductivo, completa.
+   - `state_transition_devuelve_alcanzable`: la transicion no entra en panico
+     en ningun estado alcanzable. De las hipotesis sobre el ESTADO que pedia
+     el teorema 21 no queda ninguna.
+
+   Lo que el resultado final sigue pidiendo: `usize` de 64 bits; que el hash
+   devuelva; y la cota "raices pendientes mas attestations del bloque", que
+   depende de cada bloque y no es un invariante.
+
+   Lo que NO esta: `ST-7` desde el genesis. Su hipotesis (el checkpoint
+   justificado esta en el historial) es falsa en el estado inicial, que no
+   tiene historial; la establece el primer bloque aceptado. Ese lema falta.
+
+   Control negativo, en la bitacora: sin la cota de validadores, lo que queda
+   abierto en `from_genesis` es exactamente esa cota.
+   =========================================================================== -/
+
+namespace GEN
+open mini_stf
+open Std.Tactic
+open ST3 JS NP NP2 NP3 NP4 NP5 NP6 NP7 NP8 RV MV VC VI HC
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+/- Las piezas de `from_genesis`. -/
+
+theorem ssz_default_total (T : Type) (N : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ ssz.SszList.Insts.CoreDefaultDefault.default T N
+    ⦃ ⇓ r => ⌜ r.items.val = [] ⌝ ⦄ :=
+  triple_total_of (by
+    refine ⟨{ items := Slice.new T }, ?_, rfl⟩
+    simp [ssz.SszList.Insts.CoreDefaultDefault.default, ssz.SszList.new,
+      alloc.vec.Vec.new, rust_primitives.sequence.seq_empty])
+
+theorem body_default_total :
+    ⦃ ⌜ True ⌝ ⦄ tipos.BlockBody.Insts.CoreDefaultDefault.default
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold tipos.BlockBody.Insts.CoreDefaultDefault.default
+  hax_mvcgen [ssz_default_total]
+
+theorem checkpoint_default_total :
+    ⦃ ⌜ True ⌝ ⦄ tipos.Checkpoint.Insts.CoreDefaultDefault.default
+    ⦃ ⇓ r => ⌜ r.slot = 0#u64 ⌝ ⦄ := by
+  unfold tipos.Checkpoint.Insts.CoreDefaultDefault.default
+    tipos.H256.Insts.CoreDefaultDefault.default
+    core.U64.Insts.CoreDefaultDefault.default
+  hax_mvcgen
+
+/-- `try_from` de un `Vec`: si da `Ok`, lo que queda es ese vector y entraba
+    en la capacidad. -/
+theorem try_from_cota_spec {T : Type} (N : Std.Usize) (v : alloc.vec.Vec T) :
+    ⦃ ⌜ True ⌝ ⦄
+    ssz.SszList.Insts.CoreConvertTryFromVecFueraDeCapacidad.try_from N v
+    ⦃ PostCond.mayThrow (fun r => ⌜ ∀ l, r = core.result.Result.Ok l →
+        l.items = v ∧ v.val.length ≤ N.val ⌝) ⦄ :=
+  triple_mayThrow_of (fun r hr l hl => by
+    subst hl
+    by_cases h : N.val < v.val.length
+    · simp [ssz.SszList.Insts.CoreConvertTryFromVecFueraDeCapacidad.try_from,
+        alloc.vec.Vec.len, rust_primitives.sequence.seq_len, h] at hr
+    · simp [ssz.SszList.Insts.CoreConvertTryFromVecFueraDeCapacidad.try_from,
+        alloc.vec.Vec.len, rust_primitives.sequence.seq_len, h] at hr
+      subst hr
+      exact ⟨rfl, by omega⟩)
+
+theorem unwrap_modelo_spec {T E : Type} (inst : core.fmt.Debug E)
+    (r : core.result.Result T E) :
+    ⦃ ⌜ True ⌝ ⦄ core.result.Result.unwrap inst r
+    ⦃ PostCond.mayThrow (fun t => ⌜ r = core.result.Result.Ok t ⌝) ⦄ :=
+  triple_mayThrow_of (fun t ht => by
+    unfold core.result.Result.unwrap at ht
+    cases r with
+    | Ok x =>
+      simp only [RustM.ok.injEq] at ht
+      rw [ht]
+    | Err e => simp [core.panicking.internal.panic] at ht)
+
+theorem unwrap_total {T E : Type} (inst : core.fmt.Debug E)
+    (r : core.result.Result T E) :
+    ⦃ ⌜ ∃ t, r = core.result.Result.Ok t ⌝ ⦄ core.result.Result.unwrap inst r
+    ⦃ ⇓ v => ⌜ r = core.result.Result.Ok v ⌝ ⦄ := by
+  cases r with
+  | Ok x => simp [core.result.Result.unwrap, Triple, WP.wp, PredTrans.apply]
+  | Err e => simp [Triple, WP.wp, PredTrans.apply]
+
+theorem body_hash_trivial (b : tipos.BlockBody) :
+    ⦃ ⌜ True ⌝ ⦄ tipos.BlockBody.Insts.Mini_stfTiposHashTreeRoot.hash_tree_root b
+    ⦃ PostCond.mayThrow (fun _ => ⌜ True ⌝) ⦄ := trivial_spec _
+
+/-- El estado inicial, tal como lo arma `from_genesis`. -/
+def EsGenesis (vs : alloc.vec.Vec tipos.Validator) (st : tipos.State) : Prop :=
+  st.slot = 0#u64 ∧
+  st.latest_block_header.slot = 0#u64 ∧
+  st.historical_block_hashes.items.val = [] ∧
+  st.justified_slots.bits.val = [] ∧
+  st.latest_justified.slot = 0#u64 ∧
+  st.latest_finalized = st.latest_justified ∧
+  st.validators.items = vs ∧
+  st.justifications_roots.items.val = [] ∧
+  st.justifications_validators.bits.val = [] ∧
+  vs.val.length ≤ 4096
+
+section
+attribute [local spec] body_default_total body_hash_trivial try_from_cota_spec
+  unwrap_modelo_spec bl_new_total checkpoint_default_total ssz_default_total
+
+/-- Lo que devuelve `from_genesis`, cuando devuelve. -/
+theorem from_genesis_spec (t : Std.U64) (vs : alloc.vec.Vec tipos.Validator) :
+    ⦃ ⌜ True ⌝ ⦄ tipos.State.from_genesis t vs
+    ⦃ PostCond.mayThrow (fun r => ⌜ EsGenesis vs r ⌝) ⦄ := by
+  unfold tipos.State.from_genesis
+  hax_mvcgen
+  rename_i bb h r hr l hl js hjs jv hjv c hc sl hsl
+  obtain ⟨hit, hcap⟩ := hr l hl
+  exact ⟨rfl, rfl, hsl, hjs, hc, rfl, hit, hsl, hjv, by scalar_tac⟩
+end
+
+section
+attribute [local spec] body_default_total body_hash_total try_from_total
+  unwrap_total bl_new_total checkpoint_default_total ssz_default_total
+
+theorem from_genesis_total_spec (t : Std.U64) (vs : alloc.vec.Vec tipos.Validator)
+    (hd : HashDevuelve) (hv : vs.val.length ≤ 4096) :
+    ⦃ ⌜ True ⌝ ⦄ tipos.State.from_genesis t vs ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold tipos.State.from_genesis
+  hax_mvcgen
+  all_goals first
+    | exact hd.cuerpo _
+    | assumption
+    | scalar_tac
+end
+
+/- ====================================================================
+   Los enunciados.
+   ==================================================================== -/
+
+/-- `from_genesis` devuelve si los validadores entran en el registro (y el
+    hash del cuerpo vacio devuelve), y lo que devuelve es el estado inicial. -/
+theorem genesis_devuelve (t : Std.U64) (vs : alloc.vec.Vec tipos.Validator)
+    (hd : HashDevuelve) (hv : vs.val.length ≤ 4096) :
+    ∃ st, tipos.State.from_genesis t vs = ok st ∧ EsGenesis vs st := by
+  obtain ⟨st, hst, -⟩ := of_triple_total (from_genesis_total_spec t vs hd hv)
+  exact ⟨st, hst, of_triple_mayThrow (from_genesis_spec t vs) hst⟩
+
+/-- Y al reves: si devuelve, los validadores entraban. Con mas de 4096 el
+    `unwrap` aborta. -/
+theorem genesis_exige_validadores (t : Std.U64) (vs : alloc.vec.Vec tipos.Validator)
+    (st : tipos.State) (h : tipos.State.from_genesis t vs = ok st) :
+    vs.val.length ≤ 4096 :=
+  (of_triple_mayThrow (from_genesis_spec t vs) h).2.2.2.2.2.2.2.2.2
+
+/-- El estado inicial cumple las tres hipotesis sobre el estado que pide
+    `state_transition_devuelve`, y el caso base de `ST-4`. -/
+theorem genesis_cumple_hipotesis (t : Std.U64) (vs : alloc.vec.Vec tipos.Validator)
+    (st : tipos.State) (h : tipos.State.from_genesis t vs = ok st) :
+    VentanaNoPasa st ∧ HistorialAcotado st ∧
+    st.validators.items.val.length ≤ 4096 ∧
+    st.latest_finalized.slot ≤ st.latest_justified.slot := by
+  obtain ⟨-, hhs, hhist, hjs, hlj, hlf, hval, -, -, hcap⟩ :=
+    of_triple_mayThrow (from_genesis_spec t vs) h
+  refine ⟨ventanaNoPasa_inicial st hjs ?_, historialAcotado_inicial st hhist ?_, ?_, ?_⟩
+  · rw [hlf, hlj]
+    rfl
+  · rw [hhs]
+    rfl
+  · rw [hval]
+    exact hcap
+  · rw [hlf]
+
+/-- Los estados a los que se llega desde el genesis aplicando la transicion.
+    Cuenta TAMBIEN el estado que queda cuando un bloque se rechaza: la
+    transicion modifica el estado en el lugar, y el enunciado no depende de
+    que el que llama lo descarte. -/
+inductive Alcanzable : tipos.State → Prop
+  | genesis (t : Std.U64) (vs : alloc.vec.Vec tipos.Validator) (st : tipos.State) :
+      tipos.State.from_genesis t vs = ok st → Alcanzable st
+  | paso (st st' : tipos.State) (block : tipos.Block)
+      (res : core.result.Result Unit stf.Error) :
+      Alcanzable st → stf.state_transition st block = ok (res, st') → Alcanzable st'
+
+/-- En todo estado alcanzable valen los dos invariantes, la cota de
+    validadores y `ST-4`. -/
+theorem alcanzable_cumple (st : tipos.State)
+    (h64 : UScalarTy.Usize.numBits = 64) (ha : Alcanzable st) :
+    VentanaNoPasa st ∧ HistorialAcotado st ∧
+    st.validators.items.val.length ≤ 4096 ∧
+    st.latest_finalized.slot ≤ st.latest_justified.slot := by
+  induction ha with
+  | genesis t vs st h => exact genesis_cumple_hipotesis t vs st h
+  | paso st st' block res _ h ih =>
+    obtain ⟨hv, hh, hval, h4⟩ := ih
+    obtain ⟨hv', hh', hval'⟩ :=
+      state_transition_conserva_hipotesis st st' block res h64 hv hh hval h
+    exact ⟨hv', hh', hval',
+      ST4.state_transition_justificado_ge_finalizado st st' block res h4 h⟩
+
+/-- `ST-4`, completa: en todo estado alcanzable el slot finalizado no supera
+    al justificado. -/
+theorem st4_alcanzable (st : tipos.State)
+    (h64 : UScalarTy.Usize.numBits = 64) (ha : Alcanzable st) :
+    st.latest_finalized.slot ≤ st.latest_justified.slot :=
+  (alcanzable_cumple st h64 ha).2.2.2
+
+/-- La transicion no entra en panico en ningun estado alcanzable. De las
+    hipotesis sobre el estado no queda ninguna: salen del genesis. -/
+theorem state_transition_devuelve_alcanzable (st : tipos.State) (block : tipos.Block)
+    (h64 : UScalarTy.Usize.numBits = 64) (hd : HashDevuelve)
+    (ha : Alcanzable st)
+    (hraices : st.justifications_roots.items.val.length +
+                 block.body.attestations.items.val.length ≤ 262144) :
+    ∃ r, stf.state_transition st block = ok r := by
+  obtain ⟨hv, hh, hval, -⟩ := alcanzable_cumple st h64 ha
+  exact state_transition_devuelve st block h64 hd hval hraices hv hh
+
+end GEN
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -9157,3 +9400,9 @@ end RV
 #print axioms NP6.hashmap_devuelve
 #print axioms RV.state_transition_no_toca_validadores
 #print axioms RV.state_transition_conserva_hipotesis
+#print axioms GEN.genesis_devuelve
+#print axioms GEN.genesis_exige_validadores
+#print axioms GEN.genesis_cumple_hipotesis
+#print axioms GEN.alcanzable_cumple
+#print axioms GEN.st4_alcanzable
+#print axioms GEN.state_transition_devuelve_alcanzable

@@ -19,8 +19,8 @@ regression test asserts by example after the devnet freeze at slot 27984. The
 other: no checkpoint changes root without moving to a higher slot — which holds
 of your code for a different reason than the spec's, and only under a
 hypothesis, because on a slot tie your code and the spec choose differently. Of
-the other five, one is left at its inductive step and one is not stated because
-it is trivial; which is which is spelled out.
+the other five, one is not stated because it is trivial; which one is spelled
+out.
 
 Outside the catalog there are four more, about the justified-slots window: the
 ones we set ourselves on first reading your code. The last says that when
@@ -30,9 +30,9 @@ aborts. And a comment in your code about that window is checked, with the
 hypothesis it was missing.
 
 And there is a third end-to-end result: the whole transition does not panic or
-hang, under hypotheses written out one by one. Some are the limits of your
-types. Another is something this package cannot prove and so asks for: that
-the hash returns.
+hang, in any state reached from genesis. What it still asks for is written
+down: a condition on each block, a 64-bit `usize`, and something this package
+cannot prove, that the hash returns.
 
 Every number here came from a run.
 
@@ -45,14 +45,15 @@ and Lean accepts them with no `sorry`. That says the program got written in
 Lean. It does not say it is correct.
 
 **The proofs are of specific properties.** A program is not "proved": statements
-about it are. There are seventy-five here, listed under **What you get**. Each
+about it are. There are eighty-one here, listed under **What you get**. Each
 says one precise thing, with its hypotheses in plain sight.
 
 What is **not** proved, said once:
 
 - **That the code never panics, unconditionally.** Absence of panic is proved
   for the twelve functions of the transition (`stf.rs`) and for the four of the
-  window (`justified_slots_ops.rs`), but under written hypotheses. One cannot
+  window (`justified_slots_ops.rs`), and for the whole transition in every
+  state reachable from genesis. There are still written hypotheses. One cannot
   be proved in this package and is asked for: that the hash returns. Another
   is a condition on the inputs and not an
   invariant: that the pending roots plus the block's attestations do not exceed
@@ -60,8 +61,10 @@ What is **not** proved, said once:
 - **That the code is equivalent to the spec.** On arbitrary states it is not:
   we found two points where they behave differently, and they are set out
   below.
-- **That the properties hold from genesis.** Several are stated as "if it held
-  before the block, it holds after", without the initial case.
+- **That all the properties hold from genesis.** The two invariants, the bound
+  on validators, `ST-4` and absence of panic do: they are proved over every
+  reachable state. `ST-7` does not: its hypothesis is false in the initial
+  state, and the lemma saying the first block establishes it is missing.
 - **That the Lean is faithful to your Rust.** There are two links. That our four
   rewritten functions do what the originals do is backed by your tests, which
   run on this crate. That the toolchain translates correctly is taken on trust
@@ -167,14 +170,14 @@ What each step should give:
 
 | Step | Result |
 |---|---|
-| 4 | `test result: ok. 9 passed` |
+| 4 | `test result: ok. 11 passed` |
 | 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
-| 6 | `75` — one axiom block per result — and `0` |
+| 6 | `81` — one axiom block per result — and `0` |
 
 There is no separate "run the proofs" step. The theorems are in
 `teoremas/ProofObligations.lean`; step 5 copies that file into the Lean project
 and `lake build` checks all of it. If the build ends green, Lean accepted the
-seventy-five proofs. At the end it prints which axioms each one depends on, which
+eighty-one proofs. At the end it prints which axioms each one depends on, which
 is what step 6 counts.
 
 To convince yourself the check is real, break a statement by hand. In
@@ -276,13 +279,13 @@ the twelve functions present as `def`s in
 first build on a clean checkout reports 1743, one more than every build after
 it.
 
-The tests — your six plus three of ours:
+The tests — your six plus five of ours:
 
 ```bash
 cargo test
 ```
 
-Nine pass.
+Eleven pass.
 
 ## What the crate contains
 
@@ -292,7 +295,7 @@ Everything, with line counts as shipped.
 |---|---|---|
 | `src/stf.rs` | 1585 | **yours** — `state_transition/src/lib.rs`: eight of twelve functions unchanged, four rewritten, nineteen helpers of ours, and your 437-line test module with three tests appended. |
 | `src/justified_slots_ops.rs` | 90 | **yours** — unchanged except the `use` lines. |
-| `src/tipos.rs` | 431 | **your type definitions**, serialization derives removed, plus our stand-in `hash_tree_root`. |
+| `src/tipos.rs` | 510 | **your type definitions**, serialization derives removed, plus our stand-in `hash_tree_root` and `State::from_genesis`, copied unchanged. |
 | `src/ssz.rs` | 154 | ours — stand-ins for `SszList` and `SszBitlist`. |
 | `src/mapa.rs` | 245 | ours — an association list replacing one `HashMap`. |
 | `src/stubs.rs` | 49 | ours — no-op `tracing` and metrics. |
@@ -303,11 +306,11 @@ Everything, with line counts as shipped.
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 413 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 9159 | ours — the theorems. |
-| `axiomas.txt` | 1209 | ours — the `#print axioms` output, so the trust base can be read without building. Both ways round: each theorem with the axioms it uses, and each axiom with the theorems it appears in. |
+| `teoremas/ProofObligations.lean` | 9408 | ours — the theorems. |
+| `axiomas.txt` | 1299 | ours — the `#print axioms` output, so the trust base can be read without building. Both ways round: each theorem with the axioms it uses, and each axiom with the theorems it appears in. |
 | `axiomas.py` | 217 | ours — builds `axiomas.txt` from the build log. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 1405 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 1453 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -335,6 +338,11 @@ Counted on the twelve functions with comments and blank lines removed;
 | **total** | **352** | **337** | **111** | **96** |
 
 Plus nineteen helper functions of ours, 179 lines in all.
+
+Outside the STF there is one more function of yours: `State::from_genesis`,
+from `crates/common/types/src/state.rs`, copied unchanged. It is the state the
+transition starts from, and it is needed to state the results "from genesis".
+It translated with no changes.
 
 ### The rules behind each change
 
@@ -400,7 +408,7 @@ down.
 
 ## What you get
 
-`teoremas/ProofObligations.lean` holds seventy-five named results:
+`teoremas/ProofObligations.lean` holds eighty-one named results:
 
 | Result | What it is |
 |---|---|
@@ -478,6 +486,12 @@ down.
 | `NP8.state_transition_devuelve` | **the whole state transition does not panic**, under written hypotheses |
 | `RV.state_transition_no_toca_validadores` | the transition does not change the validators, whether it accepts the block or rejects it |
 | `RV.state_transition_conserva_hipotesis` | the three hypotheses on the state are preserved from one block to the next |
+| `GEN.genesis_devuelve` | `from_genesis` returns if there are at most 4096 validators, and returns the initial state |
+| `GEN.genesis_exige_validadores` | the converse: if `from_genesis` returns, there were at most 4096 validators |
+| `GEN.genesis_cumple_hipotesis` | the initial state meets the two invariants, the bound on validators and the base case of `ST-4` |
+| `GEN.alcanzable_cumple` | in every state reachable from genesis the two invariants, the bound on validators and `ST-4` hold |
+| `GEN.st4_alcanzable` | `ST-4`, complete: inductive step and base case |
+| `GEN.state_transition_devuelve_alcanzable` | **the transition does not panic in any state reachable from genesis** |
 | `bind_da_ok` | a tool: opens one `RustM` bind |
 
 They were not picked for count. Between them they cover arithmetic, branching
@@ -757,8 +771,9 @@ As a negative control we ran the same script with an `is_valid_vote` lemma that
 says nothing. Exactly the two cases where finality moves to the `source` stay
 open, asking for `source.slot ≤` the new justified slot.
 
-The base case is missing: that the genesis state satisfies the invariant. The
-crate does not build that state.
+The base case is further down, under **Genesis and the reachable states**:
+`GEN.st4_alcanzable` is `ST-4` complete, over every state reached from
+genesis.
 
 **`ST-6`, finality is irreversible.** The catalog itself says it is the
 `latest_finalized` half of `ST-3`. `ST6.finalizacion_irreversible` gives it a
@@ -1411,10 +1426,11 @@ glue, that what each step asks for still holds after the previous one:
   `process_block_header` gets that the history is aligned, and
   `process_attestations` the window's capacity.
 
-**What it does not say.** That those hypotheses hold in every reachable state.
-The three about the state are preserved from one block to the next (next
-section), but their initial case, genesis, is not proved. The bound on roots is a condition on the inputs,
-not an invariant. And that the hash returns cannot be proved here.
+**What it does not say.** That all the hypotheses can be dropped. The three
+about the state are preserved from one block to the next and hold at genesis
+(the next two sections), so over reachable states they no longer have to be
+asked. But the bound on roots is a condition on the inputs, not an invariant.
+And that the hash returns cannot be proved here.
 
 Negative controls, two. Without the history invariant, the header's
 precondition stays open. If the header does not say it leaves the registry as
@@ -1446,15 +1462,66 @@ validator registry.
 hypotheses once, on the state you start from, and they keep holding block
 after block.
 
-**What this chaining does not cover.** Two things. The bound on pending roots
-plus attestations, which depends on each block and is not an invariant. And
-the starting point: that the three hypotheses hold at genesis is not proved.
+**What this chaining does not cover.** The bound on pending roots plus
+attestations, which depends on each block and is not an invariant. The
+starting point, genesis, is in the next section.
 
 These are "if it returns" results. As a negative control we took away from the
 attestation loop what it knows about `try_finalize`: exactly the goals about
 the validators stay open.
 
 Both depend on the same sixteen axioms.
+
+### Genesis and the reachable states
+
+Up to here almost everything said "if it held before the block, it holds
+after". The starting point was missing. We added `State::from_genesis` to the
+crate, copied unchanged from `crates/common/types/src/state.rs`, and it
+translated with no changes.
+
+About genesis:
+
+| Result | What it says |
+|---|---|
+| `GEN.genesis_devuelve` | it returns if there are at most 4096 validators, and what it returns is the initial state: slot zero, no history, no window, no pending roots |
+| `GEN.genesis_exige_validadores` | the converse: if it returns, there were at most 4096 validators |
+| `GEN.genesis_cumple_hipotesis` | the initial state meets the two invariants, the bound on validators and the base case of `ST-4` |
+
+**The `unwrap` in genesis.** `from_genesis` does
+`SszList::try_from(validators).unwrap()`. With more than 4096 validators that
+aborts, and the first two results say so from both sides. We are not
+presenting it as a defect: it is a start-up function and the limit is its
+type's. But it is a panic reachable with a badly built input, and it is
+written down.
+
+About what is reached from there. A state is *reachable* if it is the one
+`from_genesis` gives, or the one `state_transition` leaves when applied to a
+reachable state. It also counts the state left when a block is rejected,
+because the transition modifies the state in place. That is the most demanding
+reading.
+
+| Result | What it says |
+|---|---|
+| `GEN.alcanzable_cumple` | in every reachable state the two invariants, the bound on validators and `ST-4` hold |
+| `GEN.st4_alcanzable` | `ST-4`, complete |
+| `GEN.state_transition_devuelve_alcanzable` | the transition does not panic in any reachable state |
+
+**What changes.** The result on the whole transition asked three things of the
+state. Over reachable states they no longer have to be asked: they come from
+genesis. What it still asks for is three things, and none is about the state:
+a 64-bit `usize`; that the hash returns; and that the pending roots plus the
+block's attestations do not exceed 262144.
+
+**What is not there.** `ST-7` from genesis. Its hypothesis, that the justified
+checkpoint is in the history, is false in the initial state, which has no
+history. The first accepted block establishes it, and that lemma is missing.
+
+As a negative control we took the bound on validators away from
+`from_genesis`. Exactly that bound stays open.
+
+The three results on genesis depend on four axioms: Lean's three and the `fmt`
+signature of the `unwrap`'s error. The three on reachable states depend on the
+sixteen of `state_transition`.
 
 ### What this is against the catalog, stated exactly
 
@@ -1545,6 +1612,8 @@ own properties makes the exercise circular.
 | no panic: `process_attestations`, both results | 14 | 3 | 7 | 4 |
 | no panic: `process_block` and `state_transition` | 16 | 3 | 9 | 4 |
 | the validators and the hypotheses along `state_transition`, both | 16 | 3 | 9 | 4 |
+| genesis, the three results | 4 | 3 | — | 1 |
+| the reachable states, the three results | 16 | 3 | 9 | 4 |
 
 Three categories, with three different weights.
 
@@ -1805,12 +1874,9 @@ declarations of ours that assert nothing, and five modeling claims we do make.
 
 **`ST-7` holds under a hypothesis that is not established from genesis.** The
 theorem asks that the justified checkpoint be in the history and proves that
-this is preserved, but not that the first block establishes it. And without
-that hypothesis the statement is false of your code, as the test shows.
-
-**`ST-4` is an inductive step with no base case.** Missing is that the genesis
-state has its finalized slot not above its justified one; the crate does not
-build it.
+this is preserved, but not that the first block establishes it. The initial
+state is now in the crate; the first-block lemma is not. And without that
+hypothesis the statement is false of your code, as the test shows.
 
 **The translated functions cannot be executed in Lean.** Lean marks them
 `noncomputable`; among other things they depend on the `fmt` axioms that

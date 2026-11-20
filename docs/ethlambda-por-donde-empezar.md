@@ -237,7 +237,7 @@ fork choice, y vale anotarla para no caer.
 > describe la E: cuatro de las doce funciones (`process_attestations` entre ellas) se
 > reescribieron con loops de índice. La objeción de arriba —que no hay forma de conectar la
 > reescritura con el original— se atendió con los tests del original corriendo sobre la
-> reescritura, más tres nuestros. Está en
+> reescritura, más cinco nuestros. Está en
 > [`tooling/hax-lean/mini-stf/`](../tooling/hax-lean/mini-stf/PROPUESTA.md).
 
 ### La recomendación: la D, y no como premio consuelo
@@ -410,7 +410,7 @@ detalle completo.
 > **doce de doce** funciones traducidas, cero `sorry`, sin ninguna función de la STF opaca,
 > y `lake build` con 1742 jobs el 6 nov (1743 en el rearmado en limpio del 12 nov). Los
 > números finales están en la [`PROPUESTA.md`](../tooling/hax-lean/mini-stf/PROPUESTA.md).
-> Encima de la traducción hay, al 19 nov, setenta y cinco resultados demostrados, que
+> Encima de la traducción hay, al 19 nov, ochenta y un resultados demostrados, que
 > cubren las siete proposiciones de transición de estado del catálogo de
 > `formal-leanSpec` y los cuatro teoremas de la sección 3 de este documento.
 

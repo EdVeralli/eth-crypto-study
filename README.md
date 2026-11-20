@@ -93,7 +93,7 @@ hax + Charon + Aeneas, de Rust a Lean. Se entra por
 [`RESTAURAR.md`](RESTAURAR.md) explica cómo reconstruir el entorno desde cero.
 
 Al 19 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
-`sorry` y setenta y cinco resultados demostrados encima. Veinte son sobre la
+`sorry` y ochenta y un resultados demostrados encima. Veinte son sobre la
 ventana de slots justificados: los cuatro teoremas que se habían propuesto al
 principio, el 22 de octubre, la demostración de que ese módulo no entra en
 pánico, un comentario del código de ethlambda sobre esa ventana, verificado, el
@@ -245,22 +245,24 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    pendiente es mandarlo. Antes de mandarlo conviene releer la sección "El
    reemplazo de checkpoint, y dónde su código se aparta de la especificación":
    es la que les dice que su código y leanSpec difieren en un punto.
-8. **Lo que le falta al paquete para valer "en todo estado alcanzable"**: el
-   caso base de `ST-4` y que el primer bloque después del génesis establezca la
-   hipótesis del historial de `ST-7`. Las dos piden construir el estado del
-   génesis, que el crate no tiene. Y queda el condicional de casi todos los
-   teoremas: la ausencia de pánico está demostrada para
-   `justified_slots_ops` y para las doce funciones de `stf.rs`, pero bajo
-   hipótesis escritas, que no están descargadas.
+8. **Lo que le falta al paquete para valer "en todo estado alcanzable"**:
+   desde el 19 nov el génesis está en el crate (`State::from_genesis`, copiada
+   de ethlambda) y hay una noción de estado alcanzable. Sobre ella valen los
+   dos invariantes, la cota de validadores, `ST-4` completa y la ausencia de
+   pánico de la transición. Falta `ST-7`: su hipótesis del historial es falsa
+   en el génesis y la establece el primer bloque aceptado; ese lema no está.
+   Y la ausencia de pánico sigue pidiendo tres cosas que no hablan del estado:
+   `usize` de 64 bits, que el hash devuelva, y la cota de raíces por bloque.
 9. **El paso siguiente más útil del paquete**: descargar hipótesis de la
    ausencia de pánico, que desde el 18 nov cubre las doce funciones de
    `stf.rs` (`state_transition` incluida). La comparación de `H256` y el
    `HashMap` ya están (19 nov: pasaron de firmas sin contenido a
    definiciones, y dejaron de ser hipótesis). También está que las tres
    hipótesis sobre el estado se conservan de un bloque al siguiente (19 nov).
-   Por orden de costo, queda: la cota fina de
-   raíces del mapa de votos (distintas y en el historial) en lugar de "raíces
-   más attestations ≤ 262144"; y el caso inicial del pendiente 8. Lo que ya
+   Por orden de costo, queda: `ST-7` desde el génesis (pendiente 8); que el
+   ordenamiento de raíces ordena; y la cota fina de raíces del mapa de votos
+   (distintas y en el historial) en lugar de "raíces más attestations ≤
+   262144". Lo que ya
    está, para no rehacerlo: las doce funciones (17 y 18 nov), la cota de las
    listas de votos del mapa, y los dos invariantes de la ventana de slots
    justificados (dónde termina y que no pasa de su capacidad).

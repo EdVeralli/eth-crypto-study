@@ -1401,5 +1401,53 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    >
    > Lo que este encadenamiento NO cubre: la cota de raices (depende de
    > cada bloque) y el genesis.
+
+   > Cuarta nota del 19 nov 2026: **el genesis** (teorema 23, namespace
+   > `GEN`). Seis resultados: `genesis_devuelve`,
+   > `genesis_exige_validadores`, `genesis_cumple_hipotesis`,
+   > `alcanzable_cumple`, `st4_alcanzable` y
+   > `state_transition_devuelve_alcanzable`.
+   >
+   > - CAMBIO EN EL RUST, el primero desde la reescritura: se agrego
+   >   `State::from_genesis` a `src/tipos.rs`, copiada sin cambios de
+   >   `crates/common/types/src/state.rs` de ethlambda en `35c074b` (se bajo
+   >   el archivo con `curl` de raw.githubusercontent.com; no hay clon
+   >   local). Mas dos tests nuestros. `cargo test` pasa 11, no 9.
+   > - Se tradujo SIN TOCAR NADA: `Result::unwrap`, los `Default` y los
+   >   `new` estan todos en CoreModels o ya eran nuestros. Los 75 teoremas
+   >   anteriores siguieron compilando.
+   > - `from_genesis` hace `try_from(validators).unwrap()`: aborta con mas
+   >   de 4096 validadores. `genesis_devuelve` y
+   >   `genesis_exige_validadores` lo dicen de los dos lados. No se
+   >   presenta como defecto; queda escrito.
+   > - `EsGenesis`: slot cero, header en el slot cero, sin historial, sin
+   >   ventana, los dos checkpoints iguales y en el slot cero, sin raices
+   >   pendientes. De ahi salen los dos invariantes (con
+   >   `ventanaNoPasa_inicial` e `historialAcotado_inicial`, que ya
+   >   existian esperando esto) y el caso base de `ST-4`.
+   > - `Alcanzable`: inductivo, genesis o un paso de `state_transition`.
+   >   Cuenta tambien el estado que queda cuando un bloque se RECHAZA: la
+   >   transicion modifica en el lugar. Es lo conservador.
+   > - `alcanzable_cumple` es induccion directa sobre `Alcanzable`, con el
+   >   teorema 22 y el paso de `ST-4` como paso inductivo.
+   > - `rw` cierra solo las metas que quedan en `a ≤ a` o `a = a`; un
+   >   `rfl` o `exact` despues da "No goals" y ese error deja un `sorryAx`
+   >   en todo lo que depende. Se vio en `#print axioms` y se corrigio.
+   >
+   > Lo que cambia: `state_transition_devuelve_alcanzable` ya no pide nada
+   > sobre el ESTADO. Quedan `usize` de 64 bits, que el hash devuelva, y la
+   > cota de raices por bloque.
+   >
+   > Lo que NO esta: `ST-7` desde el genesis. Su hipotesis `EnElHistorial`
+   > es FALSA en el genesis (no hay historial). La establece el primer
+   > header aceptado, por el anclaje: `latest_justified.root := parent_root`
+   > y el historial pasa a empezar con `parent_root`. Hace falta un lema del
+   > header para la rama del genesis, y un invariante con dos casos
+   > (todavia en el genesis, o ya con `EnElHistorial`).
+   >
+   > Control negativo: sin `hv` queda `vs.length ≤ 4096` y nada mas.
+   >
+   > Axiomas: los tres del genesis 4 (3 de Lean y el `fmt` del `unwrap`);
+   > los tres de alcanzables 16.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

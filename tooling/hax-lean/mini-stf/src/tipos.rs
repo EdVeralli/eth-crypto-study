@@ -429,3 +429,82 @@ impl HashTreeRoot for State {
         a_raiz(h)
     }
 }
+
+// ---------------------------------------------------------------------------
+// genesis
+// ---------------------------------------------------------------------------
+
+// AGREGADO el 19 nov 2026. Es `State::from_genesis` de ethlambda
+// (crates/common/types/src/state.rs, en `35c074b`), copiada sin cambios. No
+// es parte de la STF: es el estado del que la STF parte. Hace falta para
+// poder enunciar los invariantes "desde el estado inicial" y no solo "de un
+// bloque al siguiente".
+impl State {
+    pub fn from_genesis(genesis_time: u64, validators: Vec<Validator>) -> Self {
+        let genesis_header = BlockHeader {
+            slot: 0,
+            proposer_index: 0,
+            parent_root: H256::ZERO,
+            state_root: H256::ZERO,
+            body_root: BlockBody::default().hash_tree_root(),
+        };
+        let validators = SszList::try_from(validators).unwrap();
+        let justified_slots = JustifiedSlots::new();
+        let justifications_validators = JustificationValidators::new();
+
+        Self {
+            config: StateConfig { genesis_time },
+            slot: 0,
+            latest_block_header: genesis_header,
+            latest_justified: Checkpoint::default(),
+            latest_finalized: Checkpoint::default(),
+            historical_block_hashes: Default::default(),
+            justified_slots,
+            validators,
+            justifications_roots: Default::default(),
+            justifications_validators,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn validador(i: u64) -> Validator {
+        Validator {
+            index: i,
+            attestation_pubkey: [0u8; PUBLIC_KEY_SIZE],
+            proposal_pubkey: [0u8; PUBLIC_KEY_SIZE],
+        }
+    }
+
+    /// NUESTRO. El estado inicial arranca en el slot cero, sin historial, sin
+    /// ventana y sin raices pendientes: es lo que usan los teoremas del
+    /// genesis.
+    #[test]
+    fn genesis_arranca_vacio() {
+        let st = State::from_genesis(1234, vec![validador(0), validador(1)]);
+        assert_eq!(st.slot, 0);
+        assert_eq!(st.latest_block_header.slot, 0);
+        assert_eq!(st.historical_block_hashes.len(), 0);
+        assert_eq!(st.justified_slots.len(), 0);
+        assert_eq!(st.justifications_roots.len(), 0);
+        assert_eq!(st.justifications_validators.len(), 0);
+        assert_eq!(st.latest_justified, Checkpoint::default());
+        assert_eq!(st.latest_finalized, Checkpoint::default());
+        assert_eq!(st.validators.len(), 2);
+    }
+
+    /// NUESTRO. Con mas validadores que el limite, `from_genesis` aborta en
+    /// el `unwrap`. Es la condicion bajo la que el teorema del genesis dice
+    /// que devuelve.
+    #[test]
+    #[should_panic]
+    fn genesis_aborta_con_demasiados_validadores() {
+        let muchos: Vec<Validator> = (0..(VALIDATOR_REGISTRY_LIMIT as u64 + 1))
+            .map(validador)
+            .collect();
+        let _ = State::from_genesis(0, muchos);
+    }
+}
