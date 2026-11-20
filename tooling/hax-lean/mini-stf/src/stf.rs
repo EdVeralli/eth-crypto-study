@@ -399,15 +399,15 @@ fn votos_del_segmento(state: &State, i: usize, validator_count: usize) -> Vec<bo
 
 /// Desarma la lista plana del estado en el mapa de votos.
 ///
-/// OJO, diferencia con el original: si `justifications_roots` trae una raiz
-/// repetida, esto se queda con los votos de la PRIMERA aparicion. El original
-/// arma un `HashMap` con `.collect()` y se queda con los de la ULTIMA. Con
-/// raices sin repetir es lo mismo. Esta contado en PROPUESTA.md.
+/// El original arma un `HashMap` con `.collect()`, asi que si
+/// `justifications_roots` trae una raiz repetida se queda con los votos de la
+/// ULTIMA aparicion. `poner` hace lo mismo que `HashMap::insert`, y por eso se
+/// usa aca en vez de `poner_si_falta`. Hay un test.
 fn construir_mapa_de_votos(state: &State, validator_count: usize) -> MapaVotos {
     let mut m = MapaVotos::nuevo();
     for i in 0..state.justifications_roots.len() {
         let r = raiz_justificacion_en(&state.justifications_roots, i);
-        m.poner_si_falta(r, votos_del_segmento(state, i, validator_count));
+        m.poner(r, votos_del_segmento(state, i, validator_count));
     }
     m
 }
@@ -915,7 +915,7 @@ pub fn slot_is_justifiable_after(slot: u64, finalized_slot: u64) -> bool {
 // comportamiento se preservo. No es una demostracion de equivalencia, pero es
 // mucho mejor que una promesa.
 //
-// De los seis de ellos, lo unico cambiado son los `use`. Los cuatro ultimos son
+// De los seis de ellos, lo unico cambiado son los `use`. Los cinco ultimos son
 // nuestros, y cada uno dice arriba por que esta.
 //
 // OJO: `hash_tree_root` en este crate es un sustituto polinomico, no SSZ. Las
@@ -1667,5 +1667,76 @@ mod tests {
             "sin slots vacios solo se agrega la raiz del padre"
         );
         assert_eq!(state.justified_slots.len(), 2);
+    }
+
+    /// Test nuestro, sobre un estado con invariantes rotas: la misma raiz dos
+    /// veces en `justifications_roots`, cada una con su tramo de votos.
+    ///
+    /// El original arma el mapa de votos con `.collect()` sobre los pares
+    /// (raiz, votos), y un `HashMap` armado asi se queda con los votos de la
+    /// ULTIMA aparicion. La primera version de nuestra reescritura se quedaba
+    /// con la primera. Esto fija el comportamiento del original.
+    ///
+    /// El valor esperado sale de leer el original, no de correrlo. Sin
+    /// attestations en el bloque, `process_attestations` solo desarma el mapa y
+    /// lo vuelve a escribir: una sola raiz, con los votos del segundo tramo.
+    #[test]
+    fn process_attestations_keeps_the_last_votes_of_a_repeated_justification_root() {
+        const NUM_VALIDATORS: usize = 4;
+        let r3 = H256([3u8; 32]);
+
+        let mut justified_slots = JustifiedSlots::new();
+        justified_slots_ops::extend_to_slot(&mut justified_slots, 0, 9);
+
+        // Dos tramos de cuatro votos: en el primero voto el validador 0, en el
+        // segundo el validador 1.
+        let mut votos = JustificationValidators::with_length(2 * NUM_VALIDATORS).unwrap();
+        votos.set(0, true).unwrap();
+        votos.set(NUM_VALIDATORS + 1, true).unwrap();
+
+        let mut state = State {
+            config: StateConfig { genesis_time: 0 },
+            slot: 10,
+            latest_block_header: BlockHeader {
+                slot: 9,
+                proposer_index: 0,
+                parent_root: H256::ZERO,
+                state_root: H256::ZERO,
+                body_root: BlockBody::default().hash_tree_root(),
+            },
+            latest_justified: Checkpoint {
+                slot: 0,
+                root: H256::ZERO,
+            },
+            latest_finalized: Checkpoint {
+                slot: 0,
+                root: H256::ZERO,
+            },
+            historical_block_hashes: SszList::try_from(vec![H256::ZERO; 10]).unwrap(),
+            justified_slots,
+            validators: SszList::try_from(make_validators(NUM_VALIDATORS)).unwrap(),
+            justifications_roots: SszList::try_from(vec![r3, r3]).unwrap(),
+            justifications_validators: votos,
+        };
+
+        let sin_votos: AggregatedAttestations = Vec::new().try_into().unwrap();
+        process_attestations(&mut state, &sin_votos).expect("process_attestations should succeed");
+
+        assert_eq!(
+            &state.justifications_roots[..],
+            &[r3][..],
+            "la raiz repetida queda una sola vez"
+        );
+        assert_eq!(state.justifications_validators.len(), NUM_VALIDATORS);
+        assert_eq!(
+            state.justifications_validators.get(1),
+            Some(true),
+            "quedan los votos de la ultima aparicion"
+        );
+        assert_eq!(
+            state.justifications_validators.get(0),
+            Some(false),
+            "y no los de la primera"
+        );
     }
 }

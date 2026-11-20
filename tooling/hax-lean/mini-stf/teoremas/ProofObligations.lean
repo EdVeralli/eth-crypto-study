@@ -6311,7 +6311,9 @@ end NP4
    la funcion se llama de verdad:
 
    - `construir_mapa_de_votos` arma cada lista con `votos_del_segmento`, que
-     devuelve exactamente `validator_count` votos.
+     devuelve exactamente `validator_count` votos, y la guarda con `poner`
+     (desde el 20 nov 2026; antes era `poner_si_falta`), que la agrega o
+     reemplaza con ella la que habia.
    - en el loop de attestations, lo unico que agrega una lista es
      `poner_si_falta`, con `votos_vacios(validator_count)`. `marcar_votos`
      cambia bits, no largos. `sin` y `try_finalize` (por `filtrado`) solo
@@ -6613,6 +6615,49 @@ theorem poner_si_falta_acotados_spec (m : mapa.MapaVotos) (k : tipos.H256)
       exact hv
   -- ya estaba: no se toca.
   · assumption
+end
+
+section
+attribute [local spec] posicion_loop_total push_largo_spec vec_deref_mut_total
+  slice_get_mut_contenido_spec
+
+/-- `poner` agrega la lista que le pasan, o reemplaza una del mapa por ella. -/
+theorem poner_acotados_spec (m : mapa.MapaVotos) (k : tipos.H256)
+    (v : alloc.vec.Vec Bool) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.poner m k v
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ ∀ c, VotosAcotados c m → v.val.length ≤ c → VotosAcotados c r ⌝) ⦄ := by
+  unfold mapa.MapaVotos.poner
+  hax_mvcgen
+  -- 1. No estaba: se agrega la lista que pasaron.
+  · rename_i o ho cl hcl vl hvl c hc hv
+    intro y hy
+    simp only at hy
+    rw [hvl] at hy
+    rcases List.mem_append.mp hy with h | h
+    · exact hc y h
+    · simp at h
+      rw [h]
+      exact hv
+  -- 2. Estaba la clave pero no hay lista en esa posicion: no cambia nada.
+  · rename_i o p hp d hd g hgx hg c hc hv
+    intro y hy
+    simp only at hy
+    rw [hd.2] at hy
+    rcases hg.2.2 _ y hy with h | h
+    · rw [hd.1] at h
+      exact hc y h
+    · cases h
+  -- 3. Estaba: su lista se reemplaza por la que pasaron.
+  · rename_i o p hp d hd g w hgx hg c hc hv
+    intro y hy
+    simp only at hy
+    rw [hd.2] at hy
+    rcases hg.2.2 _ y hy with h | h
+    · rw [hd.1] at h
+      exact hc y h
+    · cases h
+      exact hv
 end
 
 /-- Agregar al final una lista acotada conserva la cota. -/
@@ -6933,7 +6978,7 @@ theorem raiz_just_trivial_spec (r : ssz.SszList tipos.H256 262144#usize)
 
 section
 attribute [local spec] raiz_just_trivial_spec votos_del_segmento_largo_spec
-  poner_si_falta_acotados_spec
+  poner_acotados_spec
 
 theorem construir_mapa_loop_spec (it : core.ops.range.Range Std.Usize)
     (sc : tipos.StateConfig) (i : Std.U64) (bh : tipos.BlockHeader)
@@ -7517,7 +7562,9 @@ end NP5
      `marcar_votos`, `cuenta_votos` y `sin`. La unica con hipotesis es
      `poner_si_falta`, que pide lugar para una entrada mas.
    - las dos que arman lo que el loop usa: `construir_mapa_de_votos` y
-     `construir_root_to_slot`.
+     `construir_root_to_slot`. Desde el 20 nov 2026 la primera usa `poner`,
+     que hace lo que `HashMap::insert`; su lema es `poner_total`, y queda
+     cubierta por `construir_mapa_devuelve`.
 
    Donde aparecen hipotesis, y por que:
 
@@ -7920,6 +7967,34 @@ theorem poner_si_falta_total (m : mapa.MapaVotos) (k : tipos.H256)
 end
 
 section
+attribute [local spec] posicion_loop_total push_total vec_deref_mut_total
+  slice_get_mut_total
+
+/-- `poner` no entra en panico si hay lugar para una entrada mas, y agrega a
+    lo sumo una. Si la clave ya estaba, no cambia cuantas hay. -/
+theorem poner_total (m : mapa.MapaVotos) (k : tipos.H256)
+    (v : alloc.vec.Vec Bool)
+    (hc : m.claves.val.length < Usize.max)
+    (hv : m.valores.val.length < Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.poner m k v
+    ⦃ ⇓ r => ⌜ r.claves.val.length ≤ m.claves.val.length + 1 ∧
+                r.valores.val.length ≤ m.valores.val.length + 1 ⌝ ⦄ := by
+  unfold mapa.MapaVotos.poner
+  hax_mvcgen
+  -- 1. No estaba: una clave y una lista mas.
+  · refine ⟨?_, ?_⟩ <;> omega
+  -- 2 y 3. Estaba: escribir por la referencia no cambia cuantas listas hay.
+  · rename_i o p hp d hd g hgx hg
+    refine ⟨by omega, ?_⟩
+    rw [hd.2, hg, hd.1]
+    omega
+  · rename_i o p hp d hd g w hgx hg
+    refine ⟨by omega, ?_⟩
+    rw [hd.2, hg, hd.1]
+    omega
+end
+
+section
 attribute [local spec] vec_deref_mut_total slice_get_mut_total
 
 /-- `votar` no entra en panico, y no cambia cuantas entradas hay. -/
@@ -8070,7 +8145,7 @@ end
 
 section
 attribute [local spec] raiz_justificacion_total votos_del_segmento_total
-  poner_si_falta_total nuevo_total ssz_len_total
+  poner_total nuevo_total ssz_len_total
 
 theorem construir_mapa_loop_total (n : Std.Usize)
     (sc : tipos.StateConfig) (i : Std.U64) (bh : tipos.BlockHeader)
@@ -10337,8 +10412,9 @@ end ORD
    estado ya tenia (`construir_mapa_de_votos`) y la raiz del target de cada
    voto valido. `is_valid_vote` solo acepta un voto si
    `historical_block_hashes[target.slot] == target.root`, asi que esa raiz
-   esta en el historial. Y todo lo que entra, entra por `poner_si_falta`, que
-   no repite. `sin`, `filtrado` y `try_finalize` solo sacan. Al final
+   esta en el historial. Y todo lo que entra, entra por `poner` (las del
+   estado) o por `poner_si_falta` (las de los votos), y ninguna de las dos
+   repite. `sin`, `filtrado` y `try_finalize` solo sacan. Al final
    `serialize_justifications` escribe en el estado exactamente las claves del
    mapa: eso es el teorema 25, y por eso este lo necesitaba.
 
@@ -10556,6 +10632,27 @@ theorem poner_si_falta_buenas_spec (m : mapa.MapaVotos) (k : tipos.H256)
       (by assumption)
   -- ya estaba: no se toca.
   · assumption
+end
+
+section
+attribute [local spec] posicion_falta_spec MV.push_largo_spec
+  vec_deref_mut_total MV.slice_get_mut_contenido_spec
+
+/-- `poner` conserva la propiedad si la clave esta en `h`: la agrega solo si
+    no estaba, y si estaba le cambia los votos y nada mas. -/
+theorem poner_buenas_spec (m : mapa.MapaVotos) (k : tipos.H256)
+    (v : alloc.vec.Vec Bool) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.poner m k v
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ ∀ h, Buenas h m → k ∈ h → Buenas h r ⌝) ⦄ := by
+  unfold mapa.MapaVotos.poner
+  hax_mvcgen
+  -- no estaba: se agrega al final, y no repite.
+  · exact buenas_push _ _ k (by assumption) (by assumption) (by assumption)
+      (by assumption)
+  -- estaba: las claves quedan como estaban.
+  · exact (by assumption : Buenas _ m)
+  · exact (by assumption : Buenas _ m)
 end
 
 section
@@ -10832,7 +10929,7 @@ end
 
 section
 attribute [local spec] raiz_just_contenido MV.votos_del_segmento_largo_spec
-  poner_si_falta_buenas_spec
+  poner_buenas_spec
 
 theorem construir_mapa_loop_buenas_spec (it : core.ops.range.Range Std.Usize)
     (sc : tipos.StateConfig) (i : Std.U64) (bh : tipos.BlockHeader)

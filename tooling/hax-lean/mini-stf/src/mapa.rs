@@ -102,6 +102,23 @@ impl MapaVotos {
         }
     }
 
+    /// Pone la clave con esos votos. Si ya estaba, le reemplaza los votos: lo
+    /// mismo que `HashMap::insert`. Es lo que hace falta para armar el mapa
+    /// desde el estado igual que el original, que usa `.collect()`: ante una
+    /// raiz repetida gana la ultima aparicion.
+    pub fn poner(&mut self, k: H256, v: Vec<bool>) {
+        match self.posicion(&k) {
+            Some(p) => match self.valores.get_mut(p) {
+                Some(x) => *x = v,
+                None => {}
+            },
+            None => {
+                self.claves.push(k);
+                self.valores.push(v);
+            }
+        }
+    }
+
     /// Marca que el validador `j` voto, en la entrada `p`.
     pub fn votar(&mut self, p: usize, j: usize) {
         match self.valores.get_mut(p) {

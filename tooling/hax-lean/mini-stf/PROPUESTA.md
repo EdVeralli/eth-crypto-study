@@ -79,10 +79,11 @@ Lo que **no** está demostrado, dicho de una vez:
 - **Que el Lean sea fiel al Rust de ustedes.** Son dos eslabones. Que nuestras
   funciones reescritas hacen lo mismo que las originales lo respaldan los
   tests, que corren sobre este crate: los de ustedes cubren tres de las cuatro,
-  y la cuarta, `process_block_header`, tiene un test nuestro. Y hay un punto
-  donde sabemos que no hacen lo mismo, con una raíz pendiente repetida. Las dos
-  cosas están en **Un bug que la reescritura introdujo**. Que la cadena de
-  herramientas traduce bien se le cree a la cadena de herramientas.
+  y la cuarta, `process_block_header`, tiene un test nuestro. Revisando contra
+  su código encontramos además un punto donde no hacían lo mismo, con una raíz
+  pendiente repetida, y lo arreglamos. Las dos cosas están en **Un bug que la
+  reescritura introdujo**. Que la cadena de herramientas traduce bien se le
+  cree a la cadena de herramientas.
 
 "Cero `sorry`" quiere decir que no hay ningún hueco en lo que sí se afirma. No
 quiere decir que esté todo afirmado.
@@ -129,7 +130,7 @@ De ahí salen cuatro clases de diferencia:
 2. diecinueve funciones auxiliares, nuevas y nuestras, que las funciones
    reescritas llaman;
 3. las cuatro funciones de la tabla de **Qué cambió de su código**;
-4. cuatro tests nuestros agregados a su módulo de tests, que vive en este archivo.
+4. cinco tests nuestros agregados a su módulo de tests, que vive en este archivo.
 
 Los comentarios difieren en todo el archivo, así que para chequear
 específicamente la afirmación de "ocho de doce sin cambios", saquen primero
@@ -188,7 +189,7 @@ Qué tiene que dar cada paso:
 
 | Paso | Resultado |
 |---|---|
-| 4 | `test result: ok. 12 passed` |
+| 4 | `test result: ok. 13 passed` |
 | 5 | `Build completed successfully (1742 jobs).` y después `=== listo ===` (1743 jobs la primera vez sobre un checkout limpio) |
 | 6 | `102` — un bloque de axiomas por resultado — y `0` |
 
@@ -297,13 +298,13 @@ con las doce funciones presentes como `def` en
 `proofs/lean/MiniStf/Extraction/Funs.lean`. La cuenta de jobs es 1742; el primer
 build sobre un checkout limpio da 1743, uno más que todos los que le siguen.
 
-Los tests — sus seis más seis nuestros:
+Los tests — sus seis más siete nuestros:
 
 ```bash
 cargo test
 ```
 
-Pasan doce.
+Pasan trece.
 
 ## Qué contiene el crate
 
@@ -311,11 +312,11 @@ Todo, con las líneas tal como se entrega.
 
 | Archivo | Líneas | Origen |
 |---|---|---|
-| `src/stf.rs` | 1671 | **de ustedes** — `state_transition/src/lib.rs`: ocho de doce funciones sin cambios, cuatro reescritas, diecinueve auxiliares nuestras, y su módulo de tests de 437 líneas con cuatro tests agregados. |
+| `src/stf.rs` | 1742 | **de ustedes** — `state_transition/src/lib.rs`: ocho de doce funciones sin cambios, cuatro reescritas, diecinueve auxiliares nuestras, y su módulo de tests de 437 líneas con cinco tests agregados. |
 | `src/justified_slots_ops.rs` | 90 | **de ustedes** — sin cambios salvo las líneas de `use`. |
 | `src/tipos.rs` | 510 | **sus definiciones de tipos**, sin los derives de serialización, más nuestro `hash_tree_root` sustituto y `State::from_genesis`, copiada sin cambios. |
 | `src/ssz.rs` | 154 | nuestro — sustitutos de `SszList` y `SszBitlist`. |
-| `src/mapa.rs` | 245 | nuestro — una lista de asociación que reemplaza un `HashMap`. |
+| `src/mapa.rs` | 262 | nuestro — una lista de asociación que reemplaza un `HashMap`. |
 | `src/stubs.rs` | 49 | nuestro — `tracing` y métricas que no hacen nada. |
 | `src/lib.rs` | 51 | nuestro — cableado de módulos. |
 | `Cargo.toml` | 10 | nuestro. |
@@ -324,11 +325,11 @@ Todo, con las líneas tal como se entrega.
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 413 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 26 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 11770 | nuestro — los teoremas. |
+| `teoremas/ProofObligations.lean` | 11867 | nuestro — los teoremas. |
 | `axiomas.txt` | 1668 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. En los dos sentidos: cada teorema con los axiomas que utiliza, y cada axioma con los teoremas donde aparece. |
 | `axiomas.py` | 204 | nuestro — arma `axiomas.txt` a partir del log del build. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 1745 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 1774 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -440,7 +441,7 @@ vacío.
 
 Lo chequeamos contra el defecto de dos maneras: con el loop dando una vuelta de
 menos, y con el loop agregando otra raíz en lugar del cero. En los dos casos
-falla ese test y los otros once pasan.
+falla ese test y los demás pasan.
 
 Dos límites. El valor esperado sale de leer qué hace su `extend(repeat_n(...))`,
 no de correrlo: el original no se puede ejecutar dentro de este crate. Y sigue
@@ -451,17 +452,27 @@ Sobre ese loop hay además dos teoremas: que sólo agrega al final del historial
 y que deja exactamente el largo esperado. Que lo agregado son ceros no está
 demostrado; es lo que mira el test.
 
-**Una diferencia con su código que encontramos revisando, y que no
+**Una segunda diferencia, que encontramos revisando contra su código y
 arreglamos.** Ustedes arman el mapa de votos con `.collect()` sobre los pares
 (raíz, votos) del estado. Si `justifications_roots` trae una raíz repetida, un
-`HashMap` armado así se queda con los votos de la **última** aparición.
-`construir_mapa_de_votos`, la nuestra, usa `poner_si_falta` y se queda con los
-de la **primera**. Con raíces sin repetir las dos hacen lo mismo, y en todo
-estado alcanzable desde el génesis no se repiten: es `RZ.alcanzable_raices`,
-demostrado sobre nuestro código. Pero ustedes tratan como entrada posible un
-estado con invariantes rotas, y sobre un estado así nuestra reescritura y su
-original divergen. Ningún test lo ejercita. Lo leímos de las dos fuentes; no lo
-corrimos.
+`HashMap` armado así se queda con los votos de la **última** aparición. La
+primera versión de `construir_mapa_de_votos` usaba `poner_si_falta` y se
+quedaba con los de la **primera**. Con raíces sin repetir las dos hacen lo
+mismo, y en todo estado alcanzable desde el génesis no se repiten
+(`RZ.alcanzable_raices`). Pero ustedes tratan como entrada posible un estado
+con invariantes rotas, y sobre un estado así divergían. Ningún test lo notaba.
+
+Ahora usa `poner`, que hace lo que `HashMap::insert`: si la raíz ya estaba, le
+reemplaza los votos. El test
+`process_attestations_keeps_the_last_votes_of_a_repeated_justification_root` lo
+fija: un estado con la misma raíz dos veces, cada una con su tramo de votos, y
+tienen que quedar los del segundo. Con la versión anterior ese test falla y los
+demás pasan. El valor esperado, otra vez, sale de leer su código y no de
+correrlo.
+
+En Lean el cambio costó poco: tres lemas para `poner`, gemelos de los de
+`poner_si_falta`, y las tres demostraciones que pasan por
+`construir_mapa_de_votos` cambiaron de lema sin cambiar de enunciado.
 
 ## Qué recibe
 
@@ -1766,7 +1777,7 @@ historial tiene a lo sumo 262144.
 lados: las que el estado ya tenía, y la raíz del target de cada voto válido. Y
 `is_valid_vote` sólo acepta un voto si
 `historical_block_hashes[target.slot] == target.root`. Todo lo que entra, entra
-por `poner_si_falta`, que no repite. Lo demás (`sin`, y el `filtrado` de
+por `poner` o por `poner_si_falta`, y ninguna de las dos repite. Lo demás (`sin`, y el `filtrado` de
 `try_finalize`) sólo saca. Al final `serialize_justifications` escribe en el
 estado exactamente las claves del mapa, que es lo que dice la sección anterior:
 por eso hacía falta primero.
@@ -2255,11 +2266,6 @@ entran en pánico**.
 **La base de confianza**, arriba: nueve axiomas nativos que vienen con la
 traducción, veinte declaraciones nuestras que no afirman nada, y cinco
 afirmaciones de modelado que sí hacemos.
-
-**Nuestra reescritura no es idéntica al original en un punto.** Con una raíz
-repetida en `justifications_roots`, el mapa de votos se arma distinto: ustedes
-se quedan con la última aparición y nosotros con la primera. No se alcanza
-desde el génesis. Está contado en **Un bug que la reescritura introdujo**.
 
 **`ST-7` no vale sobre un estado cualquiera.** Vale sobre los estados
 alcanzables desde el génesis, del primer bloque aceptado en adelante. Sobre un

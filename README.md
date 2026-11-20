@@ -265,12 +265,12 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    del bloque respete la capacidad de su tipo (4096), que el Rust garantiza y
    la traducción a Lean no conserva.
 9. **Lo que queda abierto del paquete**, después de la revisión del 20 nov.
-   Dos cosas, ninguna de la lista original (la tercera, el test que faltaba
-   para `process_block_header`, se agregó ese mismo día): con una raíz repetida en
-   `justifications_roots` nuestra `construir_mapa_de_votos` se queda con la
-   primera aparición y el original con la última (inalcanzable desde el
-   génesis, pero es una diferencia con su código); y `MapaVotos` no está
-   relacionado formalmente con el `HashMap` del original. Lo que sí se hizo:
+   Una sola cosa, que no es de la lista original: `MapaVotos` no está
+   relacionado formalmente con el `HashMap` del original. Las otras dos que
+   aparecieron en la revisión se cerraron ese mismo día: el test que faltaba
+   para `process_block_header`, y la diferencia con el original ante una raíz
+   repetida en `justifications_roots` (`construir_mapa_de_votos` ahora usa
+   `poner`, que hace lo que `HashMap::insert`, y hay un test). Lo que sí se hizo:
    descargar hipótesis de la ausencia de pánico, que desde el 18 nov cubre las doce funciones de
    `stf.rs` (`state_transition` incluida). La comparación de `H256` y el
    `HashMap` ya están (19 nov: pasaron de firmas sin contenido a

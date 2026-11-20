@@ -78,10 +78,10 @@ What is **not** proved, said once:
 - **That the Lean is faithful to your Rust.** There are two links. That our
   rewritten functions do what the originals do is backed by the tests, which
   run on this crate: yours cover three of the four, and the fourth,
-  `process_block_header`, has a test of ours. And there is one point where we
-  know they do not do the same, with a repeated pending root. Both are under
-  **A bug the rewrite introduced**. That the toolchain translates correctly is
-  taken on trust from the toolchain.
+  `process_block_header`, has a test of ours. Reviewing against your code we
+  also found one point where they did not do the same, with a repeated pending
+  root, and fixed it. Both are under **A bug the rewrite introduced**. That the
+  toolchain translates correctly is taken on trust from the toolchain.
 
 "No `sorry`" means there is no gap in what is claimed. It does not mean
 everything is claimed.
@@ -126,7 +126,7 @@ Four kinds of difference come out of it:
 1. the `use` block — our types come from this crate instead of yours;
 2. nineteen helper functions, new and ours, which the rewritten functions call;
 3. the four functions in the table under **What changed in your code**;
-4. four tests of ours appended to your test module, which lives in this file.
+4. five tests of ours appended to your test module, which lives in this file.
 
 Comments differ throughout, so to check the "eight of twelve unchanged" claim
 specifically, strip comments and blank lines first:
@@ -183,7 +183,7 @@ What each step should give:
 
 | Step | Result |
 |---|---|
-| 4 | `test result: ok. 12 passed` |
+| 4 | `test result: ok. 13 passed` |
 | 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
 | 6 | `102` — one axiom block per result — and `0` |
 
@@ -292,13 +292,13 @@ the twelve functions present as `def`s in
 first build on a clean checkout reports 1743, one more than every build after
 it.
 
-The tests — your six plus six of ours:
+The tests — your six plus seven of ours:
 
 ```bash
 cargo test
 ```
 
-Twelve pass.
+Thirteen pass.
 
 ## What the crate contains
 
@@ -306,11 +306,11 @@ Everything, with line counts as shipped.
 
 | File | Lines | Origin |
 |---|---|---|
-| `src/stf.rs` | 1671 | **yours** — `state_transition/src/lib.rs`: eight of twelve functions unchanged, four rewritten, nineteen helpers of ours, and your 437-line test module with four tests appended. |
+| `src/stf.rs` | 1742 | **yours** — `state_transition/src/lib.rs`: eight of twelve functions unchanged, four rewritten, nineteen helpers of ours, and your 437-line test module with five tests appended. |
 | `src/justified_slots_ops.rs` | 90 | **yours** — unchanged except the `use` lines. |
 | `src/tipos.rs` | 510 | **your type definitions**, serialization derives removed, plus our stand-in `hash_tree_root` and `State::from_genesis`, copied unchanged. |
 | `src/ssz.rs` | 154 | ours — stand-ins for `SszList` and `SszBitlist`. |
-| `src/mapa.rs` | 245 | ours — an association list replacing one `HashMap`. |
+| `src/mapa.rs` | 262 | ours — an association list replacing one `HashMap`. |
 | `src/stubs.rs` | 49 | ours — no-op `tracing` and metrics. |
 | `src/lib.rs` | 51 | ours — module wiring. |
 | `Cargo.toml` | 10 | ours. |
@@ -319,11 +319,11 @@ Everything, with line counts as shipped.
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 413 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 26 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 11770 | ours — the theorems. |
+| `teoremas/ProofObligations.lean` | 11867 | ours — the theorems. |
 | `axiomas.txt` | 1668 | ours — the `#print axioms` output, so the trust base can be read without building. Both ways round: each theorem with the axioms it uses, and each axiom with the theorems it appears in. |
 | `axiomas.py` | 204 | ours — builds `axiomas.txt` from the build log. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 1745 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 1774 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -432,7 +432,7 @@ slot.
 
 We checked it against the defect in two ways: with the loop doing one turn
 fewer, and with the loop appending another root instead of the zero. In both
-cases that test fails and the other eleven pass.
+cases that test fails and the rest pass.
 
 Two limits. The expected value comes from reading what your
 `extend(repeat_n(...))` does, not from running it: the original cannot be
@@ -444,16 +444,27 @@ About that loop there are also two theorems: that it only appends to the
 history and that it leaves exactly the expected length. That what is appended
 is zeros is not proved; that is what the test looks at.
 
-**A difference from your code that we found while reviewing, and did not
-fix.** You build the vote map with `.collect()` over the (root, votes) pairs of
-the state. If `justifications_roots` carries a repeated root, a `HashMap` built
-that way keeps the votes of the **last** occurrence. `construir_mapa_de_votos`,
-ours, uses `poner_si_falta` and keeps those of the **first**. With no repeated
-roots the two do the same, and in every state reachable from genesis they are
-not repeated: that is `RZ.alcanzable_raices`, proved of our code. But you treat
-a state with broken invariants as a possible input, and on such a state our
-rewrite and your original diverge. No test exercises it. We read it off the two
-sources; we did not run it.
+**A second difference, which we found reviewing against your code and
+fixed.** You build the vote map with `.collect()` over the (root, votes) pairs
+of the state. If `justifications_roots` carries a repeated root, a `HashMap`
+built that way keeps the votes of the **last** occurrence. The first version of
+`construir_mapa_de_votos` used `poner_si_falta` and kept those of the
+**first**. With no repeated roots the two do the same, and in every state
+reachable from genesis they are not repeated (`RZ.alcanzable_raices`). But you
+treat a state with broken invariants as a possible input, and on such a state
+they diverged. No test noticed.
+
+It now uses `poner`, which does what `HashMap::insert` does: if the root was
+already there, it replaces its votes. The test
+`process_attestations_keeps_the_last_votes_of_a_repeated_justification_root`
+pins it down: a state with the same root twice, each with its own run of votes,
+and those of the second have to remain. With the previous version that test
+fails and the rest pass. The expected value, again, comes from reading your
+code and not from running it.
+
+In Lean the change cost little: three lemmas for `poner`, twins of the ones for
+`poner_si_falta`, and the three proofs that go through
+`construir_mapa_de_votos` changed lemma without changing statement.
 
 ## What you get
 
@@ -1764,7 +1775,7 @@ the history holds at most 262144.
 ones the state already had, and the target root of each valid vote. And
 `is_valid_vote` only accepts a vote if
 `historical_block_hashes[target.slot] == target.root`. Everything that enters,
-enters through `poner_si_falta`, which does not repeat. The rest (`sin`, and
+enters through `poner` or `poner_si_falta`, and neither repeats. The rest (`sin`, and
 the `filtrado` in `try_finalize`) only removes. At the end
 `serialize_justifications` writes exactly the map's keys to the state, which is
 what the previous section says: that is why it was needed first.
@@ -2246,11 +2257,6 @@ and `process_block_header` do not panic**.
 **The trust base is not empty**, and what is in it is set out under **The trust
 base** above: nine native axioms that come with the translation, twenty
 declarations of ours that assert nothing, and five modeling claims we do make.
-
-**Our rewrite is not identical to the original at one point.** With a repeated
-root in `justifications_roots`, the vote map is built differently: you keep the
-last occurrence and we keep the first. It is not reachable from genesis. It is
-set out under **A bug the rewrite introduced**.
 
 **`ST-7` does not hold on an arbitrary state.** It holds on the states
 reachable from genesis, from the first accepted block onwards. On a state that

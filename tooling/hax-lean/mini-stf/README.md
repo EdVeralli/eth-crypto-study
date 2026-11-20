@@ -1741,5 +1741,34 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    >   son ceros NO esta demostrado; lo mira el test.
    > - Sigue sin haber un test que llame a `state_transition`, `process_block`
    >   o `process_slots`, que estan sin cambios.
+
+   > Quinta nota del 20 nov 2026: **la diferencia con el original, arreglada**.
+   > `construir_mapa_de_votos` ya no usa `poner_si_falta` sino `poner`, nueva
+   > en `mapa.rs`, que hace lo que `HashMap::insert`: si la raiz ya estaba le
+   > reemplaza los votos. Ante una raiz repetida gana la ultima aparicion,
+   > como en el `.collect()` del original.
+   >
+   > - Antes de tocar el repo se probo en una copia aparte que la funcion
+   >   nueva traduce: sale como un `def` de 20 lineas con las mismas piezas
+   >   que `votar` (`deref_mut`, `get_mut`), sin pedir nada nuevo en los
+   >   supuestos.
+   > - Test nuevo, `process_attestations_keeps_the_last_votes_of_a_repeated_
+   >   justification_root`: la misma raiz dos veces, cada una con su tramo de
+   >   votos, sin attestations en el bloque. Tienen que quedar los votos del
+   >   segundo tramo. Con `poner_si_falta` falla ese test y pasan los otros
+   >   doce. `cargo test` pasa 13: seis de ellos y siete nuestros.
+   > - En Lean, tres lemas nuevos para `poner`, uno por cada propiedad que ya
+   >   se llevaba: `MV.poner_acotados_spec` (no alarga las listas),
+   >   `NP6.poner_total` (devuelve, y agrega a lo sumo una entrada) y
+   >   `RZ.poner_buenas_spec` (no repite claves). Cada uno tiene tres casos:
+   >   no estaba, estaba sin lista en esa posicion, y estaba.
+   > - Las tres pruebas que abren el cuerpo de `construir_mapa_de_votos`
+   >   (teoremas 17, 19 y 26) cambiaron de lema y NADA MAS: compilaron sin
+   >   tocar una linea de su script. La forma "para todo `h`, si valia antes
+   >   vale despues" de los lemas es lo que lo hizo posible.
+   > - El lazo grande de attestations no se toco: sigue usando
+   >   `poner_si_falta`, que para un voto nuevo es lo correcto (el original
+   >   usa `entry().or_insert_with()`).
+   > - Los 102 resultados y sus enunciados no cambian.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.
