@@ -6,16 +6,16 @@ _Ultima actualizacion: 2026-11-20_
 > reescribieron. Lo que vino despues (23 oct - 6 nov) es el paquete
 > `tooling/hax-lean/mini-stf/`: la transicion de estado de ethlambda pasada de Rust a
 > Lean. Se entra por su `PROPUESTA.md` (castellano) o `PROPOSAL.md` (ingles); lo unico
-> pendiente es enviarlo a LambdaClass. La Mac se formateo el 12 nov: los comandos del
-> entorno estan en la seccion "Entorno" del `README.md` de la raiz.
+> pendiente es enviarlo a LambdaClass. Los comandos del entorno estan en la seccion
+> "Entorno" del `README.md` de la raiz.
 >
 > El 15 nov el paquete se amplio: ese dia quedo con veintidos resultados demostrados y cubre
 > las siete proposiciones de transicion de estado del catalogo de `formal-leanSpec`
 > (`ST-1` a `ST-7`; `ST-4` en su paso inductivo, `ST-7` con una hipotesis extra). Al
 > demostrar `ST-7` aparecio un punto donde ethlambda y la especificacion eligen
 > distinto: el empate de slots al justificar. Esta contado en la propuesta, seccion
-> "El reemplazo de checkpoint". Ese mismo dia la suite completa volvio a pasar en la
-> Mac formateada: `364 passed in 7732.92s (2:08:52)`, sin diferencias contra git.
+> "El reemplazo de checkpoint". Ese mismo dia la suite completa volvio a pasar:
+> `364 passed in 7732.92s (2:08:52)`, sin diferencias contra git.
 >
 > El 17 nov se demostraron los cuatro teoremas originales sobre la ventana de slots
 > justificados (`justified_slots_ops`), los del analisis del 22 oct, y que ese modulo no
@@ -27,56 +27,6 @@ _Ultima actualizacion: 2026-11-20_
 > auxiliares de `process_attestations` tampoco entran en panico; y, el 19 nov, el genesis
 > y los estados alcanzables, sobre los que valen los invariantes, la ausencia de panico y `ST-7`, y que el ordenamiento de raices ordena; y, el 20 nov, la cota de raices como invariante y que `serialize_justifications` no depende del orden del mapa). Lo que sigue esta en el `README.md` de la raiz,
 > pendientes 8 y 9.
-
-## Como retomar en otra computadora (Windows)
-
-Para **leer y editar la documentacion no hace falta instalar nada**. Clonar y listo.
-
-```powershell
-cd $env:USERPROFILE
-git clone https://github.com/EdVeralli/eth-crypto-study.git
-cd eth-crypto-study
-```
-
-Clonar por **HTTPS**, no por SSH: la clave privada esta en la Mac y no viaja.
-
-**Que viene en el clon** (~100 MB): las fuentes Lean (`EthCryptographySpecs/`), los
-364 vectores de prueba (`tests/`), el binding de Python (`bindings/`) y toda la
-documentacion (`docs/`). Los ocho HTML se abren con doble clic; los `.md` con
-cualquier editor.
-
-**Que NO viene, porque esta en el `.gitignore`:**
-
-| Carpeta | Peso en la Mac | Para que hace falta |
-|---|---|---|
-| `.lake/` | 7,1 GB | compilar Lean (`lake build`) |
-| `.venv/` | 56 MB | llamar a Lean desde Python y correr la suite |
-
-O sea que en la HP **no se puede compilar ni correr la suite sin reconstruir eso**.
-Si en algun momento hiciera falta: instalar `elan` (el gestor de toolchains de Lean,
-desde elan.lean-lang.org), despues `lake exe cache get` (baja Mathlib ya compilado;
-sin eso son horas) y `lake build`. El toolchain fijado es `leanprover/lean4:v4.29.1`.
-
-**El clon de solo lectura de `ethereum/cryptography-specs` tampoco esta**, y para la
-documentacion no se necesita: solo servia para traer commits de upstream.
-
-**Para pushear desde la HP** hace falta credencial propia: lo mas simple es HTTPS con
-un personal access token de GitHub. Si se usa SSH y el `git push` falla con
-`connect to host github.com port 22: Connection refused` (paso en la Mac, la red
-bloquea el puerto 22), la solucion es agregar esto al `~/.ssh/config`:
-
-```
-Host github.com
-  Hostname ssh.github.com
-  Port 443
-  User git
-```
-
-Nota del 15 nov 2026: el 12 nov, con la Mac recien formateada, el puerto 22 funciono
-y no hizo falta este bloque. La configuracion por el 443 solo se necesita en las redes
-que bloquean el 22.
-
----
 
 ## Donde quedamos (19 oct 2026): los cinco repos de Pablo, comparados
 
@@ -131,11 +81,11 @@ Hitos de esas dos semanas, por si hace falta rastrear algo:
    del apagon SI arrastra native axioms (`leak_fairness_witness._native.native_decide.ax_1_1`
    y `ax_1_2`) mientras `outage_witness_core` no — tal como dice su README.
 
-   **`~/verified-consensus/.lake` ya se puede borrar** para recuperar disco (la Mac estaba
-   al 93%). Si alguna vez hace falta rehacerlo: `lake exe cache get && lake build`.
+   **`~/verified-consensus/.lake` ya se puede borrar** para recuperar disco. Si alguna
+   vez hace falta rehacerlo: `lake exe cache get && lake build`.
 
-   Nota del 15 nov 2026: `~/verified-consensus` ya no existe. No sobrevivio al formateo
-   de la Mac del 12 nov; si hace falta, se vuelve a clonar (solo lectura).
+   Nota del 15 nov 2026: `~/verified-consensus` ya no existe; si hace falta, se vuelve
+   a clonar (solo lectura).
 
 2. **El cruce con `decoupled-consensus-apuntes`** (repo aparte,
    `github.com/EdVeralli/decoupled-consensus-apuntes`): ese repo tiene el **paper**
@@ -156,7 +106,7 @@ Hitos de esas dos semanas, por si hace falta rastrear algo:
    obligaciones de demostracion, y lo unico a modelar a mano es un bitlist.
 
    **Lo que falta para arrancar**: chequear si la cadena de herramientas hax/Aeneas se instala en el
-   contenedor de la sesion (para no tocar la Mac) y correr el paso 1, que es traducir
+   contenedor de la sesion y correr el paso 1, que es traducir
    ese crate y mirar que queda en `FunsExternal_Template.lean`.
 
    Nota del 15 nov 2026: esto se hizo entre el 23 y el 26 oct (la cadena de
@@ -175,8 +125,8 @@ abiertas del FODA; ver detalle mas abajo. **Lo que sigue**: repasar
 `fp-paso-a-paso.html` o arrancar la guia del piso 2 (`Bls/G1.lean`), a eleccion.
 Para seguirle el paso a upstream: `git -C ~/cryptography-specs fetch` y comparar
 contra `d1331f0` (ultimo chequeo, 7 oct). (Nota del 15 nov 2026: el clon
-`~/cryptography-specs` ya no existe desde el formateo del 12 nov; hay que volver a
-clonarlo, solo lectura, antes de ese `fetch`.)
+`~/cryptography-specs` ya no existe; hay que volver a clonarlo, solo lectura, antes
+de ese `fetch`.)
 
 Chequeo de upstream (5 oct 2026, `ethereum/cryptography-specs` master en
 `8f811fc`): 6 commits despues de nuestro `09deaff`, todos de XMSS (#33, #35,
@@ -291,12 +241,11 @@ para el desglose por handler y las dos lecciones sobre el costo de correrla.
   Autocontenido desde el 29 sept 2026: fuentes Lean, `lake build` en verde,
   `.venv` con los bindings compilados, los 364 vectores y los docs.
 - **Repo original (solo lectura):** `~/cryptography-specs` — clon de
-  `ethereum/cryptography-specs`, solo para traer commits de upstream. Solo existia
-  en la Mac; en otra maquina no hace falta. Nota del 15 nov 2026: desde el formateo
-  del 12 nov ya no existe; si se quieren commits de upstream hay que volver a
-  clonarlo (solo lectura).
+  `ethereum/cryptography-specs`, solo para traer commits de upstream. Nota del
+  15 nov 2026: ya no hay clon local; si se quieren commits de upstream hay que
+  volver a clonarlo (solo lectura).
 - **Los otros repos del ecosistema**, clonados de solo lectura cuando los
-  analizamos (no viven en la Mac, se vuelven a clonar cuando hagan falta):
+  analizamos (no hay clones locales, se vuelven a clonar cuando hagan falta):
   `alexanderlhicks/leanerSTFSpec`, `github.com/verified-zkevm`,
   `NyxFoundation/gasper-lean4` y `fradamt/verified-consensus`. Lo que escribimos
   sobre ellos esta en `docs/` de este repo. **Nunca se pushea ahi.**
@@ -317,11 +266,9 @@ para el desglose por handler y las dos lecciones sobre el costo de correrla.
 
 ## Como volver a usarlo
 
-El venv esta en tu propio repo. Se rehizo el 12 nov 2026, despues de formatear la
-Mac, con `uv` y Python 3.12 (el `python3` del sistema es 3.9.6 y el repo pide
->= 3.10); los comandos exactos estan en la seccion "Entorno" del `README.md` de la
-raiz. Mientras exista, no hay que
-recrearlo:
+El venv esta en tu propio repo. Se rehizo el 12 nov 2026 con `uv` y Python 3.12
+(el repo pide >= 3.10); los comandos exactos estan en la seccion "Entorno" del
+`README.md` de la raiz. Mientras exista, no hay que recrearlo:
 
 ```bash
 cd ~/eth-crypto-study
@@ -339,7 +286,7 @@ defecto: ver la seccion "Entorno" del `README.md` de la raiz.)
 
 Dos cosas aprendidas a golpes (detalle en `notas-investigacion.md`):
 
-1. **Enchufada y con la tapa abierta.** Sin eso la Mac duerme y la suite no
+1. **Que el equipo no se suspenda.** Si duerme, la suite no
    avanza: medimos 2 vectores en dos dias y medio. Con `caffeinate` salio en
    97 minutos.
 2. **No extrapoles el ritmo.** La `lru_cache` de los fixtures hace que los

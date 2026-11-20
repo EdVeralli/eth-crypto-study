@@ -25,7 +25,7 @@ verde (3444 jobs), su propio `.venv` con los bindings de Python compilados y los
 el `.gitignore`, así que en un clon nuevo **no existen**: ahí solo se puede trabajar
 sobre la documentación, salvo que se instale `elan` y se rehaga el build. El clon de
 solo lectura de `cryptography-specs` tampoco está en otra máquina, y para los docs no
-hace falta. Ver `docs/RETOMAR.md`, sección "Como retomar en otra computadora".
+hace falta.
 
 La Mac se formateó el 12 nov 2026 y el entorno se rehízo ese día: Lean con `elan`
 (en `~/.elan/bin`), Python 3.12 con `uv` (en `~/.local/bin`) y el `.venv` nuevo.
