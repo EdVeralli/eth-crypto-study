@@ -79,8 +79,9 @@ todos los bloques.
 
 Ahora es un **hash polinómico** propio: multiplicar por un primo y sumar,
 recorriendo los campos con loops de índice. No da los mismos valores que SSZ —no
-sirve para interoperar— pero cumple lo único que la STF le pide: que estados
-distintos den raíces distintas.
+sirve para interoperar, y como junta todo en 64 bits tampoco resiste
+colisiones— pero cumple lo único que los tests de la STF le piden: que estados
+distintos den, casi siempre, raíces distintas.
 
 Del lado de Lean se trata al revés: ahí conviene declararlo **opaco** y agregar
 la inyectividad como **hipótesis explícita** en los teoremas que la necesiten

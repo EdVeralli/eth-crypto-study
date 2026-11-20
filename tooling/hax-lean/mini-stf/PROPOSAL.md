@@ -36,6 +36,11 @@ down: a 64-bit `usize`, that the block's attestation list respects the
 capacity of its type, and something this package cannot prove, that the hash
 returns.
 
+And two results about a comment in your code, the one that explains why
+`serialize_justifications` sorts the roots. The hand-written sort we replaced
+your `.sort()` with does sort. And what that function writes to the state does
+not depend on the order the vote map held its entries in.
+
 Every number here came from a run.
 
 ## What this package claims and what it does not
@@ -315,7 +320,7 @@ Everything, with line counts as shipped.
 | `axiomas.txt` | 1668 | ours — the `#print axioms` output, so the trust base can be read without building. Both ways round: each theorem with the axioms it uses, and each axiom with the theorems it appears in. |
 | `axiomas.py` | 217 | ours — builds `axiomas.txt` from the build log. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 1680 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 1681 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -2035,7 +2040,7 @@ piece did here:
 
 | Piece | From | What it did |
 |---|---|---|
-| `hax_mvcgen` | hax | the workhorse. Splits a program into verification conditions — over 250 for the attestation loop — and steps through every call that has a `@[spec]` lemma. |
+| `hax_mvcgen` | hax | the workhorse. Splits a program into verification conditions and steps through every call that has a `@[spec]` lemma. For the attestation loop it leaves 52 open in a partial proof and 170 in the total-correctness one. |
 | Hoare triples and `@[spec]` lemmas | hax, over `Std.Do` | the idiom: one lemma per function, and the tactic names the one that is missing. |
 | `Aeneas.Std.loop_spec` | **Aeneas, not hax** | loop induction. This is the one to use. |
 | `Hax.loop_range_spec_unsigned` | hax | tried, rejected — below. |
@@ -2174,10 +2179,13 @@ production code.
 ## Honest limits
 
 **The hash is not SSZ.** `hash_tree_root` here is a polynomial hash written in
-the translatable subset. It gives different roots for different states, which is
-all the STF asks of it, but it is not interoperable. On the Lean side the right
-treatment is to declare it opaque and carry injectivity as an explicit
-hypothesis.
+the translatable subset: it mixes the fields into a 64-bit accumulator. Two
+different states almost always give different roots, and that is enough for the
+tests; it is not collision resistant and not interoperable. No theorem in this
+package depends on which root it returns: the only thing asked of it is that it
+returns, and that goes as a hypothesis. Should one ever need to tell states
+apart by their root, the right treatment on the Lean side would be to declare
+it opaque and carry that property as an explicit hypothesis.
 
 **`source.slot + 1` can overflow.** Stating the `try_finalize` theorem as a
 Hoare triple rather than an equation surfaced this: with `source.slot =

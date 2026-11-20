@@ -36,6 +36,11 @@ sigue pidiendo está escrito: `usize` de 64 bits, que la lista de attestations
 del bloque respete la capacidad de su tipo, y algo que este paquete no puede
 demostrar, que el hash devuelva.
 
+Y dos resultados sobre un comentario de su código, el que explica por qué
+`serialize_justifications` ordena las raíces. El ordenamiento escrito a mano
+con que reemplazamos su `.sort()` ordena. Y lo que esa función escribe en el
+estado no depende del orden en que el mapa de votos tenía sus entradas.
+
 Cada número de acá salió de una corrida.
 
 ## Qué afirma este paquete y qué no
@@ -320,7 +325,7 @@ Todo, con las líneas tal como se entrega.
 | `axiomas.txt` | 1668 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. En los dos sentidos: cada teorema con los axiomas que utiliza, y cada axioma con los teoremas donde aparece. |
 | `axiomas.py` | 217 | nuestro — arma `axiomas.txt` a partir del log del build. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 1680 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 1681 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -2038,7 +2043,7 @@ cada pieza acá:
 
 | Pieza | De dónde | Qué hizo |
 |---|---|---|
-| `hax_mvcgen` | hax | el caballo de batalla. Parte un programa en condiciones de verificación —más de 250 para el loop de attestations— y atraviesa cada llamada que tenga un lema `@[spec]`. |
+| `hax_mvcgen` | hax | el caballo de batalla. Parte un programa en condiciones de verificación y atraviesa cada llamada que tenga un lema `@[spec]`. Para el loop de attestations deja 52 abiertas en una demostración parcial y 170 en la de corrección total. |
 | ternas de Hoare y lemas `@[spec]` | hax, sobre `Std.Do` | el idioma: un lema por función, y la táctica nombra el que falta. |
 | `Aeneas.Std.loop_spec` | **Aeneas, no hax** | inducción sobre loops. Ésta es la que hay que usar. |
 | `Hax.loop_range_spec_unsigned` | hax | probada, descartada — abajo. |
@@ -2181,9 +2186,13 @@ verificado **sea** el código de producción.
 ## Límites honestos
 
 **El hash no es SSZ.** `hash_tree_root` acá es un hash polinomial escrito en el
-subconjunto traducible. Da raíces distintas para estados distintos, que es todo
-lo que la STF le pide, pero no es interoperable. Del lado de Lean el tratamiento
-correcto es declararlo opaco y cargar la inyectividad como hipótesis explícita.
+subconjunto traducible: mezcla los campos en un acumulador de 64 bits. Dos
+estados distintos dan casi siempre raíces distintas, y con eso alcanza para los
+tests; no es resistente a colisiones ni interoperable. Ningún teorema de este
+paquete depende de qué raíz devuelve: lo único que se le pide es que devuelva,
+y va como hipótesis. Si alguno llegara a necesitar distinguir estados por su
+raíz, del lado de Lean lo correcto sería declararlo opaco y cargar esa
+propiedad como hipótesis explícita.
 
 **`source.slot + 1` puede desbordar.** Enunciar el teorema de `try_finalize`
 como terna de Hoare en vez de como ecuación destapó esto: con
