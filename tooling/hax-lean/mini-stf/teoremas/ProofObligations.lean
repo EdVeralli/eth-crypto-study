@@ -1201,9 +1201,10 @@ theorem ST3.state_transition_no_retrocede
         supuestos/FunsExternal.lean);
      5. la composicion por `process_block` hasta `state_transition`.
 
-   Lo que NO se demuestra: que el primer bloque despues del genesis deje el
-   estado cumpliendo `EnElHistorial`. Es el lema que falta para decir "vale
-   en todo estado alcanzable desde el genesis". La otra hipotesis, que
+   Lo que NO se demuestra aca: que el primer bloque despues del genesis deje
+   el estado cumpliendo `EnElHistorial`. Es lo que hace falta para decir
+   "vale en todo estado alcanzable desde el genesis", y esta en el teorema
+   24. La otra hipotesis, que
    `latest_block_header.slot` sea distinto de cero, si se conserva: esta en
    el teorema 8 (`ST2.state_transition_conserva_no_genesis`).
    =========================================================================== -/
@@ -2027,8 +2028,8 @@ theorem ST7.state_transition_adelante
    ST-6. La finalizacion es irreversible: es la mitad `latest_finalized` de
          ST-3, con nombre propio como en el catalogo.
 
-   Lo que NO esta: el caso base de ST-4 (que el estado del genesis cumple el
-   invariante). El crate no construye el estado del genesis.
+   Lo que NO esta aca: el caso base de ST-4 (que el estado del genesis cumple
+   el invariante). Esta en el teorema 23, que agrega el genesis al crate.
    =========================================================================== -/
 
 namespace ST1
@@ -3416,10 +3417,10 @@ end JS
    enunciados del teorema 9 eran vacios: `shift_window` y `extend_to_slot`
    devuelven.
 
-   Lo que NO esta: que las hipotesis de capacidad valgan en todo estado
+   Lo que NO esta aca: que las hipotesis de capacidad valgan en todo estado
    alcanzable (que la ventana nunca pase de 262144, que el slot nunca este
    mas lejos que eso del finalizado). Son invariantes del estado, no de este
-   modulo.
+   modulo: estan en los teoremas 12 y 13, y desde el genesis en el 23.
    =========================================================================== -/
 
 namespace NP
@@ -3946,10 +3947,11 @@ end NP
    Las dos piden que las distancias entren en un `usize`, por el mismo
    `as usize` del teorema 9.
 
-   Lo que NO esta: que la hipotesis de `tras_header_rechaza` se conserve a
-   lo largo de la transicion. Es el invariante "la ventana llega exactamente
-   hasta el ultimo slot materializado", y hay que seguirlo a traves de
-   `process_attestations`, donde `shift_window` la acorta.
+   Lo que NO esta aca: que la hipotesis de `tras_header_rechaza` se conserve
+   a lo largo de la transicion. Es el invariante "la ventana llega
+   exactamente hasta el ultimo slot materializado", y hay que seguirlo a
+   traves de `process_attestations`, donde `shift_window` la acorta. Es el
+   teorema 12.
    =========================================================================== -/
 
 namespace VC
@@ -4220,9 +4222,10 @@ end VC
    indice del source, el `delta` de `shift_window`, el indice del ultimo slot
    en el header). En 32 bits esos casts truncan y la cuenta no cierra.
 
-   Lo que NO esta: que la ventana no pase de 262144 bits. De `VentanaNoPasa`
-   sale que no pasa del slot del header; falta acotar ese slot, y eso depende
-   del tope de `historical_block_hashes`.
+   Lo que NO esta aca: que la ventana no pase de 262144 bits. De
+   `VentanaNoPasa` sale que no pasa del slot del header; falta acotar ese
+   slot, y eso depende del tope de `historical_block_hashes`. Es el teorema
+   13.
    =========================================================================== -/
 
 namespace VI
@@ -5803,8 +5806,8 @@ end NP3
 
    De paso queda probado que el ordenamiento por insercion escrito a mano
    termina y no cambia la cantidad de raices (`claves_ordenadas_devuelve`).
-   Que ademas ORDENE no esta probado. Con la comparacion como definicion ya
-   se puede intentar; antes ni eso.
+   Que ademas ORDENA no esta probado aca: es el teorema 25, y hizo falta
+   que la comparacion fuera una definicion.
 
    Controles negativos, en la bitacora: sin la hipotesis de los votos queda
    abierta la meta del tramo; sin la cota de validadores quedan abiertas la
@@ -6326,7 +6329,8 @@ end NP4
    puede agregar una raiz por attestation, asi que la cota facil es
    "raices del estado + attestations", que no alcanza. La cota de verdad
    pide un invariante mas hondo: que las raices del mapa son todas distintas
-   y estan en el historial. Queda escrita como hipotesis.
+   y estan en el historial. Aca queda escrita como hipotesis; ese invariante
+   es el teorema 26.
    =========================================================================== -/
 
 namespace MV
@@ -8295,7 +8299,8 @@ end NP6
      262144. Es lo que hace que haya lugar en el mapa de votos y en
      `justifications_roots`. Es una condicion SUFICIENTE sobre las entradas,
      mas fuerte de lo necesario: el loop agrega a lo sumo una raiz por
-     attestation. La cota fina (raices distintas y en el historial) no esta.
+     attestation. La cota fina (raices distintas y en el historial) es el
+     teorema 26.
    - la ventana no pasa de 262144 bits, y `finalizado + 1` no desborda.
      `process_attestations_devuelve_inv` saca las dos de los invariantes que
      la transicion conserva (teorema 13).

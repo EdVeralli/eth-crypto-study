@@ -68,8 +68,8 @@ Lo que **no** está demostrado, dicho de una vez:
   génesis vale a partir del primer bloque aceptado, que es como la enuncia el
   catálogo: en ese primer bloque la raíz cambia en el slot 0 a propósito. Sobre
   un estado cualquiera necesita además que el justificado esté en el historial,
-  y sin eso es falsa sobre su código. Lo demás —los dos invariantes, la cota de
-  validadores, `ST-4` y la ausencia de pánico— está demostrado sobre todo
+  y sin eso es falsa sobre su código. Lo demás —los tres invariantes, la cota
+  de validadores, `ST-4` y la ausencia de pánico— está demostrado sobre todo
   estado alcanzable, sin excepción.
 - **Que el Lean sea fiel al Rust de ustedes.** Son dos eslabones. Que nuestras
   cuatro funciones reescritas hacen lo mismo que las originales lo respaldan sus
@@ -86,7 +86,7 @@ quiere decir que esté todo afirmado.
 Beacon Chain support, #661, 2026-10-20)* — el commit que lo tocó por última
 vez, no lo que `main` tuviera en ese momento.
 
-Chequeado de nuevo el 15 nov 2026: el archivo en `main` es byte a byte idéntico
+Chequeado de nuevo el 20 nov 2026: el archivo en `main` es byte a byte idéntico
 al de `35c074b`. Comparamos contenidos en vez de rastrear commits, porque el
 contenido es de lo que dependen los números. El mismo chequeo, para que no
 tengan que creernos:
@@ -316,7 +316,7 @@ Todo, con las líneas tal como se entrega.
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 413 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 11762 | nuestro — los teoremas. |
+| `teoremas/ProofObligations.lean` | 11767 | nuestro — los teoremas. |
 | `axiomas.txt` | 1668 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. En los dos sentidos: cada teorema con los axiomas que utiliza, y cada axioma con los teoremas donde aparece. |
 | `axiomas.py` | 217 | nuestro — arma `axiomas.txt` a partir del log del build. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
@@ -533,8 +533,9 @@ actualización de registros, inducción sobre un loop, composición a lo largo d
 una función entera con salidas tempranas y un `match`, composición de cinco
 funciones hasta el punto de entrada, una propiedad que depende del contenido
 de una lista y no sólo de guardas y asignaciones, enunciados exactos sobre dos
-loops de copia, y corrección total —que la función devuelve, con terminación
-incluida— para un módulo entero.
+loops de copia, corrección total —que la función devuelve, con terminación
+incluida— para la transición entera, invariantes llevados desde el génesis, y
+que un ordenamiento escrito a mano ordena.
 
 ### La aritmética
 
@@ -611,9 +612,10 @@ retrocede por ese camino.
 Lo que los enunciados dejan afuera son las corridas que entran en pánico o que
 no terminan. Ése es un límite real y no una cuestión de forma: un pánico en la
 STF no rechaza un bloque, tira el nodo. La ausencia de pánico es un teorema
-aparte y mucho más grande. Está demostrada para la ventana de slots
-justificados y para cinco funciones de la transición —ver **La ventana no entra
-en pánico** y la sección de las cinco funciones—, y para el resto no.
+aparte y mucho más grande. Está más abajo: para la ventana de slots
+justificados en **La ventana no entra en pánico**, y para las doce funciones de
+la transición en las secciones que siguen a ésa, hasta **La transición entera
+no entra en pánico**.
 
 Ésta es la propiedad que su propio test afirma por ejemplo, en
 `latest_justified_does_not_regress_within_block`. Su comentario dice por qué
@@ -855,7 +857,7 @@ Involucra tres funciones y dos sistemas de índices. El slot `s` está en la
 posición `s − f − 1` antes y en `s − f' − 1` después, y `shift_window` tiene que
 haber movido exactamente ese bit. No es algo que se verifique leyendo.
 
-Tres cosas son distintas de todo lo anterior.
+Cuatro cosas son distintas de todo lo anterior.
 
 **Los enunciados son exactos.** No dicen "no retrocede" sino qué lista queda:
 `slots ++ ceros` para `extend_to_slot`, `slots.drop delta` para `shift_window`.
@@ -935,10 +937,11 @@ Como control negativo corrimos la demostración de `shift_window` sin la
 hipótesis de capacidad. Se detiene en un objetivo, el del `expect` de
 `with_length`: no puede mostrar que lo que queda entra en 262144.
 
-**Lo que no está.** Que las hipótesis de capacidad valgan en todo estado
+**Lo que no está acá.** Que las hipótesis de capacidad valgan en todo estado
 alcanzable: que la ventana nunca pase de 262144 bits y que ningún slot quede más
 lejos que eso del finalizado. Son invariantes del estado entero, no de este
-módulo. Y las otras funciones de la STF siguen con su condicional.
+módulo, y están en **Dónde termina la ventana** y **La ventana no pasa de su
+capacidad**. Las otras funciones de la STF tienen su sección más abajo.
 
 ### Un comentario de ustedes sobre la ventana, verificado
 
@@ -971,8 +974,8 @@ slot anterior al bloque.
 Con una ventana más larga de lo debido, un voto con slot posterior al bloque no
 se rechazaría por fuera de rango. O sea que el "exactly" del comentario es
 cierto bajo un invariante que el comentario no menciona: que la ventana termina
-justo en el último slot materializado. No demostramos que ese invariante se
-conserve a lo largo de la transición; ver abajo.
+justo en el último slot materializado. Que ese invariante se conserva a lo
+largo de la transición está demostrado en la sección que sigue.
 
 Como control negativo corrimos la segunda demostración sin `hlen`. Falla en los
 dos lugares donde se la usa, y en ninguno más.
@@ -1243,8 +1246,10 @@ tres axiomas de Lean. `NP4.serialize_justifications_devuelve` depende de siete:
 esos tres, tres nativos, y la firma de `fmt` del error que formatean los
 `expect`.
 
-**Lo que no está.** Que el mapa que arma `process_attestations` cumpla esas
-hipótesis: una está en la sección que sigue, las otras no.
+**Lo que no está acá.** Que el mapa que arma `process_attestations` cumpla
+esas hipótesis. La de las listas de votos está en la sección que sigue; la de
+las raíces, en **La cota de raíces sale de un invariante**; y la de los
+validadores sale del génesis.
 
 ### El mapa de votos cumple una de esas hipótesis
 
@@ -1283,7 +1288,8 @@ Como control negativo le sacamos al loop el dato de que la lista nueva mide
   una raíz por attestation, así que la cuenta fácil da "las raíces del estado
   más las attestations", que no alcanza. La cota de verdad sale de otro lado:
   las raíces del mapa son todas distintas y todas están en el historial, que
-  tiene a lo sumo 262144 entradas. Ese invariante no está demostrado.
+  tiene a lo sumo 262144 entradas. Ese invariante está demostrado más abajo, en
+  **La cota de raíces sale de un invariante**.
 
 `MV.construir_mapa_acotado` depende sólo de los tres axiomas de Lean.
 `MV.loop_conserva_acotado` depende de once y
@@ -1403,8 +1409,8 @@ recorridas.
 **El punto delicado es `set_justified`.** Aborta si el target cae fuera de la
 ventana. No pasa, porque sólo se llama después de un `is_valid_vote` que dio
 `true` sobre el mismo estado, y ese chequeo ya leyó ese slot. Es un resultado
-de **La ventana no entra en pánico**, usado acá. Del mismo voto sale que el source es anterior al target, que es lo que pide
-`try_finalize`.
+de **La ventana no entra en pánico**, usado acá. Del mismo voto sale que el
+source es anterior al target, que es lo que pide `try_finalize`.
 
 **La cota de raíces es más fuerte de lo necesario, y lo decimos.** "Raíces del
 estado más attestations del bloque" es una condición suficiente sobre lo que
@@ -1540,10 +1546,10 @@ exigente.
 
 **Lo que cambia.** El resultado de la transición entera pedía tres cosas del
 estado. Sobre estados alcanzables ya no hay que pedirlas: salen del génesis. Lo
-que sigue pidiendo son tres cosas, y ninguna habla del estado: `usize` de 64
-bits; que el hash devuelva; y que las raíces pendientes más las attestations
-del bloque no pasen de 262144. Esa tercera se va más abajo, en **La cota de
-raíces sale de un invariante**.
+que sigue pidiendo son tres cosas: `usize` de 64 bits; que el hash devuelva; y
+que las raíces pendientes más las attestations del bloque no pasen de 262144.
+Las dos primeras no hablan del estado. La tercera sí, junto con el bloque, y se
+va más abajo, en **La cota de raíces sale de un invariante**.
 
 **`ST-7` va aparte.** Su hipótesis, que el checkpoint justificado esté en el
 historial, es falsa en el estado inicial, que no tiene historial. No sale del
@@ -2012,8 +2018,9 @@ el historial sobreviva a `process_block_header`; la ausencia de pánico de
 `current_proposer` y de `slot_is_justifiable_after` se apoya en las de
 `bool::then` e `isqrt`; la de `process_block_header` en las de `mem::take` y
 `bool::then`; la de `serialize_justifications`, y todo lo que la llama, en la
-de la comparación de arrays, y que el ordenamiento ordena también, con una
-diferencia: es lo único que usa qué devuelve la comparación y no sólo que
+de la comparación de arrays; que el ordenamiento ordena, y que
+`serialize_justifications` no depende del orden del mapa, también, con una
+diferencia: son los únicos que usan qué devuelve la comparación y no sólo que
 devuelve; y la de `try_finalize`, `process_attestations` y
 `state_transition` en la del `HashMap`. Eso es una afirmación sobre las
 demostraciones, leída de ellas.
@@ -2064,9 +2071,9 @@ tiene **como ecuación** en el lema `@[spec]` que la táctica consume, así un
 resultado demostrado por el camino difícil queda usable sin rehacerlo. El otro
 sentido devuelve una terna a ecuación, que es como están enunciados los
 resultados de arriba. Veintitrés lemas `@[spec]` alimentan las dos primeras
-demostraciones sobre el loop, las de `ST-3`; todos menos cuatro tienen una postcondición trivialmente
-verdadera, presentes sólo para que la táctica pueda atravesar una llamada que no
-puede mover `latest_justified`. Los cuatro con contenido son `is_none_spec`,
+demostraciones sobre el loop, las de `ST-3`; todos menos cuatro tienen una
+postcondición trivialmente verdadera, presentes sólo para que la táctica pueda
+atravesar una llamada que no puede mover `latest_justified`. Los cuatro con contenido son `is_none_spec`,
 `try_finalize_spec`, `serialize_spec` y el propio teorema del loop, reusado como
 lema para la función entera.
 
@@ -2161,8 +2168,8 @@ forma de evitar la copia, sobre un crate chico que no hacía más que tocar
 `--charon-args="--start-from <función>"`, que extrae una función *"along with
 all its dependencies"* — y eso vale para el grafo de llamadas, no para los
 tipos. La función salió traducida, el tipo no, y `TypesExternal_Template.lean`
-salió vacío, así que la cadena de herramientas ni siquiera pide el tipo como externo. El nombre
-que cuelga aparece en el `lake build`, no en la extracción. `--start-from`
+salió vacío, así que la cadena de herramientas ni siquiera pide el tipo como
+externo. El nombre que cuelga aparece en el `lake build`, no en la extracción. `--start-from`
 cambia qué ítems emite Charon, no de qué crate define Aeneas, así que la copia
 no es un atajo que tomamos: es la única ruta que la cadena de herramientas deja.
 
@@ -2210,9 +2217,9 @@ como muestra el test.
 **"Ordenado" es según nuestro modelo de la comparación.** Que el ordenamiento
 de raíces ordena se apoya en que el `Ord` de `[u8; 32]` sea el orden
 lexicográfico, que es una definición nuestra y no algo traducido por la
-cadena de herramientas. La igualdad entre nodos está demostrada para lo que escribe
-`serialize_justifications`, entre dos listas de pares con las mismas entradas;
-no está relacionada con el `HashMap` de su código.
+cadena de herramientas. La igualdad entre nodos está demostrada para lo que
+escribe `serialize_justifications`, entre dos listas de pares con las mismas
+entradas; no está relacionada con el `HashMap` de su código.
 
 **Las funciones traducidas no se pueden ejecutar en Lean.** Lean las marca
 `noncomputable`; entre otras cosas dependen de los axiomas de `fmt` que usa

@@ -67,7 +67,7 @@ What is **not** proved, said once:
   it holds from the first accepted block onwards, which is how the catalog
   states it: in that first block the root changes at slot 0 on purpose. On an
   arbitrary state it also needs the justified checkpoint to be in the history,
-  and without that it is false of your code. Everything else — the two
+  and without that it is false of your code. Everything else — the three
   invariants, the bound on validators, `ST-4` and absence of panic — is proved
   over every reachable state, with no exception.
 - **That the Lean is faithful to your Rust.** There are two links. That our four
@@ -85,7 +85,7 @@ everything is claimed.
 Beacon Chain support, #661, 2026-10-20)* — the commit that last touched it, not
 whatever `main` happened to be.
 
-Checked again on 15 Nov 2026: the file on `main` is byte-identical to the one at
+Checked again on 20 Nov 2026: the file on `main` is byte-identical to the one at
 `35c074b`. We compared contents rather than tracking commits, since contents
 are what the numbers depend on. The same check, so you need not take our word:
 
@@ -311,7 +311,7 @@ Everything, with line counts as shipped.
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 413 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 11762 | ours — the theorems. |
+| `teoremas/ProofObligations.lean` | 11767 | ours — the theorems. |
 | `axiomas.txt` | 1668 | ours — the `#print axioms` output, so the trust base can be read without building. Both ways round: each theorem with the axioms it uses, and each axiom with the theorems it appears in. |
 | `axiomas.py` | 217 | ours — builds `axiomas.txt` from the build log. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
@@ -524,9 +524,10 @@ They were not picked for count. Between them they cover arithmetic, branching
 and record updates, induction over a loop, composition across a whole
 function with early exits and a `match`, composition of five functions up to
 the entry point, a property that depends on the contents of a list and not
-only on guards and assignments, exact statements about two copy loops, and
-total correctness — that the function returns, termination included — for a
-whole module.
+only on guards and assignments, exact statements about two copy loops, total
+correctness — that the function returns, termination included — for the whole
+transition, invariants carried from genesis, and that a hand-written sort
+sorts.
 
 ### The arithmetic
 
@@ -601,9 +602,9 @@ justified slot does not go backwards on that path either.
 What the statements leave out is the runs that panic or do not terminate. That
 is a real limit and not a matter of shape: a panic in the STF does not reject a
 block, it takes the node down. Absence of panic is a separate and much larger
-theorem. It is proved for the justified-slots window and for five functions of
-the transition — see **The window does not panic** and the section on the five
-functions — and not for the rest.
+theorem. It is further down: for the justified-slots window under **The window
+does not panic**, and for the twelve functions of the transition in the
+sections after that one, up to **The whole transition does not panic**.
 
 This is the property your own test asserts by example, in
 `latest_justified_does_not_regress_within_block`. Its comment says why it
@@ -844,7 +845,7 @@ It involves three functions and two index systems. Slot `s` sits at position
 `s − f − 1` before and at `s − f' − 1` after, and `shift_window` must have moved
 exactly that bit. It is not something you check by reading.
 
-Three things differ from everything above.
+Four things differ from everything above.
 
 **The statements are exact.** They do not say "does not go backwards" but which
 list results: `slots ++ zeros` for `extend_to_slot`, `slots.drop delta` for
@@ -926,11 +927,12 @@ As a negative control we ran the `shift_window` proof without the capacity
 hypothesis. It stops at one goal, the `expect` on `with_length`: it cannot show
 that what remains fits in 262144.
 
-**What is not there.** That the capacity hypotheses hold on every reachable
+**What is not here.** That the capacity hypotheses hold on every reachable
 state: that the window never exceeds 262144 bits and that no slot ends up
 further than that from the finalized one. Those are invariants of the whole
-state, not of this module. And the other functions of the STF keep their
-conditional.
+state, not of this module, and they are under **Where the window ends** and
+**The window stays within capacity**. The other functions of the STF have their
+own sections further down.
 
 ### A comment of yours about the window, checked
 
@@ -963,8 +965,8 @@ slot before the block.
 With a window longer than it should be, a vote with a slot after the block
 would not be rejected as out of range. So the comment's "exactly" is true under
 an invariant the comment does not mention: that the window ends right at the
-last materialized slot. We did not prove that invariant is preserved across the
-transition; see below.
+last materialized slot. That this invariant is preserved across the transition
+is proved in the next section.
 
 As a negative control we ran the second proof without `hlen`. It fails at the
 two places where it is used, and nowhere else.
@@ -1235,8 +1237,10 @@ Lean's three axioms. `NP4.serialize_justifications_devuelve` depends on seven:
 those three, three native ones, and the `fmt` signature of the error that the
 `expect`s format.
 
-**What is not there.** That the map `process_attestations` builds meets those
-hypotheses: one is in the next section, the others are not.
+**What is not here.** That the map `process_attestations` builds meets those
+hypotheses. The one on the vote lists is in the next section; the one on the
+roots, under **The bound on roots comes from an invariant**; and the one on
+the validators comes from genesis.
 
 ### The vote map meets one of those hypotheses
 
@@ -1276,7 +1280,8 @@ As a negative control we took away from the loop the fact that the new list is
   root per attestation, so the easy count gives "the state's roots plus the
   attestations", which is not enough. The real bound comes from elsewhere: the
   map's roots are all distinct and all in the history, which has at most 262144
-  entries. That invariant is not proved.
+  entries. That invariant is proved further down, under **The bound on roots
+  comes from an invariant**.
 
 `MV.construir_mapa_acotado` depends only on Lean's three axioms.
 `MV.loop_conserva_acotado` depends on eleven and
@@ -1538,10 +1543,11 @@ reading.
 
 **What changes.** The result on the whole transition asked three things of the
 state. Over reachable states they no longer have to be asked: they come from
-genesis. What it still asks for is three things, and none is about the state:
-a 64-bit `usize`; that the hash returns; and that the pending roots plus the
-block's attestations do not exceed 262144. That third one goes away further
-down, under **The bound on roots comes from an invariant**.
+genesis. What it still asks for is three things: a 64-bit `usize`; that the
+hash returns; and that the pending roots plus the block's attestations do not
+exceed 262144. The first two are not about the state. The third is, together
+with the block, and it goes away further down, under **The bound on roots comes
+from an invariant**.
 
 **`ST-7` is separate.** Its hypothesis, that the justified checkpoint is in the
 history, is false in the initial state, which has no history. It does not come
@@ -2009,9 +2015,10 @@ on the `mem::take` one, because they need the history to survive
 `slot_is_justifiable_after` leans on the `bool::then` and `isqrt` ones; that
 of `process_block_header` on the `mem::take` and `bool::then` ones; that of
 `serialize_justifications`, and everything that calls it, on the array
-comparison one, and so does the sort sorting, with one difference: it is the
-only thing that uses what the comparison returns and not just that it returns;
-and that of `try_finalize`, `process_attestations` and
+comparison one; so do the sort sorting and `serialize_justifications` not
+depending on the order of the map, with one difference: they are the only ones
+that use what the comparison returns and not just that it returns; and that
+of `try_finalize`, `process_attestations` and
 `state_transition` on the `HashMap` one. That is a claim about the proofs,
 read off them. `#print
 axioms` tells you what a theorem depends on, not whether it leans on that

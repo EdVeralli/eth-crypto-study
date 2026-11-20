@@ -102,7 +102,12 @@ pasa de su capacidad. Trece dicen que las doce funciones de la
 transición no entran en pánico, siete de ellas con hipótesis escritas, dos más
 que el ordenamiento de raíces y el filtrado del mapa terminan, tres que el mapa
 de votos cumple una de esas hipótesis, y diez que las funciones auxiliares de
-`process_attestations` tampoco entran en pánico. Los demás cubren las siete
+`process_attestations` tampoco entran en pánico. Veintinueve llevan todo eso
+a los estados alcanzables desde el génesis y cierran lo que la reescritura
+dejaba abierto: el génesis y la conservación de las hipótesis, `ST-7` desde el
+génesis, que el ordenamiento escrito a mano ordena, la cota de raíces como
+invariante, y que `serialize_justifications` no depende del orden del mapa de
+votos. Los demás cubren las siete
 proposiciones de transición de estado del catálogo de `formal-leanSpec` (`ST-1`
 a `ST-7`), con una salvedad que la propuesta detalla: sobre un estado
 cualquiera `ST-7` vale bajo una hipótesis extra, que en los estados alcanzables
