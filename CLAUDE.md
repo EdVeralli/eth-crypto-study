@@ -51,7 +51,7 @@ mantiene despierto con corriente. Con batería se duerme y la corrida no avanza.
 - `docs/RETOMAR.md` — dónde quedamos y los comandos para volver a arrancar
 - `docs/notas-investigacion.md` — todo lo aprendido sobre el repo original
 - `docs/repos-comparados.md` — el cuadro comparativo de los cinco repos del
-  ecosistema que nos pasó Pablo. **La sección 0 es la que más le importa a él**:
+  ecosistema que analizamos. **La sección 0 es la que más importa**:
   cómo convive Lean con los otros lenguajes (Rust, Python, C) en cada repo.
 - `tooling/hax-lean/mini-stf/PROPUESTA.md` (y `PROPOSAL.md`, en inglés) — el
   paquete para LambdaClass: la STF de ethlambda pasada por la cadena de

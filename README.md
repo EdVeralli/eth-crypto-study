@@ -76,7 +76,7 @@ Y si querés los cinco comparados en un solo lugar, sin abrir página por págin
 **[cuadro sinóptico de los repos](docs/repos-comparados.md)** — tabla maestra,
 rigor comparado, dónde se usa Lean en cada uno, el hueco de cada uno, lo que se
 repite en todos y una lista de qué no confundir con qué. Arranca por la sección 0,
-que es la que le interesa a Pablo: cómo convive Lean con los otros lenguajes en
+que es la pregunta de fondo: cómo convive Lean con los otros lenguajes en
 cada repo.
 
 Y la pregunta que sigue —**qué hacemos nosotros con todo esto**— tiene su propio

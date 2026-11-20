@@ -28,11 +28,11 @@ _Ultima actualizacion: 2026-11-20_
 > y los estados alcanzables, sobre los que valen los invariantes, la ausencia de panico y `ST-7`, y que el ordenamiento de raices ordena; y, el 20 nov, la cota de raices como invariante y que `serialize_justifications` no depende del orden del mapa). Lo que sigue esta en el `README.md` de la raiz,
 > pendientes 8 y 9.
 
-## Donde quedamos (19 oct 2026): los cinco repos de Pablo, comparados
+## Donde quedamos (19 oct 2026): los cinco repos del ecosistema, comparados
 
 Del 11 al 18 de octubre el trabajo se corrio de nuestro repo al **ecosistema**:
-Pablo fue pasando repos y los analizamos uno por uno, siempre con la misma
-pregunta de fondo, que es la que a el le importa: **como juegan Rust y Lean**.
+fueron llegando repos y los analizamos uno por uno, siempre con la misma
+pregunta de fondo: **como juegan Rust y Lean**.
 
 El resultado esta en `docs/repos-comparados.md` (el cuadro sinoptico) y en una
 pagina HTML por repo. La seccion 0 del cuadro es la que hay que leer primero: las
@@ -154,7 +154,7 @@ C sigue sin verificar. Fuente nueva (6): metadatos de PyPI via `pip download`.
 
 La infraestructura esta cerrada (ver mas abajo). Desde el 29 sept estamos
 armando y repasando la **documentacion de estudio** en `docs/`, para que
-alguien que llega (Pablo, por ejemplo) entienda el repo sin haber estado en
+alguien que llega entienda el repo sin haber estado en
 las sesiones. Son ocho paginas HTML que se abren con el navegador, mas el
 cuadro sinoptico en markdown:
 

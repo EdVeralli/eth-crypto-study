@@ -1,6 +1,6 @@
 # Cuadro sinóptico: los repos del ecosistema Lean 4 de Ethereum
 
-Los cinco repos que nos pasó Pablo. Del primero, `cryptography-specs`, tenemos copia de
+Los cinco repos del ecosistema que analizamos. Del primero, `cryptography-specs`, tenemos copia de
 estudio propia y lo recorrimos archivo por archivo; de los otros cuatro hicimos el análisis
 leyéndolos. Todos los números están verificados sobre clones de solo lectura; la fecha de
 lectura está en cada ficha.
@@ -138,7 +138,7 @@ teoremas usan sólo `propext` y `Quot.sound`, ni siquiera `Classical.choice`.
 
 Como gasper-lean4: no hay segundo lenguaje. 1.047 archivos `.lean` y nada más, salvo
 `verify.sh` (bash) y `check-review-boundary.rb` (Ruby), que son las herramientas de auditoría.
-Cero `@[export]`, ningún ejecutable, nada que se traduzca. Para la pregunta de Pablo, el
+Cero `@[export]`, ningún ejecutable, nada que se traduzca. Para la pregunta de cómo juegan Rust y Lean, el
 casillero de Rust está vacío.
 
 **Pero por qué importa igual.** Acá hay un modelo del protocolo con 8.384 teoremas, y entre
@@ -473,7 +473,7 @@ producción. En producción corre Rust, C y Go.
 
 - **Tres frentes**: zkVM (`clean`, `zkLean`, spec Sail de RISC-V), EVM (`evm-asm`, KEVM) y
   criptografía (`ArkLib` 318★, `VCVio` 130★, `CompPoly`, `hax`).
-- **El tema que le interesaba a Pablo**: cómo se conecta Rust con Lean.
+- **El tema de fondo**: cómo se conecta Rust con Lean.
   - **Rust → Lean existe y está maduro**: Charon baja el Rust a un formato intermedio
     (LLBC) y Aeneas lo sube a Lean 4; `cargo hax into lean` es el envoltorio cómodo.
   - **Lean → Rust no existe.** Lean compila a C, no tiene backend Rust.

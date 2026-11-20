@@ -296,7 +296,7 @@ contingencia, no como camino principal.
 > de ser el plan de contingencia y fue el camino que se siguió, con la reescritura de la E.
 
 **Si sale la D**, tenés una propiedad demostrada sobre código de producción. **Si no sale**,
-sabés exactamente dónde se traba y por qué — que para Pablo también es un resultado, y
+sabés exactamente dónde se traba y por qué — que también es un resultado, y
 mejor que una opinión.
 
 ---
