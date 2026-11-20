@@ -46,7 +46,7 @@ and Lean accepts them with no `sorry`. That says the program got written in
 Lean. It does not say it is correct.
 
 **The proofs are of specific properties.** A program is not "proved": statements
-about it are. There are eighty-six here, listed under **What you get**. Each
+about it are. There are ninety-one here, listed under **What you get**. Each
 says one precise thing, with its hypotheses in plain sight.
 
 What is **not** proved, said once:
@@ -176,12 +176,12 @@ What each step should give:
 |---|---|
 | 4 | `test result: ok. 11 passed` |
 | 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
-| 6 | `86` — one axiom block per result — and `0` |
+| 6 | `91` — one axiom block per result — and `0` |
 
 There is no separate "run the proofs" step. The theorems are in
 `teoremas/ProofObligations.lean`; step 5 copies that file into the Lean project
 and `lake build` checks all of it. If the build ends green, Lean accepted the
-eighty-six proofs. At the end it prints which axioms each one depends on, which
+ninety-one proofs. At the end it prints which axioms each one depends on, which
 is what step 6 counts.
 
 To convince yourself the check is real, break a statement by hand. In
@@ -310,11 +310,11 @@ Everything, with line counts as shipped.
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 413 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 9736 | ours — the theorems. |
-| `axiomas.txt` | 1415 | ours — the `#print axioms` output, so the trust base can be read without building. Both ways round: each theorem with the axioms it uses, and each axiom with the theorems it appears in. |
+| `teoremas/ProofObligations.lean` | 10401 | ours — the theorems. |
+| `axiomas.txt` | 1453 | ours — the `#print axioms` output, so the trust base can be read without building. Both ways round: each theorem with the axioms it uses, and each axiom with the theorems it appears in. |
 | `axiomas.py` | 217 | ours — builds `axiomas.txt` from the build log. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 1516 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 1573 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -412,7 +412,7 @@ down.
 
 ## What you get
 
-`teoremas/ProofObligations.lean` holds eighty-six named results:
+`teoremas/ProofObligations.lean` holds ninety-one named results:
 
 | Result | What it is |
 |---|---|
@@ -501,6 +501,11 @@ down.
 | `G7.alcanzable_inv7` | that invariant holds in every state reachable from genesis |
 | `G7.justificado_en_el_historial` | the hypothesis `ST-7` was missing, established: past the anchoring, the justified checkpoint is in the history |
 | `G7.st7_alcanzable` | **`ST-7` over every state reachable from genesis**, with the catalog's hypothesis and no other about the state |
+| `ORD.comparacion_es_lexicografica` | the translated `<` between two `H256` is the lexicographic order of their bytes |
+| `ORD.claves_ordenadas_ordena` | **the hand-written sort of the roots sorts**: it returns the same roots, in order |
+| `ORD.claves_ordenadas_canonica` | two maps with the same roots, in any order, give the same sorted list |
+| `ORD.serialize_escribe_ordenado` | what `serialize_justifications` leaves in `justifications_roots` is sorted and is the map's roots |
+| `ORD.serialize_raices_canonicas` | `justifications_roots` does not depend on the order the map held the roots in |
 | `bind_da_ok` | a tool: opens one `RustM` bind |
 
 They were not picked for count. Between them they cover arithmetic, branching
@@ -1206,8 +1211,8 @@ and `state_transition`). It is the fourth modeling claim we make.
 `sort()` with an insertion sort written with explicit loops.
 `NP4.claves_ordenadas_devuelve` says it terminates, does not abort, and returns
 as many roots as the map has keys, with no hypothesis. That it also leaves them
-sorted is not proved. With the comparison as a definition it can now be
-attempted; before, not even that.
+sorted is proved further down, under **The sort of the roots sorts**; it needed
+the comparison to be a definition.
 
 Negative controls, two. Without the hypothesis on the vote lists a goal shows
 up that does not close: that the vote fits in its stretch. Without the bound
@@ -1613,6 +1618,70 @@ history invariant, and depend on the sixteen axioms of `state_transition`.
 `G7.aceptar_saca_del_genesis` depends on seven: Lean's three, three native ones
 and the `fmt` signature.
 
+### The sort of the roots sorts
+
+`serialize_justifications` sorts the roots before writing them to the state,
+and the comment in your code says why: *"Sorting ensures that every node
+produces identical state representation"*. You call `.sort()` there. We
+replaced it with a hand-written insertion sort, `claves_ordenadas`, because
+`sort` has no model. It was proved that the replacement terminates. What was
+missing is that it sorts, and a hand-written sort that does not sort is exactly
+the mistake a rewrite can introduce without any test noticing.
+
+| Result | What it says |
+|---|---|
+| `ORD.comparacion_es_lexicografica` | the translated `<` between two `H256` returns `true` exactly when the first is smaller in the lexicographic order of its bytes |
+| `ORD.claves_ordenadas_ordena` | what it returns is in order, and is a permutation of the map's keys |
+| `ORD.claves_ordenadas_canonica` | two maps with the same roots, in any order, give the same list |
+| `ORD.serialize_escribe_ordenado` | what ends up in `state.justifications_roots` is sorted and is the map's roots |
+| `ORD.serialize_raices_canonicas` | and it does not depend on the order the map held them in |
+
+```lean
+theorem ORD.claves_ordenadas_ordena (m : mapa.MapaVotos)
+    (r : alloc.vec.Vec tipos.H256)
+    (h : mapa.MapaVotos.claves_ordenadas m = ok r) :
+    r.val.Pairwise MenorIgual ∧ r.val.Perm m.claves.val
+```
+
+**Both halves are needed.** "It is in order" alone is also met by a function
+that returns the empty list. "It is a permutation" says no root was lost,
+invented or duplicated. And `Pairwise` is the strong form of "in order": each
+element is less than or equal to *all* the ones after it, not just its
+neighbour.
+
+**The order is not one we defined.** `MenorIgual a b` means that the bytes of
+`b`, as a list of naturals, are not smaller than those of `a` under the `<`
+Lean ships for lists, which is the lexicographic one. We did not invent an
+order and then prove we sort by it.
+
+**The last result is your comment, for that field.** Two nodes that reach the
+same pending roots having inserted them in a different order write the same
+`justifications_roots`. It follows from a sorted list with the same elements
+being unique, and that needs the order to be antisymmetric: two `H256` neither
+of which is smaller than the other are the same.
+
+**What it depends on, stated carefully.** The first three results depend only
+on Lean's three axioms. But they lean on a modeling claim of ours: that the
+`Ord` of `[u8; 32]` is the lexicographic order. It is a definition, and
+`#print axioms` does not list it. Until now that definition was used only to
+say the comparison returns; this is the first result that uses *what* it
+returns. If the real `Ord` of arrays were a different one, these theorems would
+be about a program that is not yours. The `core` documentation says it is the
+lexicographic one.
+
+**What is not there.** That `justifications_validators` — the votes, laid out
+in the same order as the roots — also agrees between two nodes, and therefore
+that the whole state does. That needs the content of the vote layout, and of
+that function only absence of panic is proved today.
+
+As negative controls, two. Without the hypothesis that the prefix was already
+sorted, the insertion invariant does not start: `MenorIgual a b` stays open for
+any two positions of the prefix. And with the comparison stated the other way
+round, none of the three `Ordering` cases closes.
+
+The two results on `serialize_justifications` depend on seven axioms: Lean's
+three, three native ones and the `fmt` signature.
+
 ### What this is against the catalog, stated exactly
 
 `ST-3` in
@@ -1709,6 +1778,8 @@ own properties makes the exercise circular.
 | the reachable states, the three results | 16 | 3 | 9 | 4 |
 | `ST-7` from genesis: the header leaves genesis | 7 | 3 | 3 | 1 |
 | `ST-7` from genesis, the other four | 16 | 3 | 9 | 4 |
+| the sort sorts: the comparison and `claves_ordenadas`, three results | 3 | 3 | — | — |
+| the sort sorts: what `serialize_justifications` writes, two | 7 | 3 | 3 | 1 |
 
 Three categories, with three different weights.
 
@@ -1785,7 +1856,9 @@ on the `mem::take` one, because they need the history to survive
 `slot_is_justifiable_after` leans on the `bool::then` and `isqrt` ones; that
 of `process_block_header` on the `mem::take` and `bool::then` ones; that of
 `serialize_justifications`, and everything that calls it, on the array
-comparison one; and that of `try_finalize`, `process_attestations` and
+comparison one, and so does the sort sorting, with one difference: it is the
+only thing that uses what the comparison returns and not just that it returns;
+and that of `try_finalize`, `process_attestations` and
 `state_transition` on the `HashMap` one. That is a claim about the proofs,
 read off them. `#print
 axioms` tells you what a theorem depends on, not whether it leans on that
@@ -1972,6 +2045,12 @@ reachable from genesis, from the first accepted block onwards. On a state that
 did not come from there it also needs the justified checkpoint to be in the
 history, and without that hypothesis the statement is false of your code, as
 the test shows.
+
+**"Sorted" is according to our model of the comparison.** That the sort of the
+roots sorts leans on the `Ord` of `[u8; 32]` being the lexicographic order,
+which is a definition of ours and not something the toolchain translated. And
+agreement between nodes is proved for `justifications_roots`, not for
+`justifications_validators` nor for the whole state.
 
 **The translated functions cannot be executed in Lean.** Lean marks them
 `noncomputable`; among other things they depend on the `fmt` axioms that

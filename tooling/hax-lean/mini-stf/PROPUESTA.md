@@ -46,7 +46,7 @@ Lean las acepta sin `sorry`. Eso dice que el programa quedó escrito en Lean. No
 dice que sea correcto.
 
 **Las demostraciones son de propiedades puntuales.** Un programa no "se
-demuestra": se demuestran afirmaciones sobre él. Acá hay ochenta y seis,
+demuestra": se demuestran afirmaciones sobre él. Acá hay noventa y una,
 listadas en **Qué recibe**. Cada una dice una cosa precisa, con sus hipótesis a
 la vista.
 
@@ -181,12 +181,12 @@ Qué tiene que dar cada paso:
 |---|---|
 | 4 | `test result: ok. 11 passed` |
 | 5 | `Build completed successfully (1742 jobs).` y después `=== listo ===` (1743 jobs la primera vez sobre un checkout limpio) |
-| 6 | `86` — un bloque de axiomas por resultado — y `0` |
+| 6 | `91` — un bloque de axiomas por resultado — y `0` |
 
 No hay un paso aparte de "correr las pruebas". Los teoremas están en
 `teoremas/ProofObligations.lean`; el paso 5 copia ese archivo adentro del
 proyecto Lean y `lake build` lo chequea entero. Si el build termina en verde,
-Lean aceptó las ochenta y seis demostraciones. Al final imprime de qué axiomas
+Lean aceptó las noventa y una demostraciones. Al final imprime de qué axiomas
 depende cada una, que es lo que cuenta el paso 6.
 
 Para convencerse de que el chequeo es real, rompan un enunciado a mano. En
@@ -315,11 +315,11 @@ Todo, con las líneas tal como se entrega.
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 413 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 9736 | nuestro — los teoremas. |
-| `axiomas.txt` | 1415 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. En los dos sentidos: cada teorema con los axiomas que utiliza, y cada axioma con los teoremas donde aparece. |
+| `teoremas/ProofObligations.lean` | 10401 | nuestro — los teoremas. |
+| `axiomas.txt` | 1453 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. En los dos sentidos: cada teorema con los axiomas que utiliza, y cada axioma con los teoremas donde aparece. |
 | `axiomas.py` | 217 | nuestro — arma `axiomas.txt` a partir del log del build. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 1516 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 1573 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -420,7 +420,7 @@ más abajo.
 
 ## Qué recibe
 
-`teoremas/ProofObligations.lean` tiene ochenta y seis resultados con nombre:
+`teoremas/ProofObligations.lean` tiene noventa y un resultados con nombre:
 
 | Resultado | Qué es |
 |---|---|
@@ -509,6 +509,11 @@ más abajo.
 | `G7.alcanzable_inv7` | ese invariante vale en todo estado alcanzable desde el génesis |
 | `G7.justificado_en_el_historial` | la hipótesis que le faltaba a `ST-7`, establecida: pasado el anclaje, el justificado está en el historial |
 | `G7.st7_alcanzable` | **`ST-7` sobre todo estado alcanzable desde el génesis**, con la hipótesis del catálogo y ninguna más sobre el estado |
+| `ORD.comparacion_es_lexicografica` | el `<` traducido entre dos `H256` es el orden lexicográfico de sus bytes |
+| `ORD.claves_ordenadas_ordena` | **el ordenamiento de raíces escrito a mano ordena**: devuelve las mismas raíces, en orden |
+| `ORD.claves_ordenadas_canonica` | dos mapas con las mismas raíces, en cualquier orden, dan la misma lista ordenada |
+| `ORD.serialize_escribe_ordenado` | lo que `serialize_justifications` deja en `justifications_roots` está ordenado y son las raíces del mapa |
+| `ORD.serialize_raices_canonicas` | `justifications_roots` no depende del orden en que el mapa tenía las raíces |
 | `bind_da_ok` | una herramienta: abre un bind de `RustM` |
 
 No se eligieron por cantidad. Entre todos cubren aritmética, ramificación y
@@ -1214,8 +1219,8 @@ afirmación de modelado que hacemos.
 `sort()` de ustedes por una inserción escrita con loops explícitos.
 `NP4.claves_ordenadas_devuelve` dice que termina, que no aborta y que
 devuelve tantas raíces como claves tiene el mapa, sin ninguna hipótesis. Que
-además las deje ordenadas no está demostrado. Con la comparación como
-definición ya se puede intentar; antes ni eso.
+además las deja ordenadas está demostrado más abajo, en **El ordenamiento de
+raíces ordena**; hizo falta que la comparación fuera una definición.
 
 Controles negativos, dos. Sin la hipótesis sobre las listas de votos aparece
 una meta que no cierra: que el voto entre en su tramo. Sin la cota de
@@ -1614,6 +1619,71 @@ invariante del historial, y dependen de los dieciséis axiomas de
 `state_transition`. `G7.aceptar_saca_del_genesis` depende de siete: los tres de
 Lean, tres nativos y la firma de `fmt`.
 
+### El ordenamiento de raíces ordena
+
+`serialize_justifications` ordena las raíces antes de escribirlas en el estado,
+y el comentario de su código dice para qué: *"Sorting ensures that every node
+produces identical state representation"*. Ahí ustedes llaman a `.sort()`.
+Nosotros lo reemplazamos por una inserción escrita a mano, `claves_ordenadas`,
+porque `sort` no tiene modelo. Estaba demostrado que el reemplazo termina.
+Faltaba que ordenara, y un ordenamiento escrito a mano que no ordena es justo
+el error que una reescritura puede meter sin que ningún test lo note.
+
+| Resultado | Qué dice |
+|---|---|
+| `ORD.comparacion_es_lexicografica` | el `<` traducido entre dos `H256` da `true` exactamente cuando el primero es menor en el orden lexicográfico de sus bytes |
+| `ORD.claves_ordenadas_ordena` | lo que devuelve está en orden, y es una permutación de las claves del mapa |
+| `ORD.claves_ordenadas_canonica` | dos mapas con las mismas raíces, en cualquier orden, dan la misma lista |
+| `ORD.serialize_escribe_ordenado` | lo que queda en `state.justifications_roots` está ordenado y son las raíces del mapa |
+| `ORD.serialize_raices_canonicas` | y no depende del orden en que el mapa las tenía |
+
+```lean
+theorem ORD.claves_ordenadas_ordena (m : mapa.MapaVotos)
+    (r : alloc.vec.Vec tipos.H256)
+    (h : mapa.MapaVotos.claves_ordenadas m = ok r) :
+    r.val.Pairwise MenorIgual ∧ r.val.Perm m.claves.val
+```
+
+**Las dos mitades hacen falta.** "Está en orden" sola también la cumple una
+función que devuelve la lista vacía. "Es una permutación" dice que no se
+perdió, no se inventó y no se repitió ninguna raíz. Y `Pairwise` es la forma
+fuerte de "en orden": cada elemento es menor o igual que *todos* los que vienen
+después, no sólo que su vecino.
+
+**El orden no lo definimos nosotros.** `MenorIgual a b` quiere decir que los
+bytes de `b`, como lista de naturales, no son menores que los de `a` con el `<`
+que Lean trae para listas, que es el lexicográfico. No inventamos un orden para
+después demostrar que ordenamos según él.
+
+**El último resultado es el comentario de ustedes, para ese campo.** Dos nodos
+que llegan a las mismas raíces pendientes habiéndolas insertado en distinto
+orden escriben la misma `justifications_roots`. Sale de que una lista ordenada
+con los mismos elementos es única, y eso pide que el orden sea antisimétrico:
+dos `H256` que no son menores uno que el otro son el mismo.
+
+**De qué depende, dicho con cuidado.** Los tres primeros resultados dependen
+sólo de los tres axiomas de Lean. Pero se apoyan en una afirmación de modelado
+nuestra: que el `Ord` de `[u8; 32]` es el orden lexicográfico. Es una
+definición, y `#print axioms` no la lista. Hasta acá esa definición se usaba
+sólo para decir que la comparación devuelve; éste es el primer resultado que
+usa *qué* devuelve. Si el `Ord` real de los arrays fuera otro, estos teoremas
+hablarían de un programa que no es el de ustedes. La documentación de `core`
+dice que es el lexicográfico.
+
+**Lo que no está.** Que `justifications_validators` —los votos, volcados en el
+mismo orden que las raíces— también coincida entre dos nodos, y por lo tanto
+que coincida el estado entero. Hace falta el contenido del volcado de votos, y
+de esa función hoy sólo está demostrado que no entra en pánico.
+
+Como controles negativos, dos. Sin la hipótesis de que el prefijo ya estaba
+ordenado, el invariante de la inserción no arranca: queda abierta
+`MenorIgual a b` para dos posiciones cualesquiera del prefijo. Y con la
+comparación enunciada al revés no cierra ninguno de los tres casos de
+`Ordering`.
+
+Los dos resultados sobre `serialize_justifications` dependen de siete axiomas:
+los tres de Lean, tres nativos y la firma de `fmt`.
+
 ### Qué es esto contra el catálogo, dicho exacto
 
 `ST-3` en
@@ -1710,6 +1780,8 @@ importa: elegir las propias propiedades vuelve el ejercicio circular.
 | los estados alcanzables, los tres resultados | 16 | 3 | 9 | 4 |
 | `ST-7` desde el génesis: el header sale del génesis | 7 | 3 | 3 | 1 |
 | `ST-7` desde el génesis, los otros cuatro | 16 | 3 | 9 | 4 |
+| el ordenamiento ordena: la comparación y `claves_ordenadas`, tres resultados | 3 | 3 | — | — |
+| el ordenamiento ordena: lo que escribe `serialize_justifications`, dos | 7 | 3 | 3 | 1 |
 
 Tres categorías, con tres pesos distintos.
 
@@ -1787,7 +1859,9 @@ el historial sobreviva a `process_block_header`; la ausencia de pánico de
 `current_proposer` y de `slot_is_justifiable_after` se apoya en las de
 `bool::then` e `isqrt`; la de `process_block_header` en las de `mem::take` y
 `bool::then`; la de `serialize_justifications`, y todo lo que la llama, en la
-de la comparación de arrays; y la de `try_finalize`, `process_attestations` y
+de la comparación de arrays, y que el ordenamiento ordena también, con una
+diferencia: es lo único que usa qué devuelve la comparación y no sólo que
+devuelve; y la de `try_finalize`, `process_attestations` y
 `state_transition` en la del `HashMap`. Eso es una afirmación sobre las
 demostraciones, leída de ellas.
 `#print axioms` dice de qué depende un teorema, no si se apoya en el
@@ -1979,6 +2053,13 @@ alcanzables desde el génesis, del primer bloque aceptado en adelante. Sobre un
 estado que no salió de ahí hace falta además que el checkpoint justificado esté
 en el historial, y sin esa hipótesis el enunciado es falso sobre su código,
 como muestra el test.
+
+**"Ordenado" es según nuestro modelo de la comparación.** Que el ordenamiento
+de raíces ordena se apoya en que el `Ord` de `[u8; 32]` sea el orden
+lexicográfico, que es una definición nuestra y no algo traducido por la
+cadena de herramientas. Y la igualdad entre nodos está demostrada para
+`justifications_roots`, no para `justifications_validators` ni para el estado
+entero.
 
 **Las funciones traducidas no se pueden ejecutar en Lean.** Lean las marca
 `noncomputable`; entre otras cosas dependen de los axiomas de `fmt` que usa

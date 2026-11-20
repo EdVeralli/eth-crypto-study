@@ -93,7 +93,7 @@ hax + Charon + Aeneas, de Rust a Lean. Se entra por
 [`RESTAURAR.md`](RESTAURAR.md) explica cómo reconstruir el entorno desde cero.
 
 Al 19 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
-`sorry` y ochenta y seis resultados demostrados encima. Veinte son sobre la
+`sorry` y noventa y un resultados demostrados encima. Veinte son sobre la
 ventana de slots justificados: los cuatro teoremas que se habían propuesto al
 principio, el 22 de octubre, la demostración de que ese módulo no entra en
 pánico, un comentario del código de ethlambda sobre esa ventana, verificado, el
@@ -262,8 +262,9 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    `HashMap` ya están (19 nov: pasaron de firmas sin contenido a
    definiciones, y dejaron de ser hipótesis). También está que las tres
    hipótesis sobre el estado se conservan de un bloque al siguiente (19 nov).
-   `ST-7` desde el génesis también está (19 nov). Por orden de costo,
-   queda: que el ordenamiento de raíces ordena; y la cota fina de raíces del mapa de votos
+   `ST-7` desde el génesis también está (19 nov), y que el ordenamiento de
+   raíces ordena (19 nov, teorema 25: lo que queda en `justifications_roots`
+   está ordenado y no depende del orden de inserción). Queda la cota fina de raíces del mapa de votos
    (distintas y en el historial) en lugar de "raíces más attestations ≤
    262144". Lo que ya
    está, para no rehacerlo: las doce funciones (17 y 18 nov), la cota de las

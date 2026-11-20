@@ -4,7 +4,7 @@ Salida de los `#print axioms` de teoremas/ProofObligations.lean. La arma
 axiomas.py a partir del log de `lake build`. Se entrega para que la base
 de confianza se pueda leer sin tener que compilar.
 
-Son 86 teoremas. Tiene dos partes:
+Son 91 teoremas. Tiene dos partes:
 
   PARTE 1   cada teorema, con los axiomas que utiliza.
   PARTE 2   cada axioma, con los teoremas donde aparece.
@@ -933,6 +933,38 @@ TEOREMA G7.st7_alcanzable
       ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
       std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
 
+TEOREMA ORD.comparacion_es_lexicografica
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA ORD.claves_ordenadas_ordena
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA ORD.claves_ordenadas_canonica
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+
+TEOREMA ORD.serialize_escribe_ordenado
+  utiliza 7 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (3):
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
+TEOREMA ORD.serialize_raices_canonicas
+  utiliza 7 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
+    nativos (3):
+      mini_stf.stf.serialize_justifications._native.decide.ax_1
+      mini_stf.stf.serialize_justifications._native.decide.ax_2
+      mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
+    modelos (1):
+      ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
+
 ========================================================================
 PARTE 2 — EN QUE TEOREMAS APARECE CADA AXIOMA
 ========================================================================
@@ -949,20 +981,20 @@ DE LEAN
 ------------------------------------------------------------------------
 
 AXIOMA propext
-  aparece en los 86 teoremas
+  aparece en los 91 teoremas
 
 AXIOMA Classical.choice
-  aparece en 85 de 86 teoremas: todos menos bind_da_ok
+  aparece en 90 de 91 teoremas: todos menos bind_da_ok
 
 AXIOMA Quot.sound
-  aparece en 85 de 86 teoremas: todos menos bind_da_ok
+  aparece en 90 de 91 teoremas: todos menos bind_da_ok
 
 ------------------------------------------------------------------------
 MODELOS (declaraciones sin contenido)
 ------------------------------------------------------------------------
 
 AXIOMA ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  aparece en 57 de 86 teoremas
+  aparece en 59 de 91 teoremas
   que es: la firma de `Debug::fmt` del error `FueraDeCapacidad`. La
     nombra cada `.expect()` sobre un `SszList` o un `SszBitlist`, para
     formatear el mensaje si aborta.
@@ -1004,10 +1036,11 @@ AXIOMA ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
     GEN.state_transition_devuelve_alcanzable,
     G7.aceptar_saca_del_genesis, G7.state_transition_conserva_inv7,
     G7.alcanzable_inv7, G7.justificado_en_el_historial,
-    G7.st7_alcanzable
+    G7.st7_alcanzable, ORD.serialize_escribe_ordenado,
+    ORD.serialize_raices_canonicas
 
 AXIOMA core.Array.Insts.CoreHashHash.hash
-  aparece en 34 de 86 teoremas
+  aparece en 34 de 91 teoremas
   que es: el hash de un array. Hace falta para usar `H256` como clave
     del `HashMap`.
   teoremas donde aparece:
@@ -1037,7 +1070,7 @@ AXIOMA core.Array.Insts.CoreHashHash.hash
     G7.justificado_en_el_historial, G7.st7_alcanzable
 
 AXIOMA core.hash.BuildHasher
-  aparece en 34 de 86 teoremas
+  aparece en 34 de 91 teoremas
   que es: el trait del fabricante de hashers del `HashMap`.
   teoremas donde aparece:
     try_finalize_no_retrocede, try_finalize_no_toca_justified,
@@ -1066,7 +1099,7 @@ AXIOMA core.hash.BuildHasher
     G7.justificado_en_el_historial, G7.st7_alcanzable
 
 AXIOMA std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  aparece en 34 de 86 teoremas
+  aparece en 34 de 91 teoremas
   que es: el hasher por defecto del `HashMap`.
   teoremas donde aparece:
     try_finalize_no_retrocede, try_finalize_no_toca_justified,
@@ -1099,7 +1132,7 @@ NATIVOS (cuentas que hizo el compilador)
 ------------------------------------------------------------------------
 
 AXIOMA mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-  aparece en 49 de 86 teoremas
+  aparece en 49 de 91 teoremas
   que es: una cota que el compilador calculo al traducir
     `justified_slots_ops.extend_to_slot`.
   teoremas donde aparece:
@@ -1138,7 +1171,7 @@ AXIOMA mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
     G7.st7_alcanzable
 
 AXIOMA mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-  aparece en 32 de 86 teoremas
+  aparece en 32 de 91 teoremas
   que es: una cota que el compilador calculo al traducir
     `justified_slots_ops.extend_to_slot_loop.body`.
   teoremas donde aparece:
@@ -1166,7 +1199,7 @@ AXIOMA mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
     G7.st7_alcanzable
 
 AXIOMA mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-  aparece en 32 de 86 teoremas
+  aparece en 32 de 91 teoremas
   que es: una cota que el compilador calculo al traducir
     `justified_slots_ops.set_justified`.
   teoremas donde aparece:
@@ -1196,7 +1229,7 @@ AXIOMA mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
     G7.justificado_en_el_historial, G7.st7_alcanzable
 
 AXIOMA mini_stf.stf.try_finalize._native.decide.ax_1
-  aparece en 32 de 86 teoremas
+  aparece en 32 de 91 teoremas
   que es: una cota que el compilador calculo al traducir
     `stf.try_finalize`.
   teoremas donde aparece:
@@ -1226,7 +1259,7 @@ AXIOMA mini_stf.stf.try_finalize._native.decide.ax_1
     G7.justificado_en_el_historial, G7.st7_alcanzable
 
 AXIOMA mini_stf.stf.try_finalize._native.decide.ax_2
-  aparece en 32 de 86 teoremas
+  aparece en 32 de 91 teoremas
   que es: una cota que el compilador calculo al traducir
     `stf.try_finalize`.
   teoremas donde aparece:
@@ -1256,7 +1289,7 @@ AXIOMA mini_stf.stf.try_finalize._native.decide.ax_2
     G7.justificado_en_el_historial, G7.st7_alcanzable
 
 AXIOMA mini_stf.stf.process_block_header._native.decide.ax_3
-  aparece en 29 de 86 teoremas
+  aparece en 29 de 91 teoremas
   que es: una cota que el compilador calculo al traducir
     `stf.process_block_header`.
   teoremas donde aparece:
@@ -1282,7 +1315,7 @@ AXIOMA mini_stf.stf.process_block_header._native.decide.ax_3
     G7.st7_alcanzable
 
 AXIOMA mini_stf.stf.serialize_justifications._native.decide.ax_1
-  aparece en 27 de 86 teoremas
+  aparece en 29 de 91 teoremas
   que es: una cota que el compilador calculo al traducir
     `stf.serialize_justifications`.
   teoremas donde aparece:
@@ -1307,10 +1340,11 @@ AXIOMA mini_stf.stf.serialize_justifications._native.decide.ax_1
     RV.state_transition_conserva_hipotesis, GEN.alcanzable_cumple,
     GEN.st4_alcanzable, GEN.state_transition_devuelve_alcanzable,
     G7.state_transition_conserva_inv7, G7.alcanzable_inv7,
-    G7.justificado_en_el_historial, G7.st7_alcanzable
+    G7.justificado_en_el_historial, G7.st7_alcanzable,
+    ORD.serialize_escribe_ordenado, ORD.serialize_raices_canonicas
 
 AXIOMA mini_stf.stf.serialize_justifications._native.decide.ax_2
-  aparece en 27 de 86 teoremas
+  aparece en 29 de 91 teoremas
   que es: una cota que el compilador calculo al traducir
     `stf.serialize_justifications`.
   teoremas donde aparece:
@@ -1335,10 +1369,11 @@ AXIOMA mini_stf.stf.serialize_justifications._native.decide.ax_2
     RV.state_transition_conserva_hipotesis, GEN.alcanzable_cumple,
     GEN.st4_alcanzable, GEN.state_transition_devuelve_alcanzable,
     G7.state_transition_conserva_inv7, G7.alcanzable_inv7,
-    G7.justificado_en_el_historial, G7.st7_alcanzable
+    G7.justificado_en_el_historial, G7.st7_alcanzable,
+    ORD.serialize_escribe_ordenado, ORD.serialize_raices_canonicas
 
 AXIOMA mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-  aparece en 27 de 86 teoremas
+  aparece en 29 de 91 teoremas
   que es: una cota que el compilador calculo al traducir
     `stf.volcar_votos_loop.body`.
   teoremas donde aparece:
@@ -1363,13 +1398,14 @@ AXIOMA mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
     RV.state_transition_conserva_hipotesis, GEN.alcanzable_cumple,
     GEN.st4_alcanzable, GEN.state_transition_devuelve_alcanzable,
     G7.state_transition_conserva_inv7, G7.alcanzable_inv7,
-    G7.justificado_en_el_historial, G7.st7_alcanzable
+    G7.justificado_en_el_historial, G7.st7_alcanzable,
+    ORD.serialize_escribe_ordenado, ORD.serialize_raices_canonicas
 
 ------------------------------------------------------------------------
 TEOREMAS QUE SOLO USAN AXIOMAS DE LEAN
 ------------------------------------------------------------------------
 
-Son 27 de 86.
+Son 30 de 91.
 
   pronic_iff_cuadrado, chequeo_de_paridad_redundante, bind_da_ok,
   ST3.process_slots_no_toca_checkpoints, ST7.h256_eq_true,
@@ -1383,7 +1419,9 @@ Son 27 de 86.
   NP6.primer_bit_devuelve, NP6.votos_vacios_devuelve,
   NP6.poner_si_falta_devuelve, NP6.marcar_votos_devuelve,
   NP6.cuenta_votos_devuelve, NP6.sin_devuelve,
-  NP6.construir_mapa_devuelve, NP4.h256_cmp_devuelve
+  NP6.construir_mapa_devuelve, NP4.h256_cmp_devuelve,
+  ORD.comparacion_es_lexicografica, ORD.claves_ordenadas_ordena,
+  ORD.claves_ordenadas_canonica
 
 ========================================================================
 

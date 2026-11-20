@@ -1512,5 +1512,62 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    >
    > Axiomas: `aceptar_saca_del_genesis` 7 (3 de Lean, 3 nativos, el
    > `fmt`); los otros cuatro 16.
+
+   > Sexta nota del 19 nov 2026: **el ordenamiento de raices ordena**
+   > (teorema 25, namespace `ORD`). Cinco resultados:
+   > `comparacion_es_lexicografica`, `claves_ordenadas_ordena`,
+   > `claves_ordenadas_canonica`, `serialize_escribe_ordenado` y
+   > `serialize_raices_canonicas`. No se toco el Rust ni los supuestos.
+   >
+   > - El orden es el `<` de Lean sobre `List Nat` (lexicografico),
+   >   aplicado a los bytes. `MenorIgual a b := ¬ Menor b a`.
+   >   `cmp_listas_u8_menor` ata el modelo `cmp_listas` a ese orden: da
+   >   `Less` exactamente cuando la primera lista es menor. Induccion
+   >   sobre las dos listas, con `List.cons_lt_cons_iff`.
+   > - OJO con las instancias: Mathlib esta en el arbol (lo trae Aeneas)
+   >   y define OTRO `≤` sobre listas (`List.LE'`). `List.le_trans` del
+   >   nucleo no unifica con ese. Por eso `MenorIgual` se define con `¬ <`
+   >   y no con `≤`, y donde hace falta el `≤` del nucleo se escribe
+   >   `@LE.le (List Nat) List.instLE`.
+   > - Invariante del lazo interno, `InvB`, sobre listas y con indices
+   >   (`l[p]? = some a`), no con `take`/`drop`: (1) sacando la posicion
+   >   `j`, las primeras `i + 1` estan en orden; (2) el de la posicion `j`
+   >   es menor ESTRICTO que los que ya paso; (3) si freno, es mayor o
+   >   igual que los de su izquierda. Cuatro lemas puros: `invB_inicial`,
+   >   `invB_intercambio`, `invB_frena`, `invB_salida`. La transitividad
+   >   se usa una sola vez, al frenar.
+   > - `intercambio_perm`: intercambiar dos vecinos con dos `set` da una
+   >   permutacion. Induccion sobre la lista; el caso base es
+   >   `List.Perm.swap`.
+   > - Lemas con contenido sobre el codigo, nuevos: `raiz_de_contenido` y
+   >   `clave_contenido` (leen la posicion), `slice_get_mut_contenido`
+   >   (si la posicion existe da `Some`, y escribir por la referencia es
+   >   `List.set`), `push_contenido`, `lt_default_orden`.
+   > - El cuerpo del lazo da 8 metas: tres ramas imposibles (un `get_mut`
+   >   que daria `None`), el intercambio, el freno, la resta protegida y
+   >   las dos salidas. Se cerraron una por una con `rename_i`.
+   > - `leido`: de "lo leido coincide con cualquier cosa que haya en la
+   >   posicion" a "en la posicion esta lo leido", cuando la posicion
+   >   existe. Hace de puente entre los specs y los lemas puros.
+   > - La unicidad (`canonica`) sale de `List.Perm.eq_of_pairwise` y de
+   >   que `MenorIgual` es antisimetrica (`List.le_antisymm` mas que
+   >   `bytes` es inyectiva, por `UScalar.eq_of_val_eq`).
+   > - `serialize_escribe_ordenado` abre la funcion como ecuacion con
+   >   ocho `bind_da_ok`, igual que `serialize_no_toca_historial`.
+   >
+   > De que depende: los tres primeros, de los 3 axiomas de Lean. Pero
+   > se apoyan en la definicion `cmp_listas` (el `Ord` de arrays es
+   > lexicografico), que es una afirmacion de modelado y `#print axioms`
+   > no lista. Es el primer teorema que usa QUE devuelve la comparacion.
+   > Los dos de `serialize_justifications`, 7 (3 de Lean, 3 nativos, el
+   > `fmt`).
+   >
+   > Lo que NO esta: que `justifications_validators` coincida entre
+   > nodos (hace falta el contenido de `volcar_votos`).
+   >
+   > Controles negativos, dos: (1) `invB_inicial` sin la hipotesis del
+   > prefijo ordenado: queda `MenorIgual a b` con `p < q ≤ i` y nada mas.
+   > (2) `lt_default_orden` con `Menor b a`: no cierra ninguno de los tres
+   > casos del `Ordering`.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

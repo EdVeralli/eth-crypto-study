@@ -9650,6 +9650,666 @@ theorem aceptar_saca_del_genesis (st st' : tipos.State) (block : tipos.Block)
 
 end G7
 
+/- ===========================================================================
+   Teorema 25 — el ordenamiento de raices ordena
+
+   `claves_ordenadas` es el ordenamiento por insercion escrito a mano que
+   reemplazo al `.sort()` del original. El teorema 16 probo que termina y no
+   entra en panico. Faltaba lo que su nombre promete.
+
+   Que se prueba:
+
+   - `comparacion_es_lexicografica`: el `<` traducido entre dos `H256` da
+     `true` exactamente cuando el primero es menor en el orden lexicografico
+     de sus bytes. Ese orden es el `<` de Lean sobre `List Nat`, no una
+     definicion nuestra.
+   - `claves_ordenadas_ordena`: lo que devuelve esta en orden, y es una
+     permutacion de las claves del mapa: las mismas raices, con sus
+     repeticiones si las hubiera.
+   - `claves_ordenadas_canonica`: dos mapas con las mismas raices, en
+     cualquier orden, dan la misma lista.
+   - `serialize_escribe_ordenado`: lo que `serialize_justifications` deja
+     en `state.justifications_roots` esta ordenado y son las raices del mapa.
+   - `serialize_raices_canonicas`: y no depende del orden en que el mapa las
+     tenia. Es lo que dice el comentario del codigo de ethlambda ("sorting
+     ensures that every node produces identical state representation"),
+     demostrado para ese campo.
+
+   Como. El lazo interno (`burbujear`) baja el elemento de la posicion `i`
+   intercambiando vecinos. El invariante (`InvB`) dice tres cosas: sacando
+   la posicion por la que va, las primeras `i + 1` estan en orden; el
+   elemento que baja es menor estricto que todos los que ya paso; y si
+   freno, es mayor o igual que los de su izquierda. La parte de listas
+   (`invB_intercambio`, `invB_frena`, `invB_salida`) no nombra el codigo.
+   La parte del codigo usa cuatro lemas con contenido: que `raiz_de` lee la
+   posicion, que `get_mut` mas la escritura es `set`, que `push` agrega al
+   final, y la comparacion.
+
+   De que depende. Los tres primeros resultados, de los tres axiomas de
+   Lean y nada mas. Pero se apoyan en una afirmacion de modelado: que el
+   `Ord` de `[u8; 32]` es el orden lexicografico (supuestos/FunsExternal.lean,
+   `cmp_listas`). Es una definicion, asi que `#print axioms` no la lista.
+   Este es el primer teorema que usa su CONTENIDO y no solo que devuelve.
+
+   Lo que NO esta: que `justifications_validators` quede en el mismo orden
+   que las raices (el volcado de votos), ni que el estado entero sea el
+   mismo en dos nodos.
+
+   Controles negativos, en la bitacora: sin la hipotesis de que el prefijo
+   ya estaba ordenado queda abierta `MenorIgual a b` para dos posiciones
+   del prefijo; y con la comparacion al reves no cierra ninguno de los tres
+   casos del `Ordering`.
+   =========================================================================== -/
+
+namespace ORD
+open mini_stf
+open Std.Tactic
+open ST3 JS NP NP2 NP3 NP4 VC VI HC
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+/- ====================================================================
+   El orden.
+   ==================================================================== -/
+
+/-- Los bytes de una raiz, como lista de naturales. -/
+def bytes (a : tipos.H256) : List Nat := a.val.map (·.val)
+
+/-- `a < b`: orden lexicografico de los bytes. Es el `<` de Lean sobre
+    listas, no una definicion nuestra. -/
+def Menor (a b : tipos.H256) : Prop := bytes a < bytes b
+
+/-- `a ≤ b` en el mismo orden: `b` no es menor que `a`. -/
+def MenorIgual (a b : tipos.H256) : Prop := ¬ Menor b a
+
+theorem menorIgual_trans {a b c : tipos.H256}
+    (h1 : MenorIgual a b) (h2 : MenorIgual b c) : MenorIgual a c := by
+  unfold MenorIgual Menor at *
+  exact List.le_trans (α := Nat) (l₁ := bytes a) (l₂ := bytes b) (l₃ := bytes c) h1 h2
+
+theorem menorIgual_of_menor {a b : tipos.H256} (h : Menor a b) : MenorIgual a b := by
+  unfold MenorIgual Menor at *
+  exact List.le_of_lt (α := Nat) h
+
+/-- La comparacion traducida de dos listas de bytes da `Less` exactamente
+    cuando la primera es menor en el orden lexicografico. -/
+theorem cmp_listas_u8_menor (a b : List Std.U8) (o : core.cmp.Ordering)
+    (h : core.Array.Insts.CoreCmpOrd.cmp_listas core.U8.Insts.CoreCmpOrd a b = ok o) :
+    o = core.cmp.Ordering.Less ↔ a.map (·.val) < b.map (·.val) := by
+  induction a generalizing b o with
+  | nil =>
+    cases b with
+    | nil =>
+      simp [core.Array.Insts.CoreCmpOrd.cmp_listas] at h
+      subst h; simp
+    | cons y ys =>
+      simp [core.Array.Insts.CoreCmpOrd.cmp_listas] at h
+      subst h; simp
+  | cons x xs ih =>
+    cases b with
+    | nil =>
+      simp [core.Array.Insts.CoreCmpOrd.cmp_listas] at h
+      subst h; simp
+    | cons y ys =>
+      simp only [core.Array.Insts.CoreCmpOrd.cmp_listas, core.U8.Insts.CoreCmpOrd,
+        core.mkUOrd] at h
+      simp only [List.map_cons, List.cons_lt_cons_iff]
+      cases hc : compare x.val y.val <;> simp [hc] at h
+      · subst h
+        have := Nat.compare_eq_lt.mp hc
+        simp [this]
+      · have he := Nat.compare_eq_eq.mp hc
+        rw [ih ys o h]
+        simp [he]
+      · subst h
+        have := Nat.compare_eq_gt.mp hc
+        simp
+        omega
+
+/- ====================================================================
+   Listas: ordenada hasta una posicion, y el intercambio de dos vecinos.
+   ==================================================================== -/
+
+/-- Las primeras `n` posiciones de `l` estan en orden. -/
+def OrdHasta (l : List tipos.H256) (n : Nat) : Prop :=
+  ∀ p q a b, p < q → q < n → l[p]? = some a → l[q]? = some b → MenorIgual a b
+
+theorem ordHasta_pairwise (l : List tipos.H256) (h : OrdHasta l l.length) :
+    l.Pairwise MenorIgual := by
+  rw [List.pairwise_iff_getElem]
+  intro i j hi hj hij
+  exact h i j _ _ hij hj (by simp [hi]) (by simp [hj])
+
+/-- Intercambiar dos vecinos da una permutacion. -/
+theorem intercambio_perm {α : Type} (l : List α) (k : Nat) (a b : α)
+    (ha : l[k]? = some a) (hb : l[k + 1]? = some b) :
+    ((l.set k b).set (k + 1) a).Perm l := by
+  induction l generalizing k with
+  | nil => simp at ha
+  | cons x xs ih =>
+    cases k with
+    | zero =>
+      cases xs with
+      | nil => simp at hb
+      | cons y ys =>
+        simp at ha hb
+        subst ha hb
+        simp
+        exact List.Perm.swap _ _ _
+    | succ k =>
+      simp at ha hb
+      simp
+      exact ih k ha hb
+
+/- ====================================================================
+   El invariante del lazo interno, sobre listas.
+
+   `burbujear(v, i)` baja el elemento de la posicion `i` hasta su lugar.
+   En cada vuelta ese elemento esta en la posicion `j`. Lo que vale:
+
+   - sacando la posicion `j`, las primeras `i + 1` estan en orden;
+   - el de la posicion `j` es menor estricto que todos los que ya paso;
+   - si el lazo freno (`seguir = false`), es mayor o igual que todos los
+     de su izquierda.
+   ==================================================================== -/
+
+def InvB (l0 : List tipos.H256) (i : Nat) (l : List tipos.H256) (j : Nat)
+    (seguir : Bool) : Prop :=
+  l.length = l0.length ∧ l.Perm l0 ∧ j ≤ i ∧ i < l.length ∧
+  (∀ p q a b, p < q → q ≤ i → p ≠ j → q ≠ j →
+     l[p]? = some a → l[q]? = some b → MenorIgual a b) ∧
+  (∀ q a b, j < q → q ≤ i → l[j]? = some a → l[q]? = some b → Menor a b) ∧
+  (seguir = false → ∀ p a b, p < j → l[p]? = some a → l[j]? = some b → MenorIgual a b)
+
+theorem invB_inicial (l0 : List tipos.H256) (i : Nat) (hi : i < l0.length)
+    (ho : OrdHasta l0 i) : InvB l0 i l0 i true := by
+  refine ⟨rfl, List.Perm.refl _, Nat.le_refl _, hi, ?_, ?_, ?_⟩
+  · intro p q a b hpq hq hp hqi ha hb
+    exact ho p q a b hpq (by omega) ha hb
+  · intro q a b h1 h2
+    omega
+  · intro h
+    cases h
+
+theorem invB_intercambio (l0 l : List tipos.H256) (i j : Nat) (a b : tipos.H256)
+    (hinv : InvB l0 i l j true) (hj : 0 < j)
+    (ha : l[j - 1]? = some a) (hb : l[j]? = some b) (hm : Menor b a) :
+    InvB l0 i ((l.set (j - 1) b).set j a) (j - 1) true := by
+  obtain ⟨hlen, hperm, hji, hil, h4, h5, -⟩ := hinv
+  obtain ⟨k, rfl⟩ : ∃ k, j = k + 1 := ⟨j - 1, by omega⟩
+  simp only [Nat.add_sub_cancel] at *
+  refine ⟨by simp [hlen], (intercambio_perm l k a b ha hb).trans hperm, by omega,
+    by simp; omega, ?_, ?_, ?_⟩
+  · intro p q x y hpq hq hp hqk hx hy
+    simp only [List.getElem?_set] at hx hy
+    by_cases hp1 : p = k + 1
+    · -- `p` es donde quedo `a`, que venia de la posicion `k`.
+      subst hp1
+      have hqne : k ≠ q := by omega
+      have hqne2 : k + 1 ≠ q := by omega
+      simp [hqne, hqne2] at hy
+      have hx' : x = a := by
+        have : k + 1 < l.length := by omega
+        simp [this] at hx
+        exact hx.symm
+      subst hx'
+      exact h4 k q x y (by omega) hq (by omega) (by omega) ha hy
+    · by_cases hq1 : q = k + 1
+      · subst hq1
+        have hpne : k ≠ p := by omega
+        have hpne2 : k + 1 ≠ p := by omega
+        simp [hpne, hpne2] at hx
+        have hy' : y = a := by
+          have : k + 1 < l.length := by omega
+          simp [this] at hy
+          exact hy.symm
+        subst hy'
+        exact h4 p k x y (by omega) (by omega) (by omega) (by omega) hx ha
+      · have e1 : k ≠ p := by omega
+        have e2 : k + 1 ≠ p := by omega
+        have e3 : k ≠ q := by omega
+        have e4 : k + 1 ≠ q := by omega
+        simp [e1, e2] at hx
+        simp [e3, e4] at hy
+        exact h4 p q x y hpq hq (by omega) (by omega) hx hy
+  · intro q x y hkq hq hx hy
+    simp only [List.getElem?_set] at hx hy
+    have hx' : x = b := by
+      have h1 : k < l.length := by omega
+      simp [h1] at hx
+      exact hx.symm
+    subst hx'
+    by_cases hq1 : q = k + 1
+    · subst hq1
+      have hy' : y = a := by
+        have : k + 1 < l.length := by omega
+        simp [this] at hy
+        exact hy.symm
+      subst hy'
+      exact hm
+    · have e3 : k ≠ q := by omega
+      have e4 : k + 1 ≠ q := by omega
+      simp [e3, e4] at hy
+      exact h5 q x y (by omega) hq hb hy
+  · intro h
+    cases h
+
+theorem invB_frena (l0 l : List tipos.H256) (i j : Nat) (a b : tipos.H256)
+    (hinv : InvB l0 i l j true) (hj : 0 < j)
+    (ha : l[j - 1]? = some a) (hb : l[j]? = some b) (hm : ¬ Menor b a) :
+    InvB l0 i l j false := by
+  obtain ⟨hlen, hperm, hji, hil, h4, h5, -⟩ := hinv
+  refine ⟨hlen, hperm, hji, hil, h4, h5, ?_⟩
+  intro _ p x y hp hx hy
+  have hy' : y = b := by rw [hb] at hy; exact (Option.some.inj hy).symm
+  subst hy'
+  by_cases hp1 : p = j - 1
+  · subst hp1
+    have hx' : x = a := by rw [ha] at hx; exact (Option.some.inj hx).symm
+    subst hx'
+    exact hm
+  · exact menorIgual_trans
+      (h4 p (j - 1) x a (by omega) (by omega) (by omega) (by omega) hx ha) hm
+
+theorem invB_salida (l0 l : List tipos.H256) (i j : Nat) (seguir : Bool)
+    (hinv : InvB l0 i l j seguir) (hfin : seguir = false ∨ j = 0) :
+    OrdHasta l (i + 1) ∧ l.Perm l0 ∧ l.length = l0.length := by
+  obtain ⟨hlen, hperm, hji, hil, h4, h5, h6⟩ := hinv
+  refine ⟨?_, hperm, hlen⟩
+  intro p q a b hpq hq ha hb
+  by_cases hpj : p = j
+  · subst hpj
+    exact menorIgual_of_menor (h5 q a b hpq (by omega) ha hb)
+  · by_cases hqj : q = j
+    · subst hqj
+      rcases hfin with hs | h0
+      · exact h6 hs p a b hpq ha hb
+      · omega
+    · exact h4 p q a b hpq (by omega) hpj hqj ha hb
+
+/-- Si lo que se leyo de una posicion que existe coincide con cualquier cosa
+    que haya ahi, es lo que hay ahi. -/
+theorem leido {α : Type} (l : List α) (k : Nat) (r : α) (hk : k < l.length)
+    (h : ∀ x, l[k]? = some x → r = x) : l[k]? = some r := by
+  have e : l[k]? = some l[k] := by simp [hk]
+  rw [h _ e]
+  exact e
+
+/- ====================================================================
+   Las piezas del codigo, con contenido.
+   ==================================================================== -/
+
+section
+attribute [local spec] vec_deref_total slice_get_total
+
+/-- `raiz_de(v, i)` devuelve lo que hay en la posicion `i`. -/
+theorem raiz_de_contenido (v : alloc.vec.Vec tipos.H256) (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.raiz_de v i
+    ⦃ ⇓ r => ⌜ ∀ x, v.val[i.val]? = some x → r = x ⌝ ⦄ := by
+  unfold mapa.raiz_de
+  hax_mvcgen
+  all_goals simp_all
+
+/-- `clave(i)` devuelve la clave de la posicion `i`. -/
+theorem clave_contenido (m : mapa.MapaVotos) (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.clave m i
+    ⦃ ⇓ r => ⌜ ∀ x, m.claves.val[i.val]? = some x → r = x ⌝ ⦄ := by
+  unfold mapa.MapaVotos.clave
+  hax_mvcgen
+  all_goals simp_all
+end
+
+/-- `<` sobre `H256` devuelve `true` exactamente cuando el primero es menor
+    en el orden lexicografico de los bytes. -/
+theorem lt_default_orden (a b : tipos.H256) :
+    ⦃ ⌜ True ⌝ ⦄
+    core.cmp.PartialOrd.lt.default tipos.H256.Insts.CoreCmpPartialOrdH256 a b
+    ⦃ ⇓ r => ⌜ r = true ↔ Menor a b ⌝ ⦄ := by
+  obtain ⟨o, ho⟩ := h256_cmp_devuelve a b
+  have hm := cmp_listas_u8_menor a.val b.val o (by
+    unfold tipos.H256.Insts.CoreCmpOrd.cmp core.Array.Insts.CoreCmpOrd.cmp at ho
+    exact ho)
+  refine triple_total_of ?_
+  unfold core.cmp.PartialOrd.lt.default
+  show ∃ r, (do
+      let o ← tipos.H256.Insts.CoreCmpPartialOrdH256.partial_cmp a b
+      _) = ok r ∧ _
+  unfold tipos.H256.Insts.CoreCmpPartialOrdH256.partial_cmp
+  rw [ho]
+  cases o <;> refine ⟨_, rfl, ?_⟩ <;> simpa [Menor, bytes] using hm
+
+/-- `get_mut` sobre una posicion que existe: devuelve `Some`, y escribir por
+    la referencia es `set`. -/
+theorem slice_get_mut_contenido {T : Type} (s : Slice T) (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄
+    core.slice.Slice.get_mut (core.Usize.Insts.CoreSliceIndexSliceIndexSliceT T) s i
+    ⦃ ⇓ r => ⌜ i.val < s.val.length →
+        (∃ y, r.1 = core.option.Option.Some y) ∧
+        ∀ x, (r.2 (core.option.Option.Some x)).val = s.val.set i.val x ⌝ ⦄ := by
+  refine triple_total_of ?_
+  simp [core.slice.Slice.get_mut,
+    core.Usize.Insts.CoreSliceIndexSliceIndexSliceT.get_mut,
+    rust_primitives.slice.slice_length]
+  by_cases h : i.val < s.val.length
+  · simp [h, rust_primitives.slice.slice_index_mut, Slice.index_mut_usize,
+      Slice.index_usize, Slice.set, Slice.setAtNat]
+  · simp [h]
+
+section
+attribute [local spec] raiz_de_contenido lt_default_orden vec_deref_mut_total
+  slice_get_mut_contenido
+
+theorem burbujear_loop_ordena (v0 : alloc.vec.Vec tipos.H256) (i : Std.Usize)
+    (hi : i.val < v0.val.length) (ho : OrdHasta v0.val i.val) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.burbujear_loop v0 i true
+    ⦃ ⇓ r => ⌜ OrdHasta r.val (i.val + 1) ∧ r.val.Perm v0.val ∧
+               r.val.length = v0.val.length ⌝ ⦄ := by
+  unfold mapa.burbujear_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (alloc.vec.Vec tipos.H256) × Std.Usize × Bool =>
+       InvB v0.val i.val x.1.val x.2.1.val x.2.2)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => 2 * x.2.1.val + (if x.2.2 then 1 else 0))
+  · exact Nat.lt_wfRel.wf
+  · exact invB_inicial v0.val i.val hi ho
+  · intro x hinv
+    obtain ⟨v, j, seguir⟩ := x
+    simp only at hinv
+    have hji : j.val ≤ i.val := hinv.2.2.1
+    have hil : i.val < v.val.length := hinv.2.2.2.1
+    unfold mapa.burbujear_loop.body
+    hax_mvcgen
+    -- 1 y 2. El primer `get_mut` no puede dar `None`: la posicion existe.
+    · exfalso
+      rename_i hs hj jm hjm h1j a ha b hb lt hlt hltm d hd g hg hx1 d2 hd2 g2 hg2 hx2
+      obtain ⟨⟨y, hy⟩, -⟩ := hg (by rw [hd.1]; scalar_tac)
+      rw [hy] at hx1
+      simp at hx1
+    · exfalso
+      rename_i hs hj jm hjm h1j a ha b hb lt hlt hltm d hd g hg hx1 d2 hd2 g2 hg2 c2 hx2
+      obtain ⟨⟨y, hy⟩, -⟩ := hg (by rw [hd.1]; scalar_tac)
+      rw [hy] at hx1
+      simp at hx1
+    -- 3. El segundo tampoco: el primero no cambio el largo.
+    · exfalso
+      rename_i hs hj jm hjm h1j a ha b hb lt hlt hltm d hd g hg c1 hx1 d2 hd2 g2 hg2 hx2
+      have hg' := (hg (by rw [hd.1]; scalar_tac)).2
+      obtain ⟨⟨y, hy⟩, -⟩ := hg2 (by
+        rw [hd2.1, hd.2, hg', List.length_set, hd.1]; scalar_tac)
+      rw [hy] at hx2
+      simp at hx2
+    -- 4. El intercambio.
+    · rename_i hs hj jm hjm h1j a ha b hb lt hlt hltm d hd g hg c1 hx1 d2 hd2 g2 hg2 c2 hx2
+      subst hs
+      have hj0 : 0 < j.val := by scalar_tac
+      have hjm' : jm.val = j.val - 1 := by scalar_tac
+      have ea := leido v.val (j.val - 1) a (by omega) (by rw [← hjm']; exact ha)
+      have eb := leido v.val j.val b (by omega) hb
+      have hstep := invB_intercambio v0.val v.val i.val j.val a b hinv hj0 ea eb
+        (hltm.mp hlt)
+      have hg' := (hg (by rw [hd.1]; scalar_tac)).2
+      have e0 : d2.1.val = v.val.set (j.val - 1) b := by
+        rw [hd2.1, hd.2, hg', hd.1, hjm']
+      have hg2' := (hg2 (by rw [e0, List.length_set]; omega)).2
+      have e1 : (d2.2 (g2.2 (core.option.Option.Some a))).val =
+          (v.val.set (j.val - 1) b).set j.val a := by
+        rw [hd2.2, hg2', e0]
+      refine ⟨?_, Or.inl ?_⟩
+      · rw [e1, hjm']
+        exact hstep
+      · simp [hjm']
+        omega
+    -- 5. No es menor que el de la izquierda: frena.
+    · rename_i hs hj jm hjm h1j a ha b hb lt hlt hltm
+      subst hs
+      have hj0 : 0 < j.val := by scalar_tac
+      have hjm' : jm.val = j.val - 1 := by scalar_tac
+      have ea := leido v.val (j.val - 1) a (by omega) (by rw [← hjm']; exact ha)
+      have eb := leido v.val j.val b (by omega) hb
+      refine ⟨invB_frena v0.val v.val i.val j.val a b hinv hj0 ea eb
+        (fun hm => hlt (hltm.mpr hm)), Or.inl ?_⟩
+      simp
+    -- 6. La resta `j - 1` esta protegida por `j > 0`.
+    · exfalso
+      scalar_tac
+    -- 7. Llego al principio.
+    · show OrdHasta v.val (i.val + 1) ∧ v.val.Perm v0.val ∧ v.val.length = v0.val.length
+      exact invB_salida _ _ _ _ _ hinv (Or.inr (by scalar_tac))
+    -- 8. Habia frenado.
+    · show OrdHasta v.val (i.val + 1) ∧ v.val.Perm v0.val ∧ v.val.length = v0.val.length
+      exact invB_salida _ _ _ _ _ hinv (Or.inl (by simp_all))
+end
+
+/-- `burbujear(v, i)`: si las primeras `i` posiciones estaban en orden,
+    quedan en orden las primeras `i + 1`, con los mismos elementos. -/
+theorem burbujear_ordena (v : alloc.vec.Vec tipos.H256) (i : Std.Usize)
+    (hi : i.val < v.val.length) (ho : OrdHasta v.val i.val) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.burbujear v i
+    ⦃ ⇓ r => ⌜ OrdHasta r.val (i.val + 1) ∧ r.val.Perm v.val ∧
+               r.val.length = v.val.length ⌝ ⦄ :=
+  burbujear_loop_ordena v i hi ho
+
+theorem ordHasta_mono {l : List tipos.H256} {n m : Nat} (h : OrdHasta l n)
+    (hm : m ≤ n) : OrdHasta l m := by
+  intro p q a b hpq hq ha hb
+  exact h p q a b hpq (by omega) ha hb
+
+/-- Pasado el final de la lista no hay nada que ordenar. -/
+theorem ordHasta_largo {l : List tipos.H256} {n : Nat} (h : OrdHasta l n)
+    (hn : l.length ≤ n) : OrdHasta l l.length :=
+  ordHasta_mono h hn
+
+/-- `push` con contenido. -/
+theorem push_contenido {T : Type} (v : alloc.vec.Vec T) (x : T)
+    (h : v.val.length < Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄ alloc.vec.Vec.push v x
+    ⦃ ⇓ r => ⌜ r.val = v.val ++ [x] ⌝ ⦄ := by
+  have hle : (v.val ++ [x]).length ≤ Usize.max := by simp; omega
+  refine triple_total_of ⟨⟨v.val ++ [x], hle⟩, ?_, rfl⟩
+  simp only [alloc.vec.Vec.push, rust_primitives.sequence.seq_push]
+  rw [dif_pos hle]
+  rfl
+
+section
+attribute [local spec] clave_contenido push_contenido burbujear_ordena
+
+/-- El loop que copia las claves las copia en orden, todas. -/
+theorem claves_loop0_copia (n : Std.Usize) (c : alloc.vec.Vec tipos.H256)
+    (vs : alloc.vec.Vec (alloc.vec.Vec Bool)) (s0 : alloc.vec.Vec tipos.H256)
+    (hcap : s0.val.length + n.val ≤ Usize.max) (hn : n.val ≤ c.val.length) :
+    ⦃ ⌜ True ⌝ ⦄
+    mapa.MapaVotos.claves_ordenadas_loop0 { start := 0#usize, «end» := n } c vs s0
+    ⦃ ⇓ r => ⌜ r.val = s0.val ++ c.val.take n.val ⌝ ⦄ := by
+  unfold mapa.MapaVotos.claves_ordenadas_loop0
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × (alloc.vec.Vec tipos.H256) =>
+       x.1.«end» = n ∧ x.1.start.val ≤ n.val ∧
+       x.2.val = s0.val ++ c.val.take x.1.start.val)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, by simp, by simp⟩
+  · intro x hinv
+    obtain ⟨iter, v⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hle, hlen⟩ := hinv
+    simp only at hend hle hlen
+    subst hend
+    unfold mapa.MapaVotos.claves_ordenadas_loop0.body
+    hax_mvcgen
+    -- 1. El `push` tiene lugar.
+    · rw [hlen]
+      simp
+      omega
+    -- 2. Se copio la clave de la posicion `desde`.
+    · rename_i hlt s hs r hr w hw
+      have e := leido c.val desde.val r (by omega) hr
+      refine ⟨⟨trivial, by omega, ?_⟩, Or.inl (by omega)⟩
+      rw [hw, hlen, hs, List.take_add_one, e]
+      simp
+    -- 3. Se termino el rango.
+    · show v.val = s0.val ++ c.val.take hasta.val
+      have e : desde.val = hasta.val := by omega
+      rw [hlen, e]
+
+/-- El loop del ordenamiento por insercion. -/
+theorem claves_loop1_ordena (d n : Std.Usize) (s0 : alloc.vec.Vec tipos.H256)
+    (hn : n.val = s0.val.length) (ho : OrdHasta s0.val d.val) :
+    ⦃ ⌜ True ⌝ ⦄
+    mapa.MapaVotos.claves_ordenadas_loop1 { start := d, «end» := n } s0
+    ⦃ ⇓ r => ⌜ OrdHasta r.val r.val.length ∧ r.val.Perm s0.val ⌝ ⦄ := by
+  unfold mapa.MapaVotos.claves_ordenadas_loop1
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × (alloc.vec.Vec tipos.H256) =>
+       x.1.«end» = n ∧ OrdHasta x.2.val x.1.start.val ∧ x.2.val.Perm s0.val ∧
+       x.2.val.length = s0.val.length)
+    (γ := Nat) (rel := (· < ·))
+    (termination := fun x => x.1.«end».val - x.1.start.val)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, ho, List.Perm.refl _, rfl⟩
+  · intro x hinv
+    obtain ⟨iter, v⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hord, hperm, hlen⟩ := hinv
+    simp only at hend hord hperm hlen
+    subst hend
+    unfold mapa.MapaVotos.claves_ordenadas_loop1.body
+    hax_mvcgen
+    -- 1. `burbujear` recibe una posicion que existe.
+    · omega
+    -- 2. Una vuelta: el prefijo ordenado crece en uno.
+    · rename_i hlt s hs r hr
+      obtain ⟨h1, h2, h3⟩ := hr
+      exact ⟨⟨trivial, by rw [hs]; exact h1, h2.trans hperm, by omega⟩,
+        Or.inl (by omega)⟩
+    -- 3. Se termino el rango: el prefijo ordenado es la lista entera.
+    · show OrdHasta v.val v.val.length ∧ v.val.Perm s0.val
+      exact ⟨ordHasta_largo hord (by omega), hperm⟩
+end
+
+section
+attribute [local spec] vec_new_total vec_len_total claves_loop0_copia
+  claves_loop1_ordena
+
+theorem claves_ordenadas_ordena_spec (m : mapa.MapaVotos) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.claves_ordenadas m
+    ⦃ ⇓ r => ⌜ r.val.Pairwise MenorIgual ∧ r.val.Perm m.claves.val ⌝ ⦄ := by
+  unfold mapa.MapaVotos.claves_ordenadas
+  hax_mvcgen
+  -- 1 y 2. La copia tiene lugar y recorre todas las claves.
+  · scalar_tac
+  · omega
+  -- 3. La lista copiada es la de las claves; el segundo loop la ordena.
+  · rename_i s hs n hn c hc n1 hn1 r hord hperm
+    have e : c.val = m.claves.val := by
+      rw [hc, List.eq_nil_of_length_eq_zero hs, hn]
+      simp
+    exact ⟨ordHasta_pairwise _ hord, by rw [← e]; exact hperm⟩
+  -- 4. El rango del segundo loop llega hasta el final.
+  · assumption
+  -- 5. Una sola posicion ya esta en orden.
+  · intro p q a b hpq hq
+    exfalso
+    scalar_tac
+end
+
+/- ====================================================================
+   Los enunciados.
+   ==================================================================== -/
+
+/-- `claves_ordenadas` ordena: lo que devuelve esta en orden lexicografico
+    de bytes, y son las mismas raices que habia, con sus repeticiones. -/
+theorem claves_ordenadas_ordena (m : mapa.MapaVotos)
+    (r : alloc.vec.Vec tipos.H256)
+    (h : mapa.MapaVotos.claves_ordenadas m = ok r) :
+    r.val.Pairwise MenorIgual ∧ r.val.Perm m.claves.val := by
+  obtain ⟨r', hr', hp⟩ := of_triple_total (claves_ordenadas_ordena_spec m)
+  rw [h] at hr'
+  cases hr'
+  exact hp
+
+/-- Dos raices que no son menores una que la otra son la misma. -/
+theorem menorIgual_antisimetrica {a b : tipos.H256}
+    (h1 : MenorIgual a b) (h2 : MenorIgual b a) : a = b := by
+  unfold MenorIgual Menor at *
+  have h1' : @LE.le (List Nat) List.instLE (bytes a) (bytes b) := h1
+  have h2' : @LE.le (List Nat) List.instLE (bytes b) (bytes a) := h2
+  have hb : bytes a = bytes b := List.le_antisymm h1' h2'
+  unfold bytes at hb
+  apply Subtype.ext
+  exact List.map_injective_iff.mpr (fun x y hxy => UScalar.eq_of_val_eq hxy) hb
+
+/-- El resultado no depende del orden en que estaban las claves: dos mapas
+    con las mismas raices dan la misma lista. Es para lo que esta el
+    ordenamiento. -/
+theorem claves_ordenadas_canonica (m1 m2 : mapa.MapaVotos)
+    (r1 r2 : alloc.vec.Vec tipos.H256)
+    (hp : m1.claves.val.Perm m2.claves.val)
+    (h1 : mapa.MapaVotos.claves_ordenadas m1 = ok r1)
+    (h2 : mapa.MapaVotos.claves_ordenadas m2 = ok r2) :
+    r1 = r2 := by
+  obtain ⟨o1, p1⟩ := claves_ordenadas_ordena m1 r1 h1
+  obtain ⟨o2, p2⟩ := claves_ordenadas_ordena m2 r2 h2
+  apply Subtype.ext
+  exact List.Perm.eq_of_pairwise
+    (fun a b _ _ hab hba => menorIgual_antisimetrica hab hba) o1 o2
+    ((p1.trans hp).trans p2.symm)
+
+/-- La comparacion traducida, como ecuacion: `a < b` da `true` exactamente
+    cuando `a` es menor en el orden lexicografico de los bytes. -/
+theorem comparacion_es_lexicografica (a b : tipos.H256) (r : Bool)
+    (h : core.cmp.PartialOrd.lt.default tipos.H256.Insts.CoreCmpPartialOrdH256 a b
+           = ok r) :
+    r = true ↔ Menor a b := by
+  obtain ⟨r', hr', hp⟩ := of_triple_total (lt_default_orden a b)
+  rw [h] at hr'
+  cases hr'
+  exact hp
+
+/-- Lo que `serialize_justifications` deja en `justifications_roots` esta
+    ordenado, y son las raices del mapa. -/
+theorem serialize_escribe_ordenado (state state' : tipos.State)
+    (m : mapa.MapaVotos) (vc : Std.Usize)
+    (h : stf.serialize_justifications state m vc = ok state') :
+    state'.justifications_roots.items.val.Pairwise MenorIgual ∧
+    state'.justifications_roots.items.val.Perm m.claves.val := by
+  unfold stf.serialize_justifications at h
+  obtain ⟨jr, hjr, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨r1, hr1, h⟩ := bind_da_ok h
+  obtain ⟨sl, hsl, h⟩ := bind_da_ok h
+  simp only [RustM.ok.injEq] at h
+  subst h
+  have e1 := of_triple_mayThrow (ST7.expect_modelo_spec _ r1 _) hsl
+  have e2 := of_triple_mayThrow (ST7.try_from_modelo_spec 262144#usize jr) hr1 sl e1
+  show sl.items.val.Pairwise MenorIgual ∧ sl.items.val.Perm m.claves.val
+  rw [e2]
+  exact claves_ordenadas_ordena m jr hjr
+
+/-- Y por eso no depende del orden en que el mapa tenia las raices: dos
+    mapas con las mismas raices dejan la misma lista en el estado. Es lo que
+    dice el comentario del codigo ("every node produces identical state
+    representation"), para este campo. -/
+theorem serialize_raices_canonicas (s1 s1' s2 s2' : tipos.State)
+    (m1 m2 : mapa.MapaVotos) (vc1 vc2 : Std.Usize)
+    (hp : m1.claves.val.Perm m2.claves.val)
+    (h1 : stf.serialize_justifications s1 m1 vc1 = ok s1')
+    (h2 : stf.serialize_justifications s2 m2 vc2 = ok s2') :
+    s1'.justifications_roots.items = s2'.justifications_roots.items := by
+  obtain ⟨o1, p1⟩ := serialize_escribe_ordenado s1 s1' m1 vc1 h1
+  obtain ⟨o2, p2⟩ := serialize_escribe_ordenado s2 s2' m2 vc2 h2
+  apply Subtype.ext
+  exact List.Perm.eq_of_pairwise
+    (fun a b _ _ hab hba => menorIgual_antisimetrica hab hba) o1 o2
+    ((p1.trans hp).trans p2.symm)
+
+end ORD
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -9734,3 +10394,8 @@ end G7
 #print axioms G7.alcanzable_inv7
 #print axioms G7.justificado_en_el_historial
 #print axioms G7.st7_alcanzable
+#print axioms ORD.comparacion_es_lexicografica
+#print axioms ORD.claves_ordenadas_ordena
+#print axioms ORD.claves_ordenadas_canonica
+#print axioms ORD.serialize_escribe_ordenado
+#print axioms ORD.serialize_raices_canonicas
