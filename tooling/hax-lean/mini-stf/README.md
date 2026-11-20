@@ -1328,5 +1328,49 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    >
    > Lo que esto habilita y NO esta hecho: probar que `claves_ordenadas`
    > ordena. Y lo que sigue en la misma linea: modelar el `HashMap`.
+
+   > Segunda nota del 19 nov 2026: **el `HashMap` dejo de ser un axioma.**
+   > `new`, `get` e `insert` son ahora definiciones sobre la lista de pares
+   > de `TypesExternal.lean`, y `Borrow` es una estructura con su funcion
+   > `borrow` (hacia falta para comparar una clave guardada con la que se
+   > pide). Es la QUINTA afirmacion de modelado y la mas grande.
+   > Declaraciones sin contenido: 25 -> 20.
+   >
+   > - Lo que se cree: que un `HashMap` se comporta como una lista de pares
+   >   sin claves repetidas. El modelo NO mira el hash, compara con `Eq`.
+   >   Coincide con un `HashMap` real bajo el contrato de que claves
+   >   iguales tienen el mismo hash. Y no dice nada sobre costo.
+   > - Siguen como axiomas, porque el modelo los recibe y no los usa:
+   >   `BuildHasher`, el hasher por defecto y el `hash` de un array. Por
+   >   eso siguen saliendo en `#print axioms` de todo lo que pasa por el
+   >   mapa.
+   > - Resultado nuevo: `NP6.hashmap_devuelve`, las tres operaciones
+   >   devuelven para todo mapa. Lemas: `hm_buscar_devuelve` y
+   >   `hm_poner_devuelve`, por induccion sobre la lista, usando que la
+   >   igualdad de `H256` devuelve.
+   > - La hipotesis se SACO de los enunciados (`hget` y `hm`), igual que
+   >   con la comparacion. La llevaban `try_finalize`,
+   >   `construir_root_to_slot`, `process_attestations`, `process_block` y
+   >   `state_transition`, y los lemas internos.
+   > - Los 72 resultados anteriores recompilaron al primer intento.
+   > - Tropiezo del script que edita: los chequeos de "no quedo ningun
+   >   `hm`" saltaban por variables con el mismo nombre en secciones que no
+   >   tienen nada que ver (la aritmetica del principio, la ventana). Hay
+   >   que acotar el chequeo a las secciones que se tocan.
+   > - Para probar `∃ r, f = ok r` despues de un `simp` conviene dar el
+   >   testigo a mano con `refine ⟨..., ?_⟩`: con `⟨_, by simp ...⟩` el
+   >   `simp` se encuentra con una metavariable del otro lado.
+   > - Esta vez NO se toco ningun archivo Lean mientras corria el build.
+   >
+   > Efecto en los axiomas: `state_transition` 21 -> 16 (eran 24 al
+   > principio); `process_attestations` 19 -> 14; `try_finalize` 13 -> 10;
+   > `construir_root_to_slot` 11 -> 6. Se verifico que las `def` de
+   > `try_finalize` y `state_transition`, sin teorema, dependen de los
+   > mismos 10 y 16.
+   >
+   > Con esto, de las hipotesis "que no se pueden demostrar aca" de
+   > `state_transition` queda UNA: que el hash devuelva. Las otras que
+   > quedan son los dos invariantes, los 4096 validadores, la cota de
+   > raices y `usize` de 64 bits.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

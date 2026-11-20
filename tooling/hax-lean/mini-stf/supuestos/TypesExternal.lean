@@ -40,9 +40,9 @@ end std.hash.random
 
 namespace std.collections.hash.map
 
-/-- `HashMap<K, V, S, A>` como lista de pares.
-    Alcanza para que tipen las firmas. Si despues hace falta recuperar
-    `try_finalize`, `get` y `retain` se definen sobre esto. -/
+/-- `HashMap<K, V, S, A>` como lista de pares clave-valor.
+    Desde el 19 nov 2026 `new`, `get` e `insert` estan definidos sobre esta
+    lista en FunsExternal.lean. -/
 structure HashMap (K V S A : Type) where
   entradas : List (K × V)
 

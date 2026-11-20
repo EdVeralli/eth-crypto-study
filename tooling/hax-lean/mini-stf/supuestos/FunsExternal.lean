@@ -316,11 +316,24 @@ end core.Array.Insts.CoreHashHash
 -- HISTORICAL_ROOTS_LIMIT entradas y solo se consulta con `get`, nunca se
 -- recorre. Cambiarlo por una lista de pares lo volveria cuadratico.
 --
--- Quedan como AXIOMAS. Para `ST-3` no molesta: esa propiedad habla de
--- `latest_justified` y `latest_finalized`, y `root_to_slot` solo interviene en
--- la poda de `justifications`. Si alguna vez hace falta razonar sobre el mapa,
--- hay que reemplazarlos por definiciones sobre la lista de pares que ya
--- declaramos en TypesExternal.
+-- ERAN AXIOMAS hasta el 19 nov 2026. Ahora `new`, `get` e `insert` son
+-- definiciones sobre la lista de pares de TypesExternal.lean, y `Borrow` es
+-- una estructura con su funcion `borrow`. Es la quinta afirmacion de
+-- modelado del paquete, y la mas grande.
+--
+-- Por que. Que las tres devuelvan era una hipotesis de `try_finalize`,
+-- `process_attestations`, `process_block` y `state_transition`, y como
+-- firmas sin contenido no se podia demostrar.
+--
+-- Que se esta creyendo. Que un `HashMap` se comporta como una lista de pares
+-- sin claves repetidas: `get` devuelve el valor de la clave igual a la que se
+-- pide, e `insert` reemplaza el valor si la clave ya estaba y la agrega si
+-- no. Eso es lo que dice su documentacion, y vale bajo el contrato que
+-- `HashMap` le pide a sus claves: que dos claves iguales tengan el mismo
+-- hash. El modelo NO mira el hash: compara con `Eq` y nada mas.
+--
+-- Lo que sigue sin contenido: `BuildHasher`, el hasher por defecto y el
+-- `hash` de un array. Son argumentos que el modelo recibe y no usa.
 -- ---------------------------------------------------------------------------
 
 -- `core.hash.BuildHasher` tampoco esta en CoreModels: de `core.hash` solo
@@ -334,9 +347,12 @@ end core.hash
 
 namespace core.borrow
 
-axiom Borrow (Q K : Type) : Type
+/-- El trait `Borrow`: de un `K` se saca un `Q` prestado. -/
+structure Borrow (Q K : Type) where
+  borrow : K → RustM Q
 
-axiom Borrow.Blanket (T : Type) : Borrow T T
+/-- Todo tipo se presta a si mismo. -/
+def Borrow.Blanket (T : Type) : Borrow T T := { borrow := fun x => ok x }
 
 end core.borrow
 
@@ -349,19 +365,49 @@ end std.hash.random
 
 namespace std.collections.hash.map
 
-axiom HashMapKVRandomStateGlobal.new (K V : Type) :
-  RustM (HashMap K V std.hash.random.RandomState alloc.alloc.Global)
+/-- Un mapa nuevo esta vacio. -/
+def HashMapKVRandomStateGlobal.new (K V : Type) :
+    RustM (HashMap K V std.hash.random.RandomState alloc.alloc.Global) :=
+  ok { entradas := [] }
 
-axiom HashMap.get {K V S A Q : Type}
-  (instEqK : core.cmp.Eq K) (instHashK : core.hash.Hash K)
-  (instBH : core.hash.BuildHasher S)
-  (instBorrow : core.borrow.Borrow Q K)
-  (instHashQ : core.hash.Hash Q) (instEqQ : core.cmp.Eq Q) :
-  HashMap K V S A -> Q -> RustM (core.option.Option V)
+/-- Buscar una clave en la lista de pares: el valor del primer par cuya
+    clave, prestada, es igual a la que se pide. -/
+def HashMap.buscar {K V Q : Type} (instBorrow : core.borrow.Borrow Q K)
+    (instEqQ : core.cmp.Eq Q) :
+    List (K × V) → Q → RustM (core.option.Option V)
+  | [], _ => ok core.option.Option.None
+  | (k, v) :: resto, q => do
+      let kq ← instBorrow.borrow k
+      let igual ← instEqQ.PartialEqInst.eq kq q
+      if igual then ok (core.option.Option.Some v)
+      else HashMap.buscar instBorrow instEqQ resto q
 
-axiom HashMap.insert {K V S A : Type}
-  (instEqK : core.cmp.Eq K) (instHashK : core.hash.Hash K)
-  (instBH : core.hash.BuildHasher S) :
-  HashMap K V S A -> K -> V -> RustM ((core.option.Option V) × HashMap K V S A)
+def HashMap.get {K V S A Q : Type}
+    (instEqK : core.cmp.Eq K) (instHashK : core.hash.Hash K)
+    (instBH : core.hash.BuildHasher S)
+    (instBorrow : core.borrow.Borrow Q K)
+    (instHashQ : core.hash.Hash Q) (instEqQ : core.cmp.Eq Q)
+    (m : HashMap K V S A) (q : Q) : RustM (core.option.Option V) :=
+  HashMap.buscar instBorrow instEqQ m.entradas q
+
+/-- Poner un par en la lista: si la clave ya estaba se reemplaza el valor y
+    se devuelve el viejo; si no, se agrega al final y se devuelve `None`. -/
+def HashMap.poner {K V : Type} (instEqK : core.cmp.Eq K) :
+    List (K × V) → K → V → RustM ((core.option.Option V) × List (K × V))
+  | [], k, v => ok (core.option.Option.None, [(k, v)])
+  | (k', v') :: resto, k, v => do
+      let igual ← instEqK.PartialEqInst.eq k' k
+      if igual then ok (core.option.Option.Some v', (k', v) :: resto)
+      else do
+        let (viejo, resto') ← HashMap.poner instEqK resto k v
+        ok (viejo, (k', v') :: resto')
+
+def HashMap.insert {K V S A : Type}
+    (instEqK : core.cmp.Eq K) (instHashK : core.hash.Hash K)
+    (instBH : core.hash.BuildHasher S)
+    (m : HashMap K V S A) (k : K) (v : V) :
+    RustM ((core.option.Option V) × HashMap K V S A) := do
+  let (viejo, entradas) ← HashMap.poner instEqK m.entradas k v
+  ok (viejo, { entradas := entradas })
 
 end std.collections.hash.map

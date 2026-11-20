@@ -200,12 +200,13 @@ exactamente los mismos {mayor} axiomas que el `def` de `state_transition` sin
 teorema de por medio (se ve con supuestos/RevisarAxiomas.lean). Los teoremas
 sobre componentes dependen de menos.
 
-Eran 24 hasta el 15 nov 2026, 23 hasta el 17 nov y 22 hasta el 19 nov:
-`core.mem.take`, `core.bool.Bool.then` y la comparacion de arrays
-(`core.Array.Insts.CoreCmpOrd.cmp`) eran axiomas y pasaron a ser
-definiciones (ver supuestos/FunsExternal.lean). Por eso los teoremas sobre
-`state_transition` tienen tres modelos menos que en la primera version de
-este archivo."""]
+Eran 24 al principio. Fueron bajando a medida que declaraciones sin
+contenido pasaron a ser definiciones (ver supuestos/FunsExternal.lean):
+`core.mem.take` el 15 nov 2026, `core.bool.Bool.then` el 17, y el 19 la
+comparacion de arrays y el `HashMap` con sus tres operaciones y `Borrow`.
+Las definiciones no aparecen aca: `#print axioms` lista axiomas. Estan
+contadas como afirmaciones de modelado en la propuesta, seccion "La base de
+confianza"."""]
 
     lineas = cab.split("\n") + parte_uno(teoremas) + dos + cierre
     open("axiomas.txt", "w").write("\n".join(lineas) + "\n")

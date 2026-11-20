@@ -7080,7 +7080,10 @@ end MV
    justificables en el medio, avanza la finalidad, corre la ventana y saca
    del mapa de votos las raices que quedaron atras.
 
-   Lleva tres hipotesis, todas escritas en el enunciado:
+   Lleva dos hipotesis, todas escritas en el enunciado. Hasta el 19 nov 2026
+   eran tres: la tercera pedia que la consulta al `HashMap` devolviera,
+   porque `HashMap::get` era una declaracion sin contenido. Ahora es una
+   definicion y esta demostrado: `slot_de_raiz_devuelve`.
 
    - que el `source` sea anterior al `target`. Es lo que impide que desborde
      `source.slot + 1`, la precondicion no enunciada que la propuesta ya
@@ -7089,9 +7092,6 @@ end MV
    - que la ventana no pase de 262144 bits. Con eso `shift_window` no aborta
      (teorema 10). `try_finalize_devuelve_inv` la saca de los dos invariantes
      que la transicion conserva (teorema 13).
-   - que la consulta al `HashMap` devuelva. `HashMap::get` es una declaracion
-     sin contenido en este paquete, asi que no se puede probar: se pide,
-     igual que el hash.
 
    Lo nuevo que hizo falta:
 
@@ -7267,14 +7267,65 @@ theorem filtrado_total (m : mapa.MapaVotos) (cons : Slice Bool) :
     omega)
 end
 
-/-- La consulta al `HashMap`, tomada como hipotesis. -/
+/- El `HashMap`. Desde el 19 nov 2026 `new`, `get` e `insert` son
+   definiciones sobre una lista de pares (supuestos/FunsExternal.lean), y
+   que devuelven se demuestra. Antes eran declaraciones sin contenido y se
+   pedia como hipotesis. -/
+
+theorem h256_eq_devuelve (a b : tipos.H256) :
+    ∃ r, tipos.H256.Insts.CoreCmpPartialEqH256.eq a b = ok r := by
+  obtain ⟨r, hr, -⟩ := of_triple_total (h256_eq_total a b)
+  exact ⟨r, hr⟩
+
+/-- Buscar una raiz en la lista de pares devuelve siempre. -/
+theorem hm_buscar_devuelve {V : Type} (l : List (tipos.H256 × V)) (q : tipos.H256) :
+    ∃ o, std.collections.hash.map.HashMap.buscar
+           (core.borrow.Borrow.Blanket tipos.H256) tipos.H256.Insts.CoreCmpEq l q
+         = ok o := by
+  induction l with
+  | nil => exact ⟨_, rfl⟩
+  | cons p resto ih =>
+    obtain ⟨k, v⟩ := p
+    obtain ⟨o, ho⟩ := ih
+    obtain ⟨b, hb⟩ := h256_eq_devuelve k q
+    simp only [std.collections.hash.map.HashMap.buscar, core.borrow.Borrow.Blanket]
+    simp [hb]
+    cases b
+    · simpa [core.borrow.Borrow.Blanket] using ⟨o, ho⟩
+    · simp
+
+/-- Poner un par en la lista de pares devuelve siempre. -/
+theorem hm_poner_devuelve {V : Type} (l : List (tipos.H256 × V)) (k : tipos.H256)
+    (v : V) :
+    ∃ r, std.collections.hash.map.HashMap.poner tipos.H256.Insts.CoreCmpEq l k v
+         = ok r := by
+  induction l with
+  | nil => exact ⟨_, rfl⟩
+  | cons p resto ih =>
+    obtain ⟨k', v'⟩ := p
+    obtain ⟨⟨viejo, resto'⟩, hr⟩ := ih
+    obtain ⟨b, hb⟩ := h256_eq_devuelve k' k
+    simp only [std.collections.hash.map.HashMap.poner]
+    simp [hb]
+    cases b <;> simp [hr]
+
+/-- La consulta al `HashMap` de raices a slots devuelve siempre. -/
+theorem slot_de_raiz_devuelve
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global)
+    (root : tipos.H256) :
+    ∃ o, stf.slot_de_raiz rts root = ok o := by
+  obtain ⟨o, ho⟩ := hm_buscar_devuelve rts.entradas root
+  cases o <;>
+    simp [stf.slot_de_raiz, std.collections.hash.map.HashMap.get, ho]
+
+/-- La consulta al `HashMap`, como terna. -/
 theorem slot_de_raiz_total
     (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
              std.hash.random.RandomState alloc.alloc.Global)
-    (root : tipos.H256)
-    (hget : ∀ r : tipos.H256, ∃ o, stf.slot_de_raiz rts r = ok o) :
+    (root : tipos.H256) :
     ⦃ ⌜ True ⌝ ⦄ stf.slot_de_raiz rts root ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
-  devuelve_spec _ (hget root)
+  devuelve_spec _ (slot_de_raiz_devuelve rts root)
 
 section
 attribute [local spec] clave_total slot_de_raiz_total push_total
@@ -7284,7 +7335,6 @@ theorem tf_loop_total (n : Std.Usize) (fs : Std.U64) (j : mapa.MapaVotos)
     (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
              std.hash.random.RandomState alloc.alloc.Global)
     (c0 : alloc.vec.Vec Bool)
-    (hget : ∀ r : tipos.H256, ∃ o, stf.slot_de_raiz rts r = ok o)
     (hcap : c0.val.length + n.val ≤ Usize.max) :
     ⦃ ⌜ True ⌝ ⦄
     stf.try_finalize_loop { start := 0#usize, «end» := n } fs j rts c0
@@ -7405,8 +7455,7 @@ theorem try_finalize_total_spec (state : tipos.State)
     (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
              std.hash.random.RandomState alloc.alloc.Global)
     (horden : source.slot.val < target.slot.val)
-    (hcap : state.justified_slots.bits.val.length ≤ 262144)
-    (hget : ∀ r : tipos.H256, ∃ o, stf.slot_de_raiz rts r = ok o) :
+    (hcap : state.justified_slots.bits.val.length ≤ 262144) :
     ⦃ ⌜ True ⌝ ⦄ stf.try_finalize state source target j rts
     ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
   unfold stf.try_finalize
@@ -7423,11 +7472,10 @@ theorem try_finalize_devuelve (state : tipos.State)
     (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
              std.hash.random.RandomState alloc.alloc.Global)
     (horden : source.slot.val < target.slot.val)
-    (hcap : state.justified_slots.bits.val.length ≤ 262144)
-    (hget : ∀ r : tipos.H256, ∃ o, stf.slot_de_raiz rts r = ok o) :
+    (hcap : state.justified_slots.bits.val.length ≤ 262144) :
     ∃ r, stf.try_finalize state source target j rts = ok r := by
   obtain ⟨r, hr, -⟩ := of_triple_total
-    (try_finalize_total_spec state source target j rts horden hcap hget)
+    (try_finalize_total_spec state source target j rts horden hcap)
   exact ⟨r, hr⟩
 
 /-- Lo mismo, con la capacidad de la ventana sacada de los dos invariantes
@@ -7437,11 +7485,10 @@ theorem try_finalize_devuelve_inv (state : tipos.State)
     (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
              std.hash.random.RandomState alloc.alloc.Global)
     (horden : source.slot.val < target.slot.val)
-    (hv : VentanaNoPasa state) (hh : HistorialAcotado state)
-    (hget : ∀ r : tipos.H256, ∃ o, stf.slot_de_raiz rts r = ok o) :
+    (hv : VentanaNoPasa state) (hh : HistorialAcotado state) :
     ∃ r, stf.try_finalize state source target j rts = ok r :=
   try_finalize_devuelve state source target j rts horden
-    (ventana_en_capacidad state hv hh) hget
+    (ventana_en_capacidad state hv hh)
 
 /-- `filtrado` no entra en panico, para cualquier mapa y cualquier lista de
     banderas. -/
@@ -7473,10 +7520,10 @@ end NP5
      desborde. Cada segmento se lee de `i * validator_count` a
      `(i + 1) * validator_count`.
    - `construir_root_to_slot` pide dos cosas. Que `finalizado + 1` no
-     desborde. Y que las tres operaciones del `HashMap` (`new`, `get`,
-     `insert`) devuelvan: son declaraciones sin contenido en este paquete, y
-     van juntas en `HashMapDevuelve`. Aca la hipotesis tiene que valer para
-     todo mapa, no para uno, porque el mapa cambia en cada vuelta.
+     desborde. Hasta el 19 nov 2026 pedia ademas que las tres operaciones
+     del `HashMap` (`new`, `get`, `insert`) devolvieran, para todo mapa
+     porque el mapa cambia en cada vuelta. Ahora son definiciones y eso esta
+     demostrado: `hashmap_devuelve`.
 
    Varios resultados dicen ademas algo sobre el tamano de lo que devuelven
    (cuantas entradas quedan en el mapa, cuanto mide una lista de votos). No
@@ -8079,8 +8126,8 @@ theorem construir_mapa_total (st : tipos.State) (vc : Std.Usize)
        refine ⟨?_, ?_⟩ <;> omega)
 end
 
-/- El `HashMap` de raices a slots. `new`, `get` e `insert` son declaraciones
-   sin contenido en este paquete: que devuelvan va como hipotesis. -/
+/- El `HashMap` de raices a slots. Que `new`, `get` e `insert` devuelven
+   era una hipotesis hasta el 19 nov 2026; ahora es `hashmap_devuelve`. -/
 
 abbrev MapaSlots := std.collections.hash.map.HashMap tipos.H256 Std.U64
   std.hash.random.RandomState alloc.alloc.Global
@@ -8095,22 +8142,30 @@ structure HashMapDevuelve : Prop where
       tipos.H256.Insts.CoreHashHash
       std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher m k v = ok r
 
-theorem hm_new_total (h : HashMapDevuelve) :
+/-- Las tres operaciones del `HashMap` devuelven, para todo mapa. -/
+theorem hashmap_devuelve : HashMapDevuelve where
+  nuevo := ⟨_, rfl⟩
+  consulta := fun m r => slot_de_raiz_devuelve m r
+  inserta := fun m k v => by
+    obtain ⟨⟨viejo, entradas⟩, hr⟩ := hm_poner_devuelve m.entradas k v
+    refine ⟨(viejo, { entradas := entradas }), ?_⟩
+    simp [std.collections.hash.map.HashMap.insert, hr]
+
+theorem hm_new_total :
     ⦃ ⌜ True ⌝ ⦄
     std.collections.hash.map.HashMapKVRandomStateGlobal.new tipos.H256 Std.U64
-    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := devuelve_spec _ h.nuevo
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := devuelve_spec _ hashmap_devuelve.nuevo
 
-theorem hm_get_total (m : MapaSlots) (r : tipos.H256) (h : HashMapDevuelve) :
+theorem hm_get_total (m : MapaSlots) (r : tipos.H256) :
     ⦃ ⌜ True ⌝ ⦄ stf.slot_de_raiz m r ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
-  devuelve_spec _ (h.consulta m r)
+  devuelve_spec _ (hashmap_devuelve.consulta m r)
 
-theorem hm_insert_total (m : MapaSlots) (k : tipos.H256) (v : Std.U64)
-    (h : HashMapDevuelve) :
+theorem hm_insert_total (m : MapaSlots) (k : tipos.H256) (v : Std.U64) :
     ⦃ ⌜ True ⌝ ⦄
     std.collections.hash.map.HashMap.insert tipos.H256.Insts.CoreCmpEq
       tipos.H256.Insts.CoreHashHash
       std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher m k v
-    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := devuelve_spec _ (h.inserta m k v)
+    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := devuelve_spec _ (hashmap_devuelve.inserta m k v)
 
 section
 attribute [local spec] hash_historico_total hm_get_total hm_insert_total
@@ -8122,8 +8177,7 @@ theorem construir_rts_loop_total (a b : Std.U64)
     (sl : ssz.SszList tipos.H256 262144#usize) (sb : ssz.SszBitlist 262144#usize)
     (sl1 : ssz.SszList tipos.Validator 4096#usize)
     (sl2 : ssz.SszList tipos.H256 262144#usize)
-    (sb1 : ssz.SszBitlist 1073741824#usize) (m0 : MapaSlots)
-    (hm : HashMapDevuelve) :
+    (sb1 : ssz.SszBitlist 1073741824#usize) (m0 : MapaSlots) :
     ⦃ ⌜ True ⌝ ⦄
     stf.construir_root_to_slot_loop { start := a, «end» := b }
       sc i bh c h i1 sl sb sl1 sl2 sb1 m0
@@ -8141,18 +8195,16 @@ theorem construir_rts_loop_total (a b : Std.U64)
     unfold stf.construir_root_to_slot_loop.body
     hax_mvcgen
     all_goals first
-      | exact hm
       | (refine ⟨trivial, Or.inl ?_⟩; omega)
 
 /-- Armar el `HashMap` de raices a slots no entra en panico, si las tres
     operaciones del `HashMap` devuelven y `finalizado + 1` no desborda. -/
-theorem construir_rts_total (st : tipos.State) (hm : HashMapDevuelve)
+theorem construir_rts_total (st : tipos.State)
     (hfin : st.latest_finalized.slot.val < U64.max) :
     ⦃ ⌜ True ⌝ ⦄ stf.construir_root_to_slot st ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
   unfold stf.construir_root_to_slot
   hax_mvcgen [construir_rts_loop_total]
   all_goals first
-    | exact hm
     | scalar_tac
     | (exfalso; scalar_tac)
 end
@@ -8216,10 +8268,10 @@ theorem construir_mapa_devuelve (st : tipos.State) (vc : Std.Usize)
       r.valores.val.length ≤ st.justifications_roots.items.val.length :=
   of_triple_total (construir_mapa_total st vc hprod)
 
-theorem construir_rts_devuelve (st : tipos.State) (hm : HashMapDevuelve)
+theorem construir_rts_devuelve (st : tipos.State)
     (hfin : st.latest_finalized.slot.val < U64.max) :
     ∃ r, stf.construir_root_to_slot st = ok r := by
-  obtain ⟨r, hr, -⟩ := of_triple_total (construir_rts_total st hm hfin)
+  obtain ⟨r, hr, -⟩ := of_triple_total (construir_rts_total st hfin)
   exact ⟨r, hr⟩
 
 end NP6
@@ -8234,9 +8286,9 @@ end NP6
 
    Hipotesis, todas escritas en el enunciado:
 
-   - las tres operaciones del `HashMap` devuelven. Son declaraciones sin
-     contenido en este paquete. (Hasta el 19 nov 2026 se pedia ademas que la
-     comparacion de `H256` devolviera; ahora esta demostrado.)
+   - (Hasta el 19 nov 2026 se pedia ademas que las tres operaciones del
+     `HashMap` y la comparacion de `H256` devolvieran. Las dos cosas estan
+     demostradas ahora: `hashmap_devuelve` y `h256_cmp_devuelve`.)
    - a lo sumo 4096 validadores. Con eso `3 * votos` y `2 * validator_count`
      no desbordan, y el bitlist de votos entra en su capacidad.
    - las raices del estado mas las attestations del bloque no pasan de
@@ -8379,8 +8431,7 @@ theorem try_finalize_tam_spec (state : tipos.State)
     (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
              std.hash.random.RandomState alloc.alloc.Global)
     (horden : source.slot.val < target.slot.val)
-    (hcap : state.justified_slots.bits.val.length ≤ 262144)
-    (hget : ∀ r : tipos.H256, ∃ o, stf.slot_de_raiz rts r = ok o) :
+    (hcap : state.justified_slots.bits.val.length ≤ 262144) :
     ⦃ ⌜ True ⌝ ⦄ stf.try_finalize state source target j rts
     ⦃ ⇓ r => ⌜ r.1.justified_slots.bits.val.length ≤
                   state.justified_slots.bits.val.length ∧
@@ -8430,15 +8481,14 @@ theorem try_finalize_loop_spec (state : tipos.State)
     (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
              std.hash.random.RandomState alloc.alloc.Global)
     (horden : source.slot.val < target.slot.val)
-    (hcap : state.justified_slots.bits.val.length ≤ 262144)
-    (hget : ∀ r : tipos.H256, ∃ o, stf.slot_de_raiz rts r = ok o) :
+    (hcap : state.justified_slots.bits.val.length ≤ 262144) :
     ⦃ ⌜ True ⌝ ⦄ stf.try_finalize state source target j rts
     ⦃ ⇓ r => ⌜ (r.1.justified_slots.bits.val.length ≤
                    state.justified_slots.bits.val.length ∧
                  ∀ c, j.claves.val.length ≤ c → j.valores.val.length ≤ c →
                    r.2.claves.val.length ≤ c ∧ r.2.valores.val.length ≤ c) ∧
                 ∀ c, VotosAcotados c j → VotosAcotados c r.2 ⌝ ⦄ :=
-  total_con (try_finalize_tam_spec state source target j rts horden hcap hget)
+  total_con (try_finalize_tam_spec state source target j rts horden hcap)
     (try_finalize_acotados_spec state source target j rts)
 
 section
@@ -8453,7 +8503,6 @@ theorem process_attestations_loop_total
     (s0 : tipos.State)
     (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
     (vc n : Std.Usize) (j0 : mapa.MapaVotos) (rts : MapaSlots) (C : Nat)
-    (hm : HashMapDevuelve)
     (hvc : vc.val ≤ 4096)
     (hcap : s0.justified_slots.bits.val.length ≤ 262144)
     (hj : VotosAcotados vc.val j0)
@@ -8490,7 +8539,6 @@ theorem process_attestations_loop_total
     hax_mvcgen
     all_goals first
       | omega
-      | exact hm.consulta rts _
       | grind [VotosAcotados]
       | (scalar_tac_preprocess; grind [VotosAcotados])
       | (exfalso; scalar_tac_preprocess; grind [VotosAcotados])
@@ -8503,7 +8551,6 @@ theorem process_attestations_loop_spec
     (s0 : tipos.State)
     (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
     (vc n : Std.Usize) (j0 : mapa.MapaVotos) (rts : MapaSlots)
-    (hm : HashMapDevuelve)
     (hvc : vc.val ≤ 4096)
     (hcap : s0.justified_slots.bits.val.length ≤ 262144)
     (hj : VotosAcotados vc.val j0)
@@ -8514,7 +8561,7 @@ theorem process_attestations_loop_spec
     ⦃ ⇓ r => ⌜ VotosAcotados vc.val r.2.2.1 ∧
                 r.2.2.1.claves.val.length ≤
                   max j0.claves.val.length j0.valores.val.length + n.val ⌝ ⦄ :=
-  process_attestations_loop_total s0 atts vc n j0 rts _ hm hvc hcap hj
+  process_attestations_loop_total s0 atts vc n j0 rts _ hvc hcap hj
     (Nat.le_max_left _ _) (Nat.le_max_right _ _) hC
 
 theorem time_att_total :
@@ -8541,7 +8588,6 @@ attribute [local spec] time_att_total contar_datos_total ssz_len_total bl_len_to
 
 theorem process_attestations_total_spec (state : tipos.State)
     (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
-    (hm : HashMapDevuelve)
     (hval : state.validators.items.val.length ≤ 4096)
     (hraices : state.justifications_roots.items.val.length +
                  atts.items.val.length ≤ 262144)
@@ -8569,7 +8615,6 @@ end
 /-- `process_attestations` no entra en panico. -/
 theorem process_attestations_devuelve (state : tipos.State)
     (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
-    (hm : HashMapDevuelve)
     (hval : state.validators.items.val.length ≤ 4096)
     (hraices : state.justifications_roots.items.val.length +
                  atts.items.val.length ≤ 262144)
@@ -8577,14 +8622,13 @@ theorem process_attestations_devuelve (state : tipos.State)
     (hcap : state.justified_slots.bits.val.length ≤ 262144) :
     ∃ r, stf.process_attestations state atts = ok r := by
   obtain ⟨r, hr, -⟩ := of_triple_total
-    (process_attestations_total_spec state atts hm hval hraices hfin hcap)
+    (process_attestations_total_spec state atts hval hraices hfin hcap)
   exact ⟨r, hr⟩
 
 /-- Lo mismo, con las dos hipotesis sobre la ventana y la finalidad sacadas
     de los invariantes que la transicion conserva. -/
 theorem process_attestations_devuelve_inv (state : tipos.State)
     (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
-    (hm : HashMapDevuelve)
     (hval : state.validators.items.val.length ≤ 4096)
     (hraices : state.justifications_roots.items.val.length +
                  atts.items.val.length ≤ 262144)
@@ -8595,7 +8639,7 @@ theorem process_attestations_devuelve_inv (state : tipos.State)
     unfold VentanaNoPasa at hv
     have := hh.2
     scalar_tac
-  exact process_attestations_devuelve state atts hm hval hraices hfin hcap
+  exact process_attestations_devuelve state atts hval hraices hfin hcap
 
 end NP7
 
@@ -8625,9 +8669,9 @@ end NP7
    - las raices pendientes del estado mas las attestations del bloque no
      pasan de 262144. Es la condicion suficiente del teorema 20.
    - `HashDevuelve`: los tres `hash_tree_root` devuelven. Es un sustituto.
-   - `HashMapDevuelve`: declaraciones sin contenido. (Hasta el 19 nov 2026
-     se pedia ademas que la comparacion de `H256` devolviera; ahora esta
-     demostrado.)
+   - (Hasta el 19 nov 2026 se pedia ademas que el `HashMap` y la
+     comparacion de `H256` devolvieran. Las dos cosas estan demostradas
+     ahora.)
 
    Lo que NO dice: que estas hipotesis valgan en todo estado alcanzable.
    Los dos invariantes se conservan, pero su caso inicial (el genesis) no
@@ -8736,14 +8780,13 @@ theorem header_transicion_spec (state : tipos.State) (block : tipos.Block)
 
 theorem atts_transicion_spec (state : tipos.State)
     (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
-    (hm : HashMapDevuelve)
     (hval : state.validators.items.val.length ≤ 4096)
     (hraices : state.justifications_roots.items.val.length +
                  atts.items.val.length ≤ 262144)
     (hv : VentanaNoPasa state) (hh : HistorialAcotado state) :
     ⦃ ⌜ True ⌝ ⦄ stf.process_attestations state atts ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
   devuelve_spec _
-    (process_attestations_devuelve_inv state atts hm hval hraices hv hh)
+    (process_attestations_devuelve_inv state atts hval hraices hv hh)
 
 theorem time_block_total :
     ⦃ ⌜ True ⌝ ⦄ stubs.metrics.time_block_processing ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
@@ -8763,7 +8806,7 @@ attribute [local spec] time_block_total header_transicion_spec
 
 theorem process_block_total_spec (state : tipos.State) (block : tipos.Block)
     (h64 : UScalarTy.Usize.numBits = 64)
-    (hd : HashDevuelve) (hm : HashMapDevuelve)
+    (hd : HashDevuelve)
     (hval : state.validators.items.val.length ≤ 4096)
     (hraices : state.justifications_roots.items.val.length +
                  block.body.attestations.items.val.length ≤ 262144)
@@ -8784,7 +8827,7 @@ attribute [local spec] time_transition_total slots_transicion_spec
 
 theorem state_transition_total_spec (state : tipos.State) (block : tipos.Block)
     (h64 : UScalarTy.Usize.numBits = 64)
-    (hd : HashDevuelve) (hm : HashMapDevuelve)
+    (hd : HashDevuelve)
     (hval : state.validators.items.val.length ≤ 4096)
     (hraices : state.justifications_roots.items.val.length +
                  block.body.attestations.items.val.length ≤ 262144)
@@ -8801,27 +8844,27 @@ end
 /-- `process_block` no entra en panico. -/
 theorem process_block_devuelve (state : tipos.State) (block : tipos.Block)
     (h64 : UScalarTy.Usize.numBits = 64)
-    (hd : HashDevuelve) (hm : HashMapDevuelve)
+    (hd : HashDevuelve)
     (hval : state.validators.items.val.length ≤ 4096)
     (hraices : state.justifications_roots.items.val.length +
                  block.body.attestations.items.val.length ≤ 262144)
     (hv : VentanaNoPasa state) (hh : HistorialAcotado state) :
     ∃ r, stf.process_block state block = ok r := by
   obtain ⟨r, hr, -⟩ := of_triple_total
-    (process_block_total_spec state block h64 hd hm hval hraices hv hh)
+    (process_block_total_spec state block h64 hd hval hraices hv hh)
   exact ⟨r, hr⟩
 
 /-- La transicion de estado entera no entra en panico. -/
 theorem state_transition_devuelve (state : tipos.State) (block : tipos.Block)
     (h64 : UScalarTy.Usize.numBits = 64)
-    (hd : HashDevuelve) (hm : HashMapDevuelve)
+    (hd : HashDevuelve)
     (hval : state.validators.items.val.length ≤ 4096)
     (hraices : state.justifications_roots.items.val.length +
                  block.body.attestations.items.val.length ≤ 262144)
     (hv : VentanaNoPasa state) (hh : HistorialAcotado state) :
     ∃ r, stf.state_transition state block = ok r := by
   obtain ⟨r, hr, -⟩ := of_triple_total
-    (state_transition_total_spec state block h64 hd hm hval hraices hv hh)
+    (state_transition_total_spec state block h64 hd hval hraices hv hh)
   exact ⟨r, hr⟩
 
 end NP8
@@ -8896,3 +8939,4 @@ end NP8
 #print axioms NP8.process_block_devuelve
 #print axioms NP8.state_transition_devuelve
 #print axioms NP4.h256_cmp_devuelve
+#print axioms NP6.hashmap_devuelve
