@@ -93,7 +93,7 @@ hax + Charon + Aeneas, de Rust a Lean. Se entra por
 [`RESTAURAR.md`](RESTAURAR.md) explica cómo reconstruir el entorno desde cero.
 
 Al 19 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
-`sorry` y ochenta y un resultados demostrados encima. Veinte son sobre la
+`sorry` y ochenta y seis resultados demostrados encima. Veinte son sobre la
 ventana de slots justificados: los cuatro teoremas que se habían propuesto al
 principio, el 22 de octubre, la demostración de que ese módulo no entra en
 pánico, un comentario del código de ethlambda sobre esa ventana, verificado, el
@@ -104,8 +104,9 @@ que el ordenamiento de raíces y el filtrado del mapa terminan, tres que el mapa
 de votos cumple una de esas hipótesis, y diez que las funciones auxiliares de
 `process_attestations` tampoco entran en pánico. Los demás cubren las siete
 proposiciones de transición de estado del catálogo de `formal-leanSpec` (`ST-1`
-a `ST-7`), con dos salvedades que la propuesta detalla: `ST-4` está en su paso
-inductivo y `ST-7` vale bajo una hipótesis extra. Esa hipótesis no es un
+a `ST-7`), con una salvedad que la propuesta detalla: sobre un estado
+cualquiera `ST-7` vale bajo una hipótesis extra, que en los estados alcanzables
+desde el génesis se cumple (demostrado el 19 nov). Esa hipótesis no es un
 tecnicismo: al demostrar `ST-7` apareció que, cuando un voto justifica un target
 en el mismo slot que el checkpoint justificado, **ethlambda y la especificación
 eligen distinto** (`max_by_key` se queda con el target; leanSpec compara con `>`
@@ -248,10 +249,12 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
 8. **Lo que le falta al paquete para valer "en todo estado alcanzable"**:
    desde el 19 nov el génesis está en el crate (`State::from_genesis`, copiada
    de ethlambda) y hay una noción de estado alcanzable. Sobre ella valen los
-   dos invariantes, la cota de validadores, `ST-4` completa y la ausencia de
-   pánico de la transición. Falta `ST-7`: su hipótesis del historial es falsa
-   en el génesis y la establece el primer bloque aceptado; ese lema no está.
-   Y la ausencia de pánico sigue pidiendo tres cosas que no hablan del estado:
+   dos invariantes, la cota de validadores, `ST-4` completa, la ausencia de
+   pánico de la transición y, también desde el 19 nov, `ST-7`: su hipótesis
+   del historial es falsa en el génesis, la establece el primer bloque
+   aceptado, y eso ya está demostrado (teorema 24, namespace `G7`). De las
+   propiedades del catálogo no queda ninguna sin subir a los estados
+   alcanzables. La ausencia de pánico sigue pidiendo tres cosas que no hablan del estado:
    `usize` de 64 bits, que el hash devuelva, y la cota de raíces por bloque.
 9. **El paso siguiente más útil del paquete**: descargar hipótesis de la
    ausencia de pánico, que desde el 18 nov cubre las doce funciones de
@@ -259,8 +262,8 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    `HashMap` ya están (19 nov: pasaron de firmas sin contenido a
    definiciones, y dejaron de ser hipótesis). También está que las tres
    hipótesis sobre el estado se conservan de un bloque al siguiente (19 nov).
-   Por orden de costo, queda: `ST-7` desde el génesis (pendiente 8); que el
-   ordenamiento de raíces ordena; y la cota fina de raíces del mapa de votos
+   `ST-7` desde el génesis también está (19 nov). Por orden de costo,
+   queda: que el ordenamiento de raíces ordena; y la cota fina de raíces del mapa de votos
    (distintas y en el historial) en lugar de "raíces más attestations ≤
    262144". Lo que ya
    está, para no rehacerlo: las doce funciones (17 y 18 nov), la cota de las

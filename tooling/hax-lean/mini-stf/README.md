@@ -1449,5 +1449,68 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    >
    > Axiomas: los tres del genesis 4 (3 de Lean y el `fmt` del `unwrap`);
    > los tres de alcanzables 16.
+
+   > Quinta nota del 19 nov 2026: **`ST-7` desde el genesis** (teorema 24,
+   > namespace `G7`). Cinco resultados: `aceptar_saca_del_genesis`,
+   > `state_transition_conserva_inv7`, `alcanzable_inv7`,
+   > `justificado_en_el_historial` y `st7_alcanzable`. No se toco el Rust
+   > ni los supuestos.
+   >
+   > - El invariante `Inv7` tiene dos casos. `Inicial`: header en el slot
+   >   0, historial vacio, justificado en el slot 0. `Anclado`: header
+   >   fuera del slot 0 y `EnElHistorial` (las dos hipotesis del teorema
+   >   7). Se pasa de uno al otro en el primer `process_block_header` que
+   >   acepta.
+   > - Un solo lema nuevo sobre el codigo con contenido,
+   >   `header_ancla_spec`: en la rama del genesis, si acepta, el
+   >   historial nuevo empieza con `viejo ++ [latest_justified.root]`.
+   >   Mismo script que `ST7.process_block_header_st7_spec` con dos
+   >   cambios: `MV.push_largo_spec` (que dice QUE se agrega) en vez de
+   >   `push_modelo_spec`, y `ST7.from_residual_err_spec` en vez de
+   >   `ST3H.from_residual_spec`. Sin el segundo quedaba abierta la rama
+   >   del `?`: hay que saber que esa rama no devuelve `Ok`.
+   > - `header_sale_del_genesis_spec`: si acepta, el header nuevo no esta
+   >   en el slot 0. Sale de la segunda validacion
+   >   (`block.slot > parent_header.slot`).
+   > - `header_inv7` junta cinco cosas ya probadas sobre la MISMA
+   >   ecuacion `process_block_header state block = ok (res, state')`, con
+   >   `of_triple_mayThrow` de cada spec: los slots no se mueven (teorema
+   >   3), el historial y el slot del header (teorema 13, de ahi el
+   >   `usize` de 64 bits), los checkpoints fuera del genesis (teorema 7)
+   >   y el header fuera del genesis (teorema 8). Es mas corto que un spec
+   >   gigante.
+   > - `process_block` y `state_transition` se componen con el mismo
+   >   molde que el invariante de la ventana (teorema 12).
+   > - OJO, se miro a mano: `process_block_header` ancla ANTES del chequeo
+   >   de `SlotGapTooLarge`. Si rechaza por eso en el genesis, el estado
+   >   queda con las raices de los checkpoints cambiadas y el header
+   >   todavia en el slot 0. Por eso `Inicial` habla del slot del
+   >   justificado y no de la raiz. Es el unico rechazo del header que
+   >   modifica el estado.
+   > - TROPIEZO al limpiar advertencias: cambiar
+   >   `(simp_all [...]; done)` por `simp_all` dentro de un `first` rompe
+   >   la prueba. `simp_all` avanza sin cerrar, `first` lo da por bueno y
+   >   la meta queda abierta. Se resolvio poniendo `scalar_tac` ANTES de
+   >   `simp_all`.
+   >
+   > Lo que cambia: de las dos hipotesis de `ST-7` queda una, `hnz`, la
+   > del catalogo. Y tiene que quedar: en el bloque que ancla la raiz
+   > cambia en el slot 0 a proposito. El estado del test
+   > `same_slot_root_swap_needs_a_justified_root_off_the_chain` queda
+   > demostrado inalcanzable desde `from_genesis`.
+   >
+   > De paso se corrigio en las dos propuestas un parrafo viejo: decia que
+   > a `ST-4` le faltaba el caso base, y esta desde el teorema 23.
+   >
+   > Controles negativos, tres: (1) comparar con la raiz del justificado
+   > de ANTES, (2) sacar la hipotesis del genesis: en los dos queda
+   > abierta `viejo ++ [state.latest_justified.root] <+: nuevo`, con solo
+   > `viejo ++ [parent_root] <+: nuevo` a mano. (3) sin "si acepta",
+   > `header_sale_del_genesis_spec` queda abierta en las ramas que
+   > rechazan, pidiendo `latest_block_header.slot ≠ 0` sobre el estado sin
+   > tocar.
+   >
+   > Axiomas: `aceptar_saca_del_genesis` 7 (3 de Lean, 3 nativos, el
+   > `fmt`); los otros cuatro 16.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

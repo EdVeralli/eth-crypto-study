@@ -20,12 +20,12 @@ _Ultima actualizacion: 2026-11-17_
 > El 17 nov se demostraron los cuatro teoremas originales sobre la ventana de slots
 > justificados (`justified_slots_ops`), los del analisis del 22 oct, y que ese modulo no
 > entra en panico, y se verifico un comentario de su codigo sobre esa ventana. El paquete
-> queda con ochenta y un resultados (los ultimos cuarenta y cinco: donde termina la ventana a lo
+> queda con ochenta y seis resultados (los ultimos cincuenta: donde termina la ventana a lo
 > largo de la transicion, que nunca pasa de su capacidad, que las doce
 > funciones de la transicion no entran en panico bajo hipotesis escritas, que el mapa de votos cumple una de
 > las hipotesis de `serialize_justifications`, y, el 18 nov, que las diez funciones
 > auxiliares de `process_attestations` tampoco entran en panico; y, el 19 nov, el genesis
-> y los estados alcanzables, sobre los que valen los invariantes y la ausencia de panico). Lo que sigue esta en el `README.md` de la raiz,
+> y los estados alcanzables, sobre los que valen los invariantes, la ausencia de panico y `ST-7`). Lo que sigue esta en el `README.md` de la raiz,
 > pendientes 8 y 9.
 
 ## Como retomar en otra computadora (Windows)

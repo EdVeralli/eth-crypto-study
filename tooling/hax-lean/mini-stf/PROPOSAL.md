@@ -18,9 +18,10 @@ goes backwards across the transition of a block — the property your own
 regression test asserts by example after the devnet freeze at slot 27984. The
 other: no checkpoint changes root without moving to a higher slot — which holds
 of your code for a different reason than the spec's, and only under a
-hypothesis, because on a slot tie your code and the spec choose differently. Of
-the other five, one is not stated because it is trivial; which one is spelled
-out.
+hypothesis, because on a slot tie your code and the spec choose differently.
+That hypothesis holds in every state reached from genesis, and that is proved.
+Of the other five, one is not stated because it is trivial; which one is
+spelled out.
 
 Outside the catalog there are four more, about the justified-slots window: the
 ones we set ourselves on first reading your code. The last says that when
@@ -45,7 +46,7 @@ and Lean accepts them with no `sorry`. That says the program got written in
 Lean. It does not say it is correct.
 
 **The proofs are of specific properties.** A program is not "proved": statements
-about it are. There are eighty-one here, listed under **What you get**. Each
+about it are. There are eighty-six here, listed under **What you get**. Each
 says one precise thing, with its hypotheses in plain sight.
 
 What is **not** proved, said once:
@@ -61,10 +62,13 @@ What is **not** proved, said once:
 - **That the code is equivalent to the spec.** On arbitrary states it is not:
   we found two points where they behave differently, and they are set out
   below.
-- **That all the properties hold from genesis.** The two invariants, the bound
-  on validators, `ST-4` and absence of panic do: they are proved over every
-  reachable state. `ST-7` does not: its hypothesis is false in the initial
-  state, and the lemma saying the first block establishes it is missing.
+- **That `ST-7` holds unconditionally.** On the states reachable from genesis
+  it holds from the first accepted block onwards, which is how the catalog
+  states it: in that first block the root changes at slot 0 on purpose. On an
+  arbitrary state it also needs the justified checkpoint to be in the history,
+  and without that it is false of your code. Everything else — the two
+  invariants, the bound on validators, `ST-4` and absence of panic — is proved
+  over every reachable state, with no exception.
 - **That the Lean is faithful to your Rust.** There are two links. That our four
   rewritten functions do what the originals do is backed by your tests, which
   run on this crate. That the toolchain translates correctly is taken on trust
@@ -172,12 +176,12 @@ What each step should give:
 |---|---|
 | 4 | `test result: ok. 11 passed` |
 | 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
-| 6 | `81` — one axiom block per result — and `0` |
+| 6 | `86` — one axiom block per result — and `0` |
 
 There is no separate "run the proofs" step. The theorems are in
 `teoremas/ProofObligations.lean`; step 5 copies that file into the Lean project
 and `lake build` checks all of it. If the build ends green, Lean accepted the
-eighty-one proofs. At the end it prints which axioms each one depends on, which
+eighty-six proofs. At the end it prints which axioms each one depends on, which
 is what step 6 counts.
 
 To convince yourself the check is real, break a statement by hand. In
@@ -306,11 +310,11 @@ Everything, with line counts as shipped.
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 413 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 9408 | ours — the theorems. |
-| `axiomas.txt` | 1299 | ours — the `#print axioms` output, so the trust base can be read without building. Both ways round: each theorem with the axioms it uses, and each axiom with the theorems it appears in. |
+| `teoremas/ProofObligations.lean` | 9736 | ours — the theorems. |
+| `axiomas.txt` | 1415 | ours — the `#print axioms` output, so the trust base can be read without building. Both ways round: each theorem with the axioms it uses, and each axiom with the theorems it appears in. |
 | `axiomas.py` | 217 | ours — builds `axiomas.txt` from the build log. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 1453 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 1516 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -408,7 +412,7 @@ down.
 
 ## What you get
 
-`teoremas/ProofObligations.lean` holds eighty-one named results:
+`teoremas/ProofObligations.lean` holds eighty-six named results:
 
 | Result | What it is |
 |---|---|
@@ -492,6 +496,11 @@ down.
 | `GEN.alcanzable_cumple` | in every state reachable from genesis the two invariants, the bound on validators and `ST-4` hold |
 | `GEN.st4_alcanzable` | `ST-4`, complete: inductive step and base case |
 | `GEN.state_transition_devuelve_alcanzable` | **the transition does not panic in any state reachable from genesis** |
+| `G7.aceptar_saca_del_genesis` | if `process_block_header` accepts, the latest header stops being the genesis one |
+| `G7.state_transition_conserva_inv7` | the transition preserves the `ST-7` invariant: either no block has been accepted yet, or the justified checkpoint is in the history |
+| `G7.alcanzable_inv7` | that invariant holds in every state reachable from genesis |
+| `G7.justificado_en_el_historial` | the hypothesis `ST-7` was missing, established: past the anchoring, the justified checkpoint is in the history |
+| `G7.st7_alcanzable` | **`ST-7` over every state reachable from genesis**, with the catalog's hypothesis and no other about the state |
 | `bind_da_ok` | a tool: opens one `RustM` bind |
 
 They were not picked for count. Between them they cover arithmetic, branching
@@ -663,8 +672,8 @@ checkpoint is still at slot 4 and has a different root. On that same state the
 spec does not replace it: `4 > 4` is false. That last part we read off the
 leanSpec source, we did not run it; the catalog has it proved of its model.
 
-We do not believe that state is reachable by applying blocks to a well-formed
-genesis, but we did not prove it (see the end of this section). And you already
+That state is not reachable by applying blocks from genesis: it is proved
+further down, under **`ST-7` from genesis**. But you already
 treat a state with broken cross-field invariants as a possible input: the
 comment on `process_attestations_rejects_justification_votes_length_mismatch`
 says a malformed checkpoint-sync anchor can carry one, because SSZ decoding
@@ -723,10 +732,11 @@ Three things this needed that are useful beyond this theorem:
   anchoring it leaves both checkpoints whole
   (`ST7.process_block_header_no_toca_checkpoints`).
 
-What is **not** proved: that the first block after genesis leaves the state
-satisfying `hhist`. That is the lemma missing to say "it holds on every state
-reachable from genesis". The other hypothesis is preserved: that `hnz` carries
-from one block to the next is proved further down, with `ST-2`.
+What this theorem alone does not say: that `hhist` ever starts to hold. In the
+initial state it is false. That the first accepted block establishes it, and
+that it therefore holds in every state reachable from genesis, is proved
+further down, under **`ST-7` from genesis**. The other hypothesis is preserved
+too: that `hnz` carries from one block to the next is proved with `ST-2`.
 
 ### The other four state-transition propositions
 
@@ -1512,9 +1522,10 @@ genesis. What it still asks for is three things, and none is about the state:
 a 64-bit `usize`; that the hash returns; and that the pending roots plus the
 block's attestations do not exceed 262144.
 
-**What is not there.** `ST-7` from genesis. Its hypothesis, that the justified
-checkpoint is in the history, is false in the initial state, which has no
-history. The first accepted block establishes it, and that lemma is missing.
+**`ST-7` is separate.** Its hypothesis, that the justified checkpoint is in the
+history, is false in the initial state, which has no history. It does not come
+out of genesis like the others: the first accepted block establishes it. That
+is the next section.
 
 As a negative control we took the bound on validators away from
 `from_genesis`. Exactly that bound stays open.
@@ -1522,6 +1533,85 @@ As a negative control we took the bound on validators away from
 The three results on genesis depend on four axioms: Lean's three and the `fmt`
 signature of the `unwrap`'s error. The three on reachable states depend on the
 sixteen of `state_transition`.
+
+### `ST-7` from genesis
+
+`ST-7` asked two things of the state. One is the catalog's: that the latest
+header is not the genesis one (`hnz`). The other was ours: that the justified
+checkpoint is in the history (`hhist`). It was proved that `hhist` is
+preserved, and not that it ever starts to hold. In the initial state it is
+false, because there is no history.
+
+The first accepted block establishes it. In `process_block_header`, if the
+latest header is the genesis one, your code does the anchoring: it sets the
+root of the justified and the finalized checkpoint to that header's root. A few
+lines further down it appends **that same root** to the history, which was
+empty. It lands at position 0, and the justified checkpoint is at slot 0. That
+is `hhist`.
+
+So the invariant that is proved has two cases:
+
+| Case | What it says of the state |
+|---|---|
+| initial | the latest header is the genesis one, the history is empty and the justified checkpoint is at slot 0 |
+| anchored | the latest header is not the genesis one and the justified checkpoint is in the history: the two hypotheses of `ST-7` |
+
+The state moves from the first to the second in one place only, and never back.
+
+| Result | What it says |
+|---|---|
+| `G7.aceptar_saca_del_genesis` | if `process_block_header` accepts, the latest header stops being the genesis one |
+| `G7.state_transition_conserva_inv7` | the transition preserves the invariant, accepted or rejected |
+| `G7.alcanzable_inv7` | the invariant holds in every reachable state |
+| `G7.justificado_en_el_historial` | `hhist`, established: in every reachable state past the anchoring, the justified checkpoint is in the history |
+| `G7.st7_alcanzable` | `ST-7` over the reachable states |
+
+```lean
+theorem G7.st7_alcanzable (st st' : tipos.State) (block : tipos.Block)
+    (res : core.result.Result Unit stf.Error)
+    (h64 : UScalarTy.Usize.numBits = 64) (ha : Alcanzable st)
+    (hnz : st.latest_block_header.slot ≠ 0#u64)
+    (h : stf.state_transition st block = ok (res, st')) :
+    (st'.latest_justified = st.latest_justified ∨
+      st.latest_justified.slot < st'.latest_justified.slot) ∧
+    (st'.latest_finalized = st.latest_finalized ∨
+      st.latest_finalized.slot < st'.latest_finalized.slot)
+```
+
+**`hnz` stays, and has to.** In the block that anchors, the root of the
+justified checkpoint changes at slot 0 on purpose. `ST-7` is false for that
+step, and the catalog states it outside genesis for that very reason. From when
+`hnz` holds is also stated: from the first accepted block
+(`G7.aceptar_saca_del_genesis`) and from then on always
+(`ST2.state_transition_conserva_no_genesis`).
+
+**What this says about the test.** The state in
+`same_slot_root_swap_needs_a_justified_root_off_the_chain` — justified at
+`(4, X)` with a different root in `historical_block_hashes[4]` — is not
+reachable by applying blocks from `from_genesis`. We used to believe that; now
+it is proved. The difference from the spec on a slot tie is still in the code,
+but only a state that did not come from genesis can show it, such as a
+malformed checkpoint-sync anchor.
+
+**A rejection that modifies the state.** `process_block_header` does the
+anchoring before the `SlotGapTooLarge` check. If the first block is rejected
+with that error, the state is left with both checkpoint roots already changed
+and the genesis header still in place. It does not break the invariant: the
+initial case speaks of the justified checkpoint's slot, not its root. We
+mention it because it is the only header rejection that does not leave the
+state as it was, and we had to look at it for the proof to close.
+
+As negative controls we changed the anchoring statement in two ways: comparing
+against the root the justified checkpoint had *before*, and dropping the
+hypothesis that the latest header is the genesis one. In both cases the same
+goal stays open: that this root is the one appended to the history. And without
+the "if it accepts" condition, `aceptar_saca_del_genesis` stays open in the
+branches that reject.
+
+The four results over the transition ask for a 64-bit `usize`, because of the
+history invariant, and depend on the sixteen axioms of `state_transition`.
+`G7.aceptar_saca_del_genesis` depends on seven: Lean's three, three native ones
+and the `fmt` signature.
 
 ### What this is against the catalog, stated exactly
 
@@ -1549,18 +1639,21 @@ states your code and that model behave differently, which is worth knowing
 whichever of the two is intended. Checked against `formal-leanSpec` at
 `ba72845`.
 
-**`ST-7` needs a hypothesis the catalog does not have.**
+**On an arbitrary state, `ST-7` needs a hypothesis the catalog does not have.**
 `State.checkpoint_forward` asks only that the latest header is not the genesis
 one. `ST7.state_transition_adelante` asks for `hhist` as well, and without it
 is false. Here the difference is not one of modeling but of behaviour: on a slot
-tie, your code and the spec choose differently. Checked against `leanSpec`
+tie, your code and the spec choose differently. On the states reachable from
+genesis the difference goes away: `G7.st7_alcanzable` asks for the same as the
+catalog. Checked against `leanSpec`
 `main` as of 15 Nov 2026 (`Checkpoint.advance_to` and `state_transition.py`) and
 against your `main`, which that day was still identical to `35c074b`.
 
-**`ST-4` is the inductive step, not the invariant.** The catalog proves
-`justified_ge_finalized` by induction over its reachable states. Here is the
-step — if it holds before a block, it holds after — and the base case is
-missing.
+**`ST-4` is as in the catalog.** The catalog proves `justified_ge_finalized` by
+induction over its reachable states. So do we:
+`ST4.state_transition_justificado_ge_finalizado` is the step — if it holds
+before a block, it holds after — and `GEN.st4_alcanzable` is the invariant over
+the states reachable from `from_genesis`.
 
 The properties were not chosen because they looked provable. That catalog has
 thirty-five propositions — seven about the state transition, the rest about
@@ -1614,6 +1707,8 @@ own properties makes the exercise circular.
 | the validators and the hypotheses along `state_transition`, both | 16 | 3 | 9 | 4 |
 | genesis, the three results | 4 | 3 | — | 1 |
 | the reachable states, the three results | 16 | 3 | 9 | 4 |
+| `ST-7` from genesis: the header leaves genesis | 7 | 3 | 3 | 1 |
+| `ST-7` from genesis, the other four | 16 | 3 | 9 | 4 |
 
 Three categories, with three different weights.
 
@@ -1872,11 +1967,11 @@ and `process_block_header` do not panic**.
 base** above: nine native axioms that come with the translation, twenty
 declarations of ours that assert nothing, and five modeling claims we do make.
 
-**`ST-7` holds under a hypothesis that is not established from genesis.** The
-theorem asks that the justified checkpoint be in the history and proves that
-this is preserved, but not that the first block establishes it. The initial
-state is now in the crate; the first-block lemma is not. And without that
-hypothesis the statement is false of your code, as the test shows.
+**`ST-7` does not hold on an arbitrary state.** It holds on the states
+reachable from genesis, from the first accepted block onwards. On a state that
+did not come from there it also needs the justified checkpoint to be in the
+history, and without that hypothesis the statement is false of your code, as
+the test shows.
 
 **The translated functions cannot be executed in Lean.** Lean marks them
 `noncomputable`; among other things they depend on the `fmt` axioms that

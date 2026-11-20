@@ -9119,9 +9119,9 @@ end RV
    devuelva; y la cota "raices pendientes mas attestations del bloque", que
    depende de cada bloque y no es un invariante.
 
-   Lo que NO esta: `ST-7` desde el genesis. Su hipotesis (el checkpoint
+   Lo que NO esta aca: `ST-7` desde el genesis. Su hipotesis (el checkpoint
    justificado esta en el historial) es falsa en el estado inicial, que no
-   tiene historial; la establece el primer bloque aceptado. Ese lema falta.
+   tiene historial; la establece el primer bloque aceptado. Es el teorema 24.
 
    Control negativo, en la bitacora: sin la cota de validadores, lo que queda
    abierto en `from_genesis` es exactamente esa cota.
@@ -9327,6 +9327,329 @@ theorem state_transition_devuelve_alcanzable (st : tipos.State) (block : tipos.B
 
 end GEN
 
+/- ===========================================================================
+   Teorema 24 — `ST-7` desde el genesis
+
+   El teorema 7 (`ST-7`: no hay cambio de raiz en el mismo slot) pedia dos
+   cosas del estado: que el ultimo header no fuera el del genesis (`hnz`) y
+   que el checkpoint justificado estuviera en el historial (`hhist`). La
+   primera es del catalogo. La segunda era nuestra, se conservaba, y no
+   estaba establecida: en el estado inicial es FALSA, porque no hay
+   historial. Aca se establece.
+
+   El invariante tiene dos casos (`Inv7`):
+
+   - `Inicial`: todavia no se acepto ningun bloque. El ultimo header es el
+     del genesis, el historial esta vacio y el justificado esta en el slot 0.
+   - `Anclado`: el ultimo header ya no es el del genesis y el justificado
+     esta en el historial. Son las dos hipotesis del teorema 7.
+
+   Se pasa de un caso al otro en un solo lugar: el primer
+   `process_block_header` que acepta. Ahi ethlambda hace el anclaje -- le
+   pone al justificado y al finalizado la raiz del header del genesis -- y
+   agrega ESA MISMA raiz al historial, que estaba vacio. Queda en la
+   posicion 0, que es el slot del justificado. Es `header_ancla_spec`, el
+   unico lema nuevo sobre el codigo; el resto es composicion de los
+   teoremas 3, 7, 8 y 13.
+
+   Un detalle que hubo que mirar: `process_block_header` puede rechazar
+   DESPUES de anclar (el error `SlotGapTooLarge`), y el estado queda con la
+   raiz cambiada. No rompe nada: `Inicial` no dice nada de la raiz, solo del
+   slot.
+
+   Que se prueba:
+
+   - `aceptar_saca_del_genesis`: si `process_block_header` acepta, el ultimo
+     header deja de ser el del genesis.
+   - `state_transition_conserva_inv7`: la transicion conserva el invariante,
+     acepte o rechace.
+   - `alcanzable_inv7`: vale en todo estado alcanzable.
+   - `justificado_en_el_historial`: `hhist`, establecida. En todo estado
+     alcanzable que ya paso el anclaje, el justificado esta en el historial.
+   - `st7_alcanzable`: `ST-7` sobre los estados alcanzables, con `hnz` como
+     unica hipotesis sobre el estado.
+
+   `hnz` queda, y tiene que quedar: en el bloque que ancla, la raiz del
+   justificado cambia en el slot 0 a proposito. `ST-7` es falsa para ese
+   paso, y por eso el catalogo la enuncia fuera del genesis.
+
+   Pide `usize` de 64 bits, por el teorema 13 (lo que el header le hace al
+   historial).
+
+   Controles negativos, en la bitacora: si la raiz que se compara es la del
+   justificado de ANTES, o si se saca la hipotesis de estar en el genesis,
+   `header_ancla_spec` deja de cerrar; y sin "si acepta",
+   `header_sale_del_genesis_spec` queda abierta en las ramas que rechazan.
+   =========================================================================== -/
+
+namespace G7
+open mini_stf
+open Std.Tactic
+open ST3 ST7 JS NP NP2 NP3 NP4 NP5 NP6 NP7 NP8 RV GEN MV VC VI HC
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+/-- El estado todavia no acepto ningun bloque: el ultimo header es el del
+    genesis, el historial esta vacio y el justificado esta en el slot 0. -/
+def Inicial (s : tipos.State) : Prop :=
+  s.latest_block_header.slot = 0#u64 ∧
+  s.historical_block_hashes.items.val = [] ∧
+  s.latest_justified.slot = 0#u64
+
+/-- El estado ya paso el anclaje del genesis y su checkpoint justificado esta
+    en el historial: las dos hipotesis de `ST-7`. -/
+def Anclado (s : tipos.State) : Prop :=
+  s.latest_block_header.slot ≠ 0#u64 ∧
+  EnElHistorial s.historical_block_hashes s.latest_justified
+
+/-- El invariante: una de las dos. -/
+def Inv7 (s : tipos.State) : Prop := Inicial s ∨ Anclado s
+
+section
+attribute [local spec] ssz_len_spec ST3H.current_proposer_spec ST3H.ok_or_spec
+  ST3H.branch_spec ST3H.header_hash_spec ST3H.ne_default_spec ST3H.extend_spec
+  ST3H.body_hash_spec ST7.from_residual_err_spec
+  take_modelo_spec into_inner_modelo_spec MV.push_largo_spec
+  header_loop_prefijo_spec try_from_modelo_spec expect_modelo_spec
+
+/-- El anclaje. Si el ultimo header es el del genesis y `process_block_header`
+    acepta, la raiz que le pone al justificado es la misma que agrega al
+    historial, justo despues de lo que ya habia. -/
+theorem header_ancla_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_block_header state block
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ state.latest_block_header.slot = 0#u64 →
+            r.1 = core.result.Result.Ok () →
+            (state.historical_block_hashes.items.val ++
+               [r.2.latest_justified.root]) <+:
+              r.2.historical_block_hashes.items.val ⌝) ⦄ := by
+  unfold stf.process_block_header
+  hax_mvcgen
+  -- Las ramas que rechazan no devuelven `Ok`. En la que llega al final, el
+  -- historial viejo sale con `mem::take`, `push` le agrega la raiz del padre
+  -- -- la misma que el anclaje le puso al justificado -- y el lazo de los
+  -- slots vacios solo agrega atras.
+  all_goals first
+    | rfl
+    | assumption
+    | trivial
+    | simp_all
+end
+
+section
+attribute [local spec] ssz_len_spec ST3H.current_proposer_spec ST3H.ok_or_spec
+  ST3H.branch_spec ST3H.header_hash_spec ST3H.ne_default_spec ST3H.take_spec
+  ST3H.into_inner_spec ST3H.push_spec ST3H.header_loop_spec ST3H.try_from_spec
+  ST3H.expect_spec ST3H.extend_spec ST3H.body_hash_spec
+  ST7.from_residual_err_spec
+
+/-- Si `process_block_header` acepta, el ultimo header deja de ser el del
+    genesis: el slot del bloque es mayor que el del header anterior. -/
+theorem header_sale_del_genesis_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_block_header state block
+    ⦃ PostCond.mayThrow
+        (fun r => ⌜ r.1 = core.result.Result.Ok () →
+                    r.2.latest_block_header.slot ≠ 0#u64 ⌝) ⦄ := by
+  unfold stf.process_block_header
+  hax_mvcgen
+  -- En la rama que acepta, el header nuevo lleva el slot del bloque, y la
+  -- segunda validacion ya exigio que fuera mayor que el del header anterior.
+  all_goals first
+    | rfl
+    | trivial
+    | scalar_tac
+    | simp_all
+end
+
+/- ====================================================================
+   El invariante, pieza por pieza.
+   ==================================================================== -/
+
+/-- `process_block_header` conserva el invariante, y si acepta deja el
+    estado anclado. Es el unico lugar donde se pasa de un caso al otro. -/
+theorem header_inv7 (state state' : tipos.State) (block : tipos.Block)
+    (res : core.result.Result Unit stf.Error)
+    (h64 : UScalarTy.Usize.numBits = 64) (hi : Inv7 state)
+    (h : stf.process_block_header state block = ok (res, state')) :
+    Inv7 state' ∧ (res = core.result.Result.Ok () → Anclado state') := by
+  have hslots := ST3H.process_block_header_no_mueve_slots state state' block res h
+  have hpos := of_triple_mayThrow (header_sale_del_genesis_spec state block) h
+  rcases hi with ⟨h0, hh, hj⟩ | ⟨hnz, hc⟩
+  · -- todavia en el genesis.
+    have hhist := of_triple_mayThrow (HC.header_historial_spec state block) h h64
+      (by rw [hh, h0]; rfl)
+    have hanc := of_triple_mayThrow (header_ancla_spec state block) h h0
+    have hok : res = core.result.Result.Ok () → Anclado state' := fun e => by
+      refine ⟨hpos e, ?_⟩
+      obtain ⟨t, ht⟩ := hanc e
+      rw [hh] at ht
+      unfold EnElHistorial
+      rw [← ht, hslots.1, hj]
+      simp
+    by_cases e : res = core.result.Result.Ok ()
+    · exact ⟨Or.inr (hok e), hok⟩
+    · obtain ⟨e1, e2⟩ := hhist.2 e
+      refine ⟨Or.inl ⟨?_, ?_, ?_⟩, hok⟩
+      · rw [e2]; exact h0
+      · rw [e1]; exact hh
+      · rw [hslots.1]; exact hj
+  · -- ya anclado: el header no toca los checkpoints y solo agrega al historial.
+    have hnz' := ST2.process_block_header_conserva_no_genesis state state' block res hnz h
+    obtain ⟨a1, -, a3⟩ :=
+      ST7.process_block_header_no_toca_checkpoints state state' block res hnz h
+    have han : Anclado state' := ⟨hnz', by rw [a1]; exact enElHistorial_prefijo hc a3⟩
+    exact ⟨Or.inr han, fun _ => han⟩
+
+/-- `process_attestations` conserva "anclado": no toca el ultimo header, y
+    el justificado sigue en el historial. -/
+theorem atts_anclado (state state' : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (res : core.result.Result Unit stf.Error) (ha : Anclado state)
+    (h : stf.process_attestations state atts = ok (res, state')) :
+    Anclado state' := by
+  obtain ⟨hnz, hc⟩ := ha
+  have hh := of_triple_mayThrow (ST2.process_attestations_header_spec state atts) h
+  obtain ⟨-, -, a3⟩ := ST7.process_attestations_adelante state state' atts res hc h
+  exact ⟨by rw [hh]; exact hnz, a3⟩
+
+/-- `process_slots` conserva el invariante: no toca nada de lo que nombra. -/
+theorem slots_inv7 (state state' : tipos.State) (t : Std.U64)
+    (res : core.result.Result Unit stf.Error) (hi : Inv7 state)
+    (h : stf.process_slots state t = ok (res, state')) : Inv7 state' := by
+  obtain ⟨h1, -, h3, h4⟩ := process_slots_no_toca state state' t res h
+  unfold Inv7 Inicial Anclado at *
+  rw [h1, h3, h4]
+  exact hi
+
+theorem header_inv7_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_block_header state block
+    ⦃ PostCond.mayThrow (fun r => ⌜ UScalarTy.Usize.numBits = 64 →
+        Inv7 state →
+        (Inv7 r.2 ∧ (r.1 = core.result.Result.Ok () → Anclado r.2)) ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv h64 hi => by
+    obtain ⟨res, st'⟩ := v
+    exact header_inv7 state st' block res h64 hi hv)
+
+theorem atts_anclado_spec (state : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_attestations state atts
+    ⦃ PostCond.mayThrow (fun r => ⌜ Anclado state → Anclado r.2 ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv ha => by
+    obtain ⟨res, st'⟩ := v
+    exact atts_anclado state st' atts res ha hv)
+
+theorem slots_inv7_spec (state : tipos.State) (t : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_slots state t
+    ⦃ PostCond.mayThrow (fun r => ⌜ Inv7 state → Inv7 r.2 ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv hi => by
+    obtain ⟨res, st'⟩ := v
+    exact slots_inv7 state st' t res hi hv)
+
+section
+attribute [local spec] branch_modelo_spec ST7.from_residual_err_spec
+  ST3T.time_block_spec header_inv7_spec atts_anclado_spec
+
+theorem process_block_inv7_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_block state block
+    ⦃ PostCond.mayThrow (fun r => ⌜ UScalarTy.Usize.numBits = 64 →
+        Inv7 state → Inv7 r.2 ⌝) ⦄ := by
+  unfold stf.process_block
+  hax_mvcgen
+  all_goals (
+    have h64 := (by assumption : UScalarTy.Usize.numBits = 64)
+    have hp := (by assumption : Inv7 state)
+    obtain ⟨hnp, hju⟩ :=
+      (by assumption : _ = 64 → Inv7 state → _) h64 hp
+    first
+      -- el header acepto: quedo anclado y attestations lo conserva.
+      | (have hj1 := hju ((by assumption :
+           ∀ v : Unit, _ = core.result.Result.Ok v) ())
+         exact Or.inr ((by assumption : Anclado _ → Anclado _) hj1))
+      -- el header rechazo: vale lo que dejo.
+      | exact hnp)
+end
+
+section
+attribute [local spec] branch_modelo_spec ST7.from_residual_err_spec
+  ST3H.ne_default_spec ST3T.time_transition_spec ST3T.state_hash_spec
+  slots_inv7_spec process_block_inv7_spec
+
+theorem state_transition_inv7_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄ stf.state_transition state block
+    ⦃ PostCond.mayThrow (fun r => ⌜ UScalarTy.Usize.numBits = 64 →
+        Inv7 state → Inv7 r.2 ⌝) ⦄ := by
+  unfold stf.state_transition
+  hax_mvcgen
+  all_goals (
+    have hp := (by assumption : Inv7 state)
+    have hs := (by assumption : Inv7 state → Inv7 _) hp
+    first
+      | exact (by assumption : _ = 64 → Inv7 _ → Inv7 _) (by assumption) hs
+      | exact hs)
+end
+
+/- ====================================================================
+   Los enunciados.
+   ==================================================================== -/
+
+/-- La transicion de un bloque conserva el invariante, acepte o rechace. -/
+theorem state_transition_conserva_inv7
+    (state state' : tipos.State) (block : tipos.Block)
+    (res : core.result.Result Unit stf.Error)
+    (h64 : UScalarTy.Usize.numBits = 64) (hi : Inv7 state)
+    (h : stf.state_transition state block = ok (res, state')) : Inv7 state' :=
+  of_triple_mayThrow (state_transition_inv7_spec state block) h h64 hi
+
+/-- En todo estado alcanzable vale el invariante. -/
+theorem alcanzable_inv7 (st : tipos.State)
+    (h64 : UScalarTy.Usize.numBits = 64) (ha : Alcanzable st) : Inv7 st := by
+  induction ha with
+  | genesis t vs st h =>
+    obtain ⟨-, hhs, hhist, -, hlj, -⟩ := of_triple_mayThrow (from_genesis_spec t vs) h
+    exact Or.inl ⟨hhs, hhist, hlj⟩
+  | paso st st' block res _ h ih =>
+    exact state_transition_conserva_inv7 st st' block res h64 ih h
+
+/-- La hipotesis de coherencia de `ST-7`, establecida: en todo estado
+    alcanzable que ya paso el anclaje del genesis, el checkpoint justificado
+    esta en el historial. -/
+theorem justificado_en_el_historial (st : tipos.State)
+    (h64 : UScalarTy.Usize.numBits = 64) (ha : Alcanzable st)
+    (hnz : st.latest_block_header.slot ≠ 0#u64) :
+    EnElHistorial st.historical_block_hashes st.latest_justified := by
+  rcases alcanzable_inv7 st h64 ha with ⟨h0, -, -⟩ | ⟨-, hc⟩
+  · exact absurd h0 hnz
+  · exact hc
+
+/-- `ST-7` sobre los estados alcanzables. De las dos hipotesis del teorema 7
+    queda una sola, `hnz`, que es la del catalogo: el anclaje del genesis
+    cambia la raiz en el slot 0 a proposito. La otra sale del genesis. -/
+theorem st7_alcanzable (st st' : tipos.State) (block : tipos.Block)
+    (res : core.result.Result Unit stf.Error)
+    (h64 : UScalarTy.Usize.numBits = 64) (ha : Alcanzable st)
+    (hnz : st.latest_block_header.slot ≠ 0#u64)
+    (h : stf.state_transition st block = ok (res, st')) :
+    (st'.latest_justified = st.latest_justified ∨
+      st.latest_justified.slot < st'.latest_justified.slot) ∧
+    (st'.latest_finalized = st.latest_finalized ∨
+      st.latest_finalized.slot < st'.latest_finalized.slot) := by
+  obtain ⟨a1, a2, -⟩ := ST7.state_transition_adelante st st' block res hnz
+    (justificado_en_el_historial st h64 ha hnz) h
+  exact ⟨a1, a2⟩
+
+/-- Y el primer bloque que se acepta deja el estado fuera del genesis: de
+    ahi en mas `hnz` vale siempre. -/
+theorem aceptar_saca_del_genesis (st st' : tipos.State) (block : tipos.Block)
+    (h : stf.process_block_header st block =
+           ok (core.result.Result.Ok (), st')) :
+    st'.latest_block_header.slot ≠ 0#u64 :=
+  of_triple_mayThrow (header_sale_del_genesis_spec st block) h rfl
+
+end G7
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -9406,3 +9729,8 @@ end GEN
 #print axioms GEN.alcanzable_cumple
 #print axioms GEN.st4_alcanzable
 #print axioms GEN.state_transition_devuelve_alcanzable
+#print axioms G7.aceptar_saca_del_genesis
+#print axioms G7.state_transition_conserva_inv7
+#print axioms G7.alcanzable_inv7
+#print axioms G7.justificado_en_el_historial
+#print axioms G7.st7_alcanzable

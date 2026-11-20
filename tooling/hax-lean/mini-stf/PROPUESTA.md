@@ -19,8 +19,9 @@ la propiedad que un test de ustedes afirma por ejemplo después del congelamient
 del devnet en el slot 27984. La otra: ningún checkpoint cambia de raíz sin subir
 de slot — que sobre su código vale por un motivo distinto al de la
 especificación y sólo bajo una hipótesis, porque ante un empate de slots su
-código y la especificación eligen distinto. De las otras cinco, una no se
-enuncia porque es trivial; está dicho cuál.
+código y la especificación eligen distinto. Esa hipótesis se cumple en todo
+estado al que se llega desde el génesis, y está demostrado. De las otras cinco,
+una no se enuncia porque es trivial; está dicho cuál.
 
 Fuera del catálogo hay cuatro más, sobre la ventana de slots justificados: los
 que nos propusimos al mirar su código por primera vez. El último dice que cuando
@@ -45,7 +46,7 @@ Lean las acepta sin `sorry`. Eso dice que el programa quedó escrito en Lean. No
 dice que sea correcto.
 
 **Las demostraciones son de propiedades puntuales.** Un programa no "se
-demuestra": se demuestran afirmaciones sobre él. Acá hay ochenta y una,
+demuestra": se demuestran afirmaciones sobre él. Acá hay ochenta y seis,
 listadas en **Qué recibe**. Cada una dice una cosa precisa, con sus hipótesis a
 la vista.
 
@@ -62,10 +63,13 @@ Lo que **no** está demostrado, dicho de una vez:
 - **Que el código sea equivalente a la especificación.** Sobre estados
   arbitrarios no lo es: encontramos dos puntos donde se comportan distinto, y
   están contados más abajo.
-- **Que todas las propiedades valgan desde el génesis.** Los dos invariantes,
-  la cota de validadores, `ST-4` y la ausencia de pánico sí: están demostrados
-  sobre todo estado alcanzable. `ST-7` no: su hipótesis es falsa en el estado
-  inicial, y falta el lema que dice que el primer bloque la establece.
+- **Que `ST-7` valga sin condiciones.** Sobre los estados alcanzables desde el
+  génesis vale a partir del primer bloque aceptado, que es como la enuncia el
+  catálogo: en ese primer bloque la raíz cambia en el slot 0 a propósito. Sobre
+  un estado cualquiera necesita además que el justificado esté en el historial,
+  y sin eso es falsa sobre su código. Lo demás —los dos invariantes, la cota de
+  validadores, `ST-4` y la ausencia de pánico— está demostrado sobre todo
+  estado alcanzable, sin excepción.
 - **Que el Lean sea fiel al Rust de ustedes.** Son dos eslabones. Que nuestras
   cuatro funciones reescritas hacen lo mismo que las originales lo respaldan sus
   tests, que corren sobre este crate. Que la cadena de herramientas traduce bien
@@ -177,12 +181,12 @@ Qué tiene que dar cada paso:
 |---|---|
 | 4 | `test result: ok. 11 passed` |
 | 5 | `Build completed successfully (1742 jobs).` y después `=== listo ===` (1743 jobs la primera vez sobre un checkout limpio) |
-| 6 | `81` — un bloque de axiomas por resultado — y `0` |
+| 6 | `86` — un bloque de axiomas por resultado — y `0` |
 
 No hay un paso aparte de "correr las pruebas". Los teoremas están en
 `teoremas/ProofObligations.lean`; el paso 5 copia ese archivo adentro del
 proyecto Lean y `lake build` lo chequea entero. Si el build termina en verde,
-Lean aceptó las ochenta y una demostraciones. Al final imprime de qué axiomas
+Lean aceptó las ochenta y seis demostraciones. Al final imprime de qué axiomas
 depende cada una, que es lo que cuenta el paso 6.
 
 Para convencerse de que el chequeo es real, rompan un enunciado a mano. En
@@ -311,11 +315,11 @@ Todo, con las líneas tal como se entrega.
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 413 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 9408 | nuestro — los teoremas. |
-| `axiomas.txt` | 1299 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. En los dos sentidos: cada teorema con los axiomas que utiliza, y cada axioma con los teoremas donde aparece. |
+| `teoremas/ProofObligations.lean` | 9736 | nuestro — los teoremas. |
+| `axiomas.txt` | 1415 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. En los dos sentidos: cada teorema con los axiomas que utiliza, y cada axioma con los teoremas donde aparece. |
 | `axiomas.py` | 217 | nuestro — arma `axiomas.txt` a partir del log del build. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 1453 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 1516 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -416,7 +420,7 @@ más abajo.
 
 ## Qué recibe
 
-`teoremas/ProofObligations.lean` tiene ochenta y un resultados con nombre:
+`teoremas/ProofObligations.lean` tiene ochenta y seis resultados con nombre:
 
 | Resultado | Qué es |
 |---|---|
@@ -500,6 +504,11 @@ más abajo.
 | `GEN.alcanzable_cumple` | en todo estado alcanzable desde el génesis valen los dos invariantes, la cota de validadores y `ST-4` |
 | `GEN.st4_alcanzable` | `ST-4`, completa: paso inductivo y caso base |
 | `GEN.state_transition_devuelve_alcanzable` | **la transición no entra en pánico en ningún estado alcanzable desde el génesis** |
+| `G7.aceptar_saca_del_genesis` | si `process_block_header` acepta, el último header deja de ser el del génesis |
+| `G7.state_transition_conserva_inv7` | la transición conserva el invariante de `ST-7`: o no se aceptó ningún bloque todavía, o el justificado está en el historial |
+| `G7.alcanzable_inv7` | ese invariante vale en todo estado alcanzable desde el génesis |
+| `G7.justificado_en_el_historial` | la hipótesis que le faltaba a `ST-7`, establecida: pasado el anclaje, el justificado está en el historial |
+| `G7.st7_alcanzable` | **`ST-7` sobre todo estado alcanzable desde el génesis**, con la hipótesis del catálogo y ninguna más sobre el estado |
 | `bind_da_ok` | una herramienta: abre un bind de `RustM` |
 
 No se eligieron por cantidad. Entre todos cubren aritmética, ramificación y
@@ -673,8 +682,8 @@ especificación no lo reemplaza: `4 > 4` es falso. Eso último lo leímos del
 código de leanSpec, no lo corrimos; el catálogo lo tiene demostrado sobre su
 modelo.
 
-No creemos que ese estado se alcance aplicando bloques desde un génesis bien
-formado, pero no lo demostramos (ver al final de esta sección). Y ustedes ya
+Ese estado no se alcanza aplicando bloques desde el génesis: está demostrado
+más abajo, en **`ST-7` desde el génesis**. Pero ustedes ya
 tratan como entrada posible un estado con invariantes rotas entre campos: el
 comentario de `process_attestations_rejects_justification_votes_length_mismatch`
 dice que un ancla de checkpoint-sync mal formada puede traer una, porque la
@@ -734,10 +743,11 @@ Tres cosas que hicieron falta y que sirven fuera de este teorema:
   anclaje deja los dos checkpoints enteros
   (`ST7.process_block_header_no_toca_checkpoints`).
 
-Lo que **no** está demostrado: que el primer bloque después del génesis deje el
-estado cumpliendo `hhist`. Es el lema que falta para decir "vale en todo estado
-alcanzable desde el génesis". La otra hipótesis sí se conserva: que `hnz` pasa
-de un bloque al siguiente está demostrado más abajo, con `ST-2`.
+Lo que este teorema solo no dice: que `hhist` empiece a valer alguna vez. En el
+estado inicial es falsa. Que el primer bloque aceptado la establece, y que por
+eso vale en todo estado alcanzable desde el génesis, está demostrado más abajo,
+en **`ST-7` desde el génesis**. La otra hipótesis también se conserva: que
+`hnz` pasa de un bloque al siguiente está demostrado con `ST-2`.
 
 ### Las otras cuatro de transición de estado
 
@@ -1514,9 +1524,10 @@ que sigue pidiendo son tres cosas, y ninguna habla del estado: `usize` de 64
 bits; que el hash devuelva; y que las raíces pendientes más las attestations
 del bloque no pasen de 262144.
 
-**Lo que no está.** `ST-7` desde el génesis. Su hipótesis, que el checkpoint
-justificado esté en el historial, es falsa en el estado inicial, que no tiene
-historial. La establece el primer bloque aceptado, y ese lema falta.
+**`ST-7` va aparte.** Su hipótesis, que el checkpoint justificado esté en el
+historial, es falsa en el estado inicial, que no tiene historial. No sale del
+génesis como las otras: la establece el primer bloque aceptado. Es la sección
+que sigue.
 
 Como control negativo le sacamos a `from_genesis` la cota de validadores. Queda
 abierta exactamente esa cota.
@@ -1524,6 +1535,84 @@ abierta exactamente esa cota.
 Los tres resultados sobre el génesis dependen de cuatro axiomas: los tres de
 Lean y la firma de `fmt` del error del `unwrap`. Los tres sobre estados
 alcanzables dependen de los dieciséis de `state_transition`.
+
+### `ST-7` desde el génesis
+
+`ST-7` pedía dos cosas del estado. Una es del catálogo: que el último header no
+sea el del génesis (`hnz`). La otra era nuestra: que el checkpoint justificado
+esté en el historial (`hhist`). Estaba demostrado que `hhist` se conserva, y no
+que alguna vez empiece a valer. En el estado inicial es falsa, porque no hay
+historial.
+
+La establece el primer bloque que se acepta. En `process_block_header`, si el
+último header es el del génesis, su código hace el anclaje: le pone al
+justificado y al finalizado la raíz de ese header. Unas líneas más abajo agrega
+**esa misma raíz** al historial, que estaba vacío. Queda en la posición 0, y el
+justificado está en el slot 0. Eso es `hhist`.
+
+El invariante que se demuestra tiene por eso dos casos:
+
+| Caso | Qué dice del estado |
+|---|---|
+| inicial | el último header es el del génesis, el historial está vacío y el justificado está en el slot 0 |
+| anclado | el último header no es el del génesis y el justificado está en el historial: las dos hipótesis de `ST-7` |
+
+Se pasa del primero al segundo en un solo lugar, y no se vuelve.
+
+| Resultado | Qué dice |
+|---|---|
+| `G7.aceptar_saca_del_genesis` | si `process_block_header` acepta, el último header deja de ser el del génesis |
+| `G7.state_transition_conserva_inv7` | la transición conserva el invariante, acepte o rechace |
+| `G7.alcanzable_inv7` | el invariante vale en todo estado alcanzable |
+| `G7.justificado_en_el_historial` | `hhist`, establecida: en todo estado alcanzable que ya pasó el anclaje, el justificado está en el historial |
+| `G7.st7_alcanzable` | `ST-7` sobre los estados alcanzables |
+
+```lean
+theorem G7.st7_alcanzable (st st' : tipos.State) (block : tipos.Block)
+    (res : core.result.Result Unit stf.Error)
+    (h64 : UScalarTy.Usize.numBits = 64) (ha : Alcanzable st)
+    (hnz : st.latest_block_header.slot ≠ 0#u64)
+    (h : stf.state_transition st block = ok (res, st')) :
+    (st'.latest_justified = st.latest_justified ∨
+      st.latest_justified.slot < st'.latest_justified.slot) ∧
+    (st'.latest_finalized = st.latest_finalized ∨
+      st.latest_finalized.slot < st'.latest_finalized.slot)
+```
+
+**`hnz` queda, y tiene que quedar.** En el bloque que ancla, la raíz del
+justificado cambia en el slot 0 a propósito. `ST-7` es falsa para ese paso, y
+el catálogo la enuncia fuera del génesis por eso mismo. Desde cuándo vale `hnz`
+también está dicho: desde el primer bloque aceptado
+(`G7.aceptar_saca_del_genesis`) y de ahí en más siempre
+(`ST2.state_transition_conserva_no_genesis`).
+
+**Lo que esto dice del test.** El estado de
+`same_slot_root_swap_needs_a_justified_root_off_the_chain` —justificado en
+`(4, X)` con otra raíz en `historical_block_hashes[4]`— no se alcanza aplicando
+bloques desde `from_genesis`. Antes lo creíamos; ahora está demostrado. La
+diferencia con la especificación ante un empate de slots sigue en el código,
+pero sólo la puede mostrar un estado que no salió del génesis, como un ancla de
+checkpoint-sync mal formada.
+
+**Un rechazo que modifica el estado.** `process_block_header` hace el anclaje
+antes del chequeo de `SlotGapTooLarge`. Si el primer bloque se rechaza por ese
+error, el estado queda con las dos raíces de checkpoint ya cambiadas y con el
+header del génesis todavía. No rompe el invariante: el caso inicial habla del
+slot del justificado, no de su raíz. Lo contamos porque es el único rechazo del
+header que no deja el estado como estaba, y hubo que mirarlo para que la
+demostración cerrara.
+
+Como controles negativos cambiamos el enunciado del anclaje de dos maneras:
+comparando contra la raíz que el justificado tenía *antes*, y sacando la
+hipótesis de que el último header sea el del génesis. En los dos casos queda
+abierta la misma meta: que esa raíz sea la que se agregó al historial. Y sin la
+condición "si acepta", `aceptar_saca_del_genesis` queda abierta en las ramas
+que rechazan.
+
+Los cuatro resultados sobre la transición piden `usize` de 64 bits, por el
+invariante del historial, y dependen de los dieciséis axiomas de
+`state_transition`. `G7.aceptar_saca_del_genesis` depende de siete: los tres de
+Lean, tres nativos y la firma de `fmt`.
 
 ### Qué es esto contra el catálogo, dicho exacto
 
@@ -1551,17 +1640,21 @@ son 0; en estados arbitrarios el código de ustedes y ese modelo se comportan
 distinto, y eso vale saberlo sea cual sea el comportamiento buscado. Chequeado
 contra `formal-leanSpec` en `ba72845`.
 
-**`ST-7` necesita una hipótesis que el catálogo no tiene.**
-`State.checkpoint_forward` pide sólo que el último header no sea el del génesis.
-`ST7.state_transition_adelante` pide además `hhist`, y sin ella es falsa. Acá
-la diferencia no es de modelado sino de comportamiento: ante un empate de slots,
-su código y la especificación eligen distinto. Chequeado contra `leanSpec`
+**Sobre un estado cualquiera, `ST-7` necesita una hipótesis que el catálogo no
+tiene.** `State.checkpoint_forward` pide sólo que el último header no sea el del
+génesis. `ST7.state_transition_adelante` pide además `hhist`, y sin ella es
+falsa. Acá la diferencia no es de modelado sino de comportamiento: ante un
+empate de slots, su código y la especificación eligen distinto. Sobre los
+estados alcanzables desde el génesis la diferencia desaparece:
+`G7.st7_alcanzable` pide lo mismo que el catálogo. Chequeado contra `leanSpec`
 `main` del 15 nov 2026 (`Checkpoint.advance_to` y `state_transition.py`) y
 contra el `main` de ustedes, que ese día seguía idéntico a `35c074b`.
 
-**`ST-4` es el paso inductivo, no el invariante.** El catálogo demuestra
-`justified_ge_finalized` por inducción sobre sus estados alcanzables. Acá está
-el paso —si vale antes de un bloque, vale después— y falta el caso base.
+**`ST-4` está como en el catálogo.** El catálogo demuestra
+`justified_ge_finalized` por inducción sobre sus estados alcanzables. Acá
+también: `ST4.state_transition_justificado_ge_finalizado` es el paso —si vale
+antes de un bloque, vale después— y `GEN.st4_alcanzable` es el invariante sobre
+los estados alcanzables desde `from_genesis`.
 
 Las propiedades no se eligieron porque parecieran demostrables. Ese catálogo
 tiene treinta y cinco proposiciones — siete sobre la transición de estado, el
@@ -1615,6 +1708,8 @@ importa: elegir las propias propiedades vuelve el ejercicio circular.
 | los validadores y las hipótesis a lo largo de `state_transition`, los dos | 16 | 3 | 9 | 4 |
 | el génesis, los tres resultados | 4 | 3 | — | 1 |
 | los estados alcanzables, los tres resultados | 16 | 3 | 9 | 4 |
+| `ST-7` desde el génesis: el header sale del génesis | 7 | 3 | 3 | 1 |
+| `ST-7` desde el génesis, los otros cuatro | 16 | 3 | 9 | 4 |
 
 Tres categorías, con tres pesos distintos.
 
@@ -1879,11 +1974,11 @@ entran en pánico**.
 traducción, veinte declaraciones nuestras que no afirman nada, y cinco
 afirmaciones de modelado que sí hacemos.
 
-**`ST-7` vale bajo una hipótesis que no está establecida desde el génesis.** El
-teorema pide que el checkpoint justificado esté en el historial y demuestra que
-eso se conserva, pero no que el primer bloque lo establezca. El estado inicial
-ya está en el crate; el lema del primer bloque, no. Y sin esa hipótesis el
-enunciado es falso sobre su código, como muestra el test.
+**`ST-7` no vale sobre un estado cualquiera.** Vale sobre los estados
+alcanzables desde el génesis, del primer bloque aceptado en adelante. Sobre un
+estado que no salió de ahí hace falta además que el checkpoint justificado esté
+en el historial, y sin esa hipótesis el enunciado es falso sobre su código,
+como muestra el test.
 
 **Las funciones traducidas no se pueden ejecutar en Lean.** Lean las marca
 `noncomputable`; entre otras cosas dependen de los axiomas de `fmt` que usa
