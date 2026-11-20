@@ -71,7 +71,7 @@ axiom ssz.SszBitlist.Insts.CoreFmtDebug.fmt
     core.fmt.Error) × core.fmt.Formatter)
 
 /-- [mini_stf::stf::{impl core::fmt::Debug for mini_stf::stf::Error}::fmt]:
-    Source: 'src/stf.rs', lines 17:9-17:14
+    Source: 'src/stf.rs', lines 22:9-22:14
     Visibility: public -/
 axiom stf.Error.Insts.CoreFmtDebug.fmt
   :
@@ -79,7 +79,7 @@ axiom stf.Error.Insts.CoreFmtDebug.fmt
     core.fmt.Error) × core.fmt.Formatter)
 
 /-- [mini_stf::stf::{impl core::fmt::Display for mini_stf::stf::Error}::fmt]:
-    Source: 'src/stf.rs', lines 17:16-17:32
+    Source: 'src/stf.rs', lines 22:16-22:32
     Visibility: public -/
 axiom stf.Error.Insts.CoreFmtDisplay.fmt
   :
@@ -111,7 +111,7 @@ axiom tipos.ShortRoot.Insts.CoreFmtDisplay.fmt
     core.fmt.Error) × core.fmt.Formatter)
 
 /-- [mini_stf::tipos::{impl core::fmt::Debug for mini_stf::tipos::Checkpoint}::fmt]:
-    Source: 'src/tipos.rs', lines 76:9-76:14
+    Source: 'src/tipos.rs', lines 146:9-146:14
     Visibility: public -/
 axiom tipos.Checkpoint.Insts.CoreFmtDebug.fmt
   :
@@ -119,7 +119,7 @@ axiom tipos.Checkpoint.Insts.CoreFmtDebug.fmt
     core.fmt.Error) × core.fmt.Formatter)
 
 /-- [mini_stf::tipos::{impl core::fmt::Debug for mini_stf::tipos::AttestationData}::fmt]:
-    Source: 'src/tipos.rs', lines 89:9-89:14
+    Source: 'src/tipos.rs', lines 159:9-159:14
     Visibility: public -/
 axiom tipos.AttestationData.Insts.CoreFmtDebug.fmt
   :
@@ -127,7 +127,7 @@ axiom tipos.AttestationData.Insts.CoreFmtDebug.fmt
     Unit core.fmt.Error) × core.fmt.Formatter)
 
 /-- [mini_stf::tipos::{impl core::fmt::Debug for mini_stf::tipos::AggregatedAttestation}::fmt]:
-    Source: 'src/tipos.rs', lines 119:9-119:14
+    Source: 'src/tipos.rs', lines 194:9-194:14
     Visibility: public -/
 axiom tipos.AggregatedAttestation.Insts.CoreFmtDebug.fmt
   :
@@ -135,7 +135,7 @@ axiom tipos.AggregatedAttestation.Insts.CoreFmtDebug.fmt
     ((core.result.Result Unit core.fmt.Error) × core.fmt.Formatter)
 
 /-- [mini_stf::tipos::{impl core::fmt::Debug for mini_stf::tipos::BlockHeader}::fmt]:
-    Source: 'src/tipos.rs', lines 138:9-138:14
+    Source: 'src/tipos.rs', lines 213:9-213:14
     Visibility: public -/
 axiom tipos.BlockHeader.Insts.CoreFmtDebug.fmt
   :
@@ -143,7 +143,7 @@ axiom tipos.BlockHeader.Insts.CoreFmtDebug.fmt
     core.fmt.Error) × core.fmt.Formatter)
 
 /-- [mini_stf::tipos::{impl core::fmt::Debug for mini_stf::tipos::BlockBody}::fmt]:
-    Source: 'src/tipos.rs', lines 159:9-159:14
+    Source: 'src/tipos.rs', lines 240:9-240:14
     Visibility: public -/
 axiom tipos.BlockBody.Insts.CoreFmtDebug.fmt
   :
@@ -151,7 +151,7 @@ axiom tipos.BlockBody.Insts.CoreFmtDebug.fmt
     core.fmt.Error) × core.fmt.Formatter)
 
 /-- [mini_stf::tipos::{impl core::fmt::Debug for mini_stf::tipos::Block}::fmt]:
-    Source: 'src/tipos.rs', lines 172:9-172:14
+    Source: 'src/tipos.rs', lines 265:9-265:14
     Visibility: public -/
 axiom tipos.Block.Insts.CoreFmtDebug.fmt
   :
@@ -159,7 +159,7 @@ axiom tipos.Block.Insts.CoreFmtDebug.fmt
     core.fmt.Error) × core.fmt.Formatter)
 
 /-- [mini_stf::tipos::{impl core::fmt::Debug for mini_stf::tipos::Validator}::fmt]:
-    Source: 'src/tipos.rs', lines 234:9-234:14
+    Source: 'src/tipos.rs', lines 333:9-333:14
     Visibility: public -/
 axiom tipos.Validator.Insts.CoreFmtDebug.fmt
   :
@@ -167,7 +167,7 @@ axiom tipos.Validator.Insts.CoreFmtDebug.fmt
     core.fmt.Error) × core.fmt.Formatter)
 
 /-- [mini_stf::tipos::{impl core::fmt::Debug for mini_stf::tipos::StateConfig}::fmt]:
-    Source: 'src/tipos.rs', lines 245:9-245:14
+    Source: 'src/tipos.rs', lines 344:9-344:14
     Visibility: public -/
 axiom tipos.StateConfig.Insts.CoreFmtDebug.fmt
   :
@@ -175,7 +175,7 @@ axiom tipos.StateConfig.Insts.CoreFmtDebug.fmt
     core.fmt.Error) × core.fmt.Formatter)
 
 /-- [mini_stf::tipos::{impl core::fmt::Debug for mini_stf::tipos::State}::fmt]:
-    Source: 'src/tipos.rs', lines 251:9-251:14
+    Source: 'src/tipos.rs', lines 350:9-350:14
     Visibility: public -/
 axiom tipos.State.Insts.CoreFmtDebug.fmt
   :

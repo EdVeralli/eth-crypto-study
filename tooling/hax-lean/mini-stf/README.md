@@ -85,9 +85,10 @@ distintos den, casi siempre, raíces distintas.
 
 Del lado de Lean se trata al revés: ahí conviene declararlo **opaco** y agregar
 la inyectividad como **hipótesis explícita** en los teoremas que la necesiten
-("suponiendo que el hash no colisiona, vale `ST-3`"). Es la forma estándar de
-modelar criptografía, y es lo que hace `fradamt/verified-consensus` con sus tres
-axiomas delegados a ArkLib.
+("suponiendo que el hash no colisiona, vale tal propiedad"). Es la forma
+estándar de modelar criptografía, y es lo que hace `fradamt/verified-consensus`
+con sus tres axiomas delegados a ArkLib. Al 20 nov ningún teorema del paquete
+lo necesitó: lo único que se le pide al hash es que devuelva.
 
 Los seis tests pasan con el hash real igual que con el stub, lo que confirma que
 no estaban apoyados en el cero.
@@ -214,7 +215,8 @@ es un ciclo (`bad import 'MiniStf'`). El encabezado que escribe hax ya lo dice.
 > (14 `Debug` + 3 `Display`) y 11 firmas de `core`/`std`. (Desde la tarde del
 > 15 nov son 27: `mem::take` paso a ser una definicion, por lo mismo que
 > `isqrt`. Ver la nota de ST-7 en "Lo que sigue". Y desde el 17 nov son 26:
-> tambien `bool::then`.) Ya no hay ninguna
+> tambien `bool::then`. Y desde el 19 nov son 20: la comparacion de arrays y
+> el `HashMap` con sus tres operaciones y `Borrow`.) Ya no hay ninguna
 > funcion de la STF opaca (los dos `--opaque` que quedan son solo
 > `Debug`/`Display`), e `isqrt` es una definicion sobre `Nat.sqrt` desde el
 > 30 oct, no un axioma. Y una cuenta que abajo no cierra: el desglose suma 25
@@ -241,7 +243,10 @@ definicion sobre `Nat.sqrt` y el teorema de los pronic esta mas abajo.)
 
 ### La auditoria, corrida el 30 oct
 
-Salida completa en [`axiomas.txt`](axiomas.txt). Reproducir:
+Salida completa en [`axiomas.txt`](axiomas.txt). (Nota del 20 nov 2026: desde
+el 18 nov ese archivo es otra cosa, la base de axiomas de cada teorema. La
+salida de esta auditoria ya no esta ahi; se reproduce con lo de abajo.)
+Reproducir:
 
 ```bash
 cp supuestos/RevisarAxiomas.lean proofs/lean/
@@ -277,7 +282,12 @@ escribio una persona. Aca no hay tal linea. Esta anotado en
 
 ## Que cambio del codigo de ethlambda
 
-El cuerpo de `stf.rs` es el original **salvo una linea**, en `process_slots`:
+> Nota del 20 nov 2026: esto era asi el 30 oct. Despues se reescribieron
+> cuatro funciones; esta contado mas abajo. Y el cambio de aca esta en
+> `process_block_header`, no en `process_slots` como decia esta seccion.
+
+El cuerpo de `stf.rs` es el original **salvo una linea**, en
+`process_block_header`:
 
 ```rust
 // original
@@ -392,6 +402,13 @@ las tres.
 Lo que NO cubren: `state_transition`, `process_block`, `process_block_header`,
 `process_slots`, que no se van a tocar.
 
+> Nota del 20 nov 2026: al final fueron cuatro. `process_block_header` tambien
+> cambio (el `repeat_n` de mas arriba), y ningun test la ejercita. Esta dicho
+> en la propuesta, junto con una diferencia con el original que aparecio en la
+> revision del 20 nov: con una raiz repetida en `justifications_roots`,
+> `construir_mapa_de_votos` se queda con la primera aparicion y el
+> `.collect()` del original con la ultima.
+
 ## El objetivo: una propuesta para LambdaClass
 
 Esto empezo como prueba de factibilidad y tiene un destino mas concreto:
@@ -483,7 +500,7 @@ O sea que arreglar el bug habilitó la mitad de `ST-3` que nos faltaba.
 
 **1. `--charon-args="--start-from <función>"` no trae los tipos de una
 dependencia.** El manual dice que extrae la función *"along with all its
-dependencies"*, y es cierto de la cadena de llamadas, no de los tipos. Probado
+dependencies"*, y es cierto del grafo de llamadas, no de los tipos. Probado
 sobre `prueba-types`, un crate de una sola función que usa `State` de
 `ethlambda-types`: la función salió traducida, el tipo no, y
 `TypesExternal_Template.lean` quedó vacío —ni siquiera lo pide como externo—, así
@@ -525,6 +542,8 @@ slots de checkpoint a la vez. Lo que hay aca es cada mitad sobre el componente
 donde ese campo se mueve: la justificacion en `process_attestations`, la
 finalidad en `try_finalize`. **Eso no es la proposicion del catalogo**, y el
 5 nov lo dijimos mal en la primera version de esta seccion.
+
+(Nota del 20 nov 2026: lo que sigue se hizo el 15 nov; ver "Lo que sigue".)
 
 Falta subir las dos a `state_transition`: que `process_slots` no toque los
 checkpoints, que `process_block_header` no los baje, y que la mitad de
@@ -1078,7 +1097,7 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    >   que hacer `obtain ⟨desde, hasta⟩ := iter` antes.
    > - Los lemas totales (`⇓`) del teorema 16 se pueden usar adentro de
    >   pruebas parciales sin tocarlos.
-   > - Las 28 metas del loop de attestations son cadenas de implicaciones
+   > - Las 28 metas del loop de attestations son implicaciones encadenadas
    >   y cierran todas con `grind`.
    >
    > Control negativo: con `votos_vacios` sin decir cuanto mide lo que
@@ -1476,7 +1495,7 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    > - `header_inv7` junta cinco cosas ya probadas sobre la MISMA
    >   ecuacion `process_block_header state block = ok (res, state')`, con
    >   `of_triple_mayThrow` de cada spec: los slots no se mueven (teorema
-   >   3), el historial y el slot del header (teorema 13, de ahi el
+   >   6), el historial y el slot del header (teorema 13, de ahi el
    >   `usize` de 64 bits), los checkpoints fuera del genesis (teorema 7)
    >   y el header fuera del genesis (teorema 8). Es mas corto que un spec
    >   gigante.
@@ -1677,5 +1696,26 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    >
    > Axiomas: `volcar_votos_mismas` 5 (3 de Lean, 1 nativo, el `fmt`); los
    > otros dos 7.
+
+   > Tercera nota del 20 nov 2026: **revision general antes del envio**. No
+   > cambia ningun teorema. Tres cosas que quedan escritas:
+   >
+   > - Se reconstruyo todo desde un clon limpio del repo, siguiendo los pasos
+   >   de la propuesta. Es la prueba de que lo versionado alcanza.
+   > - NINGUN TEST ejercita `process_block_header` ni `state_transition`: los
+   >   once llaman a `process_attestations`, `attestation_data_matches_chain`
+   >   o `from_genesis`. La propuesta decia que los tests respaldaban las
+   >   cuatro funciones reescritas; respaldan tres. Corregido.
+   > - UNA DIFERENCIA CON EL ORIGINAL que no estaba dicha, encontrada leyendo
+   >   el `lib.rs` de ethlambda contra `stf.rs`: con una raiz repetida en
+   >   `justifications_roots`, el original (`HashMap` armado con `.collect()`)
+   >   se queda con los votos de la ULTIMA aparicion y `construir_mapa_de_votos`
+   >   con los de la PRIMERA. Inalcanzable desde el genesis
+   >   (`RZ.alcanzable_raices`). No se arreglo: arreglarlo cambia el Rust y
+   >   obliga a rehacer los teoremas que pasan por esa funcion. Queda escrito
+   >   en la propuesta, en "Un bug que la reescritura introdujo" y en los
+   >   limites.
+   > - Ademas se corrigieron comentarios viejos en el Rust, el Lean, los
+   >   supuestos, el Dockerfile y `axiomas.py`.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

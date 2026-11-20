@@ -28,23 +28,10 @@ QUE_ES = {
     "core.Array.Insts.CoreHashHash.hash":
         "el hash de un array. Hace falta para usar `H256` como clave del "
         "`HashMap`.",
-    "core.borrow.Borrow":
-        "el trait `Borrow`, que pide la firma de `HashMap::get`.",
-    "core.borrow.Borrow.Blanket":
-        "la instancia general de `Borrow` (todo tipo se presta a si mismo).",
     "core.hash.BuildHasher":
         "el trait del fabricante de hashers del `HashMap`.",
-    "std.collections.hash.map.HashMap.get":
-        "la consulta al `HashMap` de raices a slots.",
     "std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher":
         "el hasher por defecto del `HashMap`.",
-    "core.Array.Insts.CoreCmpOrd.cmp":
-        "la comparacion de arrays: es el `<` entre dos `H256` que usa el "
-        "ordenamiento de raices.",
-    "std.collections.hash.map.HashMap.insert":
-        "la insercion en el `HashMap` de raices a slots.",
-    "std.collections.hash.map.HashMapKVRandomStateGlobal.new":
-        "la creacion del `HashMap` de raices a slots.",
 }
 
 RAYA = "=" * 72

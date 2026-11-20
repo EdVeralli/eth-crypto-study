@@ -5,8 +5,8 @@
 //! Las dos son infraestructura con estado global: logging y contadores de
 //! Prometheus. No participan de la logica del protocolo, pero si de las
 //! firmas, asi que sacarlas obligaria a editar el cuerpo de la STF. Estos
-//! stubs existen para evitar justamente eso: con ellos, el cuerpo de
-//! `stf.rs` queda identico al original y solo cambian las lineas `use`.
+//! stubs existen para evitar justamente eso: con ellos, las llamadas a
+//! logging y a metricas de `stf.rs` quedan como en el original.
 
 /// `tracing::info!` sin efecto.
 ///

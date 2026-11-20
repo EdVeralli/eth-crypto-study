@@ -24,22 +24,22 @@
 //!   crates/common/types/src/{primitives,checkpoint,state,block,attestation}.rs
 //!
 //! CUANTO SE TOCO DEL CODIGO DE ELLOS, medido contra el original
-//! (commit 6168a0e, ignorando comentarios):
+//! (commit 35c074b, ignorando comentarios; las cifras son las de PROPUESTA.md):
 //!
 //!   IDENTICAS, 8 de 12:  state_transition, process_slots, process_block,
 //!                        is_valid_vote, attestation_data_matches_chain,
 //!                        slot_is_justifiable_after, is_proposer,
 //!                        current_proposer
 //!
-//!   CAMBIADAS, 4:        process_block_header       3 lineas
-//!                        try_finalize              ~18 lineas
-//!                        serialize_justifications  ~23 lineas
-//!                        process_attestations      ~87 lineas
+//!   CAMBIADAS, 4:        process_block_header       1 quitada,  3 agregadas
+//!                        try_finalize              15 quitadas, 20 agregadas
+//!                        serialize_justifications  16 quitadas,  8 agregadas
+//!                        process_attestations      79 quitadas, 65 agregadas
 //!
 //!   Mas 19 funciones auxiliares nuevas, que son nuestras.
 //!
-//! O sea que el pedido concreto es tocar cuatro funciones, unas 130 lineas de
-//! logica. El resto queda tal cual.
+//! O sea que el pedido concreto es tocar cuatro funciones: 111 lineas quitadas
+//! y 96 agregadas. El resto queda tal cual.
 //!
 //! Ver README.md por lo que se pierde al sustituir.
 

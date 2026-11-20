@@ -1,6 +1,7 @@
 /- De que axiomas depende cada funcion de la STF.
 
-   Copiar a proofs/lean/ y correr con:  lake env lean RevisarAxiomas.lean
+   `regenerar.sh` lo copia a proofs/lean/. Ahi se corre con:
+       lake env lean RevisarAxiomas.lean
 -/
 import MiniStf
 

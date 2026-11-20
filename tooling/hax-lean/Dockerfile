@@ -1,4 +1,4 @@
-# Entorno para traducir Rust a Lean con la cadena hax + Charon + Aeneas.
+# Entorno para traducir Rust a Lean con la cadena de herramientas hax + Charon + Aeneas.
 #
 # Se construye para linux/amd64 a proposito: hax publica binarios para
 # linux-x86_64, linux-aarch64 y macos-aarch64, pero NO para macOS Intel. En una
@@ -26,7 +26,7 @@ ENV PATH=/root/.cargo/bin:$PATH
 # LA VERSION VA FIJA, Y ES IMPORTANTE. Hasta el 11 nov 2026 esta linea decia
 # `cargo install --locked cargo-hax` sin version, o sea la ultima. Todo lo que
 # medimos y documentamos esta contra 0.4.2: los dos --opaque que hacen falta,
-# los nombres que genera, los siete axiomas nativos, los 1742 jobs del build.
+# los nombres que genera, los nueve axiomas nativos, los 1742 jobs del build.
 # Y 0.5.0 ya esta publicada, asi que sin fijar la version una imagen
 # reconstruida HOY ya no reproduce el entorno. Las versiones de Charon y de
 # Aeneas vienen determinadas por la de hax, que las baja sola: con 0.4.2 son

@@ -5,6 +5,6 @@ edition = "2021"
 
 [dependencies]
 # La unica dependencia externa. La STF la usa para derivar Display sobre su
-# enum Error; se deja para no editar el cuerpo copiado. Si traba la
-# extraccion, el reemplazo es un enum pelado y queda documentado.
+# enum Error; se deja para no editar el cuerpo copiado. No trabo la
+# extraccion: alcanza con los dos `--opaque` de `fmt` de regenerar.sh.
 thiserror = "2"

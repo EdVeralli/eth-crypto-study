@@ -89,7 +89,7 @@ example : 4 * 56 + 1 = 15 * 15 := by norm_num
 /- ===========================================================================
    Herramienta: abrir un bind
 
-   El codigo que genera Aeneas es una cadena de binds de `RustM`, que es un
+   El codigo que genera Aeneas es una secuencia de binds de `RustM`, que es un
    inductivo con `ok`, `fail` y `div`. Para razonar sobre el hay que ir
    abriendolos: si la secuencia entera termino en `ok`, el primer paso tambien.
    Los casos `fail` y `div` se descartan solos, porque no son `ok`.
@@ -267,8 +267,8 @@ theorem try_finalize_no_toca_justified
 
    Con esto quedan demostradas las dos mitades de `ST-3`, cada una sobre el
    componente donde se mueve su campo. La proposicion del catalogo esta
-   enunciada sobre `State.transition` entera: eso es el teorema 6, al final
-   de este archivo.
+   enunciada sobre `State.transition` entera: eso es el teorema 6, mas
+   abajo.
 
    El enunciado es condicional a que la llamada devuelva `ok`, igual que el
    teorema 2:
@@ -281,8 +281,8 @@ theorem try_finalize_no_toca_justified
    rechazado es `ok (Err e, estado)` y esta cubierto por el teorema. Lo que
    queda afuera son los panicos -- un desborde, un indice fuera de rango -- y
    eso es un limite real: un panico no rechaza el bloque, tira el nodo.
-   Demostrar que no los hay es otro teorema, mucho mas grande (ver el punto 1
-   de abajo).
+   Demostrar que no los hay es otro teorema, mucho mas grande: son los
+   teoremas 10 y 14 a 21, y sobre los estados alcanzables el 23 y el 26.
 
    Dos decisiones que costaron el dia y vale dejar escritas.
 
@@ -2652,10 +2652,10 @@ theorem ST6.finalizacion_irreversible
 
    Dos cosas a tener presentes al leer los enunciados:
 
-     - Los teoremas 2 y 4 concluyen que `is_slot_justified` DEVUELVE `Ok`: no
+     - Los puntos 2 y 4 concluyen que `is_slot_justified` DEVUELVE `Ok`: no
        son condicionales en esa segunda llamada. Si lo son en la primera
        (`set_justified`, `shift_window`), como todo lo demas.
-     - El teorema 4 pide que la distancia entre el slot y el finalizado entre
+     - El punto 4 pide que la distancia entre el slot y el finalizado entre
        en un `usize` (`hfit`). El codigo hace `idx as usize`, y el modelo no
        fija el ancho de `usize`: en 32 bits ese cast trunca y dos slots a
        distancia 2^32 compartirian bit. En 64 bits la hipotesis vale siempre.
@@ -2784,7 +2784,7 @@ theorem relative_index_eq (t f : Std.U64) :
         simp
 
 /- ====================================================================
-   Teorema 2: ida y vuelta. Despues de `set_justified(s)`,
+   Punto 2: ida y vuelta. Despues de `set_justified(s)`,
    `is_slot_justified(s)` devuelve `Ok(true)`.
    ==================================================================== -/
 
@@ -3256,7 +3256,7 @@ end
    Los enunciados, como ecuaciones.
    ==================================================================== -/
 
-/-- Teorema 1, forma exacta: `extend_to_slot` solo agrega bits en cero al
+/-- Punto 1, forma exacta: `extend_to_slot` solo agrega bits en cero al
     final. -/
 theorem extend_to_slot_eq (slots slots' : ssz.SszBitlist 262144#usize)
     (f t : Std.U64)
@@ -3265,7 +3265,7 @@ theorem extend_to_slot_eq (slots slots' : ssz.SszBitlist 262144#usize)
       List.replicate (slots'.bits.val.length - slots.bits.val.length) false :=
   of_triple_mayThrow (extend_to_slot_spec slots f t) h
 
-/-- Teorema 1: `extend_to_slot` no pierde bits. Todo bit que estaba en uno
+/-- Punto 1: `extend_to_slot` no pierde bits. Todo bit que estaba en uno
     sigue en uno, en la misma posicion. -/
 theorem extend_to_slot_no_pierde_bits (slots slots' : ssz.SszBitlist 262144#usize)
     (f t : Std.U64)
@@ -3277,7 +3277,7 @@ theorem extend_to_slot_no_pierde_bits (slots slots' : ssz.SszBitlist 262144#usiz
   rw [List.getElem?_append_left hlt]
   exact hj
 
-/-- Teorema 3: `shift_window` corre sin deformar. La lista nueva es la vieja
+/-- Punto 3: `shift_window` corre sin deformar. La lista nueva es la vieja
     sin sus primeros `delta` bits. -/
 theorem shift_window_eq (slots slots' : ssz.SszBitlist 262144#usize)
     (delta : Std.Usize)
@@ -3285,7 +3285,7 @@ theorem shift_window_eq (slots slots' : ssz.SszBitlist 262144#usize)
     slots'.bits.val = slots.bits.val.drop delta.val :=
   of_triple_mayThrow (shift_window_spec slots delta) h
 
-/-- Teorema 3, bit a bit: el bit en `i + delta` antes es el bit en `i`
+/-- Punto 3, bit a bit: el bit en `i + delta` antes es el bit en `i`
     despues. -/
 theorem shift_window_corre (slots slots' : ssz.SszBitlist 262144#usize)
     (delta : Std.Usize)
@@ -3353,7 +3353,7 @@ theorem extend_to_slot_conserva_respuestas
     exact is_slot_justified_de_bit slots' f s idx b ho
       (extend_to_slot_no_pierde_bits slots slots' f t hext idx.val b hbit)
 
-/-- Teorema 4, el compuesto. Cuando la finalidad avanza de `f` a `f'` y la
+/-- Punto 4, el compuesto. Cuando la finalidad avanza de `f` a `f'` y la
     ventana se corre esa distancia, todo slot que sigue por encima del limite
     nuevo se reporta igual que antes: justificado si lo estaba, no justificado
     si no. Involucra `relative_index`, `is_slot_justified` y `shift_window`, y
@@ -3412,7 +3412,7 @@ end JS
    antes. Dos puentes nuevos, `triple_total_of` y `of_triple_total`, van y
    vienen entre "devuelve `v` y vale `P v`" y la terna total.
 
-   Con esto el teorema 4 queda sin condicional de panico
+   Con esto el punto 4 del teorema 9 queda sin condicional de panico
    (`finalizar_conserva_justificados_total`), y se despeja la duda de si los
    enunciados del teorema 9 eran vacios: `shift_window` y `extend_to_slot`
    devuelven.
@@ -3836,7 +3836,7 @@ theorem extend_to_slot_devuelve (slots : ssz.SszBitlist 262144#usize)
         List.replicate (slots'.bits.val.length - slots.bits.val.length) false :=
   of_triple_total (extend_to_slot_total_spec slots f t hcap)
 
-/-- El compuesto (teorema 4), ahora sin condicional: `shift_window` devuelve
+/-- El compuesto (punto 4 del teorema 9), ahora sin condicional: `shift_window` devuelve
     y la respuesta se conserva. -/
 theorem finalizar_conserva_justificados_total
     (slots : ssz.SszBitlist 262144#usize) (f f' s : Std.U64)
@@ -5266,8 +5266,8 @@ end HC
    `stf.rs`:
 
      - `current_proposer`: devuelve siempre. Sin validadores, `None`; con
-       validadores, `Some(slot % n)`. El enunciado dice que devuelve, no solo
-       que devuelve.
+       validadores, `Some(slot % n)`. El enunciado dice QUE VALOR devuelve,
+       no solo que devuelve.
      - `is_proposer`: devuelve siempre.
      - `slot_is_justifiable_after`: devuelve siempre. La unica cuenta que
        podria desbordar es el cuadrado de la raiz entera, y no desborda
@@ -5285,11 +5285,12 @@ end HC
    de 32 bytes, ahora con medida de terminacion y con los dos indices en
    rango.
 
-   Los cinco resultados dependen solo de los tres axiomas estandar de Lean.
-   Es la primera vez en este archivo que un resultado sobre el codigo
-   traducido no arrastra ni un axioma nativo ni una declaracion sin
-   contenido. Siguen apoyandose en dos modelos nuestros, `bool::then` e
-   `isqrt`, que son definiciones y por eso no aparecen en `#print axioms`.
+   Los cinco resultados dependen solo de los tres axiomas estandar de Lean:
+   ni un axioma nativo ni una declaracion sin contenido. No son los primeros
+   (algunos de los teoremas 6 a 10 tampoco los arrastran), pero aca vale
+   para funciones enteras. Siguen apoyandose en dos modelos nuestros,
+   `bool::then` e `isqrt`, que son definiciones y por eso no aparecen en
+   `#print axioms`.
    =========================================================================== -/
 
 namespace NP2
@@ -7058,7 +7059,7 @@ theorem loop_conserva_acotado (s0 : tipos.State)
 
 /-- Las dos juntas, contra `serialize_justifications`: con el mapa que arma
     `process_attestations` y que deja su loop, la hipotesis sobre las listas
-    de votos se cumple sola. Quedan las otras tres. -/
+    de votos se cumple sola. Quedan las otras dos. -/
 theorem serialize_tras_attestations_devuelve (st : tipos.State)
     (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
     (vc n : Std.Usize) (j0 : mapa.MapaVotos)
@@ -7523,7 +7524,7 @@ end NP5
    - `construir_mapa_de_votos` pide que `raices * validator_count` no
      desborde. Cada segmento se lee de `i * validator_count` a
      `(i + 1) * validator_count`.
-   - `construir_root_to_slot` pide dos cosas. Que `finalizado + 1` no
+   - `construir_root_to_slot` pide una cosa. Que `finalizado + 1` no
      desborde. Hasta el 19 nov 2026 pedia ademas que las tres operaciones
      del `HashMap` (`new`, `get`, `insert`) devolvieran, para todo mapa
      porque el mapa cambia en cada vuelta. Ahora son definiciones y eso esta
@@ -8680,7 +8681,8 @@ end NP7
 
    Lo que NO dice: que estas hipotesis valgan en todo estado alcanzable.
    Los dos invariantes se conservan, pero su caso inicial (el genesis) no
-   esta probado, y la cota de raices es una condicion sobre las entradas.
+   esta probado aca, y la cota de raices es una condicion sobre las
+   entradas. El genesis es el teorema 23; la cota como invariante, el 26.
 
    Controles negativos, en la bitacora: sin el invariante del historial
    queda abierta la precondicion del header; si el header no dice que deja
@@ -8900,7 +8902,8 @@ end NP8
 
    Lo que NO queda cubierto por este encadenamiento: la cota "raices
    pendientes mas attestations del bloque", que depende de cada bloque y no
-   es un invariante; y que las hipotesis valgan en el genesis.
+   es un invariante (teorema 26); y que las hipotesis valgan en el genesis
+   (teorema 23).
 
    Son resultados parciales ("si devuelve"), como los de los teoremas 6 a 8.
 
@@ -9356,7 +9359,7 @@ end GEN
    agrega ESA MISMA raiz al historial, que estaba vacio. Queda en la
    posicion 0, que es el slot del justificado. Es `header_ancla_spec`, el
    unico lema nuevo sobre el codigo; el resto es composicion de los
-   teoremas 3, 7, 8 y 13.
+   teoremas 6, 7, 8 y 13.
 
    Un detalle que hubo que mirar: `process_block_header` puede rechazar
    DESPUES de anclar (el error `SlotGapTooLarge`), y el estado queda con la

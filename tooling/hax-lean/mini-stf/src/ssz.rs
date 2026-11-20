@@ -9,7 +9,7 @@
 //!
 //! Lo que se pierde: la codificacion SSZ y la raiz de Merkle. La STF no las
 //! calcula por su cuenta -- las pide via `hash_tree_root()`, que en este crate
-//! es un stub (ver `tipos.rs`).
+//! es un sustituto (ver `tipos.rs`).
 
 /// Error de capacidad. El original distingue varios casos; aca alcanza con uno.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,7 +65,7 @@ impl<T, const N: usize> core::ops::Deref for SszList<T, N> {
     }
 }
 
-/// Y tambien la recorre con `for x in &lista`.
+/// Y permite recorrerla con `for x in &lista`.
 impl<'a, T, const N: usize> IntoIterator for &'a SszList<T, N> {
     type Item = &'a T;
     type IntoIter = core::slice::Iter<'a, T>;

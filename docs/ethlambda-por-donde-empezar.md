@@ -476,8 +476,9 @@ supuesto a cerrar.
 
 ### La auditoría de axiomas, hecha el 30 de octubre
 
-`#print axioms` sobre cada función. Salida completa en
-[`tooling/hax-lean/mini-stf/axiomas.txt`](../tooling/hax-lean/mini-stf/axiomas.txt).
+`#print axioms` sobre cada función. La salida completa estaba en
+[`tooling/hax-lean/mini-stf/axiomas.txt`](../tooling/hax-lean/mini-stf/axiomas.txt);
+desde el 18 nov ese archivo es la base de axiomas de cada teorema.
 
 **Tres funciones salen con los tres axiomas estándar de Lean y nada más.** Están
 demostrablemente limpias, y son las mejores candidatas para el primer teorema:
@@ -512,10 +513,11 @@ La base de confianza, entonces:
 
 ### Y una línea de ethlambda que sí cambiamos
 
-En `process_slots`, `historical_block_hashes.extend(std::iter::repeat_n(...))`
+En `process_block_header`, `historical_block_hashes.extend(std::iter::repeat_n(...))`
 pasó a ser un `for` con `push`. `repeat_n` y `Vec::extend` no están en
-`CoreModels`. Es el único cambio al cuerpo del código de ellos, y queda anotado
-como cambio, no como copia.
+`CoreModels`. Al 30 de octubre era el único cambio al cuerpo del código de
+ellos; después se reescribieron tres funciones más, y está contado en la
+propuesta.
 
 ---
 

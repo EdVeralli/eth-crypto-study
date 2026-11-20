@@ -84,5 +84,5 @@ las siete proposiciones de transición de estado del catálogo de
 formal-leanSpec (`ST-1` a `ST-7`) y, el 17 nov, con los cuatro teoremas sobre
 la ventana de slots justificados, la ausencia de pánico de ese módulo y un
 comentario del código de ethlambda verificado. Son 102 resultados. Lo único
-pendiente es enviárselo a LambdaClass; qué teoremas faltan está en los
+pendiente es enviárselo a LambdaClass; qué quedó abierto está en los
 pendientes 8 y 9 del `README.md`.

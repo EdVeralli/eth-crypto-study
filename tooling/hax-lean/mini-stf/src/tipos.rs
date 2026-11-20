@@ -8,7 +8,7 @@
 //!   - los tipos que la STF no toca (`SignedBlock`, `MultiMessageAggregate`,
 //!     `SingleMessageAggregate`, `Attestation`, `SignedAttestation`,
 //!     `HashedAttestationData`, las firmas XMSS),
-//!   - los tests.
+//!   - los tests de ellos (los dos del final son nuestros).
 //!
 //! Se dejaron los derives de `std` (`Clone`, `Copy`, `Default`, `PartialEq`),
 //! que Aeneas sabe traducir solo.
@@ -60,16 +60,16 @@ impl std::fmt::Display for ShortRoot<'_> {
 ///   NO da los mismos valores que SSZ. No sirve para interoperar con otros
 ///   clientes, ni para calcular una raiz que alguien mas vaya a verificar.
 ///
-///   SI cumple lo unico que la STF le pide: que estados distintos den raices
-///   distintas. Es un hash polinomico (multiplicar por un primo y sumar),
-///   determinista, escrito con loops de indice y aritmetica `wrapping` para
-///   que la cadena de herramientas lo pueda traducir.
+///   SI alcanza para los tests: estados distintos dan casi siempre raices
+///   distintas. Es un hash polinomico (multiplicar por un primo y sumar) de
+///   64 bits, determinista y NO resistente a colisiones, escrito con loops de
+///   indice y `wrapping` para que la cadena de herramientas lo traduzca.
 ///
-/// DEL LADO DE LEAN se trata aparte: ahi conviene declararlo OPACO y agregar
-/// la inyectividad como hipotesis explicita en los teoremas que la necesiten
-/// ("suponiendo que el hash no colisiona, vale ST-3"). Es la forma estandar de
-/// modelar criptografia, y es lo que hace `fradamt/verified-consensus` con sus
-/// tres axiomas delegados a ArkLib.
+/// DEL LADO DE LEAN ningun teorema del paquete depende de que raiz devuelve:
+/// solo se pide que devuelva. Si alguno llegara a necesitar mas, conviene
+/// declararlo OPACO y agregar esa propiedad como hipotesis explicita. Es la
+/// forma estandar de modelar criptografia, y es lo que hace
+/// `fradamt/verified-consensus` con sus tres axiomas delegados a ArkLib.
 pub trait HashTreeRoot {
     fn hash_tree_root(&self) -> H256;
 }
@@ -142,7 +142,7 @@ fn a_raiz(v: u64) -> H256 {
 // checkpoint
 // ---------------------------------------------------------------------------
 
-/// Un punto de la historia de la cadena.
+/// Un punto de la historia de la cadena de bloques.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct Checkpoint {
     /// La raiz del bloque del checkpoint.
@@ -155,7 +155,7 @@ pub struct Checkpoint {
 // attestation
 // ---------------------------------------------------------------------------
 
-/// Lo que un validador afirma sobre la cadena que ve.
+/// Lo que un validador afirma sobre la cadena de bloques que ve.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct AttestationData {
     /// El slot al que corresponde el voto.

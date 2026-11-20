@@ -98,11 +98,12 @@ ventana de slots justificados: los cuatro teoremas que se habían propuesto al
 principio, el 22 de octubre, la demostración de que ese módulo no entra en
 pánico, un comentario del código de ethlambda sobre esa ventana, verificado, el
 invariante de dónde termina la ventana a lo largo de la transición, y que nunca
-pasa de su capacidad. Trece dicen que las doce funciones de la
-transición no entran en pánico, siete de ellas con hipótesis escritas, dos más
-que el ordenamiento de raíces y el filtrado del mapa terminan, tres que el mapa
-de votos cumple una de esas hipótesis, y diez que las funciones auxiliares de
-`process_attestations` tampoco entran en pánico. Veintinueve llevan todo eso
+pasa de su capacidad. Catorce dicen que las doce funciones de la
+transición no entran en pánico, siete de ellas con hipótesis escritas, tres más
+que la comparación de raíces devuelve y que el ordenamiento y el filtrado del
+mapa terminan, tres que el mapa de votos cumple una de esas hipótesis, diez que
+las funciones auxiliares de `process_attestations` tampoco entran en pánico, y
+uno que las operaciones del `HashMap` devuelven. Veintinueve llevan todo eso
 a los estados alcanzables desde el génesis y cierran lo que la reescritura
 dejaba abierto: el génesis y la conservación de las hipótesis, `ST-7` desde el
 génesis, que el ordenamiento escrito a mano ordena, la cota de raíces como
@@ -251,7 +252,7 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    pendiente es mandarlo. Antes de mandarlo conviene releer la sección "El
    reemplazo de checkpoint, y dónde su código se aparta de la especificación":
    es la que les dice que su código y leanSpec difieren en un punto.
-8. **Lo que le falta al paquete para valer "en todo estado alcanzable"**:
+8. **Lo que el paquete ya vale "en todo estado alcanzable"**:
    desde el 19 nov el génesis está en el crate (`State::from_genesis`, copiada
    de ethlambda) y hay una noción de estado alcanzable. Sobre ella valen los
    dos invariantes, la cota de validadores, `ST-4` completa, la ausencia de
@@ -264,8 +265,14 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    `usize` de 64 bits, que el hash devuelva, y que la lista de attestations
    del bloque respete la capacidad de su tipo (4096), que el Rust garantiza y
    la traducción a Lean no conserva.
-9. **El paso siguiente más útil del paquete**: descargar hipótesis de la
-   ausencia de pánico, que desde el 18 nov cubre las doce funciones de
+9. **Lo que queda abierto del paquete**, después de la revisión del 20 nov.
+   Tres cosas, ninguna de la lista original: no hay test que ejercite
+   `process_block_header` (el cambio del `repeat_n`); con una raíz repetida en
+   `justifications_roots` nuestra `construir_mapa_de_votos` se queda con la
+   primera aparición y el original con la última (inalcanzable desde el
+   génesis, pero es una diferencia con su código); y `MapaVotos` no está
+   relacionado formalmente con el `HashMap` del original. Lo que sí se hizo:
+   descargar hipótesis de la ausencia de pánico, que desde el 18 nov cubre las doce funciones de
    `stf.rs` (`state_transition` incluida). La comparación de `H256` y el
    `HashMap` ya están (19 nov: pasaron de firmas sin contenido a
    definiciones, y dejaron de ser hipótesis). También está que las tres
@@ -330,7 +337,7 @@ caffeinate -i -s -w <PID>                           # si ya está corriendo
 
 ### En la Mac (incluido desde la app de Claude)
 
-1. Pasarle **`/Users/eduardo/eth-crypto-study`** como carpeta de trabajo.
+1. Pasarle **`~/eth-crypto-study`** como carpeta de trabajo.
    Es la única que hace falta: acá están las fuentes, el build, el venv y los
    vectores. No hace falta agregar `~/cryptography-specs` (que además ya no
    existe desde el formateo del 12 nov 2026).

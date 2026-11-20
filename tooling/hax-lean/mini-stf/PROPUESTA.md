@@ -77,9 +77,12 @@ Lo que **no** está demostrado, dicho de una vez:
   de validadores, `ST-4` y la ausencia de pánico— está demostrado sobre todo
   estado alcanzable, sin excepción.
 - **Que el Lean sea fiel al Rust de ustedes.** Son dos eslabones. Que nuestras
-  cuatro funciones reescritas hacen lo mismo que las originales lo respaldan sus
-  tests, que corren sobre este crate. Que la cadena de herramientas traduce bien
-  se le cree a la cadena de herramientas.
+  funciones reescritas hacen lo mismo que las originales lo respaldan sus
+  tests, que corren sobre este crate, para tres de las cuatro: ninguno ejercita
+  `process_block_header`. Y hay un punto donde sabemos que no hacen lo mismo,
+  con una raíz pendiente repetida. Las dos cosas están en **Un bug que la
+  reescritura introdujo**. Que la cadena de herramientas traduce bien se le
+  cree a la cadena de herramientas.
 
 "Cero `sorry`" quiere decir que no hay ningún hueco en lo que sí se afirma. No
 quiere decir que esté todo afirmado.
@@ -308,7 +311,7 @@ Todo, con las líneas tal como se entrega.
 
 | Archivo | Líneas | Origen |
 |---|---|---|
-| `src/stf.rs` | 1585 | **de ustedes** — `state_transition/src/lib.rs`: ocho de doce funciones sin cambios, cuatro reescritas, diecinueve auxiliares nuestras, y su módulo de tests de 437 líneas con tres tests agregados. |
+| `src/stf.rs` | 1587 | **de ustedes** — `state_transition/src/lib.rs`: ocho de doce funciones sin cambios, cuatro reescritas, diecinueve auxiliares nuestras, y su módulo de tests de 437 líneas con tres tests agregados. |
 | `src/justified_slots_ops.rs` | 90 | **de ustedes** — sin cambios salvo las líneas de `use`. |
 | `src/tipos.rs` | 510 | **sus definiciones de tipos**, sin los derives de serialización, más nuestro `hash_tree_root` sustituto y `State::from_genesis`, copiada sin cambios. |
 | `src/ssz.rs` | 154 | nuestro — sustitutos de `SszList` y `SszBitlist`. |
@@ -320,12 +323,12 @@ Todo, con las líneas tal como se entrega.
 | `regenerar.sh` | 36 | nuestro — extraer, restaurar, compilar. |
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 413 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
-| `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 11767 | nuestro — los teoremas. |
+| `supuestos/RevisarAxiomas.lean` | 26 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
+| `teoremas/ProofObligations.lean` | 11770 | nuestro — los teoremas. |
 | `axiomas.txt` | 1668 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. En los dos sentidos: cada teorema con los axiomas que utiliza, y cada axioma con los teoremas donde aparece. |
-| `axiomas.py` | 217 | nuestro — arma `axiomas.txt` a partir del log del build. |
+| `axiomas.py` | 204 | nuestro — arma `axiomas.txt` a partir del log del build. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 1681 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 1721 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -423,6 +426,28 @@ estos dos fallan.
 El tercer test nuestro es de otra clase: no cubre nuestra reescritura sino un
 comportamiento del código de ustedes. Está en **El reemplazo de checkpoint**,
 más abajo.
+
+**Lo que los tests no cubren.** Los once llaman a `process_attestations`, a
+`attestation_data_matches_chain` o a `from_genesis`. Ninguno llama a
+`process_block_header` ni a `state_transition`. Tres de las cuatro funciones
+reescritas quedan cubiertas, porque `try_finalize` y `serialize_justifications`
+sólo se llaman desde `process_attestations`. La cuarta no: el cambio de
+`process_block_header` —un loop con `push` donde había `extend(repeat_n(...))`—
+no lo ejercita ningún test. Lo que hay sobre ese loop es de otra clase: está
+demostrado que sólo agrega al final del historial y que deja exactamente el
+largo esperado.
+
+**Una diferencia con su código que encontramos revisando, y que no
+arreglamos.** Ustedes arman el mapa de votos con `.collect()` sobre los pares
+(raíz, votos) del estado. Si `justifications_roots` trae una raíz repetida, un
+`HashMap` armado así se queda con los votos de la **última** aparición.
+`construir_mapa_de_votos`, la nuestra, usa `poner_si_falta` y se queda con los
+de la **primera**. Con raíces sin repetir las dos hacen lo mismo, y en todo
+estado alcanzable desde el génesis no se repiten: es `RZ.alcanzable_raices`,
+demostrado sobre nuestro código. Pero ustedes tratan como entrada posible un
+estado con invariantes rotas, y sobre un estado así nuestra reescritura y su
+original divergen. Ningún test lo ejercita. Lo leímos de las dos fuentes; no lo
+corrimos.
 
 ## Qué recibe
 
@@ -2216,6 +2241,13 @@ entran en pánico**.
 **La base de confianza**, arriba: nueve axiomas nativos que vienen con la
 traducción, veinte declaraciones nuestras que no afirman nada, y cinco
 afirmaciones de modelado que sí hacemos.
+
+**Nuestra reescritura no es idéntica al original en un punto, y un cambio no
+tiene test.** Con una raíz repetida en `justifications_roots`, el mapa de votos
+se arma distinto: ustedes se quedan con la última aparición y nosotros con la
+primera. No se alcanza desde el génesis. Y el cambio de `process_block_header`
+no lo ejercita ningún test. Está contado en **Un bug que la reescritura
+introdujo**.
 
 **`ST-7` no vale sobre un estado cualquiera.** Vale sobre los estados
 alcanzables desde el génesis, del primer bloque aceptado en adelante. Sobre un

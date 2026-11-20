@@ -23,7 +23,7 @@ build/
 # Local de Claude Code / restos
 .claude/settings.local.json
 
-# Salida de la cadena hax/Aeneas y del build de Rust.
+# Salida de la cadena de herramientas hax/Aeneas y del build de Rust.
 #
 # proofs/ son 124.386 archivos: Mathlib, Aeneas y hax bajados por lake, varios
 # GB de codigo de otros proyectos. Se regenera con `bash regenerar.sh`, y lo

@@ -1,7 +1,8 @@
 # Restaurar el entorno después de formatear
 
 Escrito el 11 nov 2026, antes de formatear la MacBook Pro (Intel).
-Actualizado el 15 nov 2026 con lo que pasó al restaurar.
+Actualizado el 15 nov 2026 con lo que pasó al restaurar; los números del
+paquete `mini-stf`, al 20 nov.
 
 Esta guía está en el repo a propósito: después de formatear la vas a poder leer
 en `github.com/EdVeralli/eth-crypto-study` desde cualquier navegador, antes de
@@ -72,7 +73,7 @@ Si no la respaldaste, generá una nueva y dala de alta en GitHub
 (Settings → SSH and GPG keys → New SSH key):
 
 ```bash
-ssh-keygen -t ed25519 -C "edveralli@gmail.com"
+ssh-keygen -t ed25519 -C "tu-correo@ejemplo.com"
 cat ~/.ssh/id_ed25519.pub        # esto es lo que se pega en GitHub
 ```
 
@@ -285,8 +286,8 @@ al día juntos.
 
 Qué tiene: la STF de ethlambda traducida a Lean con las doce funciones y cero
 `sorry`, ocho de doce idénticas a las de ellos salvo comentarios, un bug que
-encontramos en la reescritura con los dos tests que lo cubren, setenta y siete
-teoremas sobre su código —las siete proposiciones de transición de estado del
+encontramos en la reescritura con los dos tests que lo cubren, ciento dos
+resultados sobre su código —las siete proposiciones de transición de estado del
 catálogo de formal-leanSpec, con las salvedades que dice la propuesta, y desde
 el 17 nov los cuatro de la ventana de slots justificados, la ausencia de pánico
 de ese módulo y la de las doce funciones de la transición, bajo hipótesis escritas—, un punto donde su código se aparta de la especificación (el

@@ -115,7 +115,7 @@ definiciones, cero `sorry`, cero errores, nada que modelar a mano, y `lake build
 en verde** (1737 jobs). Ese crate está acá al lado, en
 [`ejemplo-jsops/`](ejemplo-jsops/), para que puedas repetirlo.
 
-Dos detalles de forma que conviene saber antes de abrir el Lean generado:
+Tres detalles de forma que conviene saber antes de abrir el Lean generado:
 
 - De esas 19 definiciones, **nueve son el código de ethlambda**; ocho son el tipo
   sustituto que escribimos para que el crate se sostenga solo, y dos son la

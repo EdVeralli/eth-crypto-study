@@ -75,10 +75,13 @@ What is **not** proved, said once:
   and without that it is false of your code. Everything else — the three
   invariants, the bound on validators, `ST-4` and absence of panic — is proved
   over every reachable state, with no exception.
-- **That the Lean is faithful to your Rust.** There are two links. That our four
+- **That the Lean is faithful to your Rust.** There are two links. That our
   rewritten functions do what the originals do is backed by your tests, which
-  run on this crate. That the toolchain translates correctly is taken on trust
-  from the toolchain.
+  run on this crate, for three of the four: none exercises
+  `process_block_header`. And there is one point where we know they do not do
+  the same, with a repeated pending root. Both are under **A bug the rewrite
+  introduced**. That the toolchain translates correctly is taken on trust from
+  the toolchain.
 
 "No `sorry`" means there is no gap in what is claimed. It does not mean
 everything is claimed.
@@ -303,7 +306,7 @@ Everything, with line counts as shipped.
 
 | File | Lines | Origin |
 |---|---|---|
-| `src/stf.rs` | 1585 | **yours** — `state_transition/src/lib.rs`: eight of twelve functions unchanged, four rewritten, nineteen helpers of ours, and your 437-line test module with three tests appended. |
+| `src/stf.rs` | 1587 | **yours** — `state_transition/src/lib.rs`: eight of twelve functions unchanged, four rewritten, nineteen helpers of ours, and your 437-line test module with three tests appended. |
 | `src/justified_slots_ops.rs` | 90 | **yours** — unchanged except the `use` lines. |
 | `src/tipos.rs` | 510 | **your type definitions**, serialization derives removed, plus our stand-in `hash_tree_root` and `State::from_genesis`, copied unchanged. |
 | `src/ssz.rs` | 154 | ours — stand-ins for `SszList` and `SszBitlist`. |
@@ -315,12 +318,12 @@ Everything, with line counts as shipped.
 | `regenerar.sh` | 36 | ours — extract, restore, build. |
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 413 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
-| `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 11767 | ours — the theorems. |
+| `supuestos/RevisarAxiomas.lean` | 26 | ours — prints the axioms each translated function depends on, with no theorem involved. |
+| `teoremas/ProofObligations.lean` | 11770 | ours — the theorems. |
 | `axiomas.txt` | 1668 | ours — the `#print axioms` output, so the trust base can be read without building. Both ways round: each theorem with the axioms it uses, and each axiom with the theorems it appears in. |
-| `axiomas.py` | 217 | ours — builds `axiomas.txt` from the build log. |
+| `axiomas.py` | 204 | ours — builds `axiomas.txt` from the build log. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 1681 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 1721 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -415,6 +418,27 @@ these two fail.
 The third test of ours is of a different kind: it does not cover our rewrite
 but a behaviour of your code. It is under **Checkpoint replacement**, further
 down.
+
+**What the tests do not cover.** The eleven call `process_attestations`,
+`attestation_data_matches_chain` or `from_genesis`. None calls
+`process_block_header` or `state_transition`. Three of the four rewritten
+functions are covered, because `try_finalize` and `serialize_justifications`
+are only called from `process_attestations`. The fourth is not: the change in
+`process_block_header` — a loop with `push` where there was
+`extend(repeat_n(...))` — is not exercised by any test. What there is about
+that loop is of a different kind: it is proved that it only appends to the
+history and that it leaves exactly the expected length.
+
+**A difference from your code that we found while reviewing, and did not
+fix.** You build the vote map with `.collect()` over the (root, votes) pairs of
+the state. If `justifications_roots` carries a repeated root, a `HashMap` built
+that way keeps the votes of the **last** occurrence. `construir_mapa_de_votos`,
+ours, uses `poner_si_falta` and keeps those of the **first**. With no repeated
+roots the two do the same, and in every state reachable from genesis they are
+not repeated: that is `RZ.alcanzable_raices`, proved of our code. But you treat
+a state with broken invariants as a possible input, and on such a state our
+rewrite and your original diverge. No test exercises it. We read it off the two
+sources; we did not run it.
 
 ## What you get
 
@@ -2207,6 +2231,12 @@ and `process_block_header` do not panic**.
 **The trust base is not empty**, and what is in it is set out under **The trust
 base** above: nine native axioms that come with the translation, twenty
 declarations of ours that assert nothing, and five modeling claims we do make.
+
+**Our rewrite is not identical to the original at one point, and one change
+has no test.** With a repeated root in `justifications_roots`, the vote map is
+built differently: you keep the last occurrence and we keep the first. It is
+not reachable from genesis. And the change in `process_block_header` is not
+exercised by any test. It is set out under **A bug the rewrite introduced**.
 
 **`ST-7` does not hold on an arbitrary state.** It holds on the states
 reachable from genesis, from the first accepted block onwards. On a state that

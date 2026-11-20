@@ -267,7 +267,8 @@ pub fn is_proposer(validator_index: u64, slot: u64, num_validators: u64) -> bool
 //      "Could not match the contexts"; el mismo loop en una funcion aparte,
 //      llamada desde el loop de afuera, traduce sin problema.
 //
-// Ninguno cambia el comportamiento. Los seis tests del original son la prueba.
+// Ninguno busca cambiar el comportamiento. La evidencia son los tests; lo que
+// no cubren, y una diferencia conocida, estan en PROPUESTA.md.
 // ---------------------------------------------------------------------------
 
 /// Lecturas POR COPIA de las colecciones.
@@ -397,6 +398,11 @@ fn votos_del_segmento(state: &State, i: usize, validator_count: usize) -> Vec<bo
 }
 
 /// Desarma la lista plana del estado en el mapa de votos.
+///
+/// OJO, diferencia con el original: si `justifications_roots` trae una raiz
+/// repetida, esto se queda con los votos de la PRIMERA aparicion. El original
+/// arma un `HashMap` con `.collect()` y se queda con los de la ULTIMA. Con
+/// raices sin repetir es lo mismo. Esta contado en PROPUESTA.md.
 fn construir_mapa_de_votos(state: &State, validator_count: usize) -> MapaVotos {
     let mut m = MapaVotos::nuevo();
     for i in 0..state.justifications_roots.len() {
@@ -546,10 +552,6 @@ fn process_attestations(
     let mut justifications = construir_mapa_de_votos(state, validator_count);
     let root_to_slot = construir_root_to_slot(state);
 
-    // CAMBIADO: el `for attestation in attestations` va por indice, y los dos
-    // `return` que estaban adentro del loop son ahora una variable de resultado
-    // mas `break`. Aeneas falla con "Early returns inside of loops are not
-    // supported yet". El `continue` se puede dejar.
     // CAMBIADO. En el original esto es `for attestation in attestations` con
     // dos `return` y un `continue` adentro. Aca va por indice y, sobre todo,
     // con UNA SOLA SALIDA: nada de `break` ni `continue`, todo guardado por
@@ -913,11 +915,11 @@ pub fn slot_is_justifiable_after(slot: u64, finalized_slot: u64) -> bool {
 // comportamiento se preservo. No es una demostracion de equivalencia, pero es
 // mucho mejor que una promesa.
 //
-// Lo unico cambiado son los `use`.
+// De los seis de ellos, lo unico cambiado son los `use`. Los tres ultimos son
+// nuestros, y cada uno dice arriba por que esta.
 //
-// OJO: `hash_tree_root` en este crate es un stub que devuelve H256::ZERO, asi
-// que los tests que comparan raices pueden pasar o fallar por el motivo
-// equivocado. Ver README.
+// OJO: `hash_tree_root` en este crate es un sustituto polinomico, no SSZ. Las
+// raices que da no son las de ellos. Ver README.
 // ---------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {

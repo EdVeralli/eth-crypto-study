@@ -1,8 +1,8 @@
 # Retomar trabajo
 
-_Ultima actualizacion: 2026-11-17_
+_Ultima actualizacion: 2026-11-20_
 
-> **Estado al 17 nov 2026.** Las entradas de abajo llegan hasta el 22 oct y no se
+> **Estado al 20 nov 2026.** Las entradas de abajo llegan hasta el 22 oct y no se
 > reescribieron. Lo que vino despues (23 oct - 6 nov) es el paquete
 > `tooling/hax-lean/mini-stf/`: la transicion de estado de ethlambda pasada de Rust a
 > Lean. Se entra por su `PROPUESTA.md` (castellano) o `PROPOSAL.md` (ingles); lo unico
