@@ -9692,9 +9692,9 @@ end G7
    `cmp_listas`). Es una definicion, asi que `#print axioms` no la lista.
    Este es el primer teorema que usa su CONTENIDO y no solo que devuelve.
 
-   Lo que NO esta: que `justifications_validators` quede en el mismo orden
-   que las raices (el volcado de votos), ni que el estado entero sea el
-   mismo en dos nodos.
+   Lo que NO esta aca: que `justifications_validators` quede en el mismo
+   orden que las raices (el volcado de votos), ni que el estado entero sea
+   el mismo en dos nodos. Es el teorema 27.
 
    Controles negativos, en la bitacora: sin la hipotesis de que el prefijo
    ya estaba ordenado queda abierta `MenorIgual a b` para dos posiciones
@@ -11357,6 +11357,309 @@ theorem state_transition_devuelve_desde_genesis (st : tipos.State)
 
 end RZ
 
+/- ===========================================================================
+   Teorema 27 — `serialize_justifications` no depende del orden del mapa
+
+   El teorema 25 probo que `justifications_roots` no depende del orden en
+   que el mapa de votos tenia las raices. Faltaba el otro campo que escribe
+   `serialize_justifications`, `justifications_validators`: la lista plana de
+   votos, volcada raiz por raiz en el orden de las raices ordenadas.
+
+   Por que importa. En ethlambda `justifications` es un `HashMap`, y un
+   `HashMap` se recorre en un orden que no esta fijado. Ordenar las raices
+   es lo que hace que dos nodos escriban el mismo estado. Aca el mapa es una
+   lista de pares; el enunciado es el mismo: dos listas con las mismas
+   entradas, en cualquier orden, dan el mismo estado.
+
+   Que se prueba:
+
+   - `volcar_votos_mismas`: volcar los votos de una raiz da lo mismo desde
+     cualquiera de los dos mapas.
+   - `serialize_no_depende_del_orden`: `serialize_justifications s m1 vc` y
+     `serialize_justifications s m2 vc` son LA MISMA cuenta. Es una igualdad
+     entre los dos programas, no solo entre lo que devuelven: si uno aborta,
+     el otro tambien.
+   - `serialize_canonica`: dicho sobre lo que devuelven. El estado que
+     queda es el mismo, entero.
+
+   `MismasEntradas m1 m2` dice que los dos mapas representan el mismo
+   diccionario: las listas de pares (clave, votos) son permutacion una de
+   la otra, las claves no se repiten, y hay tantas claves como listas de
+   votos.
+
+   Como. No se describe bit por bit lo que se escribe. `voto` y
+   `largo_votos` solo miran la lista de votos de la posicion que les pasan
+   (`voto_eq`, `largo_eq`), asi que el lazo que vuelca una raiz depende
+   nada mas que de esa lista (`volcar_loop_eq`: los dos cuerpos son la
+   misma funcion, por `funext`). Y la lista de votos de una raiz es la
+   misma en los dos mapas (`busqueda_mismas`), que es un hecho de listas
+   (`mismos_votos`) mas lo que hace la busqueda: si encuentra una posicion,
+   ahi esta la clave (`posicion_esta_spec`, nuevo), y si no encuentra es
+   que no esta (teorema 26).
+
+   Usa el teorema 25 para las raices ordenadas, y por lo tanto la misma
+   afirmacion de modelado: que el `Ord` de `[u8; 32]` es el lexicografico.
+
+   Lo que NO esta: que los mapas que arma `process_attestations` esten bien
+   formados en el sentido de `MismasEntradas`. Que las claves no se repiten
+   esta (teorema 26); que haya tantas claves como listas de votos, no. Para
+   este enunciado no hace falta: habla de dos representaciones cualesquiera
+   del mismo diccionario.
+
+   Controles negativos, en la bitacora: sin usar que las dos posiciones
+   tienen la misma lista de votos, los cuerpos del lazo no coinciden; y si
+   la busqueda devolviera la posicion siguiente, `posicion_esta_spec` no
+   cierra.
+   =========================================================================== -/
+
+namespace CAN
+open mini_stf
+open Std.Tactic
+open ST3 JS NP NP2 NP3 NP4 VC VI HC ORD
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+/- ====================================================================
+   Lo que `voto` y `largo_votos` miran del mapa: nada mas que la lista de
+   votos de la posicion pedida.
+   ==================================================================== -/
+
+/-- `voto`, como funcion de la lista de votos de la posicion. -/
+def votoDe (o : Option (alloc.vec.Vec Bool)) (i : Std.Usize) : RustM Bool :=
+  match o with
+  | none => ok false
+  | some votos => do
+    let s1 ← alloc.vec.Vec.Insts.CoreOpsDerefDerefSlice.deref votos
+    let o1 ←
+      core.slice.Slice.get (core.Usize.Insts.CoreSliceIndexSliceIndexSliceT
+        Bool) s1 i
+    match o1 with
+    | core.option.Option.None => ok false
+    | core.option.Option.Some b => if b
+                                   then ok true
+                                   else ok false
+
+/-- `largo_votos`, como funcion de la lista de votos de la posicion. -/
+def largoDe (o : Option (alloc.vec.Vec Bool)) : RustM Std.Usize :=
+  match o with
+  | none => ok 0#usize
+  | some votos => alloc.vec.Vec.len votos
+
+theorem bind_ok_eq {α β : Type} {x : RustM α} {a : α} (h : x = ok a)
+    (k : α → RustM β) : (x >>= k) = k a := by
+  subst h
+  rfl
+
+theorem voto_eq (m : mapa.MapaVotos) (p i : Std.Usize) :
+    mapa.MapaVotos.voto m p i = votoDe (m.valores.val[p.val]?) i := by
+  obtain ⟨s, hs, hv⟩ := vec_deref_eq m.valores
+  unfold mapa.MapaVotos.voto
+  rw [bind_ok_eq hs, bind_ok_eq (slice_get_eq s p), hv]
+  cases m.valores.val[p.val]? <;> rfl
+
+theorem largo_eq (m : mapa.MapaVotos) (p : Std.Usize) :
+    mapa.MapaVotos.largo_votos m p = largoDe (m.valores.val[p.val]?) := by
+  obtain ⟨s, hs, hv⟩ := vec_deref_eq m.valores
+  unfold mapa.MapaVotos.largo_votos
+  rw [bind_ok_eq hs, bind_ok_eq (slice_get_eq s p), hv]
+  cases m.valores.val[p.val]? <;> rfl
+
+/-- El lazo que vuelca los votos de una entrada solo depende de esa lista. -/
+theorem volcar_loop_eq (m1 m2 : mapa.MapaVotos) (p1 p2 : Std.Usize)
+    (h : m1.valores.val[p1.val]? = m2.valores.val[p2.val]?)
+    (it : core.ops.range.Range Std.Usize)
+    (d : ssz.SszBitlist 1073741824#usize) (b : Std.Usize) :
+    stf.volcar_votos_loop it d m1 b p1 = stf.volcar_votos_loop it d m2 b p2 := by
+  unfold stf.volcar_votos_loop
+  congr 1
+  funext x
+  obtain ⟨it1, d1⟩ := x
+  simp only [stf.volcar_votos_loop.body, voto_eq, h]
+
+/- ====================================================================
+   La busqueda: si encuentra una posicion, ahi esta la clave.
+   ==================================================================== -/
+
+section
+attribute [local spec] vec_len_total is_none_spec vec_deref_total
+  slice_get_total ST7.h256_eq_spec
+
+theorem posicion_esta_spec (m : mapa.MapaVotos) (k : tipos.H256) :
+    ⦃ ⌜ True ⌝ ⦄
+    mapa.MapaVotos.posicion_loop m k 0#usize core.option.Option.None
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ ∀ p, r = some p → m.claves.val[p.val]? = some k ⌝) ⦄ := by
+  unfold mapa.MapaVotos.posicion_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : Std.Usize × (core.option.Option Std.Usize) =>
+       ∀ p, x.2 = some p → m.claves.val[p.val]? = some k)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · intro p hp
+    cases hp
+  · intro x hinv
+    obtain ⟨i, enc⟩ := x
+    simp only at hinv
+    unfold mapa.MapaVotos.posicion_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | trivial
+      | assumption
+      | simp
+    -- La unica vuelta que cambia `encontrado`: la clave de la posicion `i`
+    -- es la buscada.
+    rename_i n hlt hn b hb hbt s hs o c ho hget b1 hb1 heq i2 hi2
+    rw [← hs, ← hget, heq hb1]
+end
+
+/- ====================================================================
+   Listas: dos listas de pares con los mismos pares y claves sin repetir
+   asocian lo mismo a cada clave.
+   ==================================================================== -/
+
+theorem mismos_votos {α β : Type} (k1 k2 : List α) (v1 v2 : List β)
+    (hn2 : k2.Nodup) (hl1 : k1.length = v1.length)
+    (hp : (k1.zip v1).Perm (k2.zip v2))
+    (p1 p2 : Nat) (r : α) (h1 : k1[p1]? = some r) (h2 : k2[p2]? = some r) :
+    v1[p1]? = v2[p2]? := by
+  obtain ⟨hp1, e1⟩ := List.getElem?_eq_some_iff.mp h1
+  have hv1 : p1 < v1.length := by omega
+  have hz : (k1.zip v1)[p1]? = some (r, v1[p1]) := by
+    rw [List.getElem?_zip_eq_some]
+    exact ⟨h1, by simp [hv1]⟩
+  have hmem := hp.subset (List.mem_of_getElem? hz)
+  obtain ⟨q, hq⟩ := List.mem_iff_getElem?.mp hmem
+  rw [List.getElem?_zip_eq_some] at hq
+  obtain ⟨hq1, hq2⟩ := hq
+  have e : q = p2 := by
+    obtain ⟨hql, eq⟩ := List.getElem?_eq_some_iff.mp hq1
+    obtain ⟨hpl, ep⟩ := List.getElem?_eq_some_iff.mp h2
+    exact (hn2.getElem_inj_iff).mp (eq.trans ep.symm)
+  subst e
+  rw [hq2]
+  simp [hv1]
+
+theorem mismas_claves {α β : Type} (k1 k2 : List α) (v1 v2 : List β)
+    (hl1 : k1.length = v1.length) (hl2 : k2.length = v2.length)
+    (hp : (k1.zip v1).Perm (k2.zip v2)) : k1.Perm k2 := by
+  have h := hp.map Prod.fst
+  rw [List.map_fst_zip (by omega), List.map_fst_zip (by omega)] at h
+  exact h
+
+/- ====================================================================
+   Dos mapas con las mismas entradas.
+   ==================================================================== -/
+
+/-- Los dos mapas tienen las mismas entradas (clave y votos), en cualquier
+    orden, y estan bien formados: claves sin repetir, y tantas claves como
+    listas de votos. -/
+def MismasEntradas (m1 m2 : mapa.MapaVotos) : Prop :=
+  m1.claves.val.Nodup ∧ m2.claves.val.Nodup ∧
+  m1.claves.val.length = m1.valores.val.length ∧
+  m2.claves.val.length = m2.valores.val.length ∧
+  (m1.claves.val.zip m1.valores.val).Perm (m2.claves.val.zip m2.valores.val)
+
+theorem mismasEntradas_claves {m1 m2 : mapa.MapaVotos} (he : MismasEntradas m1 m2) :
+    m1.claves.val.Perm m2.claves.val :=
+  mismas_claves _ _ _ _ he.2.2.1 he.2.2.2.1 he.2.2.2.2
+
+/-- Buscar la misma raiz en los dos mapas: o no esta en ninguno, o esta en
+    los dos y con la misma lista de votos. -/
+theorem busqueda_mismas {m1 m2 : mapa.MapaVotos} (he : MismasEntradas m1 m2)
+    (root : tipos.H256) (o1 o2 : core.option.Option Std.Usize)
+    (h1 : mapa.MapaVotos.posicion_loop m1 root 0#usize core.option.Option.None = ok o1)
+    (h2 : mapa.MapaVotos.posicion_loop m2 root 0#usize core.option.Option.None = ok o2) :
+    (o1 = none ∧ o2 = none) ∨
+    (∃ p1 p2, o1 = some p1 ∧ o2 = some p2 ∧
+      m1.valores.val[p1.val]? = m2.valores.val[p2.val]?) := by
+  have hperm := mismasEntradas_claves he
+  obtain ⟨hn1, hn2, hl1, hl2, hp⟩ := he
+  have a1 := of_triple_mayThrow (posicion_esta_spec m1 root) h1
+  have a2 := of_triple_mayThrow (posicion_esta_spec m2 root) h2
+  have b1 := of_triple_mayThrow (RZ.posicion_falta_spec m1 root) h1
+  have b2 := of_triple_mayThrow (RZ.posicion_falta_spec m2 root) h2
+  cases o1 with
+  | none =>
+    cases o2 with
+    | none => exact Or.inl ⟨rfl, rfl⟩
+    | some p2 =>
+      exfalso
+      exact b1 rfl (hperm.mem_iff.mpr (List.mem_of_getElem? (a2 p2 rfl)))
+  | some p1 =>
+    cases o2 with
+    | none =>
+      exfalso
+      exact b2 rfl (hperm.mem_iff.mp (List.mem_of_getElem? (a1 p1 rfl)))
+    | some p2 =>
+      exact Or.inr ⟨p1, p2, rfl, rfl,
+        mismos_votos _ _ _ _ hn2 hl1 hp p1.val p2.val root (a1 p1 rfl) (a2 p2 rfl)⟩
+
+/-- Volcar los votos de una raiz da lo mismo desde cualquiera de los dos. -/
+theorem volcar_votos_mismas {m1 m2 : mapa.MapaVotos} (he : MismasEntradas m1 m2)
+    (d : ssz.SszBitlist 1073741824#usize) (root : tipos.H256) (b : Std.Usize) :
+    stf.volcar_votos d m1 root b = stf.volcar_votos d m2 root b := by
+  obtain ⟨o1, h1, -⟩ := of_triple_total
+    (posicion_loop_total m1 root 0#usize core.option.Option.None)
+  obtain ⟨o2, h2, -⟩ := of_triple_total
+    (posicion_loop_total m2 root 0#usize core.option.Option.None)
+  unfold stf.volcar_votos
+  show (mapa.MapaVotos.posicion_loop m1 root 0#usize core.option.Option.None >>= _) =
+       (mapa.MapaVotos.posicion_loop m2 root 0#usize core.option.Option.None >>= _)
+  rw [bind_ok_eq h1, bind_ok_eq h2]
+  rcases busqueda_mismas he root o1 o2 h1 h2 with ⟨rfl, rfl⟩ | ⟨p1, p2, rfl, rfl, hv⟩
+  · rfl
+  · simp only [largo_eq, hv]
+    congr 1
+    funext n
+    exact volcar_loop_eq m1 m2 p1 p2 hv _ d b
+
+/-- El lazo de `serialize_justifications` tambien. -/
+theorem serialize_loop_mismas {m1 m2 : mapa.MapaVotos} (he : MismasEntradas m1 m2)
+    (it : core.ops.range.Range Std.Usize) (vc : Std.Usize)
+    (roots : alloc.vec.Vec tipos.H256)
+    (jv : ssz.SszBitlist 1073741824#usize) (b : Std.Usize) :
+    stf.serialize_justifications_loop it m1 vc roots jv b =
+    stf.serialize_justifications_loop it m2 vc roots jv b := by
+  unfold stf.serialize_justifications_loop
+  congr 1
+  funext x
+  obtain ⟨it1, jv1, b1⟩ := x
+  simp only [stf.serialize_justifications_loop.body, volcar_votos_mismas he]
+
+/- ====================================================================
+   Los enunciados.
+   ==================================================================== -/
+
+/-- `serialize_justifications` no depende del orden de las entradas del
+    mapa: con las mismas entradas da exactamente lo mismo. -/
+theorem serialize_no_depende_del_orden {m1 m2 : mapa.MapaVotos}
+    (he : MismasEntradas m1 m2) (s : tipos.State) (vc : Std.Usize) :
+    stf.serialize_justifications s m1 vc = stf.serialize_justifications s m2 vc := by
+  obtain ⟨r1, h1, -⟩ := claves_ordenadas_devuelve m1
+  obtain ⟨r2, h2, -⟩ := claves_ordenadas_devuelve m2
+  have e : r1 = r2 :=
+    ORD.claves_ordenadas_canonica m1 m2 r1 r2 (mismasEntradas_claves he) h1 h2
+  subst e
+  unfold stf.serialize_justifications
+  rw [bind_ok_eq h1, bind_ok_eq h2]
+  simp only [serialize_loop_mismas he]
+
+/-- Dicho sobre lo que devuelve: dos nodos que parten del mismo estado y
+    llegan al mismo mapa de votos, armado en distinto orden, escriben el
+    mismo estado. -/
+theorem serialize_canonica {m1 m2 : mapa.MapaVotos} (he : MismasEntradas m1 m2)
+    (s s1 s2 : tipos.State) (vc : Std.Usize)
+    (h1 : stf.serialize_justifications s m1 vc = ok s1)
+    (h2 : stf.serialize_justifications s m2 vc = ok s2) : s1 = s2 := by
+  rw [serialize_no_depende_del_orden he] at h1
+  have e := h1.symm.trans h2
+  simpa using e
+
+end CAN
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -11454,3 +11757,6 @@ end RZ
 #print axioms RZ.process_attestations_devuelve_con_invariante
 #print axioms RZ.state_transition_devuelve_con_invariante
 #print axioms RZ.state_transition_devuelve_desde_genesis
+#print axioms CAN.volcar_votos_mismas
+#print axioms CAN.serialize_no_depende_del_orden
+#print axioms CAN.serialize_canonica

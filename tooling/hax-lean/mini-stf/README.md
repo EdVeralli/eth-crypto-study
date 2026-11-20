@@ -1631,5 +1631,50 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    >
    > Axiomas: `h256_eq_iff` y `poner_si_falta_no_repite` 3;
    > `process_attestations_devuelve_con_invariante` 14; los otros cinco 16.
+
+   > Segunda nota del 20 nov 2026: **`serialize_justifications` no depende
+   > del orden del mapa** (teorema 27, namespace `CAN`). Tres resultados:
+   > `volcar_votos_mismas`, `serialize_no_depende_del_orden` y
+   > `serialize_canonica`. No se toco el Rust ni los supuestos.
+   >
+   > - Era lo que el teorema 25 dejo afuera: el otro campo que escribe
+   >   `serialize_justifications`, `justifications_validators`.
+   > - NO se describio el contenido del bitlist. La idea que lo evita: dos
+   >   llamadas son LA MISMA cuenta si sus lazos tienen el mismo cuerpo, y
+   >   eso se prueba con `congr 1; funext x` sobre `loop cuerpo x`, sin
+   >   invariante. Sirve cuando la diferencia entre los dos programas esta
+   >   en un argumento que el cuerpo solo usa a traves de una funcion que
+   >   da lo mismo en los dos.
+   > - `voto_eq` y `largo_eq`: `voto m p i` y `largo_votos m p` son una
+   >   funcion de `m.valores.val[p]?` y nada mas. Se prueban desarmando
+   >   dos binds con `bind_ok_eq` (si `x = ok a`, `x >>= k = k a`; es
+   >   `rfl` despues del `subst`).
+   > - `posicion_esta_spec`, nuevo: si la busqueda devuelve `Some p`, en
+   >   `p` esta la clave. Con `RZ.posicion_falta_spec` (si devuelve
+   >   `None`, no esta) se tiene lo que hace falta de la busqueda.
+   > - `mismos_votos`, de listas: con claves sin repetir y los mismos
+   >   pares, la misma clave tiene los mismos votos. Usa
+   >   `List.getElem?_zip_eq_some` y `List.Nodup.getElem_inj_iff`.
+   > - `MismasEntradas`: permutacion de los pares, claves sin repetir en
+   >   los dos, y tantas claves como listas de votos en los dos. Lo ultimo
+   >   hace falta para que el `zip` no pierda pares.
+   > - El enunciado principal es una IGUALDAD ENTRE PROGRAMAS
+   >   (`serialize_justifications s m1 vc = serialize_justifications s m2
+   >   vc`), mas fuerte que "si devuelven, devuelven lo mismo".
+   > - Compilo casi a la primera: un solo ajuste, en `posicion_esta_spec`.
+   >
+   > Depende del teorema 25, y por lo tanto de la definicion `cmp_listas`.
+   >
+   > Lo que NO esta: que los mapas de `process_attestations` tengan tantas
+   > claves como listas de votos; y la relacion entre `MapaVotos` y el
+   > `HashMap` del original.
+   >
+   > Controles negativos, dos: (1) `volcar_loop_eq` sin la hipotesis en el
+   > `simp only`: quedan los dos cuerpos, uno con `votoDe
+   > (m1.valores)[p1]?` y otro con `m2`/`p2`. (2) `posicion_esta_spec`
+   > afirmando `claves[p + 1]?`: queda `s[i + 1]? = some k`.
+   >
+   > Axiomas: `volcar_votos_mismas` 5 (3 de Lean, 1 nativo, el `fmt`); los
+   > otros dos 7.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

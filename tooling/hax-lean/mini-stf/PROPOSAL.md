@@ -47,7 +47,7 @@ and Lean accepts them with no `sorry`. That says the program got written in
 Lean. It does not say it is correct.
 
 **The proofs are of specific properties.** A program is not "proved": statements
-about it are. There are ninety-nine here, listed under **What you get**. Each
+about it are. There are one hundred and two here, listed under **What you get**. Each
 says one precise thing, with its hypotheses in plain sight.
 
 What is **not** proved, said once:
@@ -177,12 +177,12 @@ What each step should give:
 |---|---|
 | 4 | `test result: ok. 11 passed` |
 | 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
-| 6 | `99` — one axiom block per result — and `0` |
+| 6 | `102` — one axiom block per result — and `0` |
 
 There is no separate "run the proofs" step. The theorems are in
 `teoremas/ProofObligations.lean`; step 5 copies that file into the Lean project
 and `lake build` checks all of it. If the build ends green, Lean accepted the
-ninety-nine proofs. At the end it prints which axioms each one depends on, which
+one hundred and two proofs. At the end it prints which axioms each one depends on, which
 is what step 6 counts.
 
 To convince yourself the check is real, break a statement by hand. In
@@ -311,11 +311,11 @@ Everything, with line counts as shipped.
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 413 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 11456 | ours — the theorems. |
-| `axiomas.txt` | 1634 | ours — the `#print axioms` output, so the trust base can be read without building. Both ways round: each theorem with the axioms it uses, and each axiom with the theorems it appears in. |
+| `teoremas/ProofObligations.lean` | 11762 | ours — the theorems. |
+| `axiomas.txt` | 1668 | ours — the `#print axioms` output, so the trust base can be read without building. Both ways round: each theorem with the axioms it uses, and each axiom with the theorems it appears in. |
 | `axiomas.py` | 217 | ours — builds `axiomas.txt` from the build log. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 1635 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 1680 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -413,7 +413,7 @@ down.
 
 ## What you get
 
-`teoremas/ProofObligations.lean` holds ninety-nine named results:
+`teoremas/ProofObligations.lean` holds one hundred and two named results:
 
 | Result | What it is |
 |---|---|
@@ -515,6 +515,9 @@ down.
 | `RZ.process_attestations_devuelve_con_invariante` | `process_attestations` does not panic, with that invariant in place of the per-block bound |
 | `RZ.state_transition_devuelve_con_invariante` | the same for the whole transition |
 | `RZ.state_transition_devuelve_desde_genesis` | **the transition does not panic in any reachable state, and of the block only the limit of its type is asked** |
+| `CAN.volcar_votos_mismas` | laying out the votes of a root gives the same from two maps with the same entries |
+| `CAN.serialize_no_depende_del_orden` | **`serialize_justifications` does not depend on the order of the map's entries**: it is the same computation |
+| `CAN.serialize_canonica` | two maps with the same entries, in any order, leave the same state |
 | `bind_da_ok` | a tool: opens one `RustM` bind |
 
 They were not picked for count. Between them they cover arithmetic, branching
@@ -1682,10 +1685,10 @@ returns. If the real `Ord` of arrays were a different one, these theorems would
 be about a program that is not yours. The `core` documentation says it is the
 lexicographic one.
 
-**What is not there.** That `justifications_validators` — the votes, laid out
+**What is not here.** That `justifications_validators` — the votes, laid out
 in the same order as the roots — also agrees between two nodes, and therefore
-that the whole state does. That needs the content of the vote layout, and of
-that function only absence of panic is proved today.
+that the whole state does. It is two sections further down, under
+**`serialize_justifications` does not depend on the order of the map**.
 
 As negative controls, two. Without the hypothesis that the prefix was already
 sorted, the insertion invariant does not start: `MenorIgual a b` stays open for
@@ -1765,6 +1768,66 @@ one goal open: that the key was not there.
 The first two results depend only on Lean's three axioms. The one on
 `process_attestations`, on fourteen. The other five, on the sixteen of
 `state_transition`.
+
+### `serialize_justifications` does not depend on the order of the map
+
+The section on the sort left one half: `justifications_roots` does not depend
+on the order the map held the roots in. `serialize_justifications` writes one
+more field, `justifications_validators`: the flat vote list, laid out root by
+root following the already sorted roots. That one was missing.
+
+In your code `justifications` is a `HashMap`, and a `HashMap` is traversed in
+an order that is not fixed. Sorting the roots is what makes two nodes write the
+same state, which is what your comment says. Here the map is a list of pairs,
+and the statement is the same: two lists with the same entries, in any order,
+give the same state.
+
+| Result | What it says |
+|---|---|
+| `CAN.volcar_votos_mismas` | laying out the votes of a root gives the same from either map |
+| `CAN.serialize_no_depende_del_orden` | `serialize_justifications` on the two maps is the same computation |
+| `CAN.serialize_canonica` | the state left behind is the same, as a whole |
+
+```lean
+theorem CAN.serialize_no_depende_del_orden {m1 m2 : mapa.MapaVotos}
+    (he : MismasEntradas m1 m2) (s : tipos.State) (vc : Std.Usize) :
+    stf.serialize_justifications s m1 vc = stf.serialize_justifications s m2 vc
+```
+
+**It is an equality between programs.** It does not say "if both return, they
+return the same". It says the two calls are the same computation: if one
+aborts, so does the other.
+
+**What it asks of the two maps.** `MismasEntradas m1 m2` says they represent
+the same dictionary: the lists of (root, votes) pairs are a permutation of each
+other, the roots are not repeated, and there are as many roots as vote lists.
+The last two are what makes a list of pairs a dictionary; without them, "the
+same map in a different order" does not mean anything.
+
+**How, because it can be reused.** We do not describe bit by bit what is
+written. `voto` and `largo_votos` only look at the vote list of the position
+they are given, so the loop that lays out a root depends on nothing but that
+list; and the vote list of a root is the same in both maps. With that the two
+loops are the same program, with no invariants and no index arithmetic. The
+technique applies whenever a function looks at a collection only through a
+search.
+
+**What it depends on.** On the same modeling claim as the sort: it uses that
+the sorted roots agree, and that leans on the `Ord` of `[u8; 32]` being the
+lexicographic one.
+
+**What is not there.** Two things. That the map `process_attestations` builds
+has as many roots as vote lists: that the roots are not repeated is there, in
+the previous section. And the relation between our list of pairs and your
+`HashMap`, which is what it would take to say anything about a particular
+traversal of that `HashMap`.
+
+Negative controls, two. Without using that the two positions hold the same vote
+list, the bodies of the two loops do not agree. And if the search returned the
+position after the key's, the search lemma does not close.
+
+`CAN.volcar_votos_mismas` depends on five axioms: Lean's three, one native one
+and the `fmt` signature. The other two, on seven.
 
 ### What this is against the catalog, stated exactly
 
@@ -1868,6 +1931,8 @@ own properties makes the exercise circular.
 | the invariant on pending roots, the three results | 16 | 3 | 9 | 4 |
 | no panic with that invariant: `process_attestations` | 14 | 3 | 7 | 4 |
 | no panic with that invariant: the transition, the two results | 16 | 3 | 9 | 4 |
+| `volcar_votos` from two maps with the same entries | 5 | 3 | 1 | 1 |
+| `serialize_justifications` does not depend on the order, the two results | 7 | 3 | 3 | 1 |
 
 Three categories, with three different weights.
 
@@ -2136,9 +2201,10 @@ the test shows.
 
 **"Sorted" is according to our model of the comparison.** That the sort of the
 roots sorts leans on the `Ord` of `[u8; 32]` being the lexicographic order,
-which is a definition of ours and not something the toolchain translated. And
-agreement between nodes is proved for `justifications_roots`, not for
-`justifications_validators` nor for the whole state.
+which is a definition of ours and not something the toolchain translated.
+Agreement between nodes is proved for what `serialize_justifications` writes,
+between two lists of pairs with the same entries; it is not related to the
+`HashMap` in your code.
 
 **The translated functions cannot be executed in Lean.** Lean marks them
 `noncomputable`; among other things they depend on the `fmt` axioms that

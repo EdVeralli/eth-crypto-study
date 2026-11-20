@@ -47,7 +47,7 @@ Lean las acepta sin `sorry`. Eso dice que el programa quedó escrito en Lean. No
 dice que sea correcto.
 
 **Las demostraciones son de propiedades puntuales.** Un programa no "se
-demuestra": se demuestran afirmaciones sobre él. Acá hay noventa y nueve,
+demuestra": se demuestran afirmaciones sobre él. Acá hay ciento dos,
 listadas en **Qué recibe**. Cada una dice una cosa precisa, con sus hipótesis a
 la vista.
 
@@ -182,12 +182,12 @@ Qué tiene que dar cada paso:
 |---|---|
 | 4 | `test result: ok. 11 passed` |
 | 5 | `Build completed successfully (1742 jobs).` y después `=== listo ===` (1743 jobs la primera vez sobre un checkout limpio) |
-| 6 | `99` — un bloque de axiomas por resultado — y `0` |
+| 6 | `102` — un bloque de axiomas por resultado — y `0` |
 
 No hay un paso aparte de "correr las pruebas". Los teoremas están en
 `teoremas/ProofObligations.lean`; el paso 5 copia ese archivo adentro del
 proyecto Lean y `lake build` lo chequea entero. Si el build termina en verde,
-Lean aceptó las noventa y nueve demostraciones. Al final imprime de qué axiomas
+Lean aceptó las ciento dos demostraciones. Al final imprime de qué axiomas
 depende cada una, que es lo que cuenta el paso 6.
 
 Para convencerse de que el chequeo es real, rompan un enunciado a mano. En
@@ -316,11 +316,11 @@ Todo, con las líneas tal como se entrega.
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 413 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 11456 | nuestro — los teoremas. |
-| `axiomas.txt` | 1634 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. En los dos sentidos: cada teorema con los axiomas que utiliza, y cada axioma con los teoremas donde aparece. |
+| `teoremas/ProofObligations.lean` | 11762 | nuestro — los teoremas. |
+| `axiomas.txt` | 1668 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. En los dos sentidos: cada teorema con los axiomas que utiliza, y cada axioma con los teoremas donde aparece. |
 | `axiomas.py` | 217 | nuestro — arma `axiomas.txt` a partir del log del build. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 1635 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 1680 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -421,7 +421,7 @@ más abajo.
 
 ## Qué recibe
 
-`teoremas/ProofObligations.lean` tiene noventa y nueve resultados con nombre:
+`teoremas/ProofObligations.lean` tiene ciento dos resultados con nombre:
 
 | Resultado | Qué es |
 |---|---|
@@ -523,6 +523,9 @@ más abajo.
 | `RZ.process_attestations_devuelve_con_invariante` | `process_attestations` no entra en pánico, con ese invariante en lugar de la cota por bloque |
 | `RZ.state_transition_devuelve_con_invariante` | lo mismo para la transición entera |
 | `RZ.state_transition_devuelve_desde_genesis` | **la transición no entra en pánico en ningún estado alcanzable, y del bloque sólo se pide el límite de su tipo** |
+| `CAN.volcar_votos_mismas` | volcar los votos de una raíz da lo mismo desde dos mapas con las mismas entradas |
+| `CAN.serialize_no_depende_del_orden` | **`serialize_justifications` no depende del orden de las entradas del mapa**: es la misma cuenta |
+| `CAN.serialize_canonica` | dos mapas con las mismas entradas, en cualquier orden, dejan el mismo estado |
 | `bind_da_ok` | una herramienta: abre un bind de `RustM` |
 
 No se eligieron por cantidad. Entre todos cubren aritmética, ramificación y
@@ -1683,10 +1686,10 @@ usa *qué* devuelve. Si el `Ord` real de los arrays fuera otro, estos teoremas
 hablarían de un programa que no es el de ustedes. La documentación de `core`
 dice que es el lexicográfico.
 
-**Lo que no está.** Que `justifications_validators` —los votos, volcados en el
-mismo orden que las raíces— también coincida entre dos nodos, y por lo tanto
-que coincida el estado entero. Hace falta el contenido del volcado de votos, y
-de esa función hoy sólo está demostrado que no entra en pánico.
+**Lo que no está acá.** Que `justifications_validators` —los votos, volcados en
+el mismo orden que las raíces— también coincida entre dos nodos, y por lo tanto
+que coincida el estado entero. Está dos secciones más abajo, en
+**`serialize_justifications` no depende del orden del mapa**.
 
 Como controles negativos, dos. Sin la hipótesis de que el prefijo ya estaba
 ordenado, el invariante de la inserción no arranca: queda abierta
@@ -1766,6 +1769,67 @@ abierta: que la clave no estaba.
 Los dos primeros resultados dependen sólo de los tres axiomas de Lean. El de
 `process_attestations`, de catorce. Los otros cinco, de los dieciséis de
 `state_transition`.
+
+### `serialize_justifications` no depende del orden del mapa
+
+La sección del ordenamiento dejó una mitad: `justifications_roots` no depende
+del orden en que el mapa tenía las raíces. `serialize_justifications` escribe
+un campo más, `justifications_validators`: la lista plana de votos, volcada
+raíz por raíz siguiendo las raíces ya ordenadas. Faltaba ése.
+
+En su código `justifications` es un `HashMap`, y un `HashMap` se recorre en un
+orden que no está fijado. Ordenar las raíces es lo que hace que dos nodos
+escriban el mismo estado, que es lo que dice su comentario. Acá el mapa es una
+lista de pares, y el enunciado es el mismo: dos listas con las mismas entradas,
+en cualquier orden, dan el mismo estado.
+
+| Resultado | Qué dice |
+|---|---|
+| `CAN.volcar_votos_mismas` | volcar los votos de una raíz da lo mismo desde cualquiera de los dos mapas |
+| `CAN.serialize_no_depende_del_orden` | `serialize_justifications` sobre los dos mapas es la misma cuenta |
+| `CAN.serialize_canonica` | el estado que queda es el mismo, entero |
+
+```lean
+theorem CAN.serialize_no_depende_del_orden {m1 m2 : mapa.MapaVotos}
+    (he : MismasEntradas m1 m2) (s : tipos.State) (vc : Std.Usize) :
+    stf.serialize_justifications s m1 vc = stf.serialize_justifications s m2 vc
+```
+
+**Es una igualdad entre programas.** No dice "si los dos devuelven, devuelven
+lo mismo". Dice que las dos llamadas son la misma cuenta: si una aborta, la
+otra también.
+
+**Qué pide de los dos mapas.** `MismasEntradas m1 m2` dice que representan el
+mismo diccionario: las listas de pares (raíz, votos) son permutación una de la
+otra, las raíces no se repiten, y hay tantas raíces como listas de votos. Las
+dos últimas son lo que hace que una lista de pares sea un diccionario; sin
+ellas, "el mismo mapa en otro orden" no quiere decir nada.
+
+**Cómo, porque se puede reusar.** No describimos bit por bit lo que se escribe.
+`voto` y `largo_votos` sólo miran la lista de votos de la posición que les
+pasan, así que el loop que vuelca una raíz depende nada más que de esa lista; y
+la lista de votos de una raíz es la misma en los dos mapas. Con eso los dos
+loops son el mismo programa, sin invariantes y sin aritmética de índices. La
+técnica sirve cada vez que una función mira una colección sólo a través de una
+búsqueda.
+
+**De qué depende.** De la misma afirmación de modelado que el ordenamiento: usa
+que las raíces ordenadas coinciden, y eso se apoya en que el `Ord` de
+`[u8; 32]` sea el lexicográfico.
+
+**Lo que no está.** Dos cosas. Que el mapa que arma `process_attestations`
+tenga tantas raíces como listas de votos: que las raíces no se repiten sí está,
+en la sección anterior. Y la relación entre nuestra lista de pares y el
+`HashMap` de ustedes, que es lo que haría falta para decir algo sobre un
+recorrido concreto de ese `HashMap`.
+
+Controles negativos, dos. Sin usar que las dos posiciones tienen la misma lista
+de votos, los cuerpos de los dos loops no coinciden. Y si la búsqueda
+devolviera la posición siguiente a la de la clave, el lema de la búsqueda no
+cierra.
+
+`CAN.volcar_votos_mismas` depende de cinco axiomas: los tres de Lean, uno
+nativo y la firma de `fmt`. Los otros dos, de siete.
 
 ### Qué es esto contra el catálogo, dicho exacto
 
@@ -1869,6 +1933,8 @@ importa: elegir las propias propiedades vuelve el ejercicio circular.
 | el invariante de las raíces pendientes, los tres resultados | 16 | 3 | 9 | 4 |
 | sin pánico con ese invariante: `process_attestations` | 14 | 3 | 7 | 4 |
 | sin pánico con ese invariante: la transición, los dos resultados | 16 | 3 | 9 | 4 |
+| `volcar_votos` desde dos mapas con las mismas entradas | 5 | 3 | 1 | 1 |
+| `serialize_justifications` no depende del orden, los dos resultados | 7 | 3 | 3 | 1 |
 
 Tres categorías, con tres pesos distintos.
 
@@ -2144,9 +2210,9 @@ como muestra el test.
 **"Ordenado" es según nuestro modelo de la comparación.** Que el ordenamiento
 de raíces ordena se apoya en que el `Ord` de `[u8; 32]` sea el orden
 lexicográfico, que es una definición nuestra y no algo traducido por la
-cadena de herramientas. Y la igualdad entre nodos está demostrada para
-`justifications_roots`, no para `justifications_validators` ni para el estado
-entero.
+cadena de herramientas. La igualdad entre nodos está demostrada para lo que escribe
+`serialize_justifications`, entre dos listas de pares con las mismas entradas;
+no está relacionada con el `HashMap` de su código.
 
 **Las funciones traducidas no se pueden ejecutar en Lean.** Lean las marca
 `noncomputable`; entre otras cosas dependen de los axiomas de `fmt` que usa

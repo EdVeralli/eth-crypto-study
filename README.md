@@ -93,7 +93,7 @@ hax + Charon + Aeneas, de Rust a Lean. Se entra por
 [`RESTAURAR.md`](RESTAURAR.md) explica cómo reconstruir el entorno desde cero.
 
 Al 20 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
-`sorry` y noventa y nueve resultados demostrados encima. Veinte son sobre la
+`sorry` y ciento dos resultados demostrados encima. Veinte son sobre la
 ventana de slots justificados: los cuatro teoremas que se habían propuesto al
 principio, el 22 de octubre, la demostración de que ese módulo no entra en
 pánico, un comentario del código de ethlambda sobre esa ventana, verificado, el
@@ -270,9 +270,10 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    está ordenado y no depende del orden de inserción). Y la cota fina de
    raíces del mapa de votos (distintas y en el historial) en lugar de "raíces
    más attestations ≤ 262144" (20 nov, teorema 26). De la lista original no
-   queda nada. Lo que apareció en el camino y no está: que
-   `justifications_validators` coincida entre nodos (hace falta el contenido
-   de `volcar_votos`). Lo que ya
+   queda nada. Lo que apareció en el camino también está: que
+   `serialize_justifications` no depende del orden del mapa de votos, para
+   los dos campos que escribe (20 nov, teorema 27, namespace `CAN`). Lo que
+   ya
    está, para no rehacerlo: las doce funciones (17 y 18 nov), la cota de las
    listas de votos del mapa, y los dos invariantes de la ventana de slots
    justificados (dónde termina y que no pasa de su capacidad).

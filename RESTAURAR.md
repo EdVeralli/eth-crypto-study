@@ -200,7 +200,7 @@ loops, closures, instancias de `Debug`/`Display` y las diecinueve funciones
 auxiliares nuestras) y da 66, no 12.
 
 Si el `lake build` imprime las bases de axiomas, compará contra
-`mini-stf/axiomas.txt`: noventa y nueve bloques, nueve nativos distintos en total, y
+`mini-stf/axiomas.txt`: ciento dos bloques, nueve nativos distintos en total, y
 16 axiomas (3 estándar + 9 nativos + 4 modelos) para los resultados sobre
 `state_transition`.
 
