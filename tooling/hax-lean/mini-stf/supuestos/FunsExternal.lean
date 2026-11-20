@@ -263,9 +263,40 @@ end core.num.U64
 
 namespace core.Array.Insts.CoreCmpOrd
 
-/-- El `Ord` de `[T; N]`, orden lexicografico. -/
-axiom cmp {T : Type} {N : Std.Usize} (inst : core.cmp.Ord T) :
-  Array T N -> Array T N -> RustM core.cmp.Ordering
+/-- Comparacion lexicografica de dos listas, usando el `cmp` del elemento:
+    se comparan de a pares desde el principio y decide el primer par
+    distinto. -/
+def cmp_listas {T : Type} (inst : core.cmp.Ord T) :
+    List T → List T → RustM core.cmp.Ordering
+  | [], [] => ok core.cmp.Ordering.Equal
+  | [], _ :: _ => ok core.cmp.Ordering.Less
+  | _ :: _, [] => ok core.cmp.Ordering.Greater
+  | x :: xs, y :: ys => do
+      let o ← inst.cmp x y
+      match o with
+      | core.cmp.Ordering.Equal => cmp_listas inst xs ys
+      | _ => ok o
+
+/-- El `Ord` de `[T; N]`, orden lexicografico.
+
+    ESTO ERA UN AXIOMA hasta el 19 nov 2026, y ahora es una definicion. Es
+    la cuarta afirmacion de modelado del paquete, despues de `isqrt`,
+    `mem::take` y `bool::then`.
+
+    Por que. El ordenamiento de raices compara dos `H256` con `<`, y `H256`
+    es `[u8; 32]`. Con esto como firma sin contenido no se podia demostrar
+    ni que la comparacion devuelve, y esa era una hipotesis de
+    `serialize_justifications`, `process_attestations`, `process_block` y
+    `state_transition`.
+
+    Que se esta creyendo. Que el `Ord` de un array en Rust es el orden
+    lexicografico de sus elementos. Es lo que dice la documentacion de
+    `core` ("implements comparison of arrays lexicographically"). Dos
+    arrays de un mismo tipo `[T; N]` miden lo mismo, asi que los dos casos
+    de largo distinto de `cmp_listas` no se alcanzan nunca. -/
+def cmp {T : Type} {N : Std.Usize} (inst : core.cmp.Ord T)
+    (a b : Array T N) : RustM core.cmp.Ordering :=
+  cmp_listas inst a.val b.val
 
 end core.Array.Insts.CoreCmpOrd
 

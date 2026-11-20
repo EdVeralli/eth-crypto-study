@@ -92,8 +92,8 @@ hax + Charon + Aeneas, de Rust a Lean. Se entra por
 [`PROPOSAL.md`](tooling/hax-lean/mini-stf/PROPOSAL.md) (en inglés), y
 [`RESTAURAR.md`](RESTAURAR.md) explica cómo reconstruir el entorno desde cero.
 
-Al 18 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
-`sorry` y setenta y un resultados demostrados encima. Veinte son sobre la
+Al 19 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
+`sorry` y setenta y dos resultados demostrados encima. Veinte son sobre la
 ventana de slots justificados: los cuatro teoremas que se habían propuesto al
 principio, el 22 de octubre, la demostración de que ese módulo no entra en
 pánico, un comentario del código de ethlambda sobre esa ventana, verificado, el
@@ -254,8 +254,9 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    hipótesis escritas, que no están descargadas.
 9. **El paso siguiente más útil del paquete**: descargar hipótesis de la
    ausencia de pánico, que desde el 18 nov cubre las doce funciones de
-   `stf.rs` (`state_transition` incluida). Por orden de costo: modelar la
-   comparación de `H256`, que hoy es una firma sin contenido; la cota fina de
+   `stf.rs` (`state_transition` incluida). La comparación de `H256` ya está
+   (19 nov: pasó de firma sin contenido a definición, y dejó de ser una
+   hipótesis). Por orden de costo, queda: modelar el `HashMap`; la cota fina de
    raíces del mapa de votos (distintas y en el historial) en lugar de "raíces
    más attestations ≤ 262144"; y el caso inicial del pendiente 8. Lo que ya
    está, para no rehacerlo: las doce funciones (17 y 18 nov), la cota de las

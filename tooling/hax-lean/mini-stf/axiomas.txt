@@ -4,7 +4,7 @@ Salida de los `#print axioms` de teoremas/ProofObligations.lean. La arma
 axiomas.py a partir del log de `lake build`. Se entrega para que la base
 de confianza se pueda leer sin tener que compilar.
 
-Son 71 teoremas. Tiene dos partes:
+Son 72 teoremas. Tiene dos partes:
 
   PARTE 1   cada teorema, con los axiomas que utiliza.
   PARTE 2   cada axioma, con los teoremas donde aparece.
@@ -92,7 +92,7 @@ TEOREMA ST3.process_attestations_loop_no_retrocede
       std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
 
 TEOREMA ST3.process_attestations_no_retrocede
-  utiliza 20 axiomas:
+  utiliza 19 axiomas:
     de Lean (3): propext, Classical.choice, Quot.sound
     nativos (7):
       mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -102,8 +102,7 @@ TEOREMA ST3.process_attestations_no_retrocede
       mini_stf.stf.try_finalize._native.decide.ax_1
       mini_stf.stf.try_finalize._native.decide.ax_2
       mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-    modelos (10):
-      core.Array.Insts.CoreCmpOrd.cmp
+    modelos (9):
       core.Array.Insts.CoreHashHash.hash
       core.borrow.Borrow
       core.borrow.Borrow.Blanket
@@ -119,7 +118,7 @@ TEOREMA ST3.process_slots_no_toca_checkpoints
     de Lean (3): propext, Classical.choice, Quot.sound
 
 TEOREMA ST3F.process_attestations_fin_no_retrocede
-  utiliza 20 axiomas:
+  utiliza 19 axiomas:
     de Lean (3): propext, Classical.choice, Quot.sound
     nativos (7):
       mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -129,8 +128,7 @@ TEOREMA ST3F.process_attestations_fin_no_retrocede
       mini_stf.stf.try_finalize._native.decide.ax_1
       mini_stf.stf.try_finalize._native.decide.ax_2
       mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-    modelos (10):
-      core.Array.Insts.CoreCmpOrd.cmp
+    modelos (9):
       core.Array.Insts.CoreHashHash.hash
       core.borrow.Borrow
       core.borrow.Borrow.Blanket
@@ -152,7 +150,7 @@ TEOREMA ST3H.process_block_header_no_mueve_slots
       ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
 
 TEOREMA ST3T.process_block_no_retrocede
-  utiliza 22 axiomas:
+  utiliza 21 axiomas:
     de Lean (3): propext, Classical.choice, Quot.sound
     nativos (9):
       mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -164,8 +162,7 @@ TEOREMA ST3T.process_block_no_retrocede
       mini_stf.stf.try_finalize._native.decide.ax_1
       mini_stf.stf.try_finalize._native.decide.ax_2
       mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-    modelos (10):
-      core.Array.Insts.CoreCmpOrd.cmp
+    modelos (9):
       core.Array.Insts.CoreHashHash.hash
       core.borrow.Borrow
       core.borrow.Borrow.Blanket
@@ -177,7 +174,7 @@ TEOREMA ST3T.process_block_no_retrocede
       std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
 
 TEOREMA ST3.state_transition_no_retrocede
-  utiliza 22 axiomas:
+  utiliza 21 axiomas:
     de Lean (3): propext, Classical.choice, Quot.sound
     nativos (9):
       mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -189,8 +186,7 @@ TEOREMA ST3.state_transition_no_retrocede
       mini_stf.stf.try_finalize._native.decide.ax_1
       mini_stf.stf.try_finalize._native.decide.ax_2
       mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-    modelos (10):
-      core.Array.Insts.CoreCmpOrd.cmp
+    modelos (9):
       core.Array.Insts.CoreHashHash.hash
       core.borrow.Borrow
       core.borrow.Borrow.Blanket
@@ -206,7 +202,7 @@ TEOREMA ST7.h256_eq_true
     de Lean (3): propext, Classical.choice, Quot.sound
 
 TEOREMA ST7.process_attestations_adelante
-  utiliza 20 axiomas:
+  utiliza 19 axiomas:
     de Lean (3): propext, Classical.choice, Quot.sound
     nativos (7):
       mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -216,8 +212,7 @@ TEOREMA ST7.process_attestations_adelante
       mini_stf.stf.try_finalize._native.decide.ax_1
       mini_stf.stf.try_finalize._native.decide.ax_2
       mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-    modelos (10):
-      core.Array.Insts.CoreCmpOrd.cmp
+    modelos (9):
       core.Array.Insts.CoreHashHash.hash
       core.borrow.Borrow
       core.borrow.Borrow.Blanket
@@ -239,7 +234,7 @@ TEOREMA ST7.process_block_header_no_toca_checkpoints
       ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
 
 TEOREMA ST7.state_transition_adelante
-  utiliza 22 axiomas:
+  utiliza 21 axiomas:
     de Lean (3): propext, Classical.choice, Quot.sound
     nativos (9):
       mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -251,8 +246,7 @@ TEOREMA ST7.state_transition_adelante
       mini_stf.stf.try_finalize._native.decide.ax_1
       mini_stf.stf.try_finalize._native.decide.ax_2
       mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-    modelos (10):
-      core.Array.Insts.CoreCmpOrd.cmp
+    modelos (9):
       core.Array.Insts.CoreHashHash.hash
       core.borrow.Borrow
       core.borrow.Borrow.Blanket
@@ -282,7 +276,7 @@ TEOREMA ST2.process_block_header_slot
       ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
 
 TEOREMA ST2.state_transition_conserva_no_genesis
-  utiliza 22 axiomas:
+  utiliza 21 axiomas:
     de Lean (3): propext, Classical.choice, Quot.sound
     nativos (9):
       mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -294,8 +288,7 @@ TEOREMA ST2.state_transition_conserva_no_genesis
       mini_stf.stf.try_finalize._native.decide.ax_1
       mini_stf.stf.try_finalize._native.decide.ax_2
       mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-    modelos (10):
-      core.Array.Insts.CoreCmpOrd.cmp
+    modelos (9):
       core.Array.Insts.CoreHashHash.hash
       core.borrow.Borrow
       core.borrow.Borrow.Blanket
@@ -307,7 +300,7 @@ TEOREMA ST2.state_transition_conserva_no_genesis
       std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
 
 TEOREMA ST4.state_transition_justificado_ge_finalizado
-  utiliza 22 axiomas:
+  utiliza 21 axiomas:
     de Lean (3): propext, Classical.choice, Quot.sound
     nativos (9):
       mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -319,8 +312,7 @@ TEOREMA ST4.state_transition_justificado_ge_finalizado
       mini_stf.stf.try_finalize._native.decide.ax_1
       mini_stf.stf.try_finalize._native.decide.ax_2
       mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-    modelos (10):
-      core.Array.Insts.CoreCmpOrd.cmp
+    modelos (9):
       core.Array.Insts.CoreHashHash.hash
       core.borrow.Borrow
       core.borrow.Borrow.Blanket
@@ -332,7 +324,7 @@ TEOREMA ST4.state_transition_justificado_ge_finalizado
       std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
 
 TEOREMA ST6.finalizacion_irreversible
-  utiliza 22 axiomas:
+  utiliza 21 axiomas:
     de Lean (3): propext, Classical.choice, Quot.sound
     nativos (9):
       mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -344,8 +336,7 @@ TEOREMA ST6.finalizacion_irreversible
       mini_stf.stf.try_finalize._native.decide.ax_1
       mini_stf.stf.try_finalize._native.decide.ax_2
       mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-    modelos (10):
-      core.Array.Insts.CoreCmpOrd.cmp
+    modelos (9):
       core.Array.Insts.CoreHashHash.hash
       core.borrow.Borrow
       core.borrow.Borrow.Blanket
@@ -472,7 +463,7 @@ TEOREMA VC.tras_header_rechaza
       ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
 
 TEOREMA VI.state_transition_conserva_ventana
-  utiliza 22 axiomas:
+  utiliza 21 axiomas:
     de Lean (3): propext, Classical.choice, Quot.sound
     nativos (9):
       mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -484,8 +475,7 @@ TEOREMA VI.state_transition_conserva_ventana
       mini_stf.stf.try_finalize._native.decide.ax_1
       mini_stf.stf.try_finalize._native.decide.ax_2
       mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-    modelos (10):
-      core.Array.Insts.CoreCmpOrd.cmp
+    modelos (9):
       core.Array.Insts.CoreHashHash.hash
       core.borrow.Borrow
       core.borrow.Borrow.Blanket
@@ -497,7 +487,7 @@ TEOREMA VI.state_transition_conserva_ventana
       std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
 
 TEOREMA VI.state_transition_ventana_justa
-  utiliza 22 axiomas:
+  utiliza 21 axiomas:
     de Lean (3): propext, Classical.choice, Quot.sound
     nativos (9):
       mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -509,8 +499,7 @@ TEOREMA VI.state_transition_ventana_justa
       mini_stf.stf.try_finalize._native.decide.ax_1
       mini_stf.stf.try_finalize._native.decide.ax_2
       mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-    modelos (10):
-      core.Array.Insts.CoreCmpOrd.cmp
+    modelos (9):
       core.Array.Insts.CoreHashHash.hash
       core.borrow.Borrow
       core.borrow.Borrow.Blanket
@@ -542,7 +531,7 @@ TEOREMA HC.header_acepta_slot_acotado
       ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
 
 TEOREMA HC.state_transition_conserva_acotado
-  utiliza 22 axiomas:
+  utiliza 21 axiomas:
     de Lean (3): propext, Classical.choice, Quot.sound
     nativos (9):
       mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -554,8 +543,7 @@ TEOREMA HC.state_transition_conserva_acotado
       mini_stf.stf.try_finalize._native.decide.ax_1
       mini_stf.stf.try_finalize._native.decide.ax_2
       mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-    modelos (10):
-      core.Array.Insts.CoreCmpOrd.cmp
+    modelos (9):
       core.Array.Insts.CoreHashHash.hash
       core.borrow.Borrow
       core.borrow.Borrow.Blanket
@@ -609,20 +597,17 @@ TEOREMA NP3.process_block_header_devuelve
       ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
 
 TEOREMA NP4.claves_ordenadas_devuelve
-  utiliza 4 axiomas:
+  utiliza 3 axiomas:
     de Lean (3): propext, Classical.choice, Quot.sound
-    modelos (1):
-      core.Array.Insts.CoreCmpOrd.cmp
 
 TEOREMA NP4.serialize_justifications_devuelve
-  utiliza 8 axiomas:
+  utiliza 7 axiomas:
     de Lean (3): propext, Classical.choice, Quot.sound
     nativos (3):
       mini_stf.stf.serialize_justifications._native.decide.ax_1
       mini_stf.stf.serialize_justifications._native.decide.ax_2
       mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-    modelos (2):
-      core.Array.Insts.CoreCmpOrd.cmp
+    modelos (1):
       ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
 
 TEOREMA MV.construir_mapa_acotado
@@ -647,7 +632,7 @@ TEOREMA MV.loop_conserva_acotado
       std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
 
 TEOREMA MV.serialize_tras_attestations_devuelve
-  utiliza 18 axiomas:
+  utiliza 17 axiomas:
     de Lean (3): propext, Classical.choice, Quot.sound
     nativos (7):
       mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -657,8 +642,7 @@ TEOREMA MV.serialize_tras_attestations_devuelve
       mini_stf.stf.try_finalize._native.decide.ax_1
       mini_stf.stf.try_finalize._native.decide.ax_2
       mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-    modelos (8):
-      core.Array.Insts.CoreCmpOrd.cmp
+    modelos (7):
       core.Array.Insts.CoreHashHash.hash
       core.borrow.Borrow
       core.borrow.Borrow.Blanket
@@ -753,7 +737,7 @@ TEOREMA NP6.construir_rts_devuelve
       std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
 
 TEOREMA NP7.process_attestations_devuelve
-  utiliza 20 axiomas:
+  utiliza 19 axiomas:
     de Lean (3): propext, Classical.choice, Quot.sound
     nativos (7):
       mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -763,8 +747,7 @@ TEOREMA NP7.process_attestations_devuelve
       mini_stf.stf.try_finalize._native.decide.ax_1
       mini_stf.stf.try_finalize._native.decide.ax_2
       mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-    modelos (10):
-      core.Array.Insts.CoreCmpOrd.cmp
+    modelos (9):
       core.Array.Insts.CoreHashHash.hash
       core.borrow.Borrow
       core.borrow.Borrow.Blanket
@@ -776,7 +759,7 @@ TEOREMA NP7.process_attestations_devuelve
       std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
 
 TEOREMA NP7.process_attestations_devuelve_inv
-  utiliza 20 axiomas:
+  utiliza 19 axiomas:
     de Lean (3): propext, Classical.choice, Quot.sound
     nativos (7):
       mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -786,8 +769,7 @@ TEOREMA NP7.process_attestations_devuelve_inv
       mini_stf.stf.try_finalize._native.decide.ax_1
       mini_stf.stf.try_finalize._native.decide.ax_2
       mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-    modelos (10):
-      core.Array.Insts.CoreCmpOrd.cmp
+    modelos (9):
       core.Array.Insts.CoreHashHash.hash
       core.borrow.Borrow
       core.borrow.Borrow.Blanket
@@ -799,7 +781,7 @@ TEOREMA NP7.process_attestations_devuelve_inv
       std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
 
 TEOREMA NP8.process_block_devuelve
-  utiliza 22 axiomas:
+  utiliza 21 axiomas:
     de Lean (3): propext, Classical.choice, Quot.sound
     nativos (9):
       mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -811,8 +793,7 @@ TEOREMA NP8.process_block_devuelve
       mini_stf.stf.try_finalize._native.decide.ax_1
       mini_stf.stf.try_finalize._native.decide.ax_2
       mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-    modelos (10):
-      core.Array.Insts.CoreCmpOrd.cmp
+    modelos (9):
       core.Array.Insts.CoreHashHash.hash
       core.borrow.Borrow
       core.borrow.Borrow.Blanket
@@ -824,7 +805,7 @@ TEOREMA NP8.process_block_devuelve
       std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
 
 TEOREMA NP8.state_transition_devuelve
-  utiliza 22 axiomas:
+  utiliza 21 axiomas:
     de Lean (3): propext, Classical.choice, Quot.sound
     nativos (9):
       mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
@@ -836,8 +817,7 @@ TEOREMA NP8.state_transition_devuelve
       mini_stf.stf.try_finalize._native.decide.ax_1
       mini_stf.stf.try_finalize._native.decide.ax_2
       mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-    modelos (10):
-      core.Array.Insts.CoreCmpOrd.cmp
+    modelos (9):
       core.Array.Insts.CoreHashHash.hash
       core.borrow.Borrow
       core.borrow.Borrow.Blanket
@@ -847,6 +827,10 @@ TEOREMA NP8.state_transition_devuelve
       std.collections.hash.map.HashMap.insert
       std.collections.hash.map.HashMapKVRandomStateGlobal.new
       std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
+
+TEOREMA NP4.h256_cmp_devuelve
+  utiliza 3 axiomas:
+    de Lean (3): propext, Classical.choice, Quot.sound
 
 ========================================================================
 PARTE 2 — EN QUE TEOREMAS APARECE CADA AXIOMA
@@ -864,20 +848,20 @@ DE LEAN
 ------------------------------------------------------------------------
 
 AXIOMA propext
-  aparece en los 71 teoremas
+  aparece en los 72 teoremas
 
 AXIOMA Classical.choice
-  aparece en 70 de 71 teoremas: todos menos bind_da_ok
+  aparece en 71 de 72 teoremas: todos menos bind_da_ok
 
 AXIOMA Quot.sound
-  aparece en 70 de 71 teoremas: todos menos bind_da_ok
+  aparece en 71 de 72 teoremas: todos menos bind_da_ok
 
 ------------------------------------------------------------------------
 MODELOS (declaraciones sin contenido)
 ------------------------------------------------------------------------
 
 AXIOMA ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
-  aparece en 44 de 71 teoremas
+  aparece en 44 de 72 teoremas
   que es: la firma de `Debug::fmt` del error `FueraDeCapacidad`. La
     nombra cada `.expect()` sobre un `SszList` o un `SszBitlist`, para
     formatear el mensaje si aborta.
@@ -914,7 +898,7 @@ AXIOMA ssz.FueraDeCapacidad.Insts.CoreFmtDebug.fmt
     NP8.process_block_devuelve, NP8.state_transition_devuelve
 
 AXIOMA core.Array.Insts.CoreHashHash.hash
-  aparece en 24 de 71 teoremas
+  aparece en 24 de 72 teoremas
   que es: el hash de un array. Hace falta para usar `H256` como clave
     del `HashMap`.
   teoremas donde aparece:
@@ -939,7 +923,7 @@ AXIOMA core.Array.Insts.CoreHashHash.hash
     NP8.process_block_devuelve, NP8.state_transition_devuelve
 
 AXIOMA core.borrow.Borrow
-  aparece en 24 de 71 teoremas
+  aparece en 24 de 72 teoremas
   que es: el trait `Borrow`, que pide la firma de `HashMap::get`.
   teoremas donde aparece:
     try_finalize_no_retrocede, try_finalize_no_toca_justified,
@@ -963,7 +947,7 @@ AXIOMA core.borrow.Borrow
     NP8.process_block_devuelve, NP8.state_transition_devuelve
 
 AXIOMA core.borrow.Borrow.Blanket
-  aparece en 24 de 71 teoremas
+  aparece en 24 de 72 teoremas
   que es: la instancia general de `Borrow` (todo tipo se presta a si
     mismo).
   teoremas donde aparece:
@@ -988,7 +972,7 @@ AXIOMA core.borrow.Borrow.Blanket
     NP8.process_block_devuelve, NP8.state_transition_devuelve
 
 AXIOMA core.hash.BuildHasher
-  aparece en 24 de 71 teoremas
+  aparece en 24 de 72 teoremas
   que es: el trait del fabricante de hashers del `HashMap`.
   teoremas donde aparece:
     try_finalize_no_retrocede, try_finalize_no_toca_justified,
@@ -1012,7 +996,7 @@ AXIOMA core.hash.BuildHasher
     NP8.process_block_devuelve, NP8.state_transition_devuelve
 
 AXIOMA std.collections.hash.map.HashMap.get
-  aparece en 24 de 71 teoremas
+  aparece en 24 de 72 teoremas
   que es: la consulta al `HashMap` de raices a slots.
   teoremas donde aparece:
     try_finalize_no_retrocede, try_finalize_no_toca_justified,
@@ -1036,7 +1020,7 @@ AXIOMA std.collections.hash.map.HashMap.get
     NP8.process_block_devuelve, NP8.state_transition_devuelve
 
 AXIOMA std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
-  aparece en 24 de 71 teoremas
+  aparece en 24 de 72 teoremas
   que es: el hasher por defecto del `HashMap`.
   teoremas donde aparece:
     try_finalize_no_retrocede, try_finalize_no_toca_justified,
@@ -1059,32 +1043,8 @@ AXIOMA std.hash.random.RandomState.Insts.CoreHashBuildHasherDefaultHasher
     NP7.process_attestations_devuelve_inv,
     NP8.process_block_devuelve, NP8.state_transition_devuelve
 
-AXIOMA core.Array.Insts.CoreCmpOrd.cmp
-  aparece en 19 de 71 teoremas
-  que es: la comparacion de arrays: es el `<` entre dos `H256` que usa
-    el ordenamiento de raices.
-  teoremas donde aparece:
-    ST3.process_attestations_no_retrocede,
-    ST3F.process_attestations_fin_no_retrocede,
-    ST3T.process_block_no_retrocede,
-    ST3.state_transition_no_retrocede,
-    ST7.process_attestations_adelante,
-    ST7.state_transition_adelante,
-    ST2.state_transition_conserva_no_genesis,
-    ST4.state_transition_justificado_ge_finalizado,
-    ST6.finalizacion_irreversible,
-    VI.state_transition_conserva_ventana,
-    VI.state_transition_ventana_justa,
-    HC.state_transition_conserva_acotado,
-    NP4.claves_ordenadas_devuelve,
-    NP4.serialize_justifications_devuelve,
-    MV.serialize_tras_attestations_devuelve,
-    NP7.process_attestations_devuelve,
-    NP7.process_attestations_devuelve_inv,
-    NP8.process_block_devuelve, NP8.state_transition_devuelve
-
 AXIOMA std.collections.hash.map.HashMap.insert
-  aparece en 17 de 71 teoremas
+  aparece en 17 de 72 teoremas
   que es: la insercion en el `HashMap` de raices a slots.
   teoremas donde aparece:
     ST3.process_attestations_no_retrocede,
@@ -1104,7 +1064,7 @@ AXIOMA std.collections.hash.map.HashMap.insert
     NP8.process_block_devuelve, NP8.state_transition_devuelve
 
 AXIOMA std.collections.hash.map.HashMapKVRandomStateGlobal.new
-  aparece en 17 de 71 teoremas
+  aparece en 17 de 72 teoremas
   que es: la creacion del `HashMap` de raices a slots.
   teoremas donde aparece:
     ST3.process_attestations_no_retrocede,
@@ -1128,7 +1088,7 @@ NATIVOS (cuentas que hizo el compilador)
 ------------------------------------------------------------------------
 
 AXIOMA mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
-  aparece en 39 de 71 teoremas
+  aparece en 39 de 72 teoremas
   que es: una cota que el compilador calculo al traducir
     `justified_slots_ops.extend_to_slot`.
   teoremas donde aparece:
@@ -1161,7 +1121,7 @@ AXIOMA mini_stf.justified_slots_ops.extend_to_slot._native.decide.ax_1
     NP8.process_block_devuelve, NP8.state_transition_devuelve
 
 AXIOMA mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
-  aparece en 23 de 71 teoremas
+  aparece en 23 de 72 teoremas
   que es: una cota que el compilador calculo al traducir
     `justified_slots_ops.set_justified`.
   teoremas donde aparece:
@@ -1186,7 +1146,7 @@ AXIOMA mini_stf.justified_slots_ops.set_justified._native.decide.ax_1
     NP8.process_block_devuelve, NP8.state_transition_devuelve
 
 AXIOMA mini_stf.stf.try_finalize._native.decide.ax_1
-  aparece en 23 de 71 teoremas
+  aparece en 23 de 72 teoremas
   que es: una cota que el compilador calculo al traducir
     `stf.try_finalize`.
   teoremas donde aparece:
@@ -1211,7 +1171,7 @@ AXIOMA mini_stf.stf.try_finalize._native.decide.ax_1
     NP8.process_block_devuelve, NP8.state_transition_devuelve
 
 AXIOMA mini_stf.stf.try_finalize._native.decide.ax_2
-  aparece en 23 de 71 teoremas
+  aparece en 23 de 72 teoremas
   que es: una cota que el compilador calculo al traducir
     `stf.try_finalize`.
   teoremas donde aparece:
@@ -1236,7 +1196,7 @@ AXIOMA mini_stf.stf.try_finalize._native.decide.ax_2
     NP8.process_block_devuelve, NP8.state_transition_devuelve
 
 AXIOMA mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
-  aparece en 22 de 71 teoremas
+  aparece en 22 de 72 teoremas
   que es: una cota que el compilador calculo al traducir
     `justified_slots_ops.extend_to_slot_loop.body`.
   teoremas donde aparece:
@@ -1258,7 +1218,7 @@ AXIOMA mini_stf.justified_slots_ops.extend_to_slot_loop.body._native.decide.ax_3
     NP8.state_transition_devuelve
 
 AXIOMA mini_stf.stf.process_block_header._native.decide.ax_3
-  aparece en 19 de 71 teoremas
+  aparece en 19 de 72 teoremas
   que es: una cota que el compilador calculo al traducir
     `stf.process_block_header`.
   teoremas donde aparece:
@@ -1278,7 +1238,7 @@ AXIOMA mini_stf.stf.process_block_header._native.decide.ax_3
     NP8.state_transition_devuelve
 
 AXIOMA mini_stf.stf.serialize_justifications._native.decide.ax_1
-  aparece en 18 de 71 teoremas
+  aparece en 18 de 72 teoremas
   que es: una cota que el compilador calculo al traducir
     `stf.serialize_justifications`.
   teoremas donde aparece:
@@ -1301,7 +1261,7 @@ AXIOMA mini_stf.stf.serialize_justifications._native.decide.ax_1
     NP8.process_block_devuelve, NP8.state_transition_devuelve
 
 AXIOMA mini_stf.stf.serialize_justifications._native.decide.ax_2
-  aparece en 18 de 71 teoremas
+  aparece en 18 de 72 teoremas
   que es: una cota que el compilador calculo al traducir
     `stf.serialize_justifications`.
   teoremas donde aparece:
@@ -1324,7 +1284,7 @@ AXIOMA mini_stf.stf.serialize_justifications._native.decide.ax_2
     NP8.process_block_devuelve, NP8.state_transition_devuelve
 
 AXIOMA mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
-  aparece en 18 de 71 teoremas
+  aparece en 18 de 72 teoremas
   que es: una cota que el compilador calculo al traducir
     `stf.volcar_votos_loop.body`.
   teoremas donde aparece:
@@ -1350,7 +1310,7 @@ AXIOMA mini_stf.stf.volcar_votos_loop.body._native.decide.ax_1
 TEOREMAS QUE SOLO USAN AXIOMAS DE LEAN
 ------------------------------------------------------------------------
 
-Son 25 de 71.
+Son 27 de 72.
 
   pronic_iff_cuadrado, chequeo_de_paridad_redundante, bind_da_ok,
   ST3.process_slots_no_toca_checkpoints, ST7.h256_eq_true,
@@ -1358,12 +1318,13 @@ Son 25 de 71.
   NP.is_slot_justified_total, NP2.current_proposer_eq,
   NP2.is_proposer_total, NP2.slot_is_justifiable_total,
   NP2.matches_chain_total, NP2.is_valid_vote_total,
-  NP3.process_slots_devuelve, MV.construir_mapa_acotado,
-  NP5.filtrado_devuelve, NP6.contar_datos_devuelve,
-  NP6.hay_raiz_cero_devuelve, NP6.primer_bit_devuelve,
-  NP6.votos_vacios_devuelve, NP6.poner_si_falta_devuelve,
-  NP6.marcar_votos_devuelve, NP6.cuenta_votos_devuelve,
-  NP6.sin_devuelve, NP6.construir_mapa_devuelve
+  NP3.process_slots_devuelve, NP4.claves_ordenadas_devuelve,
+  MV.construir_mapa_acotado, NP5.filtrado_devuelve,
+  NP6.contar_datos_devuelve, NP6.hay_raiz_cero_devuelve,
+  NP6.primer_bit_devuelve, NP6.votos_vacios_devuelve,
+  NP6.poner_si_falta_devuelve, NP6.marcar_votos_devuelve,
+  NP6.cuenta_votos_devuelve, NP6.sin_devuelve,
+  NP6.construir_mapa_devuelve, NP4.h256_cmp_devuelve
 
 ========================================================================
 
@@ -1382,12 +1343,13 @@ NATIVOS DISTINTOS EN TODO EL BUILD: 9
 Todos llegan a los teoremas sobre `state_transition` entera (`ST-3`,
 `ST-4`, `ST-6`, `ST-7`, la conservacion del header, los invariantes de la
 ventana y del historial, y la ausencia de panico), que dependen de
-exactamente los mismos 22 axiomas que el `def` de `state_transition` sin
+exactamente los mismos 21 axiomas que el `def` de `state_transition` sin
 teorema de por medio (se ve con supuestos/RevisarAxiomas.lean). Los teoremas
 sobre componentes dependen de menos.
 
-Eran 24 hasta el 15 nov 2026 y 23 hasta el 17 nov: `core.mem.take` y
-`core.bool.Bool.then` eran axiomas y pasaron a ser definiciones (ver
-supuestos/FunsExternal.lean). Por eso `process_block_header` y todo lo que
-pasa por ella tienen dos modelos menos que en la primera version de este
-archivo.
+Eran 24 hasta el 15 nov 2026, 23 hasta el 17 nov y 22 hasta el 19 nov:
+`core.mem.take`, `core.bool.Bool.then` y la comparacion de arrays
+(`core.Array.Insts.CoreCmpOrd.cmp`) eran axiomas y pasaron a ser
+definiciones (ver supuestos/FunsExternal.lean). Por eso los teoremas sobre
+`state_transition` tienen tres modelos menos que en la primera version de
+este archivo.

@@ -1290,5 +1290,43 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    >
    > OJO al leer la parte 2: "aparece en" quiere decir que la demostracion
    > pasa por codigo que nombra al axioma, no que se apoye en lo que hace.
+
+   > Nota del 19 nov 2026: **la comparacion de arrays dejo de ser un
+   > axioma.** `core.Array.Insts.CoreCmpOrd.cmp` es ahora una definicion en
+   > `supuestos/FunsExternal.lean`: el orden lexicografico de los
+   > elementos, con una auxiliar recursiva `cmp_listas`. Es la CUARTA
+   > afirmacion de modelado (antes `isqrt`, `mem::take`, `bool::then`).
+   > Declaraciones sin contenido: 26 -> 25.
+   >
+   > - Resultado nuevo: `NP4.h256_cmp_devuelve`, comparar dos `H256`
+   >   devuelve siempre. Por induccion sobre la primera lista,
+   >   generalizando la segunda; el caso de dos cabezas se parte en
+   >   `compare x.val y.val`.
+   > - La hipotesis `hcmp` se SACO de los enunciados, no se dejo y se
+   >   descargo aparte: 13 teoremas la llevaban, entre ellos
+   >   `serialize_justifications`, `process_attestations`, `process_block` y
+   >   `state_transition`. `claves_ordenadas_devuelve` quedo sin ninguna
+   >   hipotesis.
+   > - Se hizo con un script: borrar la linea del parametro (pasando el
+   >   `:` a la linea anterior cuando era el ultimo), borrar ` hcmp` de los
+   >   argumentos, y borrar el `· exact hcmp _ _` que cerraba una meta que
+   >   ya no aparece.
+   > - Los 71 resultados anteriores recompilaron al primer intento.
+   > - `as` es palabra reservada en Lean: `a :: as` no parsea.
+   > - Al cambiar `FunsExternal.lean` se recompila todo lo nuestro; el
+   >   build completo tarda parecido porque las dependencias estan cacheadas.
+   >
+   > Efecto en los axiomas: `state_transition` 22 -> 21;
+   > `process_attestations` 20 -> 19; `serialize_justifications` 8 -> 7;
+   > `claves_ordenadas` 4 -> 3. `core.Array.Insts.CoreCmpOrd.cmp` ya no
+   > aparece en ningun teorema (estaba en 19).
+   >
+   > CUIDADO con el orden al tocar `teoremas/ProofObligations.lean`
+   > mientras corre `regenerar.sh`: el paso 2 copia el archivo, y si se
+   > edita despues el build valida la version vieja. Paso una vez; se
+   > detecto con `diff -q` y se corrio de nuevo.
+   >
+   > Lo que esto habilita y NO esta hecho: probar que `claves_ordenadas`
+   > ordena. Y lo que sigue en la misma linea: modelar el `HashMap`.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

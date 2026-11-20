@@ -5785,12 +5785,12 @@ end NP3
    Ordena las raices, pide un bitlist de `raices * validator_count` bits,
    vuelca los votos de cada raiz en su tramo, y guarda las raices.
 
-   Lleva cuatro hipotesis, todas escritas en el enunciado:
+   Lleva tres hipotesis, todas escritas en el enunciado. Hasta el 19 nov
+   2026 eran cuatro: la cuarta pedia que la comparacion de `H256`
+   devolviera, porque la comparacion de arrays
+   (`core.Array.Insts.CoreCmpOrd.cmp`) era una declaracion sin contenido.
+   Ahora es una definicion y eso esta demostrado: `h256_cmp_devuelve`.
 
-   - que la comparacion de `H256` devuelva. El ordenamiento compara raices
-     con `<`, y esa comparacion de arrays (`core.Array.Insts.CoreCmpOrd.cmp`)
-     es una declaracion sin contenido en este paquete. Igual que con el hash,
-     no se prueba que devuelva: se pide.
    - que el mapa no tenga mas de 262144 raices (`HISTORICAL_ROOTS_LIMIT`).
      Es lo que hace que el `expect("justifications_roots limit exceeded")`
      no aborte.
@@ -5803,8 +5803,8 @@ end NP3
 
    De paso queda probado que el ordenamiento por insercion escrito a mano
    termina y no cambia la cantidad de raices (`claves_ordenadas_devuelve`).
-   Que ademas ORDENE no esta probado, ni se podria con la comparacion como
-   declaracion sin contenido.
+   Que ademas ORDENE no esta probado. Con la comparacion como definicion ya
+   se puede intentar; antes ni eso.
 
    Controles negativos, en la bitacora: sin la hipotesis de los votos queda
    abierta la meta del tramo; sin la cota de validadores quedan abiertas la
@@ -5886,13 +5886,35 @@ theorem vec_new_total (T : Type) :
     refine ⟨Slice.new T, ?_, rfl⟩
     simp [alloc.vec.Vec.new, rust_primitives.sequence.seq_empty])
 
-/-- `<` sobre `H256` devuelve, si la comparacion de arrays devuelve. -/
-theorem lt_default_total (a b : tipos.H256)
-    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o) :
+/-- La comparacion lexicografica de dos listas de bytes devuelve siempre. -/
+theorem cmp_listas_u8_devuelve (a b : List Std.U8) :
+    ∃ o, core.Array.Insts.CoreCmpOrd.cmp_listas core.U8.Insts.CoreCmpOrd a b = ok o := by
+  induction a generalizing b with
+  | nil => cases b <;> exact ⟨_, rfl⟩
+  | cons x xs ih =>
+    cases b with
+    | nil => exact ⟨_, rfl⟩
+    | cons y ys =>
+      obtain ⟨o, ho⟩ := ih ys
+      simp only [core.Array.Insts.CoreCmpOrd.cmp_listas, core.U8.Insts.CoreCmpOrd,
+        core.mkUOrd]
+      cases compare x.val y.val <;> simp
+      exact ⟨o, ho⟩
+
+/-- La comparacion de dos `H256` devuelve siempre. Hasta el 19 nov 2026 esto
+    era una hipotesis: la comparacion de arrays era una declaracion sin
+    contenido (ver supuestos/FunsExternal.lean). -/
+theorem h256_cmp_devuelve (x y : tipos.H256) :
+    ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o := by
+  unfold tipos.H256.Insts.CoreCmpOrd.cmp core.Array.Insts.CoreCmpOrd.cmp
+  exact cmp_listas_u8_devuelve x.val y.val
+
+/-- `<` sobre `H256` devuelve. -/
+theorem lt_default_total (a b : tipos.H256) :
     ⦃ ⌜ True ⌝ ⦄
     core.cmp.PartialOrd.lt.default tipos.H256.Insts.CoreCmpPartialOrdH256 a b
     ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
-  obtain ⟨o, ho⟩ := hcmp a b
+  obtain ⟨o, ho⟩ := h256_cmp_devuelve a b
   refine devuelve_spec _ ?_
   unfold core.cmp.PartialOrd.lt.default
   show ∃ r, (do
@@ -5947,8 +5969,7 @@ attribute [local spec] raiz_de_total lt_default_total vec_deref_mut_total
   slice_get_mut_total
 
 theorem burbujear_loop_total (v0 : alloc.vec.Vec tipos.H256) (j0 : Std.Usize)
-    (s0 : Bool)
-    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o) :
+    (s0 : Bool) :
     ⦃ ⌜ True ⌝ ⦄ mapa.burbujear_loop v0 j0 s0
     ⦃ ⇓ r => ⌜ r.val.length = v0.val.length ⌝ ⦄ := by
   unfold mapa.burbujear_loop
@@ -5974,10 +5995,9 @@ theorem burbujear_loop_total (v0 : alloc.vec.Vec tipos.H256) (j0 : Std.Usize)
          · simp [*] <;> scalar_tac)
 end
 
-theorem burbujear_total (v : alloc.vec.Vec tipos.H256) (i : Std.Usize)
-    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o) :
+theorem burbujear_total (v : alloc.vec.Vec tipos.H256) (i : Std.Usize) :
     ⦃ ⌜ True ⌝ ⦄ mapa.burbujear v i ⦃ ⇓ r => ⌜ r.val.length = v.val.length ⌝ ⦄ :=
-  burbujear_loop_total v i true hcmp
+  burbujear_loop_total v i true
 
 section
 attribute [local spec] clave_total push_total burbujear_total
@@ -6015,8 +6035,7 @@ theorem claves_loop0_total (n : Std.Usize) (c : alloc.vec.Vec tipos.H256)
       omega
 
 /-- El loop del ordenamiento por insercion. No cambia el largo. -/
-theorem claves_loop1_total (d n : Std.Usize) (s0 : alloc.vec.Vec tipos.H256)
-    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o) :
+theorem claves_loop1_total (d n : Std.Usize) (s0 : alloc.vec.Vec tipos.H256) :
     ⦃ ⌜ True ⌝ ⦄
     mapa.MapaVotos.claves_ordenadas_loop1 { start := d, «end» := n } s0
     ⦃ ⇓ r => ⌜ r.val.length = s0.val.length ⌝ ⦄ := by
@@ -6042,15 +6061,13 @@ attribute [local spec] vec_new_total vec_len_total claves_loop0_total
   claves_loop1_total
 
 /-- `claves_ordenadas` devuelve, y devuelve tantas raices como claves hay. -/
-theorem claves_ordenadas_total (m : mapa.MapaVotos)
-    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o) :
+theorem claves_ordenadas_total (m : mapa.MapaVotos) :
     ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.claves_ordenadas m
     ⦃ ⇓ r => ⌜ r.val.length = m.claves.val.length ⌝ ⦄ := by
   unfold mapa.MapaVotos.claves_ordenadas
   hax_mvcgen
   · scalar_tac
   · omega
-  · exact hcmp _ _
 end
 
 theorem is_none_total {T : Type} (o : core.option.Option T) :
@@ -6227,7 +6244,6 @@ attribute [local spec] claves_ordenadas_total vec_len_total with_length_cabe_tot
 
 theorem serialize_justifications_total_spec (state : tipos.State)
     (m : mapa.MapaVotos) (vc : Std.Usize)
-    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
     (hroots : m.claves.val.length ≤ 262144)
     (hvc : vc.val ≤ 4096)
     (hv : ∀ v ∈ m.valores.val, v.val.length ≤ vc.val) :
@@ -6265,22 +6281,20 @@ end
 /-- `serialize_justifications` no entra en panico. -/
 theorem serialize_justifications_devuelve (state : tipos.State)
     (m : mapa.MapaVotos) (vc : Std.Usize)
-    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
     (hroots : m.claves.val.length ≤ 262144)
     (hvc : vc.val ≤ 4096)
     (hv : ∀ v ∈ m.valores.val, v.val.length ≤ vc.val) :
     ∃ r, stf.serialize_justifications state m vc = ok r := by
   obtain ⟨r, hr, -⟩ := of_triple_total
-    (serialize_justifications_total_spec state m vc hcmp hroots hvc hv)
+    (serialize_justifications_total_spec state m vc hroots hvc hv)
   exact ⟨r, hr⟩
 
 /-- `claves_ordenadas` no entra en panico, y devuelve tantas raices como
     claves tiene el mapa. -/
-theorem claves_ordenadas_devuelve (m : mapa.MapaVotos)
-    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o) :
+theorem claves_ordenadas_devuelve (m : mapa.MapaVotos) :
     ∃ r, mapa.MapaVotos.claves_ordenadas m = ok r ∧
       r.val.length = m.claves.val.length :=
-  of_triple_total (claves_ordenadas_total m hcmp)
+  of_triple_total (claves_ordenadas_total m)
 
 end NP4
 
@@ -7050,11 +7064,10 @@ theorem serialize_tras_attestations_devuelve (st : tipos.State)
     (hmapa : stf.construir_mapa_de_votos st vc = ok j0)
     (hloop : stf.process_attestations_loop { start := 0#usize, «end» := n } st
                atts vc 0#u64 j0 rts core.option.Option.None = ok r)
-    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
     (hroots : r.2.2.1.claves.val.length ≤ 262144)
     (hvc : vc.val ≤ 4096) :
     ∃ s', stf.serialize_justifications r.1 r.2.2.1 vc = ok s' :=
-  serialize_justifications_devuelve r.1 r.2.2.1 vc hcmp hroots hvc
+  serialize_justifications_devuelve r.1 r.2.2.1 vc hroots hvc
     (loop_conserva_acotado st atts vc n j0 rts r hloop
       (construir_mapa_acotado st vc j0 hmapa))
 
@@ -7078,7 +7091,7 @@ end MV
      que la transicion conserva (teorema 13).
    - que la consulta al `HashMap` devuelva. `HashMap::get` es una declaracion
      sin contenido en este paquete, asi que no se puede probar: se pide,
-     igual que el hash y la comparacion de `H256`.
+     igual que el hash.
 
    Lo nuevo que hizo falta:
 
@@ -8221,8 +8234,9 @@ end NP6
 
    Hipotesis, todas escritas en el enunciado:
 
-   - las tres operaciones del `HashMap` devuelven, y la comparacion de `H256`
-     devuelve. Son declaraciones sin contenido en este paquete.
+   - las tres operaciones del `HashMap` devuelven. Son declaraciones sin
+     contenido en este paquete. (Hasta el 19 nov 2026 se pedia ademas que la
+     comparacion de `H256` devolviera; ahora esta demostrado.)
    - a lo sumo 4096 validadores. Con eso `3 * votos` y `2 * validator_count`
      no desbordan, y el bitlist de votos entra en su capacidad.
    - las raices del estado mas las attestations del bloque no pasan de
@@ -8528,7 +8542,6 @@ attribute [local spec] time_att_total contar_datos_total ssz_len_total bl_len_to
 theorem process_attestations_total_spec (state : tipos.State)
     (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
     (hm : HashMapDevuelve)
-    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
     (hval : state.validators.items.val.length ≤ 4096)
     (hraices : state.justifications_roots.items.val.length +
                  atts.items.val.length ≤ 262144)
@@ -8557,7 +8570,6 @@ end
 theorem process_attestations_devuelve (state : tipos.State)
     (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
     (hm : HashMapDevuelve)
-    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
     (hval : state.validators.items.val.length ≤ 4096)
     (hraices : state.justifications_roots.items.val.length +
                  atts.items.val.length ≤ 262144)
@@ -8565,7 +8577,7 @@ theorem process_attestations_devuelve (state : tipos.State)
     (hcap : state.justified_slots.bits.val.length ≤ 262144) :
     ∃ r, stf.process_attestations state atts = ok r := by
   obtain ⟨r, hr, -⟩ := of_triple_total
-    (process_attestations_total_spec state atts hm hcmp hval hraices hfin hcap)
+    (process_attestations_total_spec state atts hm hval hraices hfin hcap)
   exact ⟨r, hr⟩
 
 /-- Lo mismo, con las dos hipotesis sobre la ventana y la finalidad sacadas
@@ -8573,7 +8585,6 @@ theorem process_attestations_devuelve (state : tipos.State)
 theorem process_attestations_devuelve_inv (state : tipos.State)
     (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
     (hm : HashMapDevuelve)
-    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
     (hval : state.validators.items.val.length ≤ 4096)
     (hraices : state.justifications_roots.items.val.length +
                  atts.items.val.length ≤ 262144)
@@ -8584,7 +8595,7 @@ theorem process_attestations_devuelve_inv (state : tipos.State)
     unfold VentanaNoPasa at hv
     have := hh.2
     scalar_tac
-  exact process_attestations_devuelve state atts hm hcmp hval hraices hfin hcap
+  exact process_attestations_devuelve state atts hm hval hraices hfin hcap
 
 end NP7
 
@@ -8614,8 +8625,9 @@ end NP7
    - las raices pendientes del estado mas las attestations del bloque no
      pasan de 262144. Es la condicion suficiente del teorema 20.
    - `HashDevuelve`: los tres `hash_tree_root` devuelven. Es un sustituto.
-   - `HashMapDevuelve` y la comparacion de `H256`: declaraciones sin
-     contenido.
+   - `HashMapDevuelve`: declaraciones sin contenido. (Hasta el 19 nov 2026
+     se pedia ademas que la comparacion de `H256` devolviera; ahora esta
+     demostrado.)
 
    Lo que NO dice: que estas hipotesis valgan en todo estado alcanzable.
    Los dos invariantes se conservan, pero su caso inicial (el genesis) no
@@ -8725,14 +8737,13 @@ theorem header_transicion_spec (state : tipos.State) (block : tipos.Block)
 theorem atts_transicion_spec (state : tipos.State)
     (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
     (hm : HashMapDevuelve)
-    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
     (hval : state.validators.items.val.length ≤ 4096)
     (hraices : state.justifications_roots.items.val.length +
                  atts.items.val.length ≤ 262144)
     (hv : VentanaNoPasa state) (hh : HistorialAcotado state) :
     ⦃ ⌜ True ⌝ ⦄ stf.process_attestations state atts ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
   devuelve_spec _
-    (process_attestations_devuelve_inv state atts hm hcmp hval hraices hv hh)
+    (process_attestations_devuelve_inv state atts hm hval hraices hv hh)
 
 theorem time_block_total :
     ⦃ ⌜ True ⌝ ⦄ stubs.metrics.time_block_processing ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
@@ -8753,7 +8764,6 @@ attribute [local spec] time_block_total header_transicion_spec
 theorem process_block_total_spec (state : tipos.State) (block : tipos.Block)
     (h64 : UScalarTy.Usize.numBits = 64)
     (hd : HashDevuelve) (hm : HashMapDevuelve)
-    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
     (hval : state.validators.items.val.length ≤ 4096)
     (hraices : state.justifications_roots.items.val.length +
                  block.body.attestations.items.val.length ≤ 262144)
@@ -8775,7 +8785,6 @@ attribute [local spec] time_transition_total slots_transicion_spec
 theorem state_transition_total_spec (state : tipos.State) (block : tipos.Block)
     (h64 : UScalarTy.Usize.numBits = 64)
     (hd : HashDevuelve) (hm : HashMapDevuelve)
-    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
     (hval : state.validators.items.val.length ≤ 4096)
     (hraices : state.justifications_roots.items.val.length +
                  block.body.attestations.items.val.length ≤ 262144)
@@ -8793,28 +8802,26 @@ end
 theorem process_block_devuelve (state : tipos.State) (block : tipos.Block)
     (h64 : UScalarTy.Usize.numBits = 64)
     (hd : HashDevuelve) (hm : HashMapDevuelve)
-    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
     (hval : state.validators.items.val.length ≤ 4096)
     (hraices : state.justifications_roots.items.val.length +
                  block.body.attestations.items.val.length ≤ 262144)
     (hv : VentanaNoPasa state) (hh : HistorialAcotado state) :
     ∃ r, stf.process_block state block = ok r := by
   obtain ⟨r, hr, -⟩ := of_triple_total
-    (process_block_total_spec state block h64 hd hm hcmp hval hraices hv hh)
+    (process_block_total_spec state block h64 hd hm hval hraices hv hh)
   exact ⟨r, hr⟩
 
 /-- La transicion de estado entera no entra en panico. -/
 theorem state_transition_devuelve (state : tipos.State) (block : tipos.Block)
     (h64 : UScalarTy.Usize.numBits = 64)
     (hd : HashDevuelve) (hm : HashMapDevuelve)
-    (hcmp : ∀ x y : tipos.H256, ∃ o, tipos.H256.Insts.CoreCmpOrd.cmp x y = ok o)
     (hval : state.validators.items.val.length ≤ 4096)
     (hraices : state.justifications_roots.items.val.length +
                  block.body.attestations.items.val.length ≤ 262144)
     (hv : VentanaNoPasa state) (hh : HistorialAcotado state) :
     ∃ r, stf.state_transition state block = ok r := by
   obtain ⟨r, hr, -⟩ := of_triple_total
-    (state_transition_total_spec state block h64 hd hm hcmp hval hraices hv hh)
+    (state_transition_total_spec state block h64 hd hm hval hraices hv hh)
   exact ⟨r, hr⟩
 
 end NP8
@@ -8888,3 +8895,4 @@ end NP8
 #print axioms NP7.process_attestations_devuelve_inv
 #print axioms NP8.process_block_devuelve
 #print axioms NP8.state_transition_devuelve
+#print axioms NP4.h256_cmp_devuelve
