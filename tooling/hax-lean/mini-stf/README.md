@@ -438,7 +438,7 @@ mantenimiento, y una propuesta que no lo menciona no es creible.
 
 ## El bug del 4 nov: el error que no salía
 
-Lo encontramos de rebote. Pablo mandó
+Lo encontramos de rebote. Estábamos leyendo
 [el manual de hax para Lean](https://hax.cryspen.com/manual/lean/quick_start/),
 que trae soporte para invariantes de loop. Para escribir el invariante de
 `process_attestations` había que leer con lupa cómo quedó ese loop traducido, y
@@ -496,7 +496,7 @@ ControlFlow (Range × State × U64 × MapaVotos × Option Error)
 
 O sea que arreglar el bug habilitó la mitad de `ST-3` que nos faltaba.
 
-## Tres cosas que aprendimos del manual que mandó Pablo
+## Tres cosas que aprendimos del manual de hax
 
 **1. `--charon-args="--start-from <función>"` no trae los tipos de una
 dependencia.** El manual dice que extrae la función *"along with all its
@@ -652,8 +652,7 @@ queda ahi. **Al sacar un `--opaque`, sacar tambien su axioma.**
 Los tres hallazgos de herramienta -- que los axiomas nativos vienen de la
 biblioteca de tacticas de Aeneas, que `--start-from` no trae los tipos de una
 dependencia, y que un axioma de `Assumptions/` puede pisar una definicion
-generada sin que nada avise -- quedan anotados aca y en el PROPOSAL, pero **no
-vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
+generada sin que nada avise -- quedan anotados aca y en el PROPOSAL.
 
 1. **Subir las dos mitades a `state_transition`**, que convierte lo que hay en
    ST-3 de verdad. Es el paso corto, y el que va a destapar la trampa del
@@ -800,9 +799,9 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    >   ancho de `usize` (`System.Platform.numBits`), asi que el compuesto
    >   necesita la hipotesis de que la distancia entra. En 32 bits truncaria.
    > - Las funciones traducidas son `noncomputable`, asi que no se pueden
-   >   correr con `#eval`. Quise usarlo para mostrar un caso concreto y no se
-   >   puede. No confirme el motivo exacto; dependen del axioma de `fmt` que
-   >   usa `.expect()`, que alcanza para explicarlo.
+   >   correr con `#eval`. Se quiso usar para mostrar un caso concreto y no
+   >   se puede. El motivo exacto no esta confirmado; dependen del axioma de
+   >   `fmt` que usa `.expect()`, que alcanza para explicarlo.
    >
    > Lo que sigue: los `.expect()` y el `.unwrap()` de este modulo. Con las
    > ecuaciones de la capa base ya se puede atacar la ausencia de panico de
@@ -983,7 +982,7 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    > `process_block_header` no entran en panico** (teorema 15, namespace
    > `NP3`). Son las dos que hashean.
    >
-   > - Decision de Eduardo: NO probar que el hash sustituto termina (son mas
+   > - Decision: NO probar que el hash sustituto termina (son mas
    >   de diez loops y no diria nada del hash real). "El hash devuelve" va
    >   como hipotesis escrita, una por llamada. Se usa con `devuelve_spec`:
    >   de `∃ r, x = ok r` saca la terna total, y como lema `@[spec]` con
@@ -1028,8 +1027,8 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    > Octava nota del 17 nov 2026: **`serialize_justifications` no entra en
    > panico** (teorema 16, namespace `NP4`), y de paso `claves_ordenadas`.
    >
-   > - SORPRESA: yo habia dicho que esta no pedia ninguna decision previa, y
-   >   no era asi. El ordenamiento compara `H256` con `<`, que baja a
+   > - SORPRESA: se habia dado por hecho que esta no pedia ninguna decision
+   >   previa, y no era asi. El ordenamiento compara `H256` con `<`, que baja a
    >   `core.Array.Insts.CoreCmpOrd.cmp`, una de las 26 declaraciones sin
    >   contenido. No se puede probar que devuelve. Se tomo como hipotesis
    >   escrita (`hcmp : ∀ x y, ∃ o, cmp x y = ok o`), igual que el hash. La
@@ -1140,11 +1139,6 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    >
    > Axiomas: `try_finalize_devuelve` y `_inv` 13 (3 de Lean, 3 nativos, 7
    > declaraciones); `filtrado_devuelve` 3.
-   >
-   > INCIDENTE: a mitad de sesion el motor de Docker se colgo (error 500 y
-   > despues sin respuesta, con la VM reiniciada sola). Se arreglo cerrando
-   > Docker Desktop del todo y abriendolo de nuevo. Los volumenes
-   > `hax-elan`, `hax-cargo` y `hax-cache` y la imagen no se perdieron.
    >
    > Lo que sigue: `process_attestations`, que es el loop grande, y
    > despues `process_block` y `state_transition`.
@@ -1285,7 +1279,7 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    > la cota fina de raices, o el caso inicial del genesis.
 
    > Cuarta nota del 18 nov 2026: **`axiomas.txt` rehecho, y ahora lo arma
-   > un script.** Eduardo noto dos cosas al leerlo. Una: no decia en que
+   > un script.** Al leerlo aparecieron dos faltas. Una: no decia en que
    > teoremas participa cada axioma. Dos: tampoco decia con todas las
    > letras "el teorema X utiliza los axiomas A, B, C": ponia
    > `TOTAL 13 = 3 estandar + 3 nativos + 7 modelos`, dos listas sueltas, y

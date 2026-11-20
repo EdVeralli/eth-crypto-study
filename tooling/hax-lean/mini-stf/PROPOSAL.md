@@ -323,7 +323,7 @@ Everything, with line counts as shipped.
 | `axiomas.txt` | 1668 | ours — the `#print axioms` output, so the trust base can be read without building. Both ways round: each theorem with the axioms it uses, and each axiom with the theorems it appears in. |
 | `axiomas.py` | 204 | ours — builds `axiomas.txt` from the build log. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 1774 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 1768 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
