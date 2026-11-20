@@ -45,7 +45,7 @@ and Lean accepts them with no `sorry`. That says the program got written in
 Lean. It does not say it is correct.
 
 **The proofs are of specific properties.** A program is not "proved": statements
-about it are. There are seventy-three here, listed under **What you get**. Each
+about it are. There are seventy-five here, listed under **What you get**. Each
 says one precise thing, with its hypotheses in plain sight.
 
 What is **not** proved, said once:
@@ -169,12 +169,12 @@ What each step should give:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
-| 6 | `73` — one axiom block per result — and `0` |
+| 6 | `75` — one axiom block per result — and `0` |
 
 There is no separate "run the proofs" step. The theorems are in
 `teoremas/ProofObligations.lean`; step 5 copies that file into the Lean project
 and `lake build` checks all of it. If the build ends green, Lean accepted the
-seventy-three proofs. At the end it prints which axioms each one depends on, which
+seventy-five proofs. At the end it prints which axioms each one depends on, which
 is what step 6 counts.
 
 To convince yourself the check is real, break a statement by hand. In
@@ -303,11 +303,11 @@ Everything, with line counts as shipped.
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 413 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 8942 | ours — the theorems. |
-| `axiomas.txt` | 1148 | ours — the `#print axioms` output, so the trust base can be read without building. Both ways round: each theorem with the axioms it uses, and each axiom with the theorems it appears in. |
+| `teoremas/ProofObligations.lean` | 9159 | ours — the theorems. |
+| `axiomas.txt` | 1209 | ours — the `#print axioms` output, so the trust base can be read without building. Both ways round: each theorem with the axioms it uses, and each axiom with the theorems it appears in. |
 | `axiomas.py` | 217 | ours — builds `axiomas.txt` from the build log. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 1376 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 1405 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -400,7 +400,7 @@ down.
 
 ## What you get
 
-`teoremas/ProofObligations.lean` holds seventy-three named results:
+`teoremas/ProofObligations.lean` holds seventy-five named results:
 
 | Result | What it is |
 |---|---|
@@ -476,6 +476,8 @@ down.
 | `NP7.process_attestations_devuelve_inv` | the same, with the window and finality taken from the transition's invariants |
 | `NP8.process_block_devuelve` | `process_block` does not panic, with the hypotheses put together |
 | `NP8.state_transition_devuelve` | **the whole state transition does not panic**, under written hypotheses |
+| `RV.state_transition_no_toca_validadores` | the transition does not change the validators, whether it accepts the block or rejects it |
+| `RV.state_transition_conserva_hipotesis` | the three hypotheses on the state are preserved from one block to the next |
 | `bind_da_ok` | a tool: opens one `RustM` bind |
 
 They were not picked for count. Between them they cover arithmetic, branching
@@ -1410,8 +1412,8 @@ glue, that what each step asks for still holds after the previous one:
   `process_attestations` the window's capacity.
 
 **What it does not say.** That those hypotheses hold in every reachable state.
-The two invariants are preserved from one block to the next, but their initial
-case, genesis, is not proved. The bound on roots is a condition on the inputs,
+The three about the state are preserved from one block to the next (next
+section), but their initial case, genesis, is not proved. The bound on roots is a condition on the inputs,
 not an invariant. And that the hash returns cannot be proved here.
 
 Negative controls, two. Without the history invariant, the header's
@@ -1421,6 +1423,38 @@ roots stay open.
 
 Both results depend on sixteen axioms, exactly the same ones as the
 definition of `state_transition` with no theorem in between.
+
+### The hypotheses on the state are preserved
+
+The result above asks three things of the input state: the two invariants and
+at most 4096 validators. If they had to be assumed again for every block, the
+result would be of little use. They do not:
+
+| Result | What it says |
+|---|---|
+| `RV.state_transition_no_toca_validadores` | after the transition the validators are the same, whether it accepts the block or rejects it |
+| `RV.state_transition_conserva_hipotesis` | if the three hypotheses hold before the block, they hold after |
+
+The two invariants were already known to be preserved. The third was missing,
+and it comes the shortest way: no function of the transition writes to
+`validators`. `try_finalize` changes finality and the window;
+`serialize_justifications` changes the pending roots and the flat vote list.
+Mind that name: `justifications_validators` is the vote list, not the
+validator registry.
+
+**What it is for.** Chaining blocks. It is enough to assume the three
+hypotheses once, on the state you start from, and they keep holding block
+after block.
+
+**What this chaining does not cover.** Two things. The bound on pending roots
+plus attestations, which depends on each block and is not an invariant. And
+the starting point: that the three hypotheses hold at genesis is not proved.
+
+These are "if it returns" results. As a negative control we took away from the
+attestation loop what it knows about `try_finalize`: exactly the goals about
+the validators stay open.
+
+Both depend on the same sixteen axioms.
 
 ### What this is against the catalog, stated exactly
 
@@ -1510,6 +1544,7 @@ own properties makes the exercise circular.
 | no panic: `construir_root_to_slot` | 6 | 3 | — | 3 |
 | no panic: `process_attestations`, both results | 14 | 3 | 7 | 4 |
 | no panic: `process_block` and `state_transition` | 16 | 3 | 9 | 4 |
+| the validators and the hypotheses along `state_transition`, both | 16 | 3 | 9 | 4 |
 
 Three categories, with three different weights.
 

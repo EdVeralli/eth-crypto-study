@@ -45,7 +45,7 @@ Lean las acepta sin `sorry`. Eso dice que el programa quedó escrito en Lean. No
 dice que sea correcto.
 
 **Las demostraciones son de propiedades puntuales.** Un programa no "se
-demuestra": se demuestran afirmaciones sobre él. Acá hay setenta y tres,
+demuestra": se demuestran afirmaciones sobre él. Acá hay setenta y cinco,
 listadas en **Qué recibe**. Cada una dice una cosa precisa, con sus hipótesis a
 la vista.
 
@@ -174,12 +174,12 @@ Qué tiene que dar cada paso:
 |---|---|
 | 4 | `test result: ok. 9 passed` |
 | 5 | `Build completed successfully (1742 jobs).` y después `=== listo ===` (1743 jobs la primera vez sobre un checkout limpio) |
-| 6 | `73` — un bloque de axiomas por resultado — y `0` |
+| 6 | `75` — un bloque de axiomas por resultado — y `0` |
 
 No hay un paso aparte de "correr las pruebas". Los teoremas están en
 `teoremas/ProofObligations.lean`; el paso 5 copia ese archivo adentro del
 proyecto Lean y `lake build` lo chequea entero. Si el build termina en verde,
-Lean aceptó las setenta y tres demostraciones. Al final imprime de qué axiomas
+Lean aceptó las setenta y cinco demostraciones. Al final imprime de qué axiomas
 depende cada una, que es lo que cuenta el paso 6.
 
 Para convencerse de que el chequeo es real, rompan un enunciado a mano. En
@@ -308,11 +308,11 @@ Todo, con las líneas tal como se entrega.
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 413 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 8942 | nuestro — los teoremas. |
-| `axiomas.txt` | 1148 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. En los dos sentidos: cada teorema con los axiomas que utiliza, y cada axioma con los teoremas donde aparece. |
+| `teoremas/ProofObligations.lean` | 9159 | nuestro — los teoremas. |
+| `axiomas.txt` | 1209 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. En los dos sentidos: cada teorema con los axiomas que utiliza, y cada axioma con los teoremas donde aparece. |
 | `axiomas.py` | 217 | nuestro — arma `axiomas.txt` a partir del log del build. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 1376 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 1405 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -408,7 +408,7 @@ más abajo.
 
 ## Qué recibe
 
-`teoremas/ProofObligations.lean` tiene setenta y tres resultados con nombre:
+`teoremas/ProofObligations.lean` tiene setenta y cinco resultados con nombre:
 
 | Resultado | Qué es |
 |---|---|
@@ -484,6 +484,8 @@ más abajo.
 | `NP7.process_attestations_devuelve_inv` | lo mismo, con la ventana y la finalidad sacadas de los invariantes de la transición |
 | `NP8.process_block_devuelve` | `process_block` no entra en pánico, con las hipótesis juntas |
 | `NP8.state_transition_devuelve` | **la transición de estado entera no entra en pánico**, bajo hipótesis escritas |
+| `RV.state_transition_no_toca_validadores` | la transición no cambia los validadores, acepte el bloque o lo rechace |
+| `RV.state_transition_conserva_hipotesis` | las tres hipótesis sobre el estado se conservan de un bloque al siguiente |
 | `bind_da_ok` | una herramienta: abre un bind de `RustM` |
 
 No se eligieron por cantidad. Entre todos cubren aritmética, ramificación y
@@ -1413,9 +1415,9 @@ pegamento, que lo que pide cada paso siga valiendo después del anterior:
   `process_block_header` que el historial está alineado, y
   `process_attestations` la capacidad de la ventana.
 
-**Qué no dice.** Que esas hipótesis valgan en todo estado alcanzable. Los dos
-invariantes se conservan de un bloque al siguiente, pero su caso inicial, el
-génesis, no está demostrado. La cota de raíces es una condición sobre las
+**Qué no dice.** Que esas hipótesis valgan en todo estado alcanzable. Las tres
+que hablan del estado se conservan de un bloque al siguiente (sección que
+sigue), pero su caso inicial, el génesis, no está demostrado. La cota de raíces es una condición sobre las
 entradas, no un invariante. Y que el hash devuelva no se puede demostrar acá.
 
 Controles negativos, dos. Sin el invariante del historial queda abierta la
@@ -1425,6 +1427,39 @@ raíces.
 
 Los dos resultados dependen de dieciséis axiomas, exactamente los mismos que la
 definición de `state_transition` sin ningún teorema de por medio.
+
+### Las hipótesis sobre el estado se conservan
+
+El resultado de arriba pide tres cosas del estado de entrada: los dos
+invariantes y que haya a lo sumo 4096 validadores. Si hubiera que suponerlas de
+nuevo en cada bloque, el resultado serviría de poco. No hace falta:
+
+| Resultado | Qué dice |
+|---|---|
+| `RV.state_transition_no_toca_validadores` | después de la transición los validadores son los mismos, acepte el bloque o lo rechace |
+| `RV.state_transition_conserva_hipotesis` | si las tres hipótesis valen antes del bloque, valen después |
+
+Los dos invariantes ya se sabía que se conservan. Faltaba la tercera, y sale por
+el camino más corto: ninguna función de la transición escribe en `validators`.
+`try_finalize` cambia la finalidad y la ventana; `serialize_justifications`
+cambia las raíces pendientes y la lista plana de votos. Ojo con ese nombre:
+`justifications_validators` es la lista de votos, no el registro de
+validadores.
+
+**Para qué sirve.** Para encadenar bloques. Alcanza con suponer las tres
+hipótesis una vez, sobre el estado del que se parte, y siguen valiendo bloque
+tras bloque.
+
+**Lo que este encadenamiento no cubre.** Dos cosas. La cota de raíces
+pendientes más attestations, que depende de cada bloque y no es un invariante.
+Y el punto de partida: que las tres hipótesis valgan en el génesis no está
+demostrado.
+
+Son resultados del tipo "si devuelve". Como control negativo le sacamos al loop
+de attestations lo que sabe de `try_finalize`: quedan abiertas justo las metas
+sobre los validadores.
+
+Los dos dependen de los mismos dieciséis axiomas.
 
 ### Qué es esto contra el catálogo, dicho exacto
 
@@ -1513,6 +1548,7 @@ importa: elegir las propias propiedades vuelve el ejercicio circular.
 | sin pánico: `construir_root_to_slot` | 6 | 3 | — | 3 |
 | sin pánico: `process_attestations`, los dos resultados | 14 | 3 | 7 | 4 |
 | sin pánico: `process_block` y `state_transition` | 16 | 3 | 9 | 4 |
+| los validadores y las hipótesis a lo largo de `state_transition`, los dos | 16 | 3 | 9 | 4 |
 
 Tres categorías, con tres pesos distintos.
 

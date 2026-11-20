@@ -1372,5 +1372,34 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    > `state_transition` queda UNA: que el hash devuelva. Las otras que
    > quedan son los dos invariantes, los 4096 validadores, la cota de
    > raices y `usize` de 64 bits.
+
+   > Tercera nota del 19 nov 2026: **la transicion no toca los validadores**
+   > (teorema 22, namespace `RV`). Dos resultados:
+   > `state_transition_no_toca_validadores` y
+   > `state_transition_conserva_hipotesis`.
+   >
+   > - Para que: `state_transition_devuelve` pide tres cosas del estado
+   >   (los dos invariantes y validadores ≤ 4096). Los invariantes ya se
+   >   conservaban; ahora la tercera tambien. Alcanza con suponer las tres
+   >   una vez y se pueden encadenar bloques.
+   > - Salio en una pasada, copiando la forma de los lemas del historial
+   >   (teorema 13): un lema parcial por funcion, el loop con el invariante
+   >   "los validadores son los del principio", y arriba `process_block` y
+   >   `state_transition`.
+   > - `serialize_justifications`: ecuacional, ocho `bind_da_ok` y `rfl`,
+   >   igual que `serialize_no_toca_ventana`.
+   > - `try_finalize`: con la misma lista de lemas triviales del teorema
+   >   17; cierra con `rfl`.
+   > - OJO con el nombre: `justifications_validators` es la lista plana de
+   >   VOTOS, no el registro. `serialize_justifications` la reescribe y no
+   >   toca `validators`.
+   >
+   > Control negativo: con `try_finalize_spec` (el trivial) en la lista
+   > del loop quedan abiertas dos metas `r.1.validators = s0.validators`.
+   >
+   > Axiomas: los dos resultados 16, los de `state_transition`.
+   >
+   > Lo que este encadenamiento NO cubre: la cota de raices (depende de
+   > cada bloque) y el genesis.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

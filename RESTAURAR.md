@@ -200,7 +200,7 @@ loops, closures, instancias de `Debug`/`Display` y las diecinueve funciones
 auxiliares nuestras) y da 66, no 12.
 
 Si el `lake build` imprime las bases de axiomas, compará contra
-`mini-stf/axiomas.txt`: setenta y tres bloques, nueve nativos distintos en total, y
+`mini-stf/axiomas.txt`: setenta y cinco bloques, nueve nativos distintos en total, y
 16 axiomas (3 estándar + 9 nativos + 4 modelos) para los resultados sobre
 `state_transition`.
 
@@ -285,7 +285,7 @@ al día juntos.
 
 Qué tiene: la STF de ethlambda traducida a Lean con las doce funciones y cero
 `sorry`, ocho de doce idénticas a las de ellos salvo comentarios, un bug que
-encontramos en la reescritura con los dos tests que lo cubren, sesenta y nueve
+encontramos en la reescritura con los dos tests que lo cubren, setenta y un
 teoremas sobre su código —las siete proposiciones de transición de estado del
 catálogo de formal-leanSpec, con las salvedades que dice la propuesta, y desde
 el 17 nov los cuatro de la ventana de slots justificados, la ausencia de pánico

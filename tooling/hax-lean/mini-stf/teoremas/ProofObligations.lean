@@ -8869,6 +8869,221 @@ theorem state_transition_devuelve (state : tipos.State) (block : tipos.Block)
 
 end NP8
 
+/- ===========================================================================
+   Teorema 22 — la transicion no toca los validadores
+
+   `state_transition_devuelve` (teorema 21) pide tres cosas del estado de
+   entrada: los dos invariantes, `VentanaNoPasa` e `HistorialAcotado`, y que
+   haya a lo sumo 4096 validadores. Los dos invariantes ya se sabia que se
+   conservan (teoremas 12 y 13). Aca se prueba lo mismo para la tercera, por
+   el camino mas corto: la transicion no cambia el campo `validators`.
+
+   - `process_slots` y `process_block_header` no lo tocan (teorema 21).
+   - `try_finalize` cambia `latest_finalized` y `justified_slots`, y nada
+     mas.
+   - `serialize_justifications` cambia `justifications_roots` y
+     `justifications_validators`, y nada mas. OJO con el nombre:
+     `justifications_validators` es la lista plana de votos, no el
+     registro de validadores.
+   - el loop de attestations lleva "los validadores son los del principio"
+     como invariante.
+
+   Con eso, `state_transition_conserva_hipotesis` junta las tres: si valen
+   antes del bloque, valen despues, acepte el bloque o lo rechace. Es lo
+   que hace falta para encadenar bloques sin volver a suponer nada sobre el
+   estado: alcanza con suponerlo una vez, sobre el estado del que se parte.
+
+   Lo que NO queda cubierto por este encadenamiento: la cota "raices
+   pendientes mas attestations del bloque", que depende de cada bloque y no
+   es un invariante; y que las hipotesis valgan en el genesis.
+
+   Son resultados parciales ("si devuelve"), como los de los teoremas 6 a 8.
+
+   Control negativo, en la bitacora: si el loop no sabe que `try_finalize`
+   deja los validadores, quedan abiertas justo esas metas.
+   =========================================================================== -/
+
+namespace RV
+open mini_stf
+open Std.Tactic
+open ST3 JS NP NP2 NP3 NP4 NP5 NP6 NP7 NP8 MV VC VI HC
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+/-- `serialize_justifications` no toca los validadores. -/
+theorem serialize_no_toca_validadores
+    (state state' : tipos.State) (j : mapa.MapaVotos) (vc : Std.Usize)
+    (h : stf.serialize_justifications state j vc = ok state') :
+    state'.validators = state.validators := by
+  unfold stf.serialize_justifications at h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  obtain ⟨_, _, h⟩ := bind_da_ok h
+  simp only [RustM.ok.injEq] at h
+  subst h
+  rfl
+
+theorem serialize_validadores_spec (st : tipos.State) (j : mapa.MapaVotos)
+    (vc : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.serialize_justifications st j vc
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.validators = st.validators ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv => serialize_no_toca_validadores st v j vc hv)
+
+section
+attribute [local spec] hay_slot_spec inc_fin_spec vec_new_spec largo_spec
+  tf_loop_spec vec_deref_spec filtrado_spec shift_trivial_spec
+
+theorem try_finalize_validadores_spec (state : tipos.State)
+    (source target : tipos.Checkpoint) (j : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global) :
+    ⦃ ⌜ True ⌝ ⦄ stf.try_finalize state source target j rts
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.1.validators = state.validators ⌝) ⦄ := by
+  unfold stf.try_finalize
+  hax_mvcgen
+  all_goals first
+    | rfl
+    | trivial
+end
+
+section
+attribute [local spec] is_none_spec dato_en_spec bits_en_uno_en_spec
+  is_valid_vote_spec primer_bit_spec votos_vacios_spec poner_si_falta_spec
+  marcar_votos_spec cuenta_votos_spec sin_spec div_ceil_spec set_justified_spec
+  try_finalize_validadores_spec
+
+theorem process_attestations_loop_validadores_spec
+    (s0 : tipos.State)
+    (attestations : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (validator_count n : Std.Usize)
+    (j0 : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations_loop { start := 0#usize, «end» := n } s0
+      attestations validator_count 0#u64 j0 rts core.option.Option.None
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.1.validators = s0.validators ⌝) ⦄ := by
+  unfold stf.process_attestations_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × Acc =>
+              x.2.1.validators = s0.validators)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · rfl
+  · intro x hinv
+    obtain ⟨iter, st, ap, jj, fl⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    simp only at hinv
+    unfold stf.process_attestations_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | assumption
+      | trivial
+      | simp [PostCond.div, PostCond.mayThrow]
+      | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+end
+
+section
+attribute [local spec] timer_spec inc_procesadas_spec contar_datos_spec
+  hay_raiz_cero_spec construir_mapa_spec construir_rts_spec ssz_len_spec
+  bitlist_len_spec serialize_validadores_spec
+  process_attestations_loop_validadores_spec
+
+theorem process_attestations_validadores_spec (state : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_attestations state atts
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.2.validators = state.validators ⌝) ⦄ := by
+  unfold stf.process_attestations
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | assumption
+    | trivial
+    | simp [PostCond.div, PostCond.mayThrow]
+    | (simp_all [PostCond.okAssertion, PostCond.mayThrow]; done)
+end
+
+theorem header_validadores_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_block_header state block
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.2.validators = state.validators ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv =>
+    (of_triple_mayThrow (header_registro_spec state block) hv).1)
+
+theorem slots_validadores_spec (state : tipos.State) (t : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_slots state t
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.2.validators = state.validators ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv => by
+    obtain ⟨res, st'⟩ := v
+    exact (process_slots_no_toca_registro state st' t res hv).1)
+
+section
+attribute [local spec] ST3H.branch_spec ST3H.from_residual_spec
+  ST3T.time_block_spec header_validadores_spec process_attestations_validadores_spec
+
+theorem process_block_validadores_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_block state block
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.2.validators = state.validators ⌝) ⦄ := by
+  unfold stf.process_block
+  hax_mvcgen
+  all_goals first
+    | rfl
+    | assumption
+    | (simp_all; done)
+    | grind
+end
+
+section
+attribute [local spec] ST3H.branch_spec ST3H.from_residual_spec
+  ST3H.ne_default_spec ST3T.time_transition_spec ST3T.state_hash_spec
+  slots_validadores_spec process_block_validadores_spec
+
+theorem state_transition_validadores_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄ stf.state_transition state block
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.2.validators = state.validators ⌝) ⦄ := by
+  unfold stf.state_transition
+  hax_mvcgen
+  all_goals first
+    | rfl
+    | assumption
+    | (simp_all; done)
+    | grind
+end
+
+/-- La transicion de un bloque no cambia los validadores, acepte el bloque o
+    lo rechace. -/
+theorem state_transition_no_toca_validadores
+    (state state' : tipos.State) (block : tipos.Block)
+    (res : core.result.Result Unit stf.Error)
+    (h : stf.state_transition state block = ok (res, state')) :
+    state'.validators = state.validators :=
+  of_triple_mayThrow (state_transition_validadores_spec state block) h
+
+/-- Las tres hipotesis sobre el estado que pide `state_transition_devuelve`
+    se conservan: si valen antes del bloque, valen despues. -/
+theorem state_transition_conserva_hipotesis
+    (state state' : tipos.State) (block : tipos.Block)
+    (res : core.result.Result Unit stf.Error)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hv : VentanaNoPasa state) (hh : HistorialAcotado state)
+    (hval : state.validators.items.val.length ≤ 4096)
+    (h : stf.state_transition state block = ok (res, state')) :
+    VentanaNoPasa state' ∧ HistorialAcotado state' ∧
+    state'.validators.items.val.length ≤ 4096 := by
+  obtain ⟨hv', hh'⟩ := state_transition_conserva_acotado state state' block res h64 hv hh h
+  refine ⟨hv', hh', ?_⟩
+  rw [state_transition_no_toca_validadores state state' block res h]
+  exact hval
+
+end RV
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -8940,3 +9155,5 @@ end NP8
 #print axioms NP8.state_transition_devuelve
 #print axioms NP4.h256_cmp_devuelve
 #print axioms NP6.hashmap_devuelve
+#print axioms RV.state_transition_no_toca_validadores
+#print axioms RV.state_transition_conserva_hipotesis
