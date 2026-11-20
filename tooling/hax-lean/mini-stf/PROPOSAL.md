@@ -76,12 +76,12 @@ What is **not** proved, said once:
   invariants, the bound on validators, `ST-4` and absence of panic — is proved
   over every reachable state, with no exception.
 - **That the Lean is faithful to your Rust.** There are two links. That our
-  rewritten functions do what the originals do is backed by your tests, which
-  run on this crate, for three of the four: none exercises
-  `process_block_header`. And there is one point where we know they do not do
-  the same, with a repeated pending root. Both are under **A bug the rewrite
-  introduced**. That the toolchain translates correctly is taken on trust from
-  the toolchain.
+  rewritten functions do what the originals do is backed by the tests, which
+  run on this crate: yours cover three of the four, and the fourth,
+  `process_block_header`, has a test of ours. And there is one point where we
+  know they do not do the same, with a repeated pending root. Both are under
+  **A bug the rewrite introduced**. That the toolchain translates correctly is
+  taken on trust from the toolchain.
 
 "No `sorry`" means there is no gap in what is claimed. It does not mean
 everything is claimed.
@@ -126,7 +126,7 @@ Four kinds of difference come out of it:
 1. the `use` block — our types come from this crate instead of yours;
 2. nineteen helper functions, new and ours, which the rewritten functions call;
 3. the four functions in the table under **What changed in your code**;
-4. three tests of ours appended to your test module, which lives in this file.
+4. four tests of ours appended to your test module, which lives in this file.
 
 Comments differ throughout, so to check the "eight of twelve unchanged" claim
 specifically, strip comments and blank lines first:
@@ -183,7 +183,7 @@ What each step should give:
 
 | Step | Result |
 |---|---|
-| 4 | `test result: ok. 11 passed` |
+| 4 | `test result: ok. 12 passed` |
 | 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
 | 6 | `102` — one axiom block per result — and `0` |
 
@@ -292,13 +292,13 @@ the twelve functions present as `def`s in
 first build on a clean checkout reports 1743, one more than every build after
 it.
 
-The tests — your six plus five of ours:
+The tests — your six plus six of ours:
 
 ```bash
 cargo test
 ```
 
-Eleven pass.
+Twelve pass.
 
 ## What the crate contains
 
@@ -306,7 +306,7 @@ Everything, with line counts as shipped.
 
 | File | Lines | Origin |
 |---|---|---|
-| `src/stf.rs` | 1587 | **yours** — `state_transition/src/lib.rs`: eight of twelve functions unchanged, four rewritten, nineteen helpers of ours, and your 437-line test module with three tests appended. |
+| `src/stf.rs` | 1671 | **yours** — `state_transition/src/lib.rs`: eight of twelve functions unchanged, four rewritten, nineteen helpers of ours, and your 437-line test module with four tests appended. |
 | `src/justified_slots_ops.rs` | 90 | **yours** — unchanged except the `use` lines. |
 | `src/tipos.rs` | 510 | **your type definitions**, serialization derives removed, plus our stand-in `hash_tree_root` and `State::from_genesis`, copied unchanged. |
 | `src/ssz.rs` | 154 | ours — stand-ins for `SszList` and `SszBitlist`. |
@@ -323,7 +323,7 @@ Everything, with line counts as shipped.
 | `axiomas.txt` | 1668 | ours — the `#print axioms` output, so the trust base can be read without building. Both ways round: each theorem with the axioms it uses, and each axiom with the theorems it appears in. |
 | `axiomas.py` | 204 | ours — builds `axiomas.txt` from the build log. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 1721 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 1745 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -419,15 +419,30 @@ The third test of ours is of a different kind: it does not cover our rewrite
 but a behaviour of your code. It is under **Checkpoint replacement**, further
 down.
 
-**What the tests do not cover.** The eleven call `process_attestations`,
-`attestation_data_matches_chain` or `from_genesis`. None calls
-`process_block_header` or `state_transition`. Three of the four rewritten
-functions are covered, because `try_finalize` and `serialize_justifications`
-are only called from `process_attestations`. The fourth is not: the change in
-`process_block_header` — a loop with `push` where there was
-`extend(repeat_n(...))` — is not exercised by any test. What there is about
-that loop is of a different kind: it is proved that it only appends to the
-history and that it leaves exactly the expected length.
+**The fourth rewritten function had no test, and now has one.** Your six
+tests call `process_attestations` or `attestation_data_matches_chain`. That
+covers three of the four rewritten functions, because `try_finalize` and
+`serialize_justifications` are only called from `process_attestations`. The
+fourth is `process_block_header`, where a loop with `push` replaces
+`extend(repeat_n(...))`, and none of them calls it. We added
+`process_block_header_fills_empty_slots_with_zero_hashes`: a block two slots
+after the latest header, and another with no empty slots in between. The
+history has to end up as it was, plus the parent root, plus one zero per empty
+slot.
+
+We checked it against the defect in two ways: with the loop doing one turn
+fewer, and with the loop appending another root instead of the zero. In both
+cases that test fails and the other eleven pass.
+
+Two limits. The expected value comes from reading what your
+`extend(repeat_n(...))` does, not from running it: the original cannot be
+executed inside this crate. And there is still no test that calls
+`state_transition`, `process_block` or `process_slots`; those three are
+unchanged apart from comments.
+
+About that loop there are also two theorems: that it only appends to the
+history and that it leaves exactly the expected length. That what is appended
+is zeros is not proved; that is what the test looks at.
 
 **A difference from your code that we found while reviewing, and did not
 fix.** You build the vote map with `.collect()` over the (root, votes) pairs of
@@ -2232,11 +2247,10 @@ and `process_block_header` do not panic**.
 base** above: nine native axioms that come with the translation, twenty
 declarations of ours that assert nothing, and five modeling claims we do make.
 
-**Our rewrite is not identical to the original at one point, and one change
-has no test.** With a repeated root in `justifications_roots`, the vote map is
-built differently: you keep the last occurrence and we keep the first. It is
-not reachable from genesis. And the change in `process_block_header` is not
-exercised by any test. It is set out under **A bug the rewrite introduced**.
+**Our rewrite is not identical to the original at one point.** With a repeated
+root in `justifications_roots`, the vote map is built differently: you keep the
+last occurrence and we keep the first. It is not reachable from genesis. It is
+set out under **A bug the rewrite introduced**.
 
 **`ST-7` does not hold on an arbitrary state.** It holds on the states
 reachable from genesis, from the first accepted block onwards. On a state that

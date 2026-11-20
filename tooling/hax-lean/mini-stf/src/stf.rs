@@ -915,7 +915,7 @@ pub fn slot_is_justifiable_after(slot: u64, finalized_slot: u64) -> bool {
 // comportamiento se preservo. No es una demostracion de equivalencia, pero es
 // mucho mejor que una promesa.
 //
-// De los seis de ellos, lo unico cambiado son los `use`. Los tres ultimos son
+// De los seis de ellos, lo unico cambiado son los `use`. Los cuatro ultimos son
 // nuestros, y cada uno dice arriba por que esta.
 //
 // OJO: `hash_tree_root` en este crate es un sustituto polinomico, no SSZ. Las
@@ -1583,5 +1583,89 @@ mod tests {
             state.latest_justified, before,
             "con la raiz coherente el checkpoint justificado queda igual entero"
         );
+    }
+
+    /// Test nuestro. Ninguno de los del original llama a `process_block_header`,
+    /// y es una de las cuatro funciones que reescribimos: donde ellos hacen
+    /// `extend(repeat_n(H256::ZERO, num_empty_slots))`, aca hay un loop con
+    /// `push`. Esto ejercita ese loop.
+    ///
+    /// El valor esperado sale de leer que hace el original, no de correrlo: el
+    /// historial queda como estaba, mas la raiz del padre, mas un cero por cada
+    /// slot vacio entre el padre y el bloque.
+    ///
+    /// Dos casos: con dos slots vacios en el medio, y sin ninguno (el loop no
+    /// da ninguna vuelta).
+    #[test]
+    fn process_block_header_fills_empty_slots_with_zero_hashes() {
+        const NUM_VALIDATORS: usize = 4;
+        let r0 = H256([0x10u8; 32]);
+        let r1 = H256([0x11u8; 32]);
+
+        // Ultimo header en el slot 2, un hash por slot en el historial (slots
+        // 0 y 1), y el estado ya avanzado al slot del bloque, como lo deja
+        // `process_slots`.
+        let armar = |slot_del_bloque: u64| {
+            let mut justified_slots = JustifiedSlots::new();
+            justified_slots_ops::extend_to_slot(&mut justified_slots, 0, 1);
+            State {
+                config: StateConfig { genesis_time: 0 },
+                slot: slot_del_bloque,
+                latest_block_header: BlockHeader {
+                    slot: 2,
+                    proposer_index: 2,
+                    parent_root: r1,
+                    state_root: H256([0x22u8; 32]),
+                    body_root: BlockBody::default().hash_tree_root(),
+                },
+                latest_justified: Checkpoint { slot: 0, root: r0 },
+                latest_finalized: Checkpoint { slot: 0, root: r0 },
+                historical_block_hashes: SszList::try_from(vec![r0, r1]).unwrap(),
+                justified_slots,
+                validators: SszList::try_from(make_validators(NUM_VALIDATORS)).unwrap(),
+                justifications_roots: Default::default(),
+                justifications_validators: JustificationValidators::new(),
+            }
+        };
+        let bloque = |state: &State, slot: u64| Block {
+            slot,
+            proposer_index: slot % NUM_VALIDATORS as u64,
+            parent_root: state.latest_block_header.hash_tree_root(),
+            state_root: H256::ZERO,
+            body: BlockBody::default(),
+        };
+
+        // Bloque en el slot 5: los slots 3 y 4 quedaron vacios.
+        let mut state = armar(5);
+        let block = bloque(&state, 5);
+        let padre = block.parent_root;
+        let justificado = state.latest_justified;
+        let finalizado = state.latest_finalized;
+        process_block_header(&mut state, &block).expect("process_block_header should succeed");
+        assert_eq!(
+            &state.historical_block_hashes[..],
+            &[r0, r1, padre, H256::ZERO, H256::ZERO][..],
+            "el historial es el viejo, la raiz del padre y un cero por slot vacio"
+        );
+        assert_eq!(state.latest_block_header.slot, 5);
+        assert_eq!(state.latest_block_header.parent_root, padre);
+        assert_eq!(state.latest_block_header.state_root, H256::ZERO);
+        // La ventana cubre del finalizado + 1 al slot anterior al bloque.
+        assert_eq!(state.justified_slots.len(), 4);
+        // El padre no es el del genesis: los checkpoints no se tocan.
+        assert_eq!(state.latest_justified, justificado);
+        assert_eq!(state.latest_finalized, finalizado);
+
+        // Bloque en el slot 3: no hay slots vacios, el loop no da vueltas.
+        let mut state = armar(3);
+        let block = bloque(&state, 3);
+        let padre = block.parent_root;
+        process_block_header(&mut state, &block).expect("process_block_header should succeed");
+        assert_eq!(
+            &state.historical_block_hashes[..],
+            &[r0, r1, padre][..],
+            "sin slots vacios solo se agrega la raiz del padre"
+        );
+        assert_eq!(state.justified_slots.len(), 2);
     }
 }

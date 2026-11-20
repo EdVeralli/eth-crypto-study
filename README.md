@@ -265,8 +265,8 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    del bloque respete la capacidad de su tipo (4096), que el Rust garantiza y
    la traducción a Lean no conserva.
 9. **Lo que queda abierto del paquete**, después de la revisión del 20 nov.
-   Tres cosas, ninguna de la lista original: no hay test que ejercite
-   `process_block_header` (el cambio del `repeat_n`); con una raíz repetida en
+   Dos cosas, ninguna de la lista original (la tercera, el test que faltaba
+   para `process_block_header`, se agregó ese mismo día): con una raíz repetida en
    `justifications_roots` nuestra `construir_mapa_de_votos` se queda con la
    primera aparición y el original con la última (inalcanzable desde el
    génesis, pero es una diferencia con su código); y `MapaVotos` no está

@@ -77,12 +77,12 @@ Lo que **no** está demostrado, dicho de una vez:
   de validadores, `ST-4` y la ausencia de pánico— está demostrado sobre todo
   estado alcanzable, sin excepción.
 - **Que el Lean sea fiel al Rust de ustedes.** Son dos eslabones. Que nuestras
-  funciones reescritas hacen lo mismo que las originales lo respaldan sus
-  tests, que corren sobre este crate, para tres de las cuatro: ninguno ejercita
-  `process_block_header`. Y hay un punto donde sabemos que no hacen lo mismo,
-  con una raíz pendiente repetida. Las dos cosas están en **Un bug que la
-  reescritura introdujo**. Que la cadena de herramientas traduce bien se le
-  cree a la cadena de herramientas.
+  funciones reescritas hacen lo mismo que las originales lo respaldan los
+  tests, que corren sobre este crate: los de ustedes cubren tres de las cuatro,
+  y la cuarta, `process_block_header`, tiene un test nuestro. Y hay un punto
+  donde sabemos que no hacen lo mismo, con una raíz pendiente repetida. Las dos
+  cosas están en **Un bug que la reescritura introdujo**. Que la cadena de
+  herramientas traduce bien se le cree a la cadena de herramientas.
 
 "Cero `sorry`" quiere decir que no hay ningún hueco en lo que sí se afirma. No
 quiere decir que esté todo afirmado.
@@ -129,7 +129,7 @@ De ahí salen cuatro clases de diferencia:
 2. diecinueve funciones auxiliares, nuevas y nuestras, que las funciones
    reescritas llaman;
 3. las cuatro funciones de la tabla de **Qué cambió de su código**;
-4. tres tests nuestros agregados a su módulo de tests, que vive en este archivo.
+4. cuatro tests nuestros agregados a su módulo de tests, que vive en este archivo.
 
 Los comentarios difieren en todo el archivo, así que para chequear
 específicamente la afirmación de "ocho de doce sin cambios", saquen primero
@@ -188,7 +188,7 @@ Qué tiene que dar cada paso:
 
 | Paso | Resultado |
 |---|---|
-| 4 | `test result: ok. 11 passed` |
+| 4 | `test result: ok. 12 passed` |
 | 5 | `Build completed successfully (1742 jobs).` y después `=== listo ===` (1743 jobs la primera vez sobre un checkout limpio) |
 | 6 | `102` — un bloque de axiomas por resultado — y `0` |
 
@@ -297,13 +297,13 @@ con las doce funciones presentes como `def` en
 `proofs/lean/MiniStf/Extraction/Funs.lean`. La cuenta de jobs es 1742; el primer
 build sobre un checkout limpio da 1743, uno más que todos los que le siguen.
 
-Los tests — sus seis más cinco nuestros:
+Los tests — sus seis más seis nuestros:
 
 ```bash
 cargo test
 ```
 
-Pasan once.
+Pasan doce.
 
 ## Qué contiene el crate
 
@@ -311,7 +311,7 @@ Todo, con las líneas tal como se entrega.
 
 | Archivo | Líneas | Origen |
 |---|---|---|
-| `src/stf.rs` | 1587 | **de ustedes** — `state_transition/src/lib.rs`: ocho de doce funciones sin cambios, cuatro reescritas, diecinueve auxiliares nuestras, y su módulo de tests de 437 líneas con tres tests agregados. |
+| `src/stf.rs` | 1671 | **de ustedes** — `state_transition/src/lib.rs`: ocho de doce funciones sin cambios, cuatro reescritas, diecinueve auxiliares nuestras, y su módulo de tests de 437 líneas con cuatro tests agregados. |
 | `src/justified_slots_ops.rs` | 90 | **de ustedes** — sin cambios salvo las líneas de `use`. |
 | `src/tipos.rs` | 510 | **sus definiciones de tipos**, sin los derives de serialización, más nuestro `hash_tree_root` sustituto y `State::from_genesis`, copiada sin cambios. |
 | `src/ssz.rs` | 154 | nuestro — sustitutos de `SszList` y `SszBitlist`. |
@@ -328,7 +328,7 @@ Todo, con las líneas tal como se entrega.
 | `axiomas.txt` | 1668 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. En los dos sentidos: cada teorema con los axiomas que utiliza, y cada axioma con los teoremas donde aparece. |
 | `axiomas.py` | 204 | nuestro — arma `axiomas.txt` a partir del log del build. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 1721 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 1745 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -427,15 +427,29 @@ El tercer test nuestro es de otra clase: no cubre nuestra reescritura sino un
 comportamiento del código de ustedes. Está en **El reemplazo de checkpoint**,
 más abajo.
 
-**Lo que los tests no cubren.** Los once llaman a `process_attestations`, a
-`attestation_data_matches_chain` o a `from_genesis`. Ninguno llama a
-`process_block_header` ni a `state_transition`. Tres de las cuatro funciones
-reescritas quedan cubiertas, porque `try_finalize` y `serialize_justifications`
-sólo se llaman desde `process_attestations`. La cuarta no: el cambio de
-`process_block_header` —un loop con `push` donde había `extend(repeat_n(...))`—
-no lo ejercita ningún test. Lo que hay sobre ese loop es de otra clase: está
-demostrado que sólo agrega al final del historial y que deja exactamente el
-largo esperado.
+**La cuarta función reescrita no tenía test, y ahora tiene uno.** Sus seis
+tests llaman a `process_attestations` o a `attestation_data_matches_chain`.
+Eso cubre tres de las cuatro funciones reescritas, porque `try_finalize` y
+`serialize_justifications` sólo se llaman desde `process_attestations`. La
+cuarta es `process_block_header`, donde un loop con `push` reemplaza a
+`extend(repeat_n(...))`, y ninguno la llama. Agregamos
+`process_block_header_fills_empty_slots_with_zero_hashes`: un bloque dos slots
+después del último header, y otro sin slots vacíos en el medio. El historial
+tiene que quedar como estaba, más la raíz del padre, más un cero por cada slot
+vacío.
+
+Lo chequeamos contra el defecto de dos maneras: con el loop dando una vuelta de
+menos, y con el loop agregando otra raíz en lugar del cero. En los dos casos
+falla ese test y los otros once pasan.
+
+Dos límites. El valor esperado sale de leer qué hace su `extend(repeat_n(...))`,
+no de correrlo: el original no se puede ejecutar dentro de este crate. Y sigue
+sin haber un test que llame a `state_transition`, a `process_block` o a
+`process_slots`; esas tres están sin cambios salvo comentarios.
+
+Sobre ese loop hay además dos teoremas: que sólo agrega al final del historial
+y que deja exactamente el largo esperado. Que lo agregado son ceros no está
+demostrado; es lo que mira el test.
 
 **Una diferencia con su código que encontramos revisando, y que no
 arreglamos.** Ustedes arman el mapa de votos con `.collect()` sobre los pares
@@ -2242,12 +2256,10 @@ entran en pánico**.
 traducción, veinte declaraciones nuestras que no afirman nada, y cinco
 afirmaciones de modelado que sí hacemos.
 
-**Nuestra reescritura no es idéntica al original en un punto, y un cambio no
-tiene test.** Con una raíz repetida en `justifications_roots`, el mapa de votos
-se arma distinto: ustedes se quedan con la última aparición y nosotros con la
-primera. No se alcanza desde el génesis. Y el cambio de `process_block_header`
-no lo ejercita ningún test. Está contado en **Un bug que la reescritura
-introdujo**.
+**Nuestra reescritura no es idéntica al original en un punto.** Con una raíz
+repetida en `justifications_roots`, el mapa de votos se arma distinto: ustedes
+se quedan con la última aparición y nosotros con la primera. No se alcanza
+desde el génesis. Está contado en **Un bug que la reescritura introdujo**.
 
 **`ST-7` no vale sobre un estado cualquiera.** Vale sobre los estados
 alcanzables desde el génesis, del primer bloque aceptado en adelante. Sobre un

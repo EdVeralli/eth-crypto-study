@@ -237,7 +237,7 @@ fork choice, y vale anotarla para no caer.
 > describe la E: cuatro de las doce funciones (`process_attestations` entre ellas) se
 > reescribieron con loops de índice. La objeción de arriba —que no hay forma de conectar la
 > reescritura con el original— se atendió con los tests del original corriendo sobre la
-> reescritura, más cinco nuestros. Está en
+> reescritura, más seis nuestros. Está en
 > [`tooling/hax-lean/mini-stf/`](../tooling/hax-lean/mini-stf/PROPUESTA.md).
 
 ### La recomendación: la D, y no como premio consuelo

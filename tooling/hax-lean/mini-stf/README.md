@@ -1717,5 +1717,29 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    >   limites.
    > - Ademas se corrigieron comentarios viejos en el Rust, el Lean, los
    >   supuestos, el Dockerfile y `axiomas.py`.
+
+   > Cuarta nota del 20 nov 2026: **el test que faltaba**. Se agrego
+   > `process_block_header_fills_empty_slots_with_zero_hashes` a `stf.rs`.
+   > `cargo test` pasa 12, no 11: seis de ellos y seis nuestros.
+   >
+   > - Arma un estado con el ultimo header en el slot 2 y un hash por slot en
+   >   el historial, y llama a `process_block_header` directo con un bloque
+   >   valido (slot igual al del estado, proponente `slot % 4`, `parent_root`
+   >   igual al hash del header). Dos casos: bloque en el slot 5 (dos slots
+   >   vacios) y en el slot 3 (ninguno, el loop no da vueltas).
+   > - Espera `[r0, r1, raiz_del_padre, ZERO, ZERO]` y `[r0, r1,
+   >   raiz_del_padre]`. De paso mira el header nuevo, el largo de la ventana
+   >   y que los checkpoints no se tocan fuera del genesis.
+   > - Chequeado contra el defecto, como los otros dos: con `1..n` en vez de
+   >   `0..n` (un cero de menos) y con `push(parent_root)` en vez de
+   >   `push(H256::ZERO)`. En los dos casos falla este test y pasan los otros
+   >   once. Despues se restauro el archivo y volvieron a pasar los doce.
+   > - Limite: el valor esperado sale de LEER el `extend(repeat_n(...))` del
+   >   original, no de correrlo.
+   > - En Lean sobre ese loop hay prefijo y largo exacto
+   >   (`header_loop_prefijo_spec`, `header_loop_largo_spec`). Que lo agregado
+   >   son ceros NO esta demostrado; lo mira el test.
+   > - Sigue sin haber un test que llame a `state_transition`, `process_block`
+   >   o `process_slots`, que estan sin cambios.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.
