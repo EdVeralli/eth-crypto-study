@@ -29,8 +29,8 @@ hace falta. Ver `docs/RETOMAR.md`, sección "Como retomar en otra computadora".
 
 La Mac se formateó el 12 nov 2026 y el entorno se rehízo ese día: Lean con `elan`
 (en `~/.elan/bin`), Python 3.12 con `uv` (en `~/.local/bin`) y el `.venv` nuevo.
-Ninguna de esas dos carpetas está en el `PATH` por defecto. Los pasos exactos
-están en `RESTAURAR.md`.
+Ninguna de esas dos carpetas está en el `PATH` por defecto. Los comandos
+están en la sección "Entorno" del `README.md`.
 
 **Los repos del ecosistema** (`leanerSTFSpec`, `verified-zkevm`, `gasper-lean4`,
 `verified-consensus`) se clonan **de solo lectura** para analizarlos. Vale la misma
@@ -57,7 +57,6 @@ mantiene despierta con corriente. Con batería se duerme y la corrida no avanza.
   paquete para LambdaClass: la STF de ethlambda pasada por la cadena de
   herramientas Rust → Lean, con sus teoremas. El `README.md` de esa carpeta es
   la bitácora de cómo se llegó.
-- `RESTAURAR.md` — cómo rearmar el entorno desde cero, y dónde quedó el trabajo.
 
 Leer esos seis antes de proponer el próximo paso.
 

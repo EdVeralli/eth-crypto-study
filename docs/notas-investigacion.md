@@ -130,7 +130,7 @@ python3 -m venv .venv                 # Python 3.11.7
 Nota del 15 nov 2026: asi se hizo en septiembre. Despues del formateo del 12 nov el
 `python3` del sistema es 3.9.6 (el repo pide >= 3.10), asi que el `.venv` se rehizo con
 `uv` y Python 3.12.16, y la extension ahora se llama `_native.cpython-312-darwin.so`.
-Los comandos estan en `RESTAURAR.md`, en la raiz del repo.
+Los comandos estan en la seccion "Entorno" del `README.md` de la raiz.
 
 Que hace ese `pip install -e` por dentro (`setup.py`):
 
@@ -207,7 +207,8 @@ git status: limpio, diff en tests/ vacio
 ```
 
 Nota del 15 nov 2026: se volvio a correr entera despues de formatear la Mac y
-rearmar el entorno (ver `RESTAURAR.md`). Mismo resultado, mas rapido:
+rearmar el entorno (seccion "Entorno" del `README.md` de la raiz). Mismo resultado,
+mas rapido:
 
 ```
 364 passed in 7732.92s (2:08:52)

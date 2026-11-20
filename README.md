@@ -89,8 +89,7 @@ Y lo que salió de ahí está en **[`tooling/hax-lean/mini-stf/`](tooling/hax-le
 la transición de estado (STF) de ethlambda pasada por la cadena de herramientas
 hax + Charon + Aeneas, de Rust a Lean. Se entra por
 [`PROPUESTA.md`](tooling/hax-lean/mini-stf/PROPUESTA.md) (en castellano) o
-[`PROPOSAL.md`](tooling/hax-lean/mini-stf/PROPOSAL.md) (en inglés), y
-[`RESTAURAR.md`](RESTAURAR.md) explica cómo reconstruir el entorno desde cero.
+[`PROPOSAL.md`](tooling/hax-lean/mini-stf/PROPOSAL.md) (en inglés).
 
 Al 20 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
 `sorry` y ciento dos resultados demostrados encima. Veinte son sobre la
@@ -295,8 +294,7 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
 Todo vive en esta carpeta. El build se rehízo el 12 nov 2026, después de
 formatear la Mac, con `elan` (Lean) y `uv` (Python 3.12, porque el `python3` del
 sistema es 3.9.6 y el repo pide >= 3.10). `~/.elan/bin` y `~/.local/bin` no están
-en el `PATH` por defecto. El procedimiento completo está en
-[`RESTAURAR.md`](RESTAURAR.md).
+en el `PATH` por defecto.
 
 ```bash
 cd ~/eth-crypto-study

@@ -6,8 +6,8 @@ _Ultima actualizacion: 2026-11-20_
 > reescribieron. Lo que vino despues (23 oct - 6 nov) es el paquete
 > `tooling/hax-lean/mini-stf/`: la transicion de estado de ethlambda pasada de Rust a
 > Lean. Se entra por su `PROPUESTA.md` (castellano) o `PROPOSAL.md` (ingles); lo unico
-> pendiente es enviarlo a LambdaClass. La Mac se formateo el 12 nov: como reconstruir
-> el entorno esta en `RESTAURAR.md`, en la raiz del repo.
+> pendiente es enviarlo a LambdaClass. La Mac se formateo el 12 nov: los comandos del
+> entorno estan en la seccion "Entorno" del `README.md` de la raiz.
 >
 > El 15 nov el paquete se amplio: ese dia quedo con veintidos resultados demostrados y cubre
 > las siete proposiciones de transicion de estado del catalogo de `formal-leanSpec`
@@ -319,7 +319,8 @@ para el desglose por handler y las dos lecciones sobre el costo de correrla.
 
 El venv esta en tu propio repo. Se rehizo el 12 nov 2026, despues de formatear la
 Mac, con `uv` y Python 3.12 (el `python3` del sistema es 3.9.6 y el repo pide
->= 3.10); los comandos exactos estan en `RESTAURAR.md`. Mientras exista, no hay que
+>= 3.10); los comandos exactos estan en la seccion "Entorno" del `README.md` de la
+raiz. Mientras exista, no hay que
 recrearlo:
 
 ```bash
@@ -332,7 +333,7 @@ Si se borra `.lake/`, rehacer el build (`lake exe cache get` y `lake build`).
 Si se borra `.venv/`, rehacer solo el paso de pip — pero ojo: `pip install -e`
 dispara `lake build` de nuevo via `setup.py`. (Desde el 12 nov 2026 ese paso se
 hace con `uv`, y `lake` vive en `~/.elan/bin`, que no esta en el `PATH` por
-defecto: ver `RESTAURAR.md`.)
+defecto: ver la seccion "Entorno" del `README.md` de la raiz.)
 
 ## Si vas a correr la suite de nuevo
 
