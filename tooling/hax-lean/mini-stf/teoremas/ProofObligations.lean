@@ -9117,7 +9117,8 @@ end RV
 
    Lo que el resultado final sigue pidiendo: `usize` de 64 bits; que el hash
    devuelva; y la cota "raices pendientes mas attestations del bloque", que
-   depende de cada bloque y no es un invariante.
+   depende de cada bloque y no es un invariante. (El teorema 26 la reemplaza
+   por un invariante.)
 
    Lo que NO esta aca: `ST-7` desde el genesis. Su hipotesis (el checkpoint
    justificado esta en el historial) es falsa en el estado inicial, que no
@@ -10310,6 +10311,1052 @@ theorem serialize_raices_canonicas (s1 s1' s2 s2' : tipos.State)
 
 end ORD
 
+/- ===========================================================================
+   Teorema 26 — la cota de raices sale de un invariante
+
+   La ausencia de panico de la transicion (teoremas 20, 21 y 23) pedia una
+   cosa de cada bloque: que las raices pendientes del estado mas las
+   attestations del bloque no pasaran de 262144. Era una cota gruesa -- cada
+   attestation agrega a lo sumo una raiz -- y no era un invariante: habia que
+   suponerla bloque por bloque. Aca se la reemplaza por lo que de verdad pasa.
+
+   El invariante (`RaicesBuenas`): las raices pendientes del estado no se
+   repiten, y todas estan en el historial de hashes. De ahi sale la cota por
+   palomar: no hay mas raices pendientes que hashes en el historial, y el
+   historial tiene a lo sumo 262144 (teorema 13).
+
+   Por que vale. Al mapa de votos le entran raices por dos lados: las que el
+   estado ya tenia (`construir_mapa_de_votos`) y la raiz del target de cada
+   voto valido. `is_valid_vote` solo acepta un voto si
+   `historical_block_hashes[target.slot] == target.root`, asi que esa raiz
+   esta en el historial. Y todo lo que entra, entra por `poner_si_falta`, que
+   no repite. `sin`, `filtrado` y `try_finalize` solo sacan. Al final
+   `serialize_justifications` escribe en el estado exactamente las claves del
+   mapa: eso es el teorema 25, y por eso este lo necesitaba.
+
+   Que se prueba:
+
+   - `h256_eq_iff`: la igualdad traducida de `H256` es la igualdad, en los
+     dos sentidos. El teorema 7 tenia uno; para saber que `poner_si_falta` no
+     repite hacia falta el otro (dos raices iguales dan `true`).
+   - `poner_si_falta_no_repite`.
+   - `state_transition_conserva_raices`: la transicion conserva el
+     invariante, acepte o rechace.
+   - `alcanzable_raices`: vale en todo estado alcanzable.
+   - `raices_pendientes_acotadas`: en todo estado alcanzable hay a lo sumo
+     262144 raices pendientes.
+   - `process_attestations_devuelve_con_invariante` y
+     `state_transition_devuelve_con_invariante`: la ausencia de panico, con
+     el invariante en lugar de la cota por bloque.
+   - `state_transition_devuelve_desde_genesis`: la transicion no entra en
+     panico en ningun estado alcanzable.
+
+   Lo que el resultado final pide: `usize` de 64 bits; que el hash devuelva;
+   y UNA cosa del bloque, que su lista de attestations no tenga mas de 4096
+   elementos. Eso ultimo es la capacidad del tipo: en Rust el campo de
+   `SszList` es privado y `try_from` la chequea, asi que un bloque no puede
+   tener mas. La traduccion a Lean no conserva esa garantia (ahi `SszList` es
+   una estructura con un campo libre) y por eso hay que pedirla. Hace falta
+   para que el contador del lazo de attestations no desborde.
+
+   Como. Mismo molde que el teorema 17, que llevo "las listas de votos son
+   cortas" por todo el lazo de attestations: un spec parcial por funcion del
+   mapa, con la propiedad cuantificada ("para todo `h`, si era buena en `h`
+   sigue siendo"), y al final `total_con` para juntarlo con la terminacion.
+   Los lazos de `sin` y `filtrado` dicen que lo que agregan es una SUBLISTA
+   de las claves originales, que es lo que conserva "no se repiten".
+
+   Controles negativos, en la bitacora: sin saber que el target de un voto
+   valido esta en el historial, el lazo de attestations no cierra; y sin
+   saber que la busqueda que no encuentra la clave es porque no esta,
+   `poner_si_falta` queda con `k ∉ claves` abierta.
+   =========================================================================== -/
+
+namespace RZ
+open mini_stf
+open Std.Tactic
+open ST3 ST7 JS NP NP2 NP3 NP4 NP5 NP6 NP7 NP8 RV GEN MV VC VI HC ORD
+
+set_option mvcgen.warning false
+set_option maxHeartbeats 8000000
+
+/- ====================================================================
+   La propiedad, y lo que se necesita de las listas.
+   ==================================================================== -/
+
+/-- Las claves del mapa no se repiten y todas estan en `h`. -/
+def Buenas (h : List tipos.H256) (m : mapa.MapaVotos) : Prop :=
+  m.claves.val.Nodup ∧ ∀ r ∈ m.claves.val, r ∈ h
+
+/-- Palomar: claves distintas, todas dentro de `h`, no pueden ser mas que
+    los elementos de `h`. -/
+theorem buenas_cota {h : List tipos.H256} {m : mapa.MapaVotos}
+    (hb : Buenas h m) : m.claves.val.length ≤ h.length :=
+  (List.Nodup.subperm hb.1 (fun r hr => hb.2 r hr)).length_le
+
+theorem buenas_sublista {h : List tipos.H256} {m m' : mapa.MapaVotos}
+    (hb : Buenas h m) (hs : m'.claves.val.Sublist m.claves.val) : Buenas h m' :=
+  ⟨hb.1.sublist hs, fun r hr => hb.2 r (hs.subset hr)⟩
+
+theorem buenas_vacio (h : List tipos.H256) (m : mapa.MapaVotos)
+    (e : m.claves.val = []) : Buenas h m := by
+  unfold Buenas
+  rw [e]
+  simp
+
+theorem buenas_push {h : List tipos.H256} {m : mapa.MapaVotos}
+    (cl' : alloc.vec.Vec tipos.H256) (vl' : alloc.vec.Vec (alloc.vec.Vec Bool))
+    (k : tipos.H256) (hb : Buenas h m) (hk : k ∉ m.claves.val) (hkh : k ∈ h)
+    (e : cl'.val = m.claves.val ++ [k]) :
+    Buenas h { claves := cl', valores := vl' } := by
+  unfold Buenas
+  simp only
+  rw [e]
+  refine ⟨?_, ?_⟩
+  · simp only [List.nodup_append, hb.1, List.nodup_singleton, true_and]
+    intro a ha b hb' hab
+    simp at hb'
+    subst hb'
+    subst hab
+    exact hk ha
+  · intro r hr
+    rcases List.mem_append.mp hr with h1 | h1
+    · exact hb.2 r h1
+    · simp at h1
+      rw [h1]
+      exact hkh
+
+/- ====================================================================
+   La igualdad traducida, del otro lado: dos raices iguales dan `true`.
+   ==================================================================== -/
+
+theorem array_eq_loop_refl_spec (a b : Array Std.U8 32#usize) :
+    ⦃ ⌜ True ⌝ ⦄
+    core.Array.Insts.CoreCmpPartialEqArray.eq_loop
+      core.U8.Insts.CoreCmpPartialEqU8 a b 0#usize
+    ⦃ PostCond.mayThrow (fun r => ⌜ a = b → r = true ⌝) ⦄ := by
+  unfold core.Array.Insts.CoreCmpPartialEqArray.eq_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun _ : Std.Usize => True)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · trivial
+  · intro i hinv
+    unfold core.Array.Insts.CoreCmpPartialEqArray.eq_loop.body
+    simp only [core.U8.Insts.CoreCmpPartialEqU8]
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | trivial
+      | simp [PostCond.mayThrow]
+    -- un byte distinto: no eran iguales.
+    · rename_i hlt ra hra rb hrb hne
+      simp only [PostCond.okAssertion]
+      intro e
+      subst e
+      obtain ⟨_, rfl⟩ := hra
+      obtain ⟨_, rfl⟩ := hrb
+      simp at hne
+    -- se recorrieron los 32 bytes: devuelve `true`.
+    · simp [PostCond.okAssertion]
+
+/-- Dos raices iguales dan `true` en la igualdad traducida. -/
+theorem h256_eq_refl_spec (a b : tipos.H256) :
+    ⦃ ⌜ True ⌝ ⦄ tipos.H256.Insts.CoreCmpPartialEqH256.eq a b
+    ⦃ PostCond.mayThrow (fun r => ⌜ a = b → r = true ⌝) ⦄ := by
+  unfold tipos.H256.Insts.CoreCmpPartialEqH256.eq
+  exact array_eq_loop_refl_spec a b
+
+section
+attribute [local spec] vec_len_total is_none_spec vec_deref_total
+  slice_get_total h256_eq_refl_spec
+
+/-- Si la busqueda lineal no encuentra la clave, es que no esta. -/
+theorem posicion_falta_spec (m : mapa.MapaVotos) (k : tipos.H256) :
+    ⦃ ⌜ True ⌝ ⦄
+    mapa.MapaVotos.posicion_loop m k 0#usize core.option.Option.None
+    ⦃ PostCond.mayThrow (fun r => ⌜ r = none → k ∉ m.claves.val ⌝) ⦄ := by
+  unfold mapa.MapaVotos.posicion_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : Std.Usize × (core.option.Option Std.Usize) =>
+       x.2 = none → ∀ p c, p < x.1.val → m.claves.val[p]? = some c → c ≠ k)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · intro _ p c hp
+    simp at hp
+  · intro x hinv
+    obtain ⟨i, enc⟩ := x
+    simp only at hinv
+    unfold mapa.MapaVotos.posicion_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | trivial
+      | simp [PostCond.mayThrow]
+    -- 1. No hay nada en la posicion `i` (no pasa, pero no hace falta saberlo).
+    · rename_i n hlt hn b hb hbt s hs o ho hget i2 hi2
+      intro he p c hp hc
+      by_cases hpi : p < i.val
+      · exact hinv he p c hpi hc
+      · have e : p = i.val := by scalar_tac
+        subst e
+        rw [← hs, ← hget] at hc
+        cases hc
+    -- 2. La clave de la posicion `i` no es la buscada.
+    · rename_i n hlt hn b hb hbt s hs o c0 ho hget b1 hb1 hrefl i2 hi2
+      intro he p c hp hc
+      by_cases hpi : p < i.val
+      · exact hinv he p c hpi hc
+      · have e : p = i.val := by scalar_tac
+        subst e
+        rw [← hs, ← hget] at hc
+        cases hc
+        intro hck
+        exact hb1 (hrefl hck)
+    -- 3. Ya se habia encontrado: no hay nada que probar.
+    · rename_i n hlt hn b hb hbf i2 hi2
+      intro he
+      exact absurd (hb.mpr he) hbf
+    -- 4. Se recorrio todo sin encontrarla.
+    · rename_i n hge hn
+      show enc = none → k ∉ m.claves.val
+      intro he hmem
+      obtain ⟨p, hp⟩ := List.mem_iff_getElem?.mp hmem
+      have hpl : p < m.claves.val.length := by
+        by_contra hcon
+        rw [List.getElem?_eq_none (by omega)] at hp
+        cases hp
+      exact hinv he p k (by scalar_tac) hp rfl
+end
+
+section
+attribute [local spec] posicion_falta_spec MV.push_largo_spec vec_len_total
+
+/-- `poner_si_falta` conserva la propiedad si la clave que agrega esta en
+    `h`: la agrega solo si no estaba. -/
+theorem poner_si_falta_buenas_spec (m : mapa.MapaVotos) (k : tipos.H256)
+    (v : alloc.vec.Vec Bool) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.poner_si_falta m k v
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ ∀ h, Buenas h m → k ∈ h → Buenas h r.2 ⌝) ⦄ := by
+  unfold mapa.MapaVotos.poner_si_falta
+  hax_mvcgen
+  -- no estaba: se agrega al final, y no repite.
+  · exact buenas_push _ _ k (by assumption) (by assumption) (by assumption)
+      (by assumption)
+  -- ya estaba: no se toca.
+  · assumption
+end
+
+section
+attribute [local spec] vec_deref_mut_total MV.slice_get_mut_contenido_spec
+
+/-- `votar` no toca las claves. -/
+theorem votar_buenas_spec (m : mapa.MapaVotos) (p j : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.votar m p j
+    ⦃ PostCond.mayThrow (fun r => ⌜ ∀ h, Buenas h m → Buenas h r ⌝) ⦄ := by
+  unfold mapa.MapaVotos.votar
+  hax_mvcgen
+  all_goals exact (by assumption : Buenas _ m)
+end
+
+section
+attribute [local spec] MV.bit_en_trivial_spec votar_buenas_spec
+
+theorem marcar_votos_loop_buenas_spec (it : core.ops.range.Range Std.Usize)
+    (m0 : mapa.MapaVotos) (p : Std.Usize)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) (idx : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.marcar_votos_loop it m0 p atts idx
+    ⦃ PostCond.mayThrow (fun r => ⌜ ∀ h, Buenas h m0 → Buenas h r ⌝) ⦄ := by
+  unfold stf.marcar_votos_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × mapa.MapaVotos =>
+       ∀ h, Buenas h m0 → Buenas h x.2)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · intro h hb
+    exact hb
+  · intro x hinv
+    obtain ⟨iter, m⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    simp only at hinv
+    unfold stf.marcar_votos_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | trivial
+      | assumption
+      | simp [PostCond.mayThrow]
+    rename_i hlt s hs b hb r hr
+    intro h hh
+    exact hr h (hinv h hh)
+end
+
+section
+attribute [local spec] MV.bits_largo_trivial_spec marcar_votos_loop_buenas_spec
+
+/-- `marcar_votos` no toca las claves. -/
+theorem marcar_votos_buenas_spec (m : mapa.MapaVotos) (p : Std.Usize)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) (idx : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.marcar_votos m p atts idx
+    ⦃ PostCond.mayThrow (fun r => ⌜ ∀ h, Buenas h m → Buenas h r ⌝) ⦄ := by
+  unfold stf.marcar_votos
+  hax_mvcgen
+end
+
+section
+attribute [local spec] ORD.clave_contenido ne_default_total MV.push_largo_spec
+  MV.votos_acotados_spec
+
+/-- El loop de `sin` agrega claves de la lista original, en su orden y a lo
+    sumo una vez cada una. -/
+theorem sin_loop_claves_spec (it : core.ops.range.Range Std.Usize)
+    (cl : alloc.vec.Vec tipos.H256) (vl : alloc.vec.Vec (alloc.vec.Vec Bool))
+    (k : tipos.H256) (m0 : mapa.MapaVotos)
+    (hb : it.«end».val ≤ cl.val.length) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.sin_loop it cl vl k m0
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ ∃ l, r.claves.val = m0.claves.val ++ l ∧ l.Sublist cl.val ⌝) ⦄ := by
+  unfold mapa.MapaVotos.sin_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × mapa.MapaVotos =>
+       x.1.«end» = it.«end» ∧
+       ∃ l, x.2.claves.val = m0.claves.val ++ l ∧
+            l.Sublist (cl.val.take x.1.start.val))
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, [], by simp, List.nil_sublist _⟩
+  · intro x hinv
+    obtain ⟨iter, m⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, l, hl, hsub⟩ := hinv
+    simp only at hend hl hsub
+    subst hend
+    unfold mapa.MapaVotos.sin_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | trivial
+      | simp [PostCond.mayThrow]
+    -- 1. La clave de la posicion `desde` se agrega.
+    · rename_i hlt s hs c hc b hbt cl2 hcl2 w hw vl2 hvl2
+      have e := leido cl.val desde.val c (by omega) hc
+      refine ⟨l ++ [c], by rw [hcl2, hl, List.append_assoc], ?_⟩
+      rw [hs, List.take_add_one, e]
+      exact hsub.append (List.Sublist.refl _)
+    -- 2. Es la que se saca: no se agrega nada.
+    · rename_i hlt s hs c hc b hbf
+      refine ⟨l, hl, ?_⟩
+      rw [hs, List.take_add_one]
+      exact hsub.trans (List.sublist_append_left _ _)
+    -- 3. Se termino el rango.
+    · show ∃ l, m.claves.val = m0.claves.val ++ l ∧ l.Sublist cl.val
+      exact ⟨l, hl, hsub.trans (List.take_sublist _ _)⟩
+end
+
+/-- Lo que dejan los loops de `sin` y de `filtrado` cuando arrancan de un
+    mapa vacio: una sublista de las claves que habia. -/
+theorem buenas_de_loop {h : List tipos.H256} {m n r : mapa.MapaVotos}
+    (hb : Buenas h m) (hn : n.claves.val = [])
+    (hr : ∃ l, r.claves.val = n.claves.val ++ l ∧ l.Sublist m.claves.val) :
+    Buenas h r := by
+  obtain ⟨l, hl, hs⟩ := hr
+  rw [hn, List.nil_append] at hl
+  exact buenas_sublista hb (by rw [hl]; exact hs)
+
+theorem nuevo_claves_spec :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.nuevo
+    ⦃ PostCond.mayThrow (fun r => ⌜ r.claves.val = [] ⌝) ⦄ :=
+  triple_mayThrow_of (fun r hr => by
+    unfold mapa.MapaVotos.nuevo at hr
+    simp [alloc.vec.Vec.new, rust_primitives.sequence.seq_empty] at hr
+    subst hr
+    rfl)
+
+section
+attribute [local spec] nuevo_claves_spec vec_len_total sin_loop_claves_spec
+
+/-- `sin` deja una sublista de las claves. -/
+theorem sin_buenas_spec (m : mapa.MapaVotos) (k : tipos.H256) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.sin m k
+    ⦃ PostCond.mayThrow (fun r => ⌜ ∀ h, Buenas h m → Buenas h r ⌝) ⦄ := by
+  unfold mapa.MapaVotos.sin
+  hax_mvcgen
+  · exact buenas_de_loop (by assumption) (by assumption) (by assumption)
+  · omega
+end
+
+section
+attribute [local spec] MV.bandera_spec ORD.clave_contenido MV.push_largo_spec
+  MV.votos_acotados_spec
+
+theorem filtrado_loop_claves_spec (it : core.ops.range.Range Std.Usize)
+    (cl : alloc.vec.Vec tipos.H256) (vl : alloc.vec.Vec (alloc.vec.Vec Bool))
+    (cons : Slice Bool) (m0 : mapa.MapaVotos)
+    (hb : it.«end».val ≤ cl.val.length) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.filtrado_loop it cl vl cons m0
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ ∃ l, r.claves.val = m0.claves.val ++ l ∧ l.Sublist cl.val ⌝) ⦄ := by
+  unfold mapa.MapaVotos.filtrado_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × mapa.MapaVotos =>
+       x.1.«end» = it.«end» ∧
+       ∃ l, x.2.claves.val = m0.claves.val ++ l ∧
+            l.Sublist (cl.val.take x.1.start.val))
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, [], by simp, List.nil_sublist _⟩
+  · intro x hinv
+    obtain ⟨iter, m⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, l, hl, hsub⟩ := hinv
+    simp only at hend hl hsub
+    subst hend
+    unfold mapa.MapaVotos.filtrado_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | trivial
+      | simp [PostCond.mayThrow]
+    -- 1. La posicion esta marcada: su clave se agrega.
+    · rename_i hlt s hs b hbt c hc cl2 hcl2 w hw vl2 hvl2
+      have e := leido cl.val desde.val c (by omega) hc
+      refine ⟨l ++ [c], by rw [hcl2, hl, List.append_assoc], ?_⟩
+      rw [hs, List.take_add_one, e]
+      exact hsub.append (List.Sublist.refl _)
+    -- 2. No esta marcada.
+    · rename_i hlt s hs b hbf
+      refine ⟨l, hl, ?_⟩
+      rw [hs, List.take_add_one]
+      exact hsub.trans (List.sublist_append_left _ _)
+    -- 3. Se termino el rango.
+    · show ∃ l, m.claves.val = m0.claves.val ++ l ∧ l.Sublist cl.val
+      exact ⟨l, hl, hsub.trans (List.take_sublist _ _)⟩
+end
+
+section
+attribute [local spec] nuevo_claves_spec vec_len_total filtrado_loop_claves_spec
+
+/-- `filtrado` deja una sublista de las claves. -/
+theorem filtrado_buenas_spec (m : mapa.MapaVotos) (cons : Slice Bool) :
+    ⦃ ⌜ True ⌝ ⦄ mapa.MapaVotos.filtrado m cons
+    ⦃ PostCond.mayThrow (fun r => ⌜ ∀ h, Buenas h m → Buenas h r ⌝) ⦄ := by
+  unfold mapa.MapaVotos.filtrado
+  hax_mvcgen
+  · exact buenas_de_loop (by assumption) (by assumption) (by assumption)
+  · omega
+end
+
+section
+attribute [local spec] hay_slot_spec inc_fin_spec vec_new_spec largo_spec
+  tf_loop_spec vec_deref_spec filtrado_buenas_spec MV.shift_trivial_spec
+
+theorem try_finalize_claves_spec (state : tipos.State)
+    (source target : tipos.Checkpoint) (j : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global) :
+    ⦃ ⌜ True ⌝ ⦄ stf.try_finalize state source target j rts
+    ⦃ PostCond.mayThrow (fun r => ⌜ ∀ h, Buenas h j → Buenas h r.2 ⌝) ⦄ := by
+  unfold stf.try_finalize
+  hax_mvcgen
+  all_goals assumption
+end
+
+section
+attribute [local spec] hay_slot_spec inc_fin_spec vec_new_spec largo_spec
+  tf_loop_spec vec_deref_spec filtrado_spec shift_trivial_spec
+
+theorem try_finalize_raices_spec (state : tipos.State)
+    (source target : tipos.Checkpoint) (j : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global) :
+    ⦃ ⌜ True ⌝ ⦄ stf.try_finalize state source target j rts
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ r.1.justifications_roots = state.justifications_roots ⌝) ⦄ := by
+  unfold stf.try_finalize
+  hax_mvcgen
+end
+
+/-- `try_finalize` no toca el historial ni las raices pendientes del estado,
+    y al mapa a lo sumo le saca claves. -/
+theorem try_finalize_buenas_spec (state : tipos.State)
+    (source target : tipos.Checkpoint) (j : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global) :
+    ⦃ ⌜ True ⌝ ⦄ stf.try_finalize state source target j rts
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ r.1.historical_block_hashes = state.historical_block_hashes ∧
+          r.1.justifications_roots = state.justifications_roots ∧
+          ∀ h, Buenas h j → Buenas h r.2 ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv => by
+    obtain ⟨st', j'⟩ := v
+    exact ⟨(ST7.try_finalize_adelante state st' source target j j' rts hv).2,
+      of_triple_mayThrow (try_finalize_raices_spec state source target j rts) hv,
+      of_triple_mayThrow (try_finalize_claves_spec state source target j rts) hv⟩)
+
+/-- Un voto que `is_valid_vote` acepta tiene la raiz de su target entre las
+    del historial. -/
+theorem is_valid_vote_miembro_spec (st : tipos.State) (d : tipos.AttestationData) :
+    ⦃ ⌜ True ⌝ ⦄ stf.is_valid_vote st d
+    ⦃ PostCond.mayThrow (fun r => ⌜ r = core.result.Result.Ok true →
+        d.target.root ∈ st.historical_block_hashes.items.val ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv hok => by
+    have h := of_triple_mayThrow (ST7.is_valid_vote_historial_spec st d) hv hok
+    unfold ST7.EnElHistorial at h
+    exact List.mem_of_getElem? h)
+
+section
+attribute [local spec] ssz_get_total
+
+theorem raiz_just_contenido (roots : ssz.SszList tipos.H256 262144#usize)
+    (i : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.raiz_justificacion_en roots i
+    ⦃ ⇓ r => ⌜ ∀ x, roots.items.val[i.val]? = some x → r = x ⌝ ⦄ := by
+  unfold stf.raiz_justificacion_en
+  hax_mvcgen
+  all_goals simp_all
+end
+
+section
+attribute [local spec] raiz_just_contenido MV.votos_del_segmento_largo_spec
+  poner_si_falta_buenas_spec
+
+theorem construir_mapa_loop_buenas_spec (it : core.ops.range.Range Std.Usize)
+    (sc : tipos.StateConfig) (i : Std.U64) (bh : tipos.BlockHeader)
+    (c c1 : tipos.Checkpoint) (sl : ssz.SszList tipos.H256 262144#usize)
+    (sb : ssz.SszBitlist 262144#usize)
+    (sl1 : ssz.SszList tipos.Validator 4096#usize)
+    (sl2 : ssz.SszList tipos.H256 262144#usize)
+    (sb1 : ssz.SszBitlist 1073741824#usize) (vc : Std.Usize)
+    (m0 : mapa.MapaVotos)
+    (hb : it.«end».val ≤ sl2.items.val.length) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.construir_mapa_de_votos_loop it sc i bh c c1 sl sb sl1 sl2 sb1 vc m0
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ ∀ h, (∀ x ∈ sl2.items.val, x ∈ h) → Buenas h m0 → Buenas h r ⌝) ⦄ := by
+  unfold stf.construir_mapa_de_votos_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × mapa.MapaVotos =>
+       x.1.«end» = it.«end» ∧
+       ∀ h, (∀ x ∈ sl2.items.val, x ∈ h) → Buenas h m0 → Buenas h x.2)
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, fun h _ hb0 => hb0⟩
+  · intro x hinv
+    obtain ⟨iter, m⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hend, hinv⟩ := hinv
+    simp only at hend hinv
+    subst hend
+    unfold stf.construir_mapa_de_votos_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | trivial
+      | assumption
+    rename_i hlt s hs r hr v hv p hp
+    refine ⟨trivial, ?_⟩
+    intro h hall hb0
+    exact hp h (hinv h hall hb0)
+      (hall r (List.mem_of_getElem? (leido sl2.items.val desde.val r (by omega) hr)))
+end
+
+section
+attribute [local spec] nuevo_claves_spec ssz_len_total
+  construir_mapa_loop_buenas_spec
+
+/-- El mapa que arma `construir_mapa_de_votos` no repite claves, y todas
+    son raices pendientes del estado. -/
+theorem construir_mapa_buenas_spec (st : tipos.State) (vc : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.construir_mapa_de_votos st vc
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ ∀ h, (∀ x ∈ st.justifications_roots.items.val, x ∈ h) → Buenas h r ⌝) ⦄ := by
+  unfold stf.construir_mapa_de_votos
+  hax_mvcgen
+  · exact (by assumption : ∀ h, _ → Buenas h _ → Buenas h _) _ (by assumption)
+      (buenas_vacio _ _ (by assumption))
+  · omega
+end
+
+section
+attribute [local spec] is_none_spec dato_en_spec bits_en_uno_en_spec
+  primer_bit_spec votos_vacios_spec poner_si_falta_buenas_spec
+  marcar_votos_buenas_spec cuenta_votos_spec sin_buenas_spec div_ceil_spec
+  set_justified_spec is_valid_vote_miembro_spec try_finalize_buenas_spec
+
+/-- El loop de attestations conserva la propiedad: no toca el historial ni
+    las raices pendientes del estado, y al mapa solo le entran raices de
+    targets validos, que estan en el historial. -/
+theorem process_attestations_loop_buenas_spec
+    (s0 : tipos.State)
+    (attestations : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (validator_count n : Std.Usize)
+    (j0 : mapa.MapaVotos)
+    (rts : std.collections.hash.map.HashMap tipos.H256 Std.U64
+             std.hash.random.RandomState alloc.alloc.Global) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations_loop { start := 0#usize, «end» := n } s0
+      attestations validator_count 0#u64 j0 rts core.option.Option.None
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ r.1.historical_block_hashes = s0.historical_block_hashes ∧
+          r.1.justifications_roots = s0.justifications_roots ∧
+          (Buenas s0.historical_block_hashes.items.val j0 →
+           Buenas s0.historical_block_hashes.items.val r.2.2.1) ⌝) ⦄ := by
+  unfold stf.process_attestations_loop
+  apply Aeneas.Std.loop_spec
+    (inv := fun x : (core.ops.range.Range Std.Usize) × Acc =>
+       x.2.1.historical_block_hashes = s0.historical_block_hashes ∧
+       x.2.1.justifications_roots = s0.justifications_roots ∧
+       (Buenas s0.historical_block_hashes.items.val j0 →
+        Buenas s0.historical_block_hashes.items.val x.2.2.2.1))
+    (γ := Nat) (rel := (· < ·)) (termination := fun _ => 0)
+  · exact Nat.lt_wfRel.wf
+  · exact ⟨rfl, rfl, fun h => h⟩
+  · intro x hinv
+    obtain ⟨iter, st, ap, jj, fl⟩ := x
+    obtain ⟨desde, hasta⟩ := iter
+    obtain ⟨hh, hr, hinv⟩ := hinv
+    simp only at hh hr hinv
+    unfold stf.process_attestations_loop.body
+    hax_mvcgen
+    all_goals try (refine ⟨?_, Or.inr ?_⟩)
+    all_goals try first
+      | rfl
+      | assumption
+      | trivial
+      | exact ⟨hh, hr, hinv⟩
+      | simp [PostCond.div, PostCond.mayThrow]
+    -- Quedan las vueltas que tocan el mapa. El historial no cambia (a lo
+    -- sumo pasa por `try_finalize`, que no lo toca), y al mapa le entra la
+    -- raiz de un target valido, que esta en el historial.
+    all_goals (
+      refine ⟨?_, ?_, fun h0 => ?_⟩
+      · grind
+      · grind
+      · have hj := hinv h0
+        grind)
+end
+
+/- ====================================================================
+   El invariante sobre el estado.
+   ==================================================================== -/
+
+/-- Las raices pendientes del estado no se repiten y estan todas en el
+    historial de hashes. -/
+def RaicesBuenas (st : tipos.State) : Prop :=
+  st.justifications_roots.items.val.Nodup ∧
+  ∀ r ∈ st.justifications_roots.items.val,
+    r ∈ st.historical_block_hashes.items.val
+
+/-- De ahi sale la cota: no hay mas raices pendientes que hashes en el
+    historial. -/
+theorem raicesBuenas_cota {st : tipos.State} (h : RaicesBuenas st) :
+    st.justifications_roots.items.val.length ≤
+      st.historical_block_hashes.items.val.length :=
+  (List.Nodup.subperm h.1 (fun r hr => h.2 r hr)).length_le
+
+/-- `serialize_justifications` escribe las claves del mapa, y no toca el
+    historial. -/
+theorem serialize_raices_spec (st : tipos.State) (j : mapa.MapaVotos)
+    (vc : Std.Usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.serialize_justifications st j vc
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ r.historical_block_hashes = st.historical_block_hashes ∧
+          r.justifications_roots.items.val.Perm j.claves.val ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv =>
+    ⟨ST7.serialize_no_toca_historial st v j vc hv,
+     (ORD.serialize_escribe_ordenado st v j vc hv).2⟩)
+
+/-- Lo que deja `serialize_justifications` cuando el mapa era bueno. -/
+theorem raicesBuenas_tras_serialize {s0 s1 s2 : tipos.State} {j : mapa.MapaVotos}
+    (hh1 : s1.historical_block_hashes = s0.historical_block_hashes)
+    (hb : Buenas s0.historical_block_hashes.items.val j)
+    (hs : s2.historical_block_hashes = s1.historical_block_hashes ∧
+          s2.justifications_roots.items.val.Perm j.claves.val) :
+    RaicesBuenas s2 := by
+  obtain ⟨e, hp⟩ := hs
+  unfold RaicesBuenas
+  rw [e, hh1]
+  exact ⟨hp.nodup_iff.mpr hb.1, fun r hr => hb.2 r (hp.subset hr)⟩
+
+section
+attribute [local spec] timer_spec inc_procesadas_spec contar_datos_spec
+  hay_raiz_cero_spec construir_mapa_buenas_spec construir_rts_spec ssz_len_spec
+  bitlist_len_spec serialize_raices_spec process_attestations_loop_buenas_spec
+
+/-- `process_attestations` conserva el invariante, acepte o rechace. -/
+theorem process_attestations_raices_spec (state : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_attestations state atts
+    ⦃ PostCond.mayThrow (fun r => ⌜ RaicesBuenas state → RaicesBuenas r.2 ⌝) ⦄ := by
+  unfold stf.process_attestations
+  hax_mvcgen
+  all_goals try first
+    | rfl
+    | assumption
+    | trivial
+    | exact fun h => h
+    | simp [PostCond.div, PostCond.mayThrow]
+  -- 1. Se serializa: las raices nuevas son las claves del mapa.
+  · rename_i m hmapa rts n r hfl hloop s2 hser u hrb
+    obtain ⟨e1, e2, e3⟩ := hloop
+    exact raicesBuenas_tras_serialize e1 (e3 (hmapa _ hrb.2)) hser
+  -- 2. Un voto invalido corto el bloque: no se llego a serializar, y el loop
+  --    no toca ni el historial ni las raices pendientes.
+  · rename_i m hmapa rts n r e hfl hloop hrb
+    obtain ⟨e1, e2, e3⟩ := hloop
+    unfold RaicesBuenas
+    rw [e1, e2]
+    exact hrb
+end
+
+section
+attribute [local spec] ssz_len_spec ST3H.current_proposer_spec ST3H.ok_or_spec
+  ST3H.branch_spec ST3H.header_hash_spec ST3H.ne_default_spec ST3H.extend_spec
+  ST3H.body_hash_spec ST3H.from_residual_spec
+  take_modelo_spec into_inner_modelo_spec push_modelo_spec
+  header_loop_prefijo_spec try_from_modelo_spec expect_modelo_spec
+
+/-- `process_block_header` solo agrega al final del historial, en el genesis
+    y fuera de el. -/
+theorem header_prefijo_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_block_header state block
+    ⦃ PostCond.mayThrow (fun r =>
+        ⌜ state.historical_block_hashes.items.val <+:
+            r.2.historical_block_hashes.items.val ⌝) ⦄ := by
+  unfold stf.process_block_header
+  hax_mvcgen
+  all_goals grind [List.IsPrefix.trans]
+end
+
+theorem header_raices (state state' : tipos.State) (block : tipos.Block)
+    (res : core.result.Result Unit stf.Error) (hb : RaicesBuenas state)
+    (h : stf.process_block_header state block = ok (res, state')) :
+    RaicesBuenas state' := by
+  have hp : state.historical_block_hashes.items.val <+:
+      state'.historical_block_hashes.items.val :=
+    of_triple_mayThrow (header_prefijo_spec state block) h
+  have hr : state'.justifications_roots = state.justifications_roots :=
+    (of_triple_mayThrow (header_registro_spec state block) h).2
+  unfold RaicesBuenas at *
+  rw [hr]
+  exact ⟨hb.1, fun r hr' => hp.subset (hb.2 r hr')⟩
+
+theorem slots_raices (state state' : tipos.State) (t : Std.U64)
+    (res : core.result.Result Unit stf.Error) (hb : RaicesBuenas state)
+    (h : stf.process_slots state t = ok (res, state')) : RaicesBuenas state' := by
+  have hr := (process_slots_no_toca_registro state state' t res h).2
+  have hh := (ST7.process_slots_no_toca state state' t res h).2.2.1
+  unfold RaicesBuenas at *
+  rw [hr, hh]
+  exact hb
+
+theorem header_raices_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_block_header state block
+    ⦃ PostCond.mayThrow (fun r => ⌜ RaicesBuenas state → RaicesBuenas r.2 ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv hb => by
+    obtain ⟨res, st'⟩ := v
+    exact header_raices state st' block res hb hv)
+
+theorem slots_raices_spec (state : tipos.State) (t : Std.U64) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_slots state t
+    ⦃ PostCond.mayThrow (fun r => ⌜ RaicesBuenas state → RaicesBuenas r.2 ⌝) ⦄ :=
+  triple_mayThrow_of (fun v hv hb => by
+    obtain ⟨res, st'⟩ := v
+    exact slots_raices state st' t res hb hv)
+
+section
+attribute [local spec] ST3H.branch_spec ST3H.from_residual_spec
+  ST3T.time_block_spec header_raices_spec process_attestations_raices_spec
+
+theorem process_block_raices_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_block state block
+    ⦃ PostCond.mayThrow (fun r => ⌜ RaicesBuenas state → RaicesBuenas r.2 ⌝) ⦄ := by
+  unfold stf.process_block
+  hax_mvcgen
+  all_goals first
+    | rfl
+    | assumption
+    | simp_all
+end
+
+section
+attribute [local spec] ST3H.branch_spec ST3H.from_residual_spec
+  ST3H.ne_default_spec ST3T.time_transition_spec ST3T.state_hash_spec
+  slots_raices_spec process_block_raices_spec
+
+theorem state_transition_raices_spec (state : tipos.State) (block : tipos.Block) :
+    ⦃ ⌜ True ⌝ ⦄ stf.state_transition state block
+    ⦃ PostCond.mayThrow (fun r => ⌜ RaicesBuenas state → RaicesBuenas r.2 ⌝) ⦄ := by
+  unfold stf.state_transition
+  hax_mvcgen
+  all_goals first
+    | rfl
+    | assumption
+    | simp_all
+end
+
+/-- La transicion de un bloque conserva el invariante de las raices
+    pendientes, acepte el bloque o lo rechace. -/
+theorem state_transition_conserva_raices
+    (state state' : tipos.State) (block : tipos.Block)
+    (res : core.result.Result Unit stf.Error) (hb : RaicesBuenas state)
+    (h : stf.state_transition state block = ok (res, state')) :
+    RaicesBuenas state' :=
+  of_triple_mayThrow (state_transition_raices_spec state block) h hb
+
+/-- Y vale en todo estado alcanzable: en el genesis no hay raices
+    pendientes. -/
+theorem alcanzable_raices (st : tipos.State) (ha : Alcanzable st) :
+    RaicesBuenas st := by
+  induction ha with
+  | genesis t vs st h =>
+    obtain ⟨-, -, -, -, -, -, -, hroots, -⟩ := of_triple_mayThrow (from_genesis_spec t vs) h
+    unfold RaicesBuenas
+    rw [hroots]
+    simp
+  | paso st st' block res _ h ih =>
+    exact state_transition_conserva_raices st st' block res ih h
+
+/- ====================================================================
+   La ausencia de panico, con la cota que sale del invariante.
+   ==================================================================== -/
+
+theorem construir_mapa_fino_spec (st : tipos.State) (vc : Std.Usize)
+    (hprod : st.justifications_roots.items.val.length * vc.val ≤ Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄ stf.construir_mapa_de_votos st vc
+    ⦃ ⇓ r => ⌜ ((r.claves.val.length ≤ st.justifications_roots.items.val.length ∧
+                  r.valores.val.length ≤ st.justifications_roots.items.val.length) ∧
+                 VotosAcotados vc.val r) ∧
+                ∀ h, (∀ x ∈ st.justifications_roots.items.val, x ∈ h) → Buenas h r ⌝ ⦄ :=
+  total_con (construir_mapa_loop_spec' st vc hprod) (construir_mapa_buenas_spec st vc)
+
+theorem loop_fino_spec
+    (s0 : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (vc n : Std.Usize) (j0 : mapa.MapaVotos) (rts : MapaSlots)
+    (hvc : vc.val ≤ 4096)
+    (hcap : s0.justified_slots.bits.val.length ≤ 262144)
+    (hj : VotosAcotados vc.val j0)
+    (hC : max j0.claves.val.length j0.valores.val.length + n.val < Usize.max) :
+    ⦃ ⌜ True ⌝ ⦄
+    stf.process_attestations_loop { start := 0#usize, «end» := n } s0
+      atts vc 0#u64 j0 rts core.option.Option.None
+    ⦃ ⇓ r => ⌜ (VotosAcotados vc.val r.2.2.1 ∧
+                 r.2.2.1.claves.val.length ≤
+                   max j0.claves.val.length j0.valores.val.length + n.val) ∧
+                (r.1.historical_block_hashes = s0.historical_block_hashes ∧
+                 r.1.justifications_roots = s0.justifications_roots ∧
+                 (Buenas s0.historical_block_hashes.items.val j0 →
+                  Buenas s0.historical_block_hashes.items.val r.2.2.1)) ⌝ ⦄ :=
+  total_con (process_attestations_loop_spec s0 atts vc n j0 rts hvc hcap hj hC)
+    (process_attestations_loop_buenas_spec s0 atts vc n j0 rts)
+
+section
+attribute [local spec] time_att_total contar_datos_total ssz_len_total bl_len_total
+  hay_raiz_cero_total construir_mapa_fino_spec construir_rts_total
+  loop_fino_spec serialize_justifications_total_spec inc_att_total
+
+theorem process_attestations_total_fino (state : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (hval : state.validators.items.val.length ≤ 4096)
+    (hrb : RaicesBuenas state)
+    (hhist : state.historical_block_hashes.items.val.length ≤ 262144)
+    (hatts : atts.items.val.length ≤ 4096)
+    (hfin : state.latest_finalized.slot.val < U64.max)
+    (hcap : state.justified_slots.bits.val.length ≤ 262144) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_attestations state atts ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  have hraices := raicesBuenas_cota hrb
+  have hprod : ∀ a b : Nat, a ≤ 262144 → b ≤ 4096 → a * b ≤ 1073741824 := by
+    intro a b ha hb
+    have := Nat.mul_le_mul ha hb
+    omega
+  have hp : state.justifications_roots.items.val.length *
+      state.validators.items.val.length ≤ 1073741824 :=
+    hprod _ _ (by omega) hval
+  have hmax : (1073741824 : Nat) ≤ Usize.max := by scalar_tac
+  unfold stf.process_attestations
+  hax_mvcgen
+  all_goals try first
+    | omega
+    | grind [VotosAcotados]
+    | (exfalso; grind [VotosAcotados])
+    | scalar_tac
+    | (exfalso; scalar_tac)
+  -- Queda una sola: que las claves del mapa entren en `justifications_roots`.
+  -- Aca se usa el invariante: son distintas y estan en el historial, asi que
+  -- no son mas que los hashes del historial.
+  rename_i m hmapa rts n hn r hfl hloop
+  have hb := hloop.2.2.2 (hmapa.2 _ hrb.2)
+  exact Nat.le_trans (buenas_cota hb) hhist
+end
+
+/- ====================================================================
+   Los enunciados.
+   ==================================================================== -/
+
+/-- La igualdad traducida de `H256` es la igualdad, en los dos sentidos. -/
+theorem h256_eq_iff (a b : tipos.H256) (r : Bool)
+    (h : tipos.H256.Insts.CoreCmpPartialEqH256.eq a b = ok r) :
+    r = true ↔ a = b :=
+  ⟨fun hr => ST7.h256_eq_true a b (hr ▸ h),
+   of_triple_mayThrow (h256_eq_refl_spec a b) h⟩
+
+/-- `poner_si_falta` no repite claves. -/
+theorem poner_si_falta_no_repite (m m' : mapa.MapaVotos) (k : tipos.H256)
+    (v : alloc.vec.Vec Bool) (p : Std.Usize)
+    (hn : m.claves.val.Nodup)
+    (h : mapa.MapaVotos.poner_si_falta m k v = ok (p, m')) :
+    m'.claves.val.Nodup :=
+  (of_triple_mayThrow (poner_si_falta_buenas_spec m k v) h (k :: m.claves.val)
+    ⟨hn, fun _ hr => List.mem_cons_of_mem _ hr⟩ List.mem_cons_self).1
+
+/-- En todo estado alcanzable hay a lo sumo tantas raices pendientes como
+    hashes en el historial, y por lo tanto a lo sumo 262144. -/
+theorem raices_pendientes_acotadas (st : tipos.State)
+    (h64 : UScalarTy.Usize.numBits = 64) (ha : Alcanzable st) :
+    st.justifications_roots.items.val.length ≤ 262144 := by
+  obtain ⟨-, hh, -, -⟩ := alcanzable_cumple st h64 ha
+  have := raicesBuenas_cota (alcanzable_raices st ha)
+  have := hh.1
+  have := hh.2
+  omega
+
+/-- `process_attestations` no entra en panico. La cota de raices ya no es
+    una hipotesis sobre el bloque: sale del invariante. -/
+theorem process_attestations_devuelve_con_invariante (state : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (hval : state.validators.items.val.length ≤ 4096)
+    (hatts : atts.items.val.length ≤ 4096)
+    (hv : VentanaNoPasa state) (hh : HistorialAcotado state)
+    (hrb : RaicesBuenas state) :
+    ∃ r, stf.process_attestations state atts = ok r := by
+  have hcap := ventana_en_capacidad state hv hh
+  have hfin : state.latest_finalized.slot.val < U64.max := by
+    unfold VentanaNoPasa at hv
+    have := hh.2
+    scalar_tac
+  have hhist : state.historical_block_hashes.items.val.length ≤ 262144 := by
+    rw [hh.1]
+    exact hh.2
+  obtain ⟨r, hr, -⟩ := of_triple_total
+    (process_attestations_total_fino state atts hval hrb hhist hatts hfin hcap)
+  exact ⟨r, hr⟩
+
+theorem slots_fino_spec (state : tipos.State) (t : Std.U64)
+    (hd : HashDevuelve) (hv : VentanaNoPasa state) (hh : HistorialAcotado state)
+    (hrb : RaicesBuenas state) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_slots state t
+    ⦃ ⇓ r => ⌜ VentanaNoPasa r.2 ∧ HistorialAcotado r.2 ∧
+                r.2.validators = state.validators ∧ RaicesBuenas r.2 ⌝ ⦄ := by
+  obtain ⟨r, hr⟩ := process_slots_devuelve state t (hd.estado state)
+  obtain ⟨res, st'⟩ := r
+  have e := process_slots_no_toca_registro state st' t res hr
+  exact triple_total_of ⟨(res, st'), hr,
+    slots_ventana state st' t res hv hr, slots_historial state st' t res hh hr,
+    e.1, slots_raices state st' t res hrb hr⟩
+
+theorem header_fino_spec (state : tipos.State) (block : tipos.Block)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hd : HashDevuelve) (hv : VentanaNoPasa state) (hh : HistorialAcotado state)
+    (hrb : RaicesBuenas state) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_block_header state block
+    ⦃ ⇓ r => ⌜ VentanaNoPasa r.2 ∧ HistorialAcotado r.2 ∧
+                r.2.validators = state.validators ∧ RaicesBuenas r.2 ⌝ ⦄ := by
+  obtain ⟨r, hr⟩ := process_block_header_devuelve state block h64 hh.1
+    (hd.header _) (hd.cuerpo _)
+  obtain ⟨res, st'⟩ := r
+  have e := of_triple_mayThrow (header_registro_spec state block) hr
+  exact triple_total_of ⟨(res, st'), hr,
+    (header_ventana state st' block res h64 hv hr).1,
+    header_historial state st' block res h64 hh hr, e.1,
+    header_raices state st' block res hrb hr⟩
+
+theorem atts_fino_spec (state : tipos.State)
+    (atts : ssz.SszList tipos.AggregatedAttestation 4096#usize)
+    (hval : state.validators.items.val.length ≤ 4096)
+    (hatts : atts.items.val.length ≤ 4096)
+    (hv : VentanaNoPasa state) (hh : HistorialAcotado state)
+    (hrb : RaicesBuenas state) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_attestations state atts ⦃ ⇓ _ => ⌜ True ⌝ ⦄ :=
+  devuelve_spec _
+    (process_attestations_devuelve_con_invariante state atts hval hatts hv hh hrb)
+
+section
+attribute [local spec] time_block_total header_fino_spec
+  atts_fino_spec branch_total from_residual_total
+
+theorem process_block_total_fino (state : tipos.State) (block : tipos.Block)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hd : HashDevuelve)
+    (hval : state.validators.items.val.length ≤ 4096)
+    (hatts : block.body.attestations.items.val.length ≤ 4096)
+    (hv : VentanaNoPasa state) (hh : HistorialAcotado state)
+    (hrb : RaicesBuenas state) :
+    ⦃ ⌜ True ⌝ ⦄ stf.process_block state block ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.process_block
+  hax_mvcgen
+  all_goals first
+    | assumption
+    | grind
+end
+
+section
+attribute [local spec] time_transition_total slots_fino_spec
+  process_block_total_fino hash_estado_total ne_default_total branch_total
+  from_residual_total
+
+theorem state_transition_total_fino (state : tipos.State) (block : tipos.Block)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hd : HashDevuelve)
+    (hval : state.validators.items.val.length ≤ 4096)
+    (hatts : block.body.attestations.items.val.length ≤ 4096)
+    (hv : VentanaNoPasa state) (hh : HistorialAcotado state)
+    (hrb : RaicesBuenas state) :
+    ⦃ ⌜ True ⌝ ⦄ stf.state_transition state block ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
+  unfold stf.state_transition
+  hax_mvcgen
+  all_goals first
+    | assumption
+    | grind
+end
+
+/-- La transicion entera no entra en panico, con los tres invariantes y sin
+    la cota de raices por bloque. -/
+theorem state_transition_devuelve_con_invariante (state : tipos.State)
+    (block : tipos.Block)
+    (h64 : UScalarTy.Usize.numBits = 64)
+    (hd : HashDevuelve)
+    (hval : state.validators.items.val.length ≤ 4096)
+    (hatts : block.body.attestations.items.val.length ≤ 4096)
+    (hv : VentanaNoPasa state) (hh : HistorialAcotado state)
+    (hrb : RaicesBuenas state) :
+    ∃ r, stf.state_transition state block = ok r := by
+  obtain ⟨r, hr, -⟩ := of_triple_total
+    (state_transition_total_fino state block h64 hd hval hatts hv hh hrb)
+  exact ⟨r, hr⟩
+
+/-- La transicion no entra en panico en ningun estado alcanzable desde el
+    genesis. Del bloque se pide una sola cosa: que su lista de attestations
+    respete la capacidad de su tipo. -/
+theorem state_transition_devuelve_desde_genesis (st : tipos.State)
+    (block : tipos.Block)
+    (h64 : UScalarTy.Usize.numBits = 64) (hd : HashDevuelve)
+    (ha : Alcanzable st)
+    (hatts : block.body.attestations.items.val.length ≤ 4096) :
+    ∃ r, stf.state_transition st block = ok r := by
+  obtain ⟨hv, hh, hval, -⟩ := alcanzable_cumple st h64 ha
+  exact state_transition_devuelve_con_invariante st block h64 hd hval hatts hv hh
+    (alcanzable_raices st ha)
+
+end RZ
+
 #print axioms bind_da_ok
 #print axioms try_finalize_no_retrocede
 #print axioms try_finalize_no_toca_justified
@@ -10399,3 +11446,11 @@ end ORD
 #print axioms ORD.claves_ordenadas_canonica
 #print axioms ORD.serialize_escribe_ordenado
 #print axioms ORD.serialize_raices_canonicas
+#print axioms RZ.h256_eq_iff
+#print axioms RZ.poner_si_falta_no_repite
+#print axioms RZ.state_transition_conserva_raices
+#print axioms RZ.alcanzable_raices
+#print axioms RZ.raices_pendientes_acotadas
+#print axioms RZ.process_attestations_devuelve_con_invariante
+#print axioms RZ.state_transition_devuelve_con_invariante
+#print axioms RZ.state_transition_devuelve_desde_genesis

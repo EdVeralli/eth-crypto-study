@@ -1569,5 +1569,67 @@ vamos a reportarlos a Cryspen**. Decision tomada el 6 nov.
    > prefijo ordenado: queda `MenorIgual a b` con `p < q ≤ i` y nada mas.
    > (2) `lt_default_orden` con `Menor b a`: no cierra ninguno de los tres
    > casos del `Ordering`.
+
+   > Nota del 20 nov 2026: **la cota de raices sale de un invariante**
+   > (teorema 26, namespace `RZ`). Ocho resultados: `h256_eq_iff`,
+   > `poner_si_falta_no_repite`, `state_transition_conserva_raices`,
+   > `alcanzable_raices`, `raices_pendientes_acotadas`,
+   > `process_attestations_devuelve_con_invariante`,
+   > `state_transition_devuelve_con_invariante` y
+   > `state_transition_devuelve_desde_genesis`. No se toco el Rust ni los
+   > supuestos.
+   >
+   > - Antes de arrancar se leyo el Rust para confirmar que el invariante
+   >   es cierto: al mapa entran solo raices del estado y `target.root` de
+   >   votos validos (que `is_valid_vote` chequea contra el historial), y
+   >   todo entra por `poner_si_falta`.
+   > - `Buenas h m`: las claves de `m` no se repiten y estan todas en `h`.
+   >   `RaicesBuenas st`: lo mismo para `st.justifications_roots` contra
+   >   `st.historical_block_hashes`. La cota es palomar:
+   >   `List.Nodup.subperm` mas `Subperm.length_le` (Mathlib).
+   > - Mismo molde que el teorema 17 (`MV`): un spec parcial por funcion
+   >   del mapa, en la forma "para todo `h`, `Buenas h m → Buenas h r`",
+   >   porque un `@[spec]` no puede tener una variable que no este en el
+   >   programa. Con esa forma `grind` cierra solo las 27 metas del lazo
+   >   de attestations.
+   > - Hizo falta el OTRO sentido de la igualdad de `H256`
+   >   (`h256_eq_refl_spec`: iguales dan `true`). Sin eso no se sabe que
+   >   la busqueda que devuelve `None` es porque la clave no esta, y
+   >   `poner_si_falta` podria repetir. El lazo es el mismo de
+   >   `array_eq_loop_spec` con invariante `True`.
+   > - Los lazos de `sin` y `filtrado` dicen que lo que agregan es una
+   >   SUBLISTA (`List.Sublist`) de las claves originales: invariante
+   >   `l.Sublist (cl.take start)`. La sublista conserva `Nodup` y la
+   >   pertenencia a la vez. Llevan una hipotesis (`it.end ≤ cl.length`)
+   >   que `mvcgen` deja como meta lateral.
+   > - Al invariante del lazo de attestations hubo que agregarle que no
+   >   toca `justifications_roots` (solo `serialize_justifications` las
+   >   escribe). Hace falta en la rama en que un voto invalido corta el
+   >   bloque antes de serializar.
+   > - `header_prefijo_spec`: `process_block_header` solo agrega al final
+   >   del historial, SIN la hipotesis de estar fuera del genesis que
+   >   tenia el lema del teorema 7.
+   > - Se uso el teorema 25: `serialize_justifications` escribe una
+   >   permutacion de las claves del mapa. Por eso el orden.
+   > - La version total no rehizo el lazo de 170 metas: `total_con` junta
+   >   el spec total del teorema 20 con el parcial nuevo. En
+   >   `process_attestations_total_fino` queda UNA meta que las tacticas
+   >   de antes no cierran, y es justo `claves.length ≤ 262144`: ahi
+   >   entra `buenas_cota`.
+   >
+   > OJO, lo que queda pedido del bloque: `attestations.length ≤ 4096`.
+   > No desaparecio toda condicion sobre el bloque. Es la capacidad del
+   > tipo: en `src/ssz.rs` el campo `items` de `SszList` es privado y solo
+   > se construye con `new` o `try_from`, que chequea. En Lean `SszList` es
+   > una estructura con el campo libre y la garantia se pierde. Se usa
+   > para `C + n < Usize.max` en el lazo.
+   >
+   > Controles negativos, dos: (1) `is_valid_vote_miembro_spec` sin la
+   > pertenencia: `grind` falla en las vueltas del lazo que agregan una
+   > raiz. (2) `poner_si_falta` con `posicion_loop_total` en vez de
+   > `posicion_falta_spec`: queda `k ∉ ↑m.claves`.
+   >
+   > Axiomas: `h256_eq_iff` y `poner_si_falta_no_repite` 3;
+   > `process_attestations_devuelve_con_invariante` 14; los otros cinco 16.
 2. **Reescribir los teoremas 2 y 3 como ternas** si alguna vez hace falta: hoy
    no, los puentes los hacen usables como estan.

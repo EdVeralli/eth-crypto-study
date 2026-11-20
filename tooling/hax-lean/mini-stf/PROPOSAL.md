@@ -32,8 +32,9 @@ hypothesis it was missing.
 
 And there is a third end-to-end result: the whole transition does not panic or
 hang, in any state reached from genesis. What it still asks for is written
-down: a condition on each block, a 64-bit `usize`, and something this package
-cannot prove, that the hash returns.
+down: a 64-bit `usize`, that the block's attestation list respects the
+capacity of its type, and something this package cannot prove, that the hash
+returns.
 
 Every number here came from a run.
 
@@ -46,7 +47,7 @@ and Lean accepts them with no `sorry`. That says the program got written in
 Lean. It does not say it is correct.
 
 **The proofs are of specific properties.** A program is not "proved": statements
-about it are. There are ninety-one here, listed under **What you get**. Each
+about it are. There are ninety-nine here, listed under **What you get**. Each
 says one precise thing, with its hypotheses in plain sight.
 
 What is **not** proved, said once:
@@ -56,9 +57,9 @@ What is **not** proved, said once:
   window (`justified_slots_ops.rs`), and for the whole transition in every
   state reachable from genesis. There are still written hypotheses. One cannot
   be proved in this package and is asked for: that the hash returns. Another
-  is a condition on the inputs and not an
-  invariant: that the pending roots plus the block's attestations do not exceed
-  262144.
+  is about the block and is the limit of its type: that the attestation list
+  has no more than 4096 elements. In Rust the type guarantees it; the
+  translation to Lean does not keep it, and it has to be asked.
 - **That the code is equivalent to the spec.** On arbitrary states it is not:
   we found two points where they behave differently, and they are set out
   below.
@@ -176,12 +177,12 @@ What each step should give:
 |---|---|
 | 4 | `test result: ok. 11 passed` |
 | 5 | `Build completed successfully (1742 jobs).` and then `=== listo ===` (1743 jobs the first time on a clean checkout) |
-| 6 | `91` — one axiom block per result — and `0` |
+| 6 | `99` — one axiom block per result — and `0` |
 
 There is no separate "run the proofs" step. The theorems are in
 `teoremas/ProofObligations.lean`; step 5 copies that file into the Lean project
 and `lake build` checks all of it. If the build ends green, Lean accepted the
-ninety-one proofs. At the end it prints which axioms each one depends on, which
+ninety-nine proofs. At the end it prints which axioms each one depends on, which
 is what step 6 counts.
 
 To convince yourself the check is real, break a statement by hand. In
@@ -310,11 +311,11 @@ Everything, with line counts as shipped.
 | `supuestos/TypesExternal.lean` | 49 | **ours, required** — models of `HashMap` and `RandomState`. |
 | `supuestos/FunsExternal.lean` | 413 | **ours, required** — models of the `core`/`std` operations `CoreModels` does not cover, plus seventeen `fmt` signatures corrected by hand. |
 | `supuestos/RevisarAxiomas.lean` | 25 | ours — prints the axioms each translated function depends on, with no theorem involved. |
-| `teoremas/ProofObligations.lean` | 10401 | ours — the theorems. |
-| `axiomas.txt` | 1453 | ours — the `#print axioms` output, so the trust base can be read without building. Both ways round: each theorem with the axioms it uses, and each axiom with the theorems it appears in. |
+| `teoremas/ProofObligations.lean` | 11456 | ours — the theorems. |
+| `axiomas.txt` | 1634 | ours — the `#print axioms` output, so the trust base can be read without building. Both ways round: each theorem with the axioms it uses, and each axiom with the theorems it appears in. |
 | `axiomas.py` | 217 | ours — builds `axiomas.txt` from the build log. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | ours — raw output of the first extraction attempts, kept for the record. The rules they produced are written up in `README.md`. |
-| `README.md` | 1573 | ours — the working log: every obstacle in the order we hit it. |
+| `README.md` | 1635 | ours — the working log: every obstacle in the order we hit it. |
 | `PROPOSAL.md` | — | ours — this document. |
 | `PROPUESTA.md` | — | ours — the same document in Spanish; the two are kept in step. |
 
@@ -412,7 +413,7 @@ down.
 
 ## What you get
 
-`teoremas/ProofObligations.lean` holds ninety-one named results:
+`teoremas/ProofObligations.lean` holds ninety-nine named results:
 
 | Result | What it is |
 |---|---|
@@ -506,6 +507,14 @@ down.
 | `ORD.claves_ordenadas_canonica` | two maps with the same roots, in any order, give the same sorted list |
 | `ORD.serialize_escribe_ordenado` | what `serialize_justifications` leaves in `justifications_roots` is sorted and is the map's roots |
 | `ORD.serialize_raices_canonicas` | `justifications_roots` does not depend on the order the map held the roots in |
+| `RZ.h256_eq_iff` | the translated equality on `H256` is equality, in both directions |
+| `RZ.poner_si_falta_no_repite` | `poner_si_falta` does not repeat keys |
+| `RZ.state_transition_conserva_raices` | the transition preserves the invariant on pending roots: not repeated, and in the history |
+| `RZ.alcanzable_raices` | that invariant holds in every state reachable from genesis |
+| `RZ.raices_pendientes_acotadas` | in every reachable state there are at most 262144 pending roots |
+| `RZ.process_attestations_devuelve_con_invariante` | `process_attestations` does not panic, with that invariant in place of the per-block bound |
+| `RZ.state_transition_devuelve_con_invariante` | the same for the whole transition |
+| `RZ.state_transition_devuelve_desde_genesis` | **the transition does not panic in any reachable state, and of the block only the limit of its type is asked** |
 | `bind_da_ok` | a tool: opens one `RustM` bind |
 
 They were not picked for count. Between them they cover arithmetic, branching
@@ -1395,7 +1404,8 @@ into the function: the loop adds at most one root per attestation. It is not
 an invariant of reachable states. A state with many pending roots and a full
 block falls outside this result, which does not mean it aborts: it means it is
 not proved here. The fine bound, that the map's roots are distinct and in the
-history, is not there.
+history, is further down, under **The bound on roots comes from an
+invariant**.
 
 The loop body leaves 170 conditions to check, one for each point where
 something could fail on each possible path. They fall into eight classes and
@@ -1444,8 +1454,9 @@ glue, that what each step asks for still holds after the previous one:
 **What it does not say.** That all the hypotheses can be dropped. The three
 about the state are preserved from one block to the next and hold at genesis
 (the next two sections), so over reachable states they no longer have to be
-asked. But the bound on roots is a condition on the inputs, not an invariant.
-And that the hash returns cannot be proved here.
+asked. The bound on roots, in this result, is a condition on the inputs and
+not an invariant; further down it is replaced by one. And that the hash returns
+cannot be proved here.
 
 Negative controls, two. Without the history invariant, the header's
 precondition stays open. If the header does not say it leaves the registry as
@@ -1478,8 +1489,9 @@ hypotheses once, on the state you start from, and they keep holding block
 after block.
 
 **What this chaining does not cover.** The bound on pending roots plus
-attestations, which depends on each block and is not an invariant. The
-starting point, genesis, is in the next section.
+attestations, which depends on each block and is not an invariant; it is
+replaced under **The bound on roots comes from an invariant**. The starting
+point, genesis, is in the next section.
 
 These are "if it returns" results. As a negative control we took away from the
 attestation loop what it knows about `try_finalize`: exactly the goals about
@@ -1525,7 +1537,8 @@ reading.
 state. Over reachable states they no longer have to be asked: they come from
 genesis. What it still asks for is three things, and none is about the state:
 a 64-bit `usize`; that the hash returns; and that the pending roots plus the
-block's attestations do not exceed 262144.
+block's attestations do not exceed 262144. That third one goes away further
+down, under **The bound on roots comes from an invariant**.
 
 **`ST-7` is separate.** Its hypothesis, that the justified checkpoint is in the
 history, is false in the initial state, which has no history. It does not come
@@ -1682,6 +1695,77 @@ round, none of the three `Ordering` cases closes.
 The two results on `serialize_justifications` depend on seven axioms: Lean's
 three, three native ones and the `fmt` signature.
 
+### The bound on roots comes from an invariant
+
+Absence of panic asked one thing of each block: that the state's pending roots
+plus the block's attestations did not exceed 262144. It was a sufficient and
+coarse condition, and it had to be assumed block by block. Here it is replaced
+by an invariant.
+
+**The invariant.** The state's pending roots (`justifications_roots`) are not
+repeated, and all of them are in the hash history. The bound follows by
+pigeonhole: there cannot be more pending roots than hashes in the history, and
+the history holds at most 262144.
+
+**Why it holds of your code.** Roots enter the vote map from two places: the
+ones the state already had, and the target root of each valid vote. And
+`is_valid_vote` only accepts a vote if
+`historical_block_hashes[target.slot] == target.root`. Everything that enters,
+enters through `poner_si_falta`, which does not repeat. The rest (`sin`, and
+the `filtrado` in `try_finalize`) only removes. At the end
+`serialize_justifications` writes exactly the map's keys to the state, which is
+what the previous section says: that is why it was needed first.
+
+| Result | What it says |
+|---|---|
+| `RZ.h256_eq_iff` | the translated equality on `H256` is equality, in both directions |
+| `RZ.poner_si_falta_no_repite` | `poner_si_falta` does not repeat keys |
+| `RZ.state_transition_conserva_raices` | the transition preserves the invariant, accepted or rejected |
+| `RZ.alcanzable_raices` | the invariant holds in every reachable state |
+| `RZ.raices_pendientes_acotadas` | in every reachable state there are at most 262144 pending roots |
+| `RZ.process_attestations_devuelve_con_invariante` | `process_attestations` does not panic, with the invariant in place of the per-block bound |
+| `RZ.state_transition_devuelve_con_invariante` | the same for the whole transition |
+| `RZ.state_transition_devuelve_desde_genesis` | the transition does not panic in any reachable state |
+
+```lean
+theorem RZ.state_transition_devuelve_desde_genesis (st : tipos.State)
+    (block : tipos.Block)
+    (h64 : UScalarTy.Usize.numBits = 64) (hd : HashDevuelve)
+    (ha : Alcanzable st)
+    (hatts : block.body.attestations.items.val.length ≤ 4096) :
+    ∃ r, stf.state_transition st block = ok r
+```
+
+**What is still asked of the block, and why it is not the same as before.** One
+thing: that its attestation list has no more than 4096 elements. That is the
+limit of its type. In the Rust it does not have to be asked: the field of
+`SszList` is private, and a list is only built empty or with `try_from`, which
+checks the capacity. The translation to Lean does not keep that guarantee —
+there `SszList` is a structure with a free field — and so it shows up as a
+hypothesis. It is used so that the counter of the attestation loop does not
+overflow. The old hypothesis was about the contents of the state and the block
+together; this one is a type limit the Rust already meets.
+
+**Equality on `H256`, the other way.** For `ST-7` we had proved that if the
+translated equality returns `true`, the two values are equal. To know that
+`poner_si_falta` does not repeat, the converse is needed: that two equal roots
+give `true`, that is, that the linear search finds them. `RZ.h256_eq_iff` puts
+the two halves together.
+
+**What does not change.** It still asks for a 64-bit `usize` and that the hash
+returns. And the earlier results, with the per-block bound, are still there:
+they are of use for a state that did not come from genesis but meets their
+hypotheses.
+
+Negative controls, two. Without knowing that the target of a valid vote is in
+the history, the attestation loop does not close. And without knowing that the
+search not finding the key means it is not there, `poner_si_falta` is left with
+one goal open: that the key was not there.
+
+The first two results depend only on Lean's three axioms. The one on
+`process_attestations`, on fourteen. The other five, on the sixteen of
+`state_transition`.
+
 ### What this is against the catalog, stated exactly
 
 `ST-3` in
@@ -1780,6 +1864,10 @@ own properties makes the exercise circular.
 | `ST-7` from genesis, the other four | 16 | 3 | 9 | 4 |
 | the sort sorts: the comparison and `claves_ordenadas`, three results | 3 | 3 | — | — |
 | the sort sorts: what `serialize_justifications` writes, two | 7 | 3 | 3 | 1 |
+| equality on `H256` in both directions, and `poner_si_falta` does not repeat | 3 | 3 | — | — |
+| the invariant on pending roots, the three results | 16 | 3 | 9 | 4 |
+| no panic with that invariant: `process_attestations` | 14 | 3 | 7 | 4 |
+| no panic with that invariant: the transition, the two results | 16 | 3 | 9 | 4 |
 
 Three categories, with three different weights.
 
@@ -2064,10 +2152,11 @@ no hypothesis at all. The other seven, `state_transition` among them, return
 under the hypotheses of their section. One of those hypotheses cannot be
 proved in this package: that the hash returns.
 
-**The bound on roots in `process_attestations` is a sufficient condition, not
-an invariant.** It asks that the state's roots plus the block's attestations
-do not exceed 262144. The fine bound, that the vote map's roots are distinct
-and in the history, is not proved.
+**The limit on the block's attestation list is still asked.** The final result
+over reachable states asks that the block carries no more than 4096
+attestations. It is the capacity of the type, which the Rust guarantees and the
+translation to Lean does not keep. It is not a condition on what the block
+says, but it is a written hypothesis and not a theorem.
 
 **The window invariant assumes a 64-bit `usize`.** The results about where the
 window ends carry that hypothesis explicitly. On 32 bits the `as usize` casts

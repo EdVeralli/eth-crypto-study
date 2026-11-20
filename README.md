@@ -92,8 +92,8 @@ hax + Charon + Aeneas, de Rust a Lean. Se entra por
 [`PROPOSAL.md`](tooling/hax-lean/mini-stf/PROPOSAL.md) (en inglés), y
 [`RESTAURAR.md`](RESTAURAR.md) explica cómo reconstruir el entorno desde cero.
 
-Al 19 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
-`sorry` y noventa y un resultados demostrados encima. Veinte son sobre la
+Al 20 nov 2026 el paquete tiene las doce funciones de la STF traducidas sin
+`sorry` y noventa y nueve resultados demostrados encima. Veinte son sobre la
 ventana de slots justificados: los cuatro teoremas que se habían propuesto al
 principio, el 22 de octubre, la demostración de que ese módulo no entra en
 pánico, un comentario del código de ethlambda sobre esa ventana, verificado, el
@@ -254,8 +254,11 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    del historial es falsa en el génesis, la establece el primer bloque
    aceptado, y eso ya está demostrado (teorema 24, namespace `G7`). De las
    propiedades del catálogo no queda ninguna sin subir a los estados
-   alcanzables. La ausencia de pánico sigue pidiendo tres cosas que no hablan del estado:
-   `usize` de 64 bits, que el hash devuelva, y la cota de raíces por bloque.
+   alcanzables. Desde el 20 nov la ausencia de pánico ya no pide la cota de
+   raíces por bloque (teorema 26, namespace `RZ`: sale de un invariante). Pide
+   `usize` de 64 bits, que el hash devuelva, y que la lista de attestations
+   del bloque respete la capacidad de su tipo (4096), que el Rust garantiza y
+   la traducción a Lean no conserva.
 9. **El paso siguiente más útil del paquete**: descargar hipótesis de la
    ausencia de pánico, que desde el 18 nov cubre las doce funciones de
    `stf.rs` (`state_transition` incluida). La comparación de `H256` y el
@@ -264,9 +267,12 @@ Todo lo que sigue es estudio y verificación, en orden sugerido:
    hipótesis sobre el estado se conservan de un bloque al siguiente (19 nov).
    `ST-7` desde el génesis también está (19 nov), y que el ordenamiento de
    raíces ordena (19 nov, teorema 25: lo que queda en `justifications_roots`
-   está ordenado y no depende del orden de inserción). Queda la cota fina de raíces del mapa de votos
-   (distintas y en el historial) en lugar de "raíces más attestations ≤
-   262144". Lo que ya
+   está ordenado y no depende del orden de inserción). Y la cota fina de
+   raíces del mapa de votos (distintas y en el historial) en lugar de "raíces
+   más attestations ≤ 262144" (20 nov, teorema 26). De la lista original no
+   queda nada. Lo que apareció en el camino y no está: que
+   `justifications_validators` coincida entre nodos (hace falta el contenido
+   de `volcar_votos`). Lo que ya
    está, para no rehacerlo: las doce funciones (17 y 18 nov), la cota de las
    listas de votos del mapa, y los dos invariantes de la ventana de slots
    justificados (dónde termina y que no pasa de su capacidad).

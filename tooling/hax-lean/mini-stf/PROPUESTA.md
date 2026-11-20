@@ -32,8 +32,9 @@ verificado, con la hipótesis que le hacía falta.
 
 Y hay un tercer resultado de punta a punta: la transición entera no entra en
 pánico ni se cuelga, en ningún estado al que se llegue desde el génesis. Lo que
-sigue pidiendo está escrito: una condición sobre cada bloque, `usize` de 64
-bits, y algo que este paquete no puede demostrar, que el hash devuelva.
+sigue pidiendo está escrito: `usize` de 64 bits, que la lista de attestations
+del bloque respete la capacidad de su tipo, y algo que este paquete no puede
+demostrar, que el hash devuelva.
 
 Cada número de acá salió de una corrida.
 
@@ -46,7 +47,7 @@ Lean las acepta sin `sorry`. Eso dice que el programa quedó escrito en Lean. No
 dice que sea correcto.
 
 **Las demostraciones son de propiedades puntuales.** Un programa no "se
-demuestra": se demuestran afirmaciones sobre él. Acá hay noventa y una,
+demuestra": se demuestran afirmaciones sobre él. Acá hay noventa y nueve,
 listadas en **Qué recibe**. Cada una dice una cosa precisa, con sus hipótesis a
 la vista.
 
@@ -57,9 +58,9 @@ Lo que **no** está demostrado, dicho de una vez:
   para las cuatro de la ventana (`justified_slots_ops.rs`), y para la
   transición entera en todo estado alcanzable desde el génesis. Sigue habiendo
   hipótesis escritas. Una no se puede demostrar en este paquete y queda pedida:
-  que el hash devuelva. Otra es una
-  condición sobre las entradas y no un invariante: que las raíces pendientes
-  más las attestations del bloque no pasen de 262144.
+  que el hash devuelva. Otra habla del bloque y es el límite de su tipo: que
+  la lista de attestations no tenga más de 4096 elementos. En Rust el tipo lo
+  garantiza; la traducción a Lean no lo conserva, y hay que pedirlo.
 - **Que el código sea equivalente a la especificación.** Sobre estados
   arbitrarios no lo es: encontramos dos puntos donde se comportan distinto, y
   están contados más abajo.
@@ -181,12 +182,12 @@ Qué tiene que dar cada paso:
 |---|---|
 | 4 | `test result: ok. 11 passed` |
 | 5 | `Build completed successfully (1742 jobs).` y después `=== listo ===` (1743 jobs la primera vez sobre un checkout limpio) |
-| 6 | `91` — un bloque de axiomas por resultado — y `0` |
+| 6 | `99` — un bloque de axiomas por resultado — y `0` |
 
 No hay un paso aparte de "correr las pruebas". Los teoremas están en
 `teoremas/ProofObligations.lean`; el paso 5 copia ese archivo adentro del
 proyecto Lean y `lake build` lo chequea entero. Si el build termina en verde,
-Lean aceptó las noventa y una demostraciones. Al final imprime de qué axiomas
+Lean aceptó las noventa y nueve demostraciones. Al final imprime de qué axiomas
 depende cada una, que es lo que cuenta el paso 6.
 
 Para convencerse de que el chequeo es real, rompan un enunciado a mano. En
@@ -315,11 +316,11 @@ Todo, con las líneas tal como se entrega.
 | `supuestos/TypesExternal.lean` | 49 | **nuestro, imprescindible** — modelos de `HashMap` y `RandomState`. |
 | `supuestos/FunsExternal.lean` | 413 | **nuestro, imprescindible** — modelos de las operaciones de `core`/`std` que `CoreModels` no cubre, más diecisiete firmas de `fmt` corregidas a mano. |
 | `supuestos/RevisarAxiomas.lean` | 25 | nuestro — imprime los axiomas de los que depende cada función traducida, sin teorema de por medio. |
-| `teoremas/ProofObligations.lean` | 10401 | nuestro — los teoremas. |
-| `axiomas.txt` | 1453 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. En los dos sentidos: cada teorema con los axiomas que utiliza, y cada axioma con los teoremas donde aparece. |
+| `teoremas/ProofObligations.lean` | 11456 | nuestro — los teoremas. |
+| `axiomas.txt` | 1634 | nuestro — la salida de `#print axioms`, para poder leer la base de confianza sin compilar. En los dos sentidos: cada teorema con los axiomas que utiliza, y cada axioma con los teoremas donde aparece. |
 | `axiomas.py` | 217 | nuestro — arma `axiomas.txt` a partir del log del build. |
 | `r2.log`, `r3.log`, `r4.log`, `resultado.log` | 16 KB | nuestros — salida cruda de los primeros intentos de extracción, guardada para el registro. Las reglas que salieron de ahí están escritas en el `README.md`. |
-| `README.md` | 1573 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
+| `README.md` | 1635 | nuestro — la bitácora: cada obstáculo en el orden en que lo encontramos. |
 | `PROPUESTA.md` | — | nuestro — este documento. |
 | `PROPOSAL.md` | — | nuestro — el mismo documento en inglés; los dos se mantienen al día juntos. |
 
@@ -420,7 +421,7 @@ más abajo.
 
 ## Qué recibe
 
-`teoremas/ProofObligations.lean` tiene noventa y un resultados con nombre:
+`teoremas/ProofObligations.lean` tiene noventa y nueve resultados con nombre:
 
 | Resultado | Qué es |
 |---|---|
@@ -514,6 +515,14 @@ más abajo.
 | `ORD.claves_ordenadas_canonica` | dos mapas con las mismas raíces, en cualquier orden, dan la misma lista ordenada |
 | `ORD.serialize_escribe_ordenado` | lo que `serialize_justifications` deja en `justifications_roots` está ordenado y son las raíces del mapa |
 | `ORD.serialize_raices_canonicas` | `justifications_roots` no depende del orden en que el mapa tenía las raíces |
+| `RZ.h256_eq_iff` | la igualdad traducida de `H256` es la igualdad, en los dos sentidos |
+| `RZ.poner_si_falta_no_repite` | `poner_si_falta` no repite claves |
+| `RZ.state_transition_conserva_raices` | la transición conserva el invariante de las raíces pendientes: no se repiten y están en el historial |
+| `RZ.alcanzable_raices` | ese invariante vale en todo estado alcanzable desde el génesis |
+| `RZ.raices_pendientes_acotadas` | en todo estado alcanzable hay a lo sumo 262144 raíces pendientes |
+| `RZ.process_attestations_devuelve_con_invariante` | `process_attestations` no entra en pánico, con ese invariante en lugar de la cota por bloque |
+| `RZ.state_transition_devuelve_con_invariante` | lo mismo para la transición entera |
+| `RZ.state_transition_devuelve_desde_genesis` | **la transición no entra en pánico en ningún estado alcanzable, y del bloque sólo se pide el límite de su tipo** |
 | `bind_da_ok` | una herramienta: abre un bind de `RustM` |
 
 No se eligieron por cantidad. Entre todos cubren aritmética, ramificación y
@@ -1400,7 +1409,8 @@ entra a la función: el loop agrega a lo sumo una raíz por attestation. No es u
 invariante de los estados alcanzables. Un estado con muchas raíces pendientes y
 un bloque lleno queda afuera de este resultado, lo cual no quiere decir que
 aborte: quiere decir que acá no está demostrado. La cota fina, que las raíces
-del mapa son distintas y están en el historial, no está.
+del mapa son distintas y están en el historial, está más abajo, en **La cota de
+raíces sale de un invariante**.
 
 El cuerpo del loop deja 170 condiciones que verificar, una por cada punto donde
 algo podría fallar en cada camino posible. Son de ocho clases y se cierran por
@@ -1448,8 +1458,9 @@ pegamento, que lo que pide cada paso siga valiendo después del anterior:
 **Qué no dice.** Que se pueda prescindir de todas las hipótesis. Las tres que
 hablan del estado se conservan de un bloque al siguiente y valen en el génesis
 (las dos secciones que siguen), así que sobre estados alcanzables ya no hay que
-pedirlas. Pero la cota de raíces es una condición sobre las entradas, no un
-invariante. Y que el hash devuelva no se puede demostrar acá.
+pedirlas. La cota de raíces, en este resultado, es una condición sobre las
+entradas y no un invariante; más abajo se la reemplaza por uno. Y que el hash
+devuelva no se puede demostrar acá.
 
 Controles negativos, dos. Sin el invariante del historial queda abierta la
 precondición del header. Si el header no dice que deja el registro como estaba,
@@ -1482,8 +1493,9 @@ hipótesis una vez, sobre el estado del que se parte, y siguen valiendo bloque
 tras bloque.
 
 **Lo que este encadenamiento no cubre.** La cota de raíces pendientes más
-attestations, que depende de cada bloque y no es un invariante. El punto de
-partida, el génesis, está en la sección que sigue.
+attestations, que depende de cada bloque y no es un invariante; se reemplaza en
+**La cota de raíces sale de un invariante**. El punto de partida, el génesis,
+está en la sección que sigue.
 
 Son resultados del tipo "si devuelve". Como control negativo le sacamos al loop
 de attestations lo que sabe de `try_finalize`: quedan abiertas justo las metas
@@ -1527,7 +1539,8 @@ exigente.
 estado. Sobre estados alcanzables ya no hay que pedirlas: salen del génesis. Lo
 que sigue pidiendo son tres cosas, y ninguna habla del estado: `usize` de 64
 bits; que el hash devuelva; y que las raíces pendientes más las attestations
-del bloque no pasen de 262144.
+del bloque no pasen de 262144. Esa tercera se va más abajo, en **La cota de
+raíces sale de un invariante**.
 
 **`ST-7` va aparte.** Su hipótesis, que el checkpoint justificado esté en el
 historial, es falsa en el estado inicial, que no tiene historial. No sale del
@@ -1684,6 +1697,76 @@ comparación enunciada al revés no cierra ninguno de los tres casos de
 Los dos resultados sobre `serialize_justifications` dependen de siete axiomas:
 los tres de Lean, tres nativos y la firma de `fmt`.
 
+### La cota de raíces sale de un invariante
+
+La ausencia de pánico pedía una cosa de cada bloque: que las raíces pendientes
+del estado más las attestations del bloque no pasaran de 262144. Era una
+condición suficiente y gruesa, y había que suponerla bloque por bloque. Acá se
+reemplaza por un invariante.
+
+**El invariante.** Las raíces pendientes del estado (`justifications_roots`) no
+se repiten, y todas están en el historial de hashes. De ahí sale la cota por
+palomar: no puede haber más raíces pendientes que hashes en el historial, y el
+historial tiene a lo sumo 262144.
+
+**Por qué vale sobre su código.** Al mapa de votos le entran raíces por dos
+lados: las que el estado ya tenía, y la raíz del target de cada voto válido. Y
+`is_valid_vote` sólo acepta un voto si
+`historical_block_hashes[target.slot] == target.root`. Todo lo que entra, entra
+por `poner_si_falta`, que no repite. Lo demás (`sin`, y el `filtrado` de
+`try_finalize`) sólo saca. Al final `serialize_justifications` escribe en el
+estado exactamente las claves del mapa, que es lo que dice la sección anterior:
+por eso hacía falta primero.
+
+| Resultado | Qué dice |
+|---|---|
+| `RZ.h256_eq_iff` | la igualdad traducida de `H256` es la igualdad, en los dos sentidos |
+| `RZ.poner_si_falta_no_repite` | `poner_si_falta` no repite claves |
+| `RZ.state_transition_conserva_raices` | la transición conserva el invariante, acepte o rechace |
+| `RZ.alcanzable_raices` | el invariante vale en todo estado alcanzable |
+| `RZ.raices_pendientes_acotadas` | en todo estado alcanzable hay a lo sumo 262144 raíces pendientes |
+| `RZ.process_attestations_devuelve_con_invariante` | `process_attestations` no entra en pánico, con el invariante en lugar de la cota por bloque |
+| `RZ.state_transition_devuelve_con_invariante` | lo mismo para la transición entera |
+| `RZ.state_transition_devuelve_desde_genesis` | la transición no entra en pánico en ningún estado alcanzable |
+
+```lean
+theorem RZ.state_transition_devuelve_desde_genesis (st : tipos.State)
+    (block : tipos.Block)
+    (h64 : UScalarTy.Usize.numBits = 64) (hd : HashDevuelve)
+    (ha : Alcanzable st)
+    (hatts : block.body.attestations.items.val.length ≤ 4096) :
+    ∃ r, stf.state_transition st block = ok r
+```
+
+**Lo que queda pedido del bloque, y por qué no es lo mismo que antes.** Una
+sola cosa: que su lista de attestations no tenga más de 4096 elementos. Ése es
+el límite de su tipo. En el Rust no hace falta pedirlo: el campo de `SszList`
+es privado, y una lista sólo se construye vacía o con `try_from`, que chequea
+la capacidad. La traducción a Lean no conserva esa garantía —ahí `SszList` es
+una estructura con un campo libre— y por eso aparece como hipótesis. Se usa
+para que el contador del loop de attestations no desborde. La hipótesis vieja
+hablaba del contenido del estado y del bloque juntos; ésta es un límite de tipo
+que el Rust ya cumple.
+
+**La igualdad de `H256`, del otro lado.** Para `ST-7` habíamos demostrado que si
+la igualdad traducida devuelve `true`, los dos valores son iguales. Para saber
+que `poner_si_falta` no repite hace falta lo contrario: que dos raíces iguales
+den `true`, o sea que la búsqueda lineal las encuentre. `RZ.h256_eq_iff` junta
+las dos mitades.
+
+**Lo que no cambia.** Sigue pidiendo `usize` de 64 bits y que el hash devuelva.
+Y los resultados anteriores, con la cota por bloque, siguen ahí: sirven para un
+estado que no salió del génesis pero cumple sus hipótesis.
+
+Controles negativos, dos. Sin saber que el target de un voto válido está en el
+historial, el loop de attestations no cierra. Y sin saber que la búsqueda que
+no encuentra la clave es porque no está, `poner_si_falta` queda con una meta
+abierta: que la clave no estaba.
+
+Los dos primeros resultados dependen sólo de los tres axiomas de Lean. El de
+`process_attestations`, de catorce. Los otros cinco, de los dieciséis de
+`state_transition`.
+
 ### Qué es esto contra el catálogo, dicho exacto
 
 `ST-3` en
@@ -1782,6 +1865,10 @@ importa: elegir las propias propiedades vuelve el ejercicio circular.
 | `ST-7` desde el génesis, los otros cuatro | 16 | 3 | 9 | 4 |
 | el ordenamiento ordena: la comparación y `claves_ordenadas`, tres resultados | 3 | 3 | — | — |
 | el ordenamiento ordena: lo que escribe `serialize_justifications`, dos | 7 | 3 | 3 | 1 |
+| la igualdad de `H256` en los dos sentidos, y `poner_si_falta` no repite | 3 | 3 | — | — |
+| el invariante de las raíces pendientes, los tres resultados | 16 | 3 | 9 | 4 |
+| sin pánico con ese invariante: `process_attestations` | 14 | 3 | 7 | 4 |
+| sin pánico con ese invariante: la transición, los dos resultados | 16 | 3 | 9 | 4 |
 
 Tres categorías, con tres pesos distintos.
 
@@ -2073,10 +2160,11 @@ devuelven sin ninguna hipótesis. Las otras siete, `state_transition` entre
 ellas, devuelven con las hipótesis de su sección. Una de esas hipótesis no se
 puede demostrar en este paquete: que el hash devuelva.
 
-**La cota de raíces de `process_attestations` es una condición suficiente, no
-un invariante.** Pide que las raíces del estado más las attestations del bloque
-no pasen de 262144. La cota fina, que las raíces del mapa de votos son
-distintas y están en el historial, no está demostrada.
+**Del bloque queda pedido el límite de su lista de attestations.** El resultado
+final sobre estados alcanzables pide que el bloque no traiga más de 4096
+attestations. Es la capacidad del tipo, que el Rust garantiza y la traducción a
+Lean no conserva. No es una condición sobre lo que el bloque dice, pero es una
+hipótesis escrita y no un teorema.
 
 **El invariante de la ventana supone `usize` de 64 bits.** Los resultados sobre
 dónde termina la ventana llevan esa hipótesis explícita. En 32 bits los
